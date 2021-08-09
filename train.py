@@ -13,7 +13,10 @@ set_seed(42)
 np.set_printoptions(precision=4, suppress=True, linewidth=200)
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s", datefmt="%m/%d/%Y %H:%M:%S", level=logging.INFO,)
 
-model_type = 'RWKV' # 'RWKV' or 'RotaryMHA'
+# RWKV is our proposed model - fastest when the ctx window is long - good performance
+# RotaryMHA is usual Multi-head Attention + Rotary Encoding + GeGLU FFN
+# MHA-Plus is a bit slow (lots of tricks), with excellent performance
+model_type = 'RWKV' # 'RWKV' or 'RotaryMHA' or 'MHA-Plus'
 
 datafile = u"V:\\NLP\\simplebooks\\simplebooks-92-raw\\train.txt" # https://dldata-public.s3.us-east-2.amazonaws.com/simplebooks.zip
 model_level = 'character' # 'character' or 'word'
