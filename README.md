@@ -30,7 +30,7 @@ Moreover we multiply the final output of Time-mix layer by γ(t). The reason for
 
 * The Channel-mix is similar to GeGLU (https://arxiv.org/abs/2002.05202) with an extra R factor.
 
-* Finally, we add extra time-mixing as in (https://github.com/BlinkDL/minGPT-tuned)
+* Finally, we add extra time-mixing as in (https://github.com/BlinkDL/minGPT-tuned). You can try reducing the amt of time-mixing in upper layers of deep models.
 
 ***
 
