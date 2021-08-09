@@ -14,7 +14,7 @@ alt="\begin{align*}
 
 * The Time-mix is similar to AFT (https://arxiv.org/abs/2105.14103). There are two differences.
 
-(1) We changed the softmax normalization. For masked language models, we define:
+(1) We changed the normalization (denominator). For masked language models, we define:
 
 <img src=
 "https://render.githubusercontent.com/render/math?math=%5Cdisplaystyle+%5Ctext%7Bsoftmax%7D_t%28%5Ctext%7BK%7D_%7Bu%2Cc%7D%29+%3D+%5Cfrac%7B%5Cexp%28%5Ctext%7BK%7D_%7Bu%2Cc%7D%29%7D%7B%5Csum_%7Bv+%5Cleq+t%7D%5Cexp%28%5Ctext%7BK%7D_%7Bv%2Cc%7D%29%7D" 
@@ -31,6 +31,16 @@ Moreover we multiply the final output of Time-mix layer by γ(t). The reason for
 * The Channel-mix is similar to GeGLU (https://arxiv.org/abs/2002.05202) with an extra R factor.
 
 * Finally, we add extra time-mixing as in (https://github.com/BlinkDL/minGPT-tuned)
+
+***
+
+We also propose a new sampling method (as in src/utils.py):
+
+(1) Find the max probability p_max after softmax.
+
+(2) Remove all entries whose probability is lower than 0.02 * pow(p_max, 2)
+
+(3) Feel free to tune the 0.02 and 2 factor.
 
 ***
 
