@@ -19,12 +19,20 @@ logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s
 model_type = 'RWKV' # 'RWKV' or 'RotaryMHA' or 'MHA-Plus'
 
 datafile = u"V:\\NLP\\simplebooks\\simplebooks-92-raw\\train.txt" # https://dldata-public.s3.us-east-2.amazonaws.com/simplebooks.zip
+datafile_encoding = 'utf-8'
+# datafile = u"Y:\\BlinkNLP\\_txt_\\txt\\_all.txt"
+# datafile_encoding = 'utf-16'
+
 model_level = 'character' # 'character' or 'word'
 
 ctx_size = 256 if model_level == 'character' else 128
 nLayers = 5
 nHead = 8
 nEmb = 512
+
+lr_initial = 6e-4 if model_type == 'RWKV' else 4e-4 # RWKV can use higher LR
+lr_final = 2e-4
+betas = (0.9, 0.99)
 
 nepoch = 50 # just a quick test. the 'epoch' here is very short
 nbatchsz = 64
@@ -65,7 +73,7 @@ class Dataset(Dataset):
         y = torch.tensor(dix[1:], dtype=torch.long)
         return x, y
 
-train_dataset = Dataset(open(datafile, "r", encoding="utf-8").read(), model_level, ctx_size)
+train_dataset = Dataset(open(datafile, "r", encoding=datafile_encoding).read(), model_level, ctx_size)
 
 ########################################################################################################
 
@@ -74,8 +82,8 @@ model = GPT(GPTConfig(train_dataset.vocab_size, train_dataset.ctx_size, model_ty
 
 print('model', model_type, 'total epoch', nepoch, 'batchsz', nbatchsz, 'nLayers', nLayers, 'nHead', nHead, 'nEmb', nEmb, 'len', ctx_size)
 tconf = TrainerConfig(model_type=model_type, max_epochs=nepoch, batch_size=nbatchsz,
-                        learning_rate=6e-4 if model_type == 'RWKV' else 4e-4, betas=(0.9, 0.99), # RWKV can use higher LR
-                        lr_decay=True, lr_final=2e-4, warmup_tokens=0, final_tokens=nepoch*len(train_dataset)*ctx_size, num_workers=0)
+                        learning_rate=lr_initial, lr_decay=True, lr_final=lr_final, betas=betas,
+                        warmup_tokens=0, final_tokens=nepoch*len(train_dataset)*ctx_size, num_workers=0)
 trainer = Trainer(model, train_dataset, None, tconf)
 
 trainer.train()
