@@ -29,21 +29,21 @@ model_level = 'character' # 'character' or 'word'
 
 ctx_size = 256 if model_level == 'character' else 128
 nLayers = 5
-nHead = 8
-nEmb = 512
+nHead = 8                                                       # if you see nan in large RWKV models, turn on 'self.ln1' in model.py
+nEmb = nHead * 64
 
-lr_initial = 6e-4 if model_type == 'RWKV' else 4e-4 # RWKV can use higher lr
+lr_initial = 6e-4 if model_type == 'RWKV' else 4e-4             # RWKV can use higher lr
 lr_final = 2e-4
 
-lr_initial /= math.sqrt(nLayers / 5) # lower lr for deep models; higher lr for shallow models
+lr_initial /= math.sqrt(nLayers / 5)                            # lower lr for deep models; higher lr for shallow models
 lr_final /= math.sqrt(nLayers / 5)
 
 betas = (0.9, 0.99)
-weight_decay = 0 if model_type == 'RWKV' else 0.01 # seems wd is not very useful when you have enough data
+weight_decay = 0 if model_type == 'RWKV' else 0.01              # seems wd is not very useful when we have enough data
 
-nepoch = 50 # just a quick test. the 'epoch' here is very short
+nepoch = 50                                                     # just a quick test. the 'epoch' here is very short
 nbatchsz = 64
-epoch_length_fixed = 10000 # make an 'epoch' very short, so we can see the training progress
+epoch_length_fixed = 10000                                      # make an 'epoch' very short, so we can see the training progress
 
 ########################################################################################################
 # Load data
