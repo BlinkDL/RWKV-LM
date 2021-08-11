@@ -32,9 +32,14 @@ nLayers = 5
 nHead = 8
 nEmb = 512
 
-lr_initial = 6e-4 if model_type == 'RWKV' else 4e-4 # RWKV can use higher LR
+lr_initial = 6e-4 if model_type == 'RWKV' else 4e-4 # RWKV can use higher lr
 lr_final = 2e-4
+
+lr_initial /= math.sqrt(nLayers / 5) # lower lr for deep models; higher lr for shallow models
+lr_final /= math.sqrt(nLayers / 5)
+
 betas = (0.9, 0.99)
+weight_decay = 0 if model_type == 'RWKV' else 0.01 # seems wd is not very useful when you have enough data
 
 nepoch = 50 # just a quick test. the 'epoch' here is very short
 nbatchsz = 64
@@ -87,7 +92,7 @@ model = GPT(GPTConfig(train_dataset.vocab_size, train_dataset.ctx_size, model_ty
                 n_layer=nLayers, n_head=nHead, n_embd=nEmb))
 
 print('model', model_type, 'total epoch', nepoch, 'batchsz', nbatchsz, 'nLayers', nLayers, 'nHead', nHead, 'nEmb', nEmb, 'len', ctx_size)
-tconf = TrainerConfig(model_type=model_type, max_epochs=nepoch, batch_size=nbatchsz,
+tconf = TrainerConfig(model_type=model_type, max_epochs=nepoch, batch_size=nbatchsz, weight_decay=weight_decay,
                         learning_rate=lr_initial, lr_decay=True, lr_final=lr_final, betas=betas,
                         warmup_tokens=0, final_tokens=nepoch*len(train_dataset)*ctx_size, num_workers=0)
 trainer = Trainer(model, train_dataset, None, tconf)

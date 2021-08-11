@@ -80,7 +80,7 @@ class RWKV_ChannelMix(nn.Module):
         v = self.value(x)
         r = self.receptance(x)
         
-        wkv = self.weight(F.gelu(k)  * v)
+        wkv = self.weight(F.mish(k)  * v) # mish is a bit better than gelu
         y = torch.sigmoid(r) * wkv
 
         return y
@@ -312,6 +312,7 @@ class Block(nn.Module):
 class GPT(nn.Module):
     def __init__(self, config):
         super().__init__()
+        self.config = config
 
         self.tok_emb = nn.Embedding(config.vocab_size, config.n_embd)
 
@@ -334,6 +335,11 @@ class GPT(nn.Module):
 
     def _init_weights(self, module):
         if isinstance(module, (nn.Linear, nn.Embedding)):
+            # if self.config.model_type == 'RWKV' and isinstance(module, nn.Linear):
+            #     gain_layer = min(3, module.weight.shape[0] / module.weight.shape[1])
+            #     depth_factor = min(1, 1 / math.sqrt(self.config.n_layer / 5))
+            #     nn.init.orthogonal_(module.weight, gain = gain_layer * depth_factor) # will nan for large models
+            # else:
             module.weight.data.normal_(mean=0.0, std=0.01)
             if isinstance(module, nn.Linear) and module.bias is not None:
                 module.bias.data.zero_()
