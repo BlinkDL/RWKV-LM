@@ -1,3 +1,7 @@
+########################################################################################################
+# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM
+########################################################################################################
+
 import os, sys, time, math, random, json, datetime
 import logging
 import numpy as np
