@@ -34,6 +34,10 @@ Moreover we multiply the final output of Time-mix layer by γ(t). The reason for
 
 ***
 
+p.s. There is a MHA_pro model in this repo with strong performance. Give it a try :)
+
+***
+
 We also propose a new sampling method (as in src/utils.py):
 
 (1) Find the max probability p_max after softmax.
