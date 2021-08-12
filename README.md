@@ -44,8 +44,14 @@ We also propose a new sampling method (as in src/utils.py):
 
 ***
 
-Training loss, RWKV vs MHA+Rotary+GeGLU:
+Character-level loss on simplebooks-92 dataset https://dldata-public.s3.us-east-2.amazonaws.com/simplebooks.zip
 
 ![RWKV-vs-MHA](RWKV-vs-MHA.png)
 
-(this is character-level loss with simplebooks-92 dataset https://dldata-public.s3.us-east-2.amazonaws.com/simplebooks.zip)
+Gray: usual MHA+Rotary+GeGLU - performance not as good.
+
+Red: RWKV ("linear" attention) - VRAM friendly - quite faster when ctx window is long - good performance.
+
+Black: MHA_pro (MHA with various tweaks & RWKV-type-FFN) - slow - needs more VRAM - good performance.
+
+parameters count: 17.2 vs 18.5 vs 18.5.
