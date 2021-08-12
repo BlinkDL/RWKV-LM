@@ -15,10 +15,10 @@ set_seed(42)
 np.set_printoptions(precision=4, suppress=True, linewidth=200)
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s", datefmt="%m/%d/%Y %H:%M:%S", level=logging.INFO,)
 
-# RWKV is our proposed model - fastest when the ctx window is long - good performance
-# RotaryMHA is usual Multi-head Attention + Rotary Encoding + GeGLU FFN
-# MHA-Plus is a bit slow (lots of tricks), with excellent performance
-model_type = 'RWKV' # 'RWKV' or 'RotaryMHA' or 'MHA-Plus'
+# RWKV - our new model - fastest when ctx_len is long - VRAM friendly - good performance
+# MHA_rotary - usual Multi-head Attention+Rotary+GeGLU - not as good
+# MHA_pro - slow (lots of tricks) - VRAM hungry - good performance
+model_type = 'RWKV' # 'RWKV' or 'MHA_rotary' or 'MHA_pro'
 
 datafile = u"V:\\NLP\\simplebooks\\simplebooks-92-raw\\train.txt" # https://dldata-public.s3.us-east-2.amazonaws.com/simplebooks.zip
 datafile_encoding = 'utf-8'
@@ -27,23 +27,20 @@ datafile_encoding = 'utf-8'
 
 model_level = 'character' # 'character' or 'word'
 
-ctx_size = 256 if model_level == 'character' else 128
-nLayers = 5
-nHead = 8
-nEmb = nHead * 64
+ctx_len = 256                                       # length of ctx window
+n_layer = 5
+n_head = 8
+n_embd = n_head * 64
 
-lr_initial = 6e-4 if model_type == 'RWKV' else 4e-4         # RWKV can use higher lr
+batch_size = 64
+
+n_epoch = 50                                        # the 'epoch' here is very short
+lr_init = 6e-4 if model_type == 'RWKV' else 4e-4    # RWKV can use higher lr
 lr_final = 2e-4
 
-lr_initial /= math.sqrt(nLayers / 5)                        # lower lr for deep models; higher lr for shallow models
-lr_final /= math.sqrt(nLayers / 5)
-
 betas = (0.9, 0.99)
-weight_decay = 0 if model_type == 'RWKV' else 0.01          # seems wd is not very useful when we have enough data
-
-nepoch = 50                                                 # just a quick test. the 'epoch' here is very short
-nbatchsz = 64
-epoch_length_fixed = 10000                                  # make an 'epoch' very short, so we can see the training progress
+weight_decay = 0 if model_type == 'RWKV' else 0.01  # seems wd is not very useful when we have enough data
+epoch_length_fixed = 10000                          # make an 'epoch' very short, so we can see the training progress
 
 ########################################################################################################
 # Load data
@@ -52,7 +49,7 @@ epoch_length_fixed = 10000                                  # make an 'epoch' ve
 print('loading data... ' + datafile)
 
 class Dataset(Dataset):
-    def __init__(self, data, model_level, ctx_size):
+    def __init__(self, data, model_level, ctx_len):
         print('building token list...')
         if model_level == 'word':
             import re
@@ -67,7 +64,7 @@ class Dataset(Dataset):
         print('\n\ndata has %d %ss, %d unique.' % (data_size, model_level, vocab_size))
         self.stoi = { ch:i for i,ch in enumerate(unique) }
         self.itos = { i:ch for i,ch in enumerate(unique) }
-        self.ctx_size = ctx_size
+        self.ctx_len = ctx_len
         self.vocab_size = vocab_size
         self.data = data
 
@@ -75,26 +72,26 @@ class Dataset(Dataset):
         return epoch_length_fixed
 
     def __getitem__(self, idx):
-        i = np.random.randint(0, len(self.data) - (self.ctx_size + 1)) # CHEAT: pick a spot in the dataset at random
-        chunk = self.data[i:i+self.ctx_size+1]
+        i = np.random.randint(0, len(self.data) - (self.ctx_len + 1)) # CHEAT: pick a spot in the dataset at random
+        chunk = self.data[i:i+self.ctx_len+1]
         dix = [self.stoi[s] for s in chunk]
         x = torch.tensor(dix[:-1], dtype=torch.long)
         y = torch.tensor(dix[1:], dtype=torch.long)
         return x, y
 
-train_dataset = Dataset(open(datafile, "r", encoding=datafile_encoding).read(), model_level, ctx_size)
+train_dataset = Dataset(open(datafile, "r", encoding=datafile_encoding).read(), model_level, ctx_len)
 
 ########################################################################################################
 # Train model
 ########################################################################################################
 
-model = GPT(GPTConfig(train_dataset.vocab_size, train_dataset.ctx_size, model_type=model_type,
-                n_layer=nLayers, n_head=nHead, n_embd=nEmb))
+model = GPT(GPTConfig(train_dataset.vocab_size, train_dataset.ctx_len, model_type=model_type,
+                n_layer=n_layer, n_head=n_head, n_embd=n_embd))
 
-print('model', model_type, 'total epoch', nepoch, 'batchsz', nbatchsz, 'nLayers', nLayers, 'nHead', nHead, 'nEmb', nEmb, 'len', ctx_size)
-tconf = TrainerConfig(model_type=model_type, max_epochs=nepoch, batch_size=nbatchsz, weight_decay=weight_decay,
-                        learning_rate=lr_initial, lr_decay=True, lr_final=lr_final, betas=betas,
-                        warmup_tokens=0, final_tokens=nepoch*len(train_dataset)*ctx_size, num_workers=0)
+print('model', model_type, 'total epoch', n_epoch, 'batch_size', batch_size, 'n_layer', n_layer, 'n_head', n_head, 'n_embd', n_embd, 'len', ctx_len)
+tconf = TrainerConfig(model_type=model_type, max_epochs=n_epoch, batch_size=batch_size, weight_decay=weight_decay,
+                        learning_rate=lr_init, lr_decay=True, lr_final=lr_final, betas=betas,
+                        warmup_tokens=0, final_tokens=n_epoch*len(train_dataset)*ctx_len, num_workers=0)
 trainer = Trainer(model, train_dataset, None, tconf)
 
 trainer.train()
@@ -119,8 +116,8 @@ for run in range(NUM_OF_RUNS):
         x = np.array([train_dataset.stoi[s] for s in context], dtype=np.int64)
 
     real_len = len(x)
-    if real_len < ctx_size:
-        x = np.pad(x, (0, ctx_size - real_len))
+    if real_len < ctx_len:
+        x = np.pad(x, (0, ctx_len - real_len))
     print_begin = 0
         
     for i in range(LENGTH_OF_EACH):
@@ -130,13 +127,13 @@ for run in range(NUM_OF_RUNS):
             print_begin = real_len
 
         with torch.no_grad():
-            xxx = torch.tensor(x[-ctx_size:], dtype=torch.long)[None,...].to("cuda:0")
+            xxx = torch.tensor(x[-ctx_len:], dtype=torch.long)[None,...].to("cuda:0")
             out, _ = model(xxx)
-        pos = -1 if real_len >= ctx_size else real_len - 1
+        pos = -1 if real_len >= ctx_len else real_len - 1
 
         char = sample_logits(out, pos, temperature=1.0, min_p_pow=2.0, min_p_ratio=0.02) # our special sampling method
     
-        if real_len < ctx_size:
+        if real_len < ctx_len:
             x[real_len] = char
         else:
             x = np.append(x, char)

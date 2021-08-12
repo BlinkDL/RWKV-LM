@@ -1,4 +1,4 @@
-import math
+import math, sys
 import logging
 import numpy as np
 from tqdm.auto import tqdm
@@ -8,16 +8,19 @@ from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data.dataloader import DataLoader
 logger = logging.getLogger(__name__)
 
+print('logging to wandb... (comment it if you don\'t have wandb)')
+import wandb # comment it if you don't have wandb
+
 class TrainerConfig:
     max_epochs = 10
     batch_size = 64
-    learning_rate = 3e-4
+    learning_rate = 4e-4
     betas = (0.9, 0.95)
     grad_norm_clip = 1.0
     weight_decay = 0.01
-    lr_decay = False # learning rate decay params: linear warmup followed by cosine decay
-    warmup_tokens = 375e6 # these two numbers come from the GPT-3 paper, but may not be good defaults elsewhere
-    final_tokens = 260e9 # (at what point we reach 10% of original LR)
+    lr_decay = False # linear warmup followed by cosine decay
+    warmup_tokens = 375e6 # these two numbers come from the GPT-3 paper
+    final_tokens = 260e9 # at which point do we reach lr_final
     ckpt_path = None
     num_workers = 0 # for DataLoader
 
@@ -33,6 +36,12 @@ class Trainer:
         self.test_dataset = test_dataset
         self.config = config
         self.avg_loss = -1
+        self.steps = 0
+
+        if 'wandb' in sys.modules:
+            cfg = model.config
+            run_name = str(cfg.vocab_size) + '-' + str(cfg.ctx_len) + '-' + cfg.model_type + '-' + str(cfg.n_layer) + '-' + str(cfg.n_embd)
+            wandb.init(project="RWKV-LM", name=run_name + '-' + wandb.util.generate_id(), config=config, save_code=False)
 
         # take over whatever gpus are on the system
         self.device = 'cpu'
@@ -101,6 +110,11 @@ class Trainer:
 
                     # report progress
                     now_loss = loss.item()
+                    
+                    if 'wandb' in sys.modules:
+                        wandb.log({"loss": now_loss}, step = self.steps * self.config.batch_size)
+                    self.steps += 1
+
                     if self.avg_loss < 0:
                         self.avg_loss = now_loss
                     else:
