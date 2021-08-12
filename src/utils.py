@@ -27,16 +27,20 @@ def top_p_probs(probs, p):
 def sample_logits(logits, pos, temperature=1.0, top_k=None, top_p=None, min_p_pow=None, min_p_ratio=None):
     logits = logits[:, pos, :] / temperature
     probs = F.softmax(logits, dim=-1)
+    
     if min_p_ratio is not None:
         limit = torch.pow(torch.max(probs), min_p_pow) * min_p_ratio
         logits[probs < limit] = -float('Inf')
+    
     if top_k is not None:
         logits = top_k_logits(logits, top_k)
+    
     probs = F.softmax(logits, dim=-1)
+    
     if top_p is not None:
         probs[0] = top_p_probs(probs[0], top_p)
+    
     ix = torch.multinomial(probs, num_samples=1)
-
     return ix[0][0].cpu()
 
 def set_seed(seed):

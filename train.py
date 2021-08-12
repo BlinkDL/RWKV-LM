@@ -20,6 +20,8 @@ logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s
 # MHA_pro - slow (lots of tricks) - VRAM hungry - good performance
 model_type = 'RWKV' # 'RWKV' or 'MHA_rotary' or 'MHA_pro'
 
+# datafile = u"V:\\NLP\\text8"
+# datafile = u"V:\\NLP\\enwik8"
 datafile = u"V:\\NLP\\simplebooks\\simplebooks-92-raw\\train.txt" # https://dldata-public.s3.us-east-2.amazonaws.com/simplebooks.zip
 datafile_encoding = 'utf-8'
 # datafile = u"Y:\\BlinkNLP\\_txt_\\txt\\_all.txt"
@@ -27,15 +29,15 @@ datafile_encoding = 'utf-8'
 
 model_level = 'character' # 'character' or 'word'
 
-ctx_len = 256                                       # length of ctx window
+ctx_len = 256                                       # context length
 n_layer = 5
 n_head = 8
 n_embd = n_head * 64
 
 batch_size = 64
 
-n_epoch = 50                                        # the 'epoch' here is very short
-lr_init = 6e-4 if model_type == 'RWKV' else 4e-4    # RWKV can use higher lr
+n_epoch = 50                                        # the 'epoch' here is actually very short (and of fixed length)
+lr_init = 6e-4 if model_type == 'RWKV' else 4e-4    # seems RWKV can use higher lr
 lr_final = 2e-4
 
 betas = (0.9, 0.99)
@@ -72,7 +74,7 @@ class Dataset(Dataset):
         return epoch_length_fixed
 
     def __getitem__(self, idx):
-        i = np.random.randint(0, len(self.data) - (self.ctx_len + 1)) # CHEAT: pick a spot in the dataset at random
+        i = np.random.randint(0, len(self.data) - (self.ctx_len + 1)) # cheat: pick a random spot in dataset
         chunk = self.data[i:i+self.ctx_len+1]
         dix = [self.stoi[s] for s in chunk]
         x = torch.tensor(dix[:-1], dtype=torch.long)
@@ -108,7 +110,7 @@ NUM_OF_RUNS = 5
 LENGTH_OF_EACH = 300
 
 for run in range(NUM_OF_RUNS):
-    context = "It was"
+    context = "it was"
 
     if model_level == 'word':
         x = np.array([train_dataset.stoi[s] for s in context.strip().lower().split(' ')], dtype=np.int64)
