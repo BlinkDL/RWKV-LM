@@ -296,8 +296,6 @@ class Block(nn.Module):
         self.ln2 = nn.LayerNorm(config.n_embd)
 
         if config.model_type == 'RWKV':
-            self.ln1 = FixedNorm(config.n_embd)
-            self.ln2 = FixedNorm(config.n_embd)
             self.attn = RWKV_TimeMix(config, layer_id)
             self.mlp = RWKV_ChannelMix(config, layer_id)
         elif config.model_type == 'MHA_rotary':
@@ -323,11 +321,7 @@ class GPT(nn.Module):
 
         self.blocks = nn.Sequential(*[Block(config, i) for i in range(config.n_layer)])
 
-        if config.model_type == 'RWKV':
-            self.ln_f = FixedNorm(config.n_embd)
-        else:
-            self.ln_f = nn.LayerNorm(config.n_embd)
-
+        self.ln_f = nn.LayerNorm(config.n_embd)
         self.head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
 
         self.ctx_len = config.ctx_len
@@ -347,9 +341,9 @@ class GPT(nn.Module):
                 elif 'blocks.' in k:
                     block_id = int(k.split('.')[1])
                     if 'receptance.weight' in k:
-                        ww[k] *= 0.2 # 0.2 ~ 0.5 gives similar results
+                        ww[k] *= 0 # 0 works the best
                     elif 'attn.key.weight' in k:
-                        ww[k] *= 0.2 # 0.2 ~ 0.5 gives similar results
+                        ww[k] *= 0 # 0 works the best
                     elif 'attn.output.weight' in k:
                         ww[k] *= 1 / pow(1+block_id, 0.5) # 0.5 ~ 0.7 gives similar results
                     elif 'mlp.weight.weight' in k:
