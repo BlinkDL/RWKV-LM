@@ -30,7 +30,7 @@ Moreover we multiply the final output of Time-mix layer by γ(t). The reason for
 
 * The Channel-mix is similar to GeGLU (https://arxiv.org/abs/2002.05202) with an extra R factor.
 
-* Finally, we add extra time-shift mixing as in (https://github.com/BlinkDL/minGPT-tuned). You can try reducing the amt of time-mixing in upper layers of deep models.
+* Finally, we add extra time-shift mixing as in (https://github.com/BlinkDL/minGPT-tuned).
 
 ***
 
@@ -48,7 +48,7 @@ when you train a GPT, the hidden representation of a token has to accomplish two
 
 the time_shifted channels can focus on (2). so we have good propagation of info. it's like some kind of residual connection.
 
-you can use time_shift in usual QKV self-attention too. when i studied the weights, i found V really likes the time_shifted channel. less so for Q. makes sense if you think abt it.
+you can use time_shift in usual QKV self-attention too. when i studied the weights, i found V really likes the time_shifted channels. less so for Q. makes sense if you think abt it.
 
 ***
 
