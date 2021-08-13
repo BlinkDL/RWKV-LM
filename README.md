@@ -48,7 +48,7 @@ when you train a GPT, the hidden representation of a token has to accomplish two
 
 the time_shifted channels can focus on (2). so we have good propagation of info. it's like some kind of residual connection.
 
-you can use time_shift in usual QKV self-attention too. when i studied the weights, i found V really likes time_shifted channel. less so for Q. makes sense if you think abt it.
+you can use time_shift in usual QKV self-attention too. when i studied the weights, i found V really likes the time_shifted channel. less so for Q. makes sense if you think abt it.
 
 ***
 
