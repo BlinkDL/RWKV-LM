@@ -30,7 +30,23 @@ Moreover we multiply the final output of Time-mix layer by γ(t). The reason for
 
 * The Channel-mix is similar to GeGLU (https://arxiv.org/abs/2002.05202) with an extra R factor.
 
-* Finally, we add extra time-mixing as in (https://github.com/BlinkDL/minGPT-tuned). You can try reducing the amt of time-mixing in upper layers of deep models.
+* Finally, we add extra time-shift mixing as in (https://github.com/BlinkDL/minGPT-tuned). You can try reducing the amt of time-mixing in upper layers of deep models.
+
+***
+
+the time-shift mixing means explicitly using both (half channel of this token) & (half channel of prev token) to generate all vectors. 
+
+i find divide by 2 and shift-1 is the best.  i looked at the weights and found you may want to use less mixing in higher layers.
+
+here is my theory:
+
+when you train a GPT, the hidden representation of a token has to accomplish two different objects:
+
+1. predict the next token. sometimes this is easy (obvious next token).
+
+2. collect info so later token can use it. this is always hard.
+
+the time_shifted channels can focus on (2). So we have good propagation of info. It's like some kind of residual connection.
 
 ***
 
