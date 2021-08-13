@@ -15,14 +15,15 @@ set_seed(42)
 np.set_printoptions(precision=4, suppress=True, linewidth=200)
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s", datefmt="%m/%d/%Y %H:%M:%S", level=logging.INFO,)
 
-# RWKV - our new model - fastest when ctx_len is long - VRAM friendly - good performance
-# MHA_rotary - usual Multi-head Attention+Rotary+GeGLU - not as good
-# MHA_pro - slow (lots of tricks) - VRAM hungry - good performance
-model_type = 'RWKV' # 'RWKV' or 'MHA_rotary' or 'MHA_pro'
+# RWKV       : our new model - fastest when ctx_len is long - VRAM friendly - good performance
+# MHA_rotary : usual Multi-head Attention+Rotary+GeGLU - not as good
+# MHA_shift  : with time-shift - good performance
+# MHA_pro    : slow (lots of tricks) - VRAM hungry - very good performance
+model_type = 'RWKV'
 
 # datafile = u"V:\\NLP\\text8"
 # datafile = u"V:\\NLP\\enwik8"
-datafile = u"V:\\NLP\\simplebooks\\simplebooks-92-raw\\train.txt" # https://dldata-public.s3.us-east-2.amazonaws.com/simplebooks.zip
+datafile = u"V:\\NLP\\simplebooks\\simplebooks-92-raw\\train.txt"
 datafile_encoding = 'utf-8'
 # datafile = u"Y:\\BlinkNLP\\_txt_\\txt\\_all.txt"
 # datafile_encoding = 'utf-16'
@@ -60,8 +61,8 @@ class Dataset(Dataset):
             print('splitting token...')
             data = data.lower().split(' ')
         unique = sorted(list(set(data)))
-        for u in unique:
-            print(u, end=' ')
+        # for u in unique:
+        #     print(u, end=' ')
         data_size, vocab_size = len(data), len(unique)
         print('\n\ndata has %d %ss, %d unique.' % (data_size, model_level, vocab_size))
         self.stoi = { ch:i for i,ch in enumerate(unique) }
