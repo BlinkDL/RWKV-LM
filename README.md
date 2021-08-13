@@ -44,13 +44,13 @@ when you train a GPT, the hidden representation of a token has to accomplish two
 
 1. predict the next token. sometimes this is easy (obvious next token).
 
-2. collect info so later token can use it. this is always hard.
+2. collect all prev ctx info so later token can use it. this is always hard.
 
-the time_shifted channels can focus on (2). So we have good propagation of info. It's like some kind of residual connection.
+the time_shifted channels can focus on (2). so we have good propagation of info. it's like some kind of residual connection.
 
 ***
 
-p.s. There is a MHA_pro model in this repo with strong performance. Give it a try :)
+p.s. There is aother MHA_pro model in this repo with strong performance. Give it a try :)
 
 ***
 
