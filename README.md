@@ -36,7 +36,7 @@ Moreover we multiply the final output of Time-mix layer by γ(t). The reason for
 
 the time-shift mixing means explicitly using both (half channel of this token) & (half channel of prev token) to generate all vectors. 
 
-i find divide by 2 and shift-1 is the best.  i looked at the weights and found you may want to use less mixing in higher layers.
+i found divide by 2 and shift-1 is the best for chinese LM.  you may want to use more shift for english char-level lm. i looked at the weights and found you may want to use less mixing in higher layers.
 
 here is my theory:
 
