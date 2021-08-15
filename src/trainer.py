@@ -70,27 +70,29 @@ class Trainer:
                                 batch_size=config.batch_size,
                                 num_workers=config.num_workers)
 
-            losses = []
             pbar = tqdm(enumerate(loader), total=len(loader), bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}') if is_train else enumerate(loader)
+            
             for it, (x, y) in pbar:
 
-                # place data on the correct device
-                x = x.to(self.device)
+                x = x.to(self.device) # place data on the correct device
                 y = y.to(self.device)
-
-                # forward the model
+                
                 with torch.set_grad_enabled(is_train):
-                    logits, loss = model(x, y)
-                    loss = loss.mean() # collapse all losses if they are scattered on multiple gpus
-                    losses.append(loss.item())
+                    logits, loss = model(x, y) # forward the model
+                    loss = loss.mean()         # collapse all losses if they are scattered on multiple gpus
 
-                if is_train:
-
-                    # backprop and update the parameters
+                if is_train: # backprop and update the parameters                    
                     model.zero_grad()
                     loss.backward()
+
                     torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip)
                     optimizer.step()
+                    
+                    # try:
+                    #     torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip, error_if_nonfinite=True)
+                    #     optimizer.step()
+                    # except:
+                    #     pass # ignore nan sample -> sometimes can continue
 
                     # decay the learning rate based on our progress
                     if config.lr_decay:
@@ -123,11 +125,6 @@ class Trainer:
                         factor = max(1.0 / 300, 1.0 / math.sqrt(it + 1))
                         self.avg_loss = self.avg_loss * (1.0 - factor) + now_loss * factor
                     pbar.set_description(f"epoch {epoch+1} progress {progress*100.0:.2f}% iter {it}: ppl {math.exp(self.avg_loss):.2f} loss {self.avg_loss:.4f} lr {lr:e}")
-
-            if not is_train:
-                test_loss = float(np.mean(losses))
-                logger.info("test loss: %f", test_loss)
-                return test_loss
 
         best_loss = float('inf')
         self.tokens = 0 # counter used for learning rate decay
