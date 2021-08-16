@@ -38,10 +38,11 @@ n_embd = n_head * 64
 batch_size = 64
 
 n_epoch = 50                                        # the 'epoch' here is actually very short (and of fixed length)
-lr_init = 6e-4 if model_type == 'RWKV' else 4e-4    # seems RWKV can use higher lr
+lr_init = 8e-4 if model_type == 'RWKV' else 4e-4    # seems RWKV can use higher lr
 lr_final = 2e-4
 
-betas = (0.9, 0.99)
+betas = (0.9, 0.999) if model_type == 'RWKV' else (0.9, 0.99)
+eps = 1e-8
 weight_decay = 0 if model_type == 'RWKV' else 0.01  # seems wd is not very useful when we have enough data
 epoch_length_fixed = 10000                          # make an 'epoch' very short, so we can see the training progress
 
@@ -91,9 +92,9 @@ train_dataset = Dataset(open(datafile, "r", encoding=datafile_encoding).read(), 
 model = GPT(GPTConfig(train_dataset.vocab_size, train_dataset.ctx_len, model_type=model_type,
                 n_layer=n_layer, n_head=n_head, n_embd=n_embd))
 
-print('model', model_type, 'total epoch', n_epoch, 'batch_size', batch_size, 'n_layer', n_layer, 'n_head', n_head, 'n_embd', n_embd, 'len', ctx_len)
+print('model', model_type, 'epoch', n_epoch, 'batchsz', batch_size, 'betas', betas, 'eps', eps, 'wd', weight_decay, 'layer', n_layer, 'head', n_head, 'embd', n_embd, 'ctx', ctx_len)
 tconf = TrainerConfig(model_type=model_type, max_epochs=n_epoch, batch_size=batch_size, weight_decay=weight_decay,
-                        learning_rate=lr_init, lr_decay=True, lr_final=lr_final, betas=betas,
+                        learning_rate=lr_init, lr_decay=True, lr_final=lr_final, betas=betas, eps=eps,
                         warmup_tokens=0, final_tokens=n_epoch*len(train_dataset)*ctx_len, num_workers=0)
 trainer = Trainer(model, train_dataset, None, tconf)
 

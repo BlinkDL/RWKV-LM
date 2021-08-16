@@ -15,7 +15,8 @@ class TrainerConfig:
     max_epochs = 10
     batch_size = 64
     learning_rate = 4e-4
-    betas = (0.9, 0.95)
+    betas = (0.9, 0.99)
+    eps = 1e-8
     grad_norm_clip = 1.0
     weight_decay = 0.01
     lr_decay = False # linear warmup followed by cosine decay
