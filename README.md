@@ -88,3 +88,11 @@ Blue: MHA_pro (MHA with various tweaks & RWKV-type-FFN) - slow - needs more VRAM
   url          = {https://doi.org/10.5281/zenodo.5196577}
 }
 ```
+
+# Initialization
+
+We use careful initialization for RWKV to get fast convergence - orthogonal matrices with proper scaling, special time_w curves, and reduce initial output weights in higher layers. Check model.py for details.
+
+Some learned time_w examples:
+
+![RWKV-time-w](RWKV-time-w.png)
