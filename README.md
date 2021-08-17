@@ -32,7 +32,7 @@ Moreover we multiply the final output of Time-mix layer by γ(t). The reason for
 
 * Finally, we add extra time-shift mixing as in (https://github.com/BlinkDL/minGPT-tuned).
 
-***
+# Token-shift (time-shift mixing)
 
 the time-shift mixing means explicitly using both (half channel of this token) & (half channel of prev token) to generate all vectors. 
 
@@ -50,11 +50,9 @@ the time_shifted channels can focus on (2). so we have good propagation of info.
 
 you can use time_shift in usual QKV self-attention too. when i studied the weights, i found V really likes the time_shifted channels. less so for Q. makes sense if you think abt it.
 
-***
+p.s. There is a MHA_pro model in this repo with strong performance. Give it a try :)
 
-p.s. There is aother MHA_pro model in this repo with strong performance. Give it a try :)
-
-***
+# Sampling method
 
 We also propose a new sampling method (as in src/utils.py):
 
@@ -64,7 +62,7 @@ We also propose a new sampling method (as in src/utils.py):
 
 (3) Feel free to tune the 0.02 and 2 factor.
 
-***
+# Performance
 
 Character-level loss on simplebooks-92 dataset https://dldata-public.s3.us-east-2.amazonaws.com/simplebooks.zip
 
