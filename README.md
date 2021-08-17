@@ -68,13 +68,13 @@ Character-level loss on simplebooks-92 dataset https://dldata-public.s3.us-east-
 
 ![RWKV-vs-MHA](RWKV-vs-MHA.png)
 
-Gray: usual MHA+Rotary+GeGLU - performance not as good.
+Gray: usual MHA+Rotary+GeGLU - performance not as good. 17.2M params.
 
-Red: RWKV ("linear" attention) - VRAM friendly - quite faster when ctx window is long - good performance.
+Red: RWKV ("linear" attention) - VRAM friendly - quite faster when ctx window is long - good performance. 16.6M params.
 
-Black: MHA_pro (MHA with various tweaks & RWKV-type-FFN) - slow - needs more VRAM - good performance.
+Green: MHA+Rotary+GeGLU+Token_shift. 17.2M params.
 
-parameters count: 17.2 vs 18.5 vs 18.5.
+Blue: MHA_pro (MHA with various tweaks & RWKV-type-FFN) - slow - needs more VRAM - good performance. 16.6M params.
 
 ```
 @software{peng_bo_2021_5196578,
