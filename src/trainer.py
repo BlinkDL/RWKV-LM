@@ -1,4 +1,4 @@
-import math, sys
+import math, sys, datetime
 import logging
 import numpy as np
 from tqdm.auto import tqdm
@@ -43,14 +43,19 @@ class Trainer:
             cfg = model.config
             for k in config.__dict__:
                 setattr(cfg, k, config.__dict__[k]) # combine cfg
-            run_name = str(cfg.vocab_size) + '-' + str(cfg.ctx_len) + '-' + cfg.model_type + '-' + str(cfg.n_layer) + '-' + str(cfg.n_embd)
-            wandb.init(project="RWKV-LM", name=run_name + '-' + wandb.util.generate_id(), config=cfg, save_code=False)
+            wandb.init(project="RWKV-LM", name=self.get_run_name() + '-' + datetime.datetime.today().strftime('%Y-%m-%d-%H-%M-%S'), config=cfg, save_code=False)
 
         # take over whatever gpus are on the system
         self.device = 'cpu'
         if torch.cuda.is_available():
             self.device = torch.cuda.current_device()
             self.model = torch.nn.DataParallel(self.model).to(self.device)
+
+    def get_run_name(self):
+        raw_model = self.model.module if hasattr(self.model, "module") else self.model
+        cfg = raw_model.config
+        run_name = str(cfg.vocab_size) + '-' + str(cfg.ctx_len) + '-' + cfg.model_type + '-' + str(cfg.n_layer) + '-' + str(cfg.n_embd)
+        return run_name
 
     def save_checkpoint(self):
         # DataParallel wrappers keep raw model object in .module attribute

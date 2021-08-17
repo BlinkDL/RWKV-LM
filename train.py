@@ -13,10 +13,10 @@ from src.utils import set_seed
 
 set_seed(42)
 np.set_printoptions(precision=4, suppress=True, linewidth=200)
-logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s", datefmt="%m/%d/%Y %H:%M:%S", level=logging.INFO,)
+logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S", level=logging.INFO,)
 
 # RWKV       : our new model - fastest when ctx_len is long - VRAM friendly - good performance
-# MHA_rotary : usual Multi-head Attention+Rotary+GeGLU - not as good
+# MHA_rotary : usual MultiheadAttention+Rotary+GeGLU - not as good
 # MHA_shift  : with time-shift - good performance
 # MHA_pro    : slow (lots of tricks) - VRAM hungry - very good performance
 model_type = 'RWKV'
@@ -34,6 +34,8 @@ ctx_len = 256                                       # context length
 n_layer = 5
 n_head = 8
 n_embd = n_head * 64
+n_attn = n_embd
+n_ffn = n_embd
 
 batch_size = 64
 
@@ -54,7 +56,7 @@ print('loading data... ' + datafile)
 
 class Dataset(Dataset):
     def __init__(self, data, model_level, ctx_len):
-        print('building token list...')
+        print('building token list...', end=' ')
         if model_level == 'word':
             import re
             data = re.sub(r'(\n|\.|\,|\?|\!|\:|\;|\-|\—|\||\'|\"|\`|\(|\)|[0-9]|\[|\]|\{|\}|\=|\+|\*|\\|\/|\~|\&|\$|\#|\%)', r' \g<0> ', data)
@@ -62,10 +64,12 @@ class Dataset(Dataset):
             print('splitting token...')
             data = data.lower().split(' ')
         unique = sorted(list(set(data)))
+        # print()
         # for u in unique:
         #     print(u, end=' ')
+        # print('\n\n')
         data_size, vocab_size = len(data), len(unique)
-        print('\n\ndata has %d %ss, %d unique.' % (data_size, model_level, vocab_size))
+        print('data has %d %ss, %d unique.' % (data_size, model_level, vocab_size))
         self.stoi = { ch:i for i,ch in enumerate(unique) }
         self.itos = { i:ch for i,ch in enumerate(unique) }
         self.ctx_len = ctx_len
@@ -90,9 +94,9 @@ train_dataset = Dataset(open(datafile, "r", encoding=datafile_encoding).read(), 
 ########################################################################################################
 
 model = GPT(GPTConfig(train_dataset.vocab_size, train_dataset.ctx_len, model_type=model_type,
-                n_layer=n_layer, n_head=n_head, n_embd=n_embd))
+                n_layer=n_layer, n_head=n_head, n_embd=n_embd, n_attn=n_attn, n_ffn=n_ffn))
 
-print('model', model_type, 'epoch', n_epoch, 'batchsz', batch_size, 'betas', betas, 'eps', eps, 'wd', weight_decay, 'layer', n_layer, 'head', n_head, 'embd', n_embd, 'ctx', ctx_len)
+print('model', model_type, 'epoch', n_epoch, 'batchsz', batch_size, 'betas', betas, 'eps', eps, 'wd', weight_decay, 'ctx', ctx_len, 'layer', n_layer, 'head', n_head, 'embd', n_embd, 'attn', n_attn, 'ffn', n_ffn)
 tconf = TrainerConfig(model_type=model_type, max_epochs=n_epoch, batch_size=batch_size, weight_decay=weight_decay,
                         learning_rate=lr_init, lr_decay=True, lr_final=lr_final, betas=betas, eps=eps,
                         warmup_tokens=0, final_tokens=n_epoch*len(train_dataset)*ctx_len, num_workers=0)
@@ -100,7 +104,7 @@ trainer = Trainer(model, train_dataset, None, tconf)
 
 trainer.train()
 
-torch.save(model, 'trained-' + datetime.datetime.today().strftime('%Y-%m-%d-%H-%M-%S') + '.pth')
+torch.save(model, 'trained-' + trainer.get_run_name() + '-' + datetime.datetime.today().strftime('%Y-%m-%d-%H-%M-%S') + '.pth')
 
 ########################################################################################################
 # Run model to generate text
