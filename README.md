@@ -1,4 +1,4 @@
-# RWKV-LM
+# The RWKV Language Model
 
 We propose the RWKV language model, with alternating time-mix and channel-mix layers:
 
@@ -30,25 +30,25 @@ Moreover we multiply the final output of Time-mix layer by γ(t). The reason for
 
 * The Channel-mix is similar to GeGLU (https://arxiv.org/abs/2002.05202) with an extra R factor.
 
-* Finally, we add extra time-shift mixing as in (https://github.com/BlinkDL/minGPT-tuned).
+* Finally, we add extra token-shift (time-shift mixing) as in (https://github.com/BlinkDL/minGPT-tuned).
 
 # Token-shift (time-shift mixing)
 
-the time-shift mixing means explicitly using both (half channel of this token) & (half channel of prev token) to generate all vectors. 
+The token-shift means explicitly using both (half channel of this token) & (half channel of prev token) to generate all vectors. 
 
-i found divide by 2 and shift-1 is the best for chinese LM.  you may want to use more shift for english char-level lm. i looked at the weights and found you may want to use less mixing in higher layers.
+I found dividing channels by 2 and shift-1 works the best for Chinese LM. You may want to use more shift for English char-level LM. I checked the weights and found you may want to use less mixing in higher layers.
 
-here is my theory:
+My theory on the effectiveness of token-shift:
 
-when you train a GPT, the hidden representation of a token has to accomplish two different objects:
+When we train a GPT, the hidden representation of a token has to accomplish two different objects:
 
-1. predict the next token. sometimes this is easy (obvious next token).
+1. Predict the next token. Sometimes this is easy (obvious next token).
 
-2. collect all prev ctx info so later token can use it. this is always hard.
+2. Collect all previous context info, so later tokens can use it. This is always hard.
 
-the time_shifted channels can focus on (2). so we have good propagation of info. it's like some kind of residual connection.
+The shifted channels can focus on (2), so we have good propagation of info. It's like some kind of residual connection, or a small RNN inside the transformer.
 
-you can use time_shift in usual QKV self-attention too. when i studied the weights, i found V really likes the time_shifted channels. less so for Q. makes sense if you think abt it.
+You can use token-shift in usual QKV self-attention too. I looked at the weights, and found V really likes the shifted channels, less so for Q. Makes sense if you think about it.
 
 p.s. There is a MHA_pro model in this repo with strong performance. Give it a try :)
 
@@ -91,7 +91,7 @@ Blue: MHA_pro (MHA with various tweaks & RWKV-type-FFN) - slow - needs more VRAM
 
 # Initialization
 
-We use careful initialization for RWKV to get fast convergence - orthogonal matrices with proper scaling, special time_w curves, and reduce initial output weights in higher layers. Check model.py for details.
+We use careful initialization for RWKV to get fast convergence - orthogonal matrices with proper scaling, special time_w curves, and reducing output weights in higher layers. Check model.py for details.
 
 Some learned time_w examples:
 
