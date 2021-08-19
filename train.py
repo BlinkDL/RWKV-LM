@@ -2,8 +2,7 @@
 # The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM
 ########################################################################################################
 
-import os, sys, time, math, random, json, datetime
-import logging
+import os, sys, time, math, random, json, datetime, logging
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -28,9 +27,11 @@ datafile_encoding = 'utf-8'
 # datafile = u"Y:\\BlinkNLP\\_txt_\\txt\\_all.txt"
 # datafile_encoding = 'utf-16'
 
-model_level = 'character' # 'character' or 'word'
+datafile_type = 0 # use 0 for char-level english. use 1 for chinese. only affects some RWKV hyperparametrs 
 
-ctx_len = 256                                       # context length
+model_level = 'character' # 'character' (recommended) or 'word'
+
+ctx_len = 256 # context length
 n_layer = 5
 n_head = 8
 n_embd = n_head * 64
@@ -40,13 +41,20 @@ n_ffn = n_embd
 batch_size = 64
 
 n_epoch = 50                                        # the 'epoch' here is actually very short (and of fixed length)
-lr_init = 8e-4 if model_type == 'RWKV' else 4e-4    # seems RWKV can use higher lr
+lr_init = 8e-4 if model_type == 'RWKV' else 4e-4    # RWKV can use higher lr
 lr_final = 2e-4
 
 betas = (0.9, 0.999) if model_type == 'RWKV' else (0.9, 0.99)
 eps = 1e-8
-weight_decay = 0 if model_type == 'RWKV' else 0.01  # seems wd is not very useful when we have enough data
+weight_decay = 0 if model_type == 'RWKV' else 0.01  # wd is not useful when we have enough data
+
 epoch_length_fixed = 10000                          # make an 'epoch' very short, so we can see the training progress
+
+######## special hyperparameters for RWKV model ########
+rwkv_layer_decay = 1.0                               # reduce initial weight in higher layers. try 0.5 ~ 1.0
+rwkv_emb_scale = 0.4 if datafile_type == 0 else 0.8  # use 0.4 for char-level english, 0.8 for chinese
+rwkv_tiny_attn = 64 if (datafile_type == 0 and ctx_len > 600) else 0 # extra tiny attention dim, useful for long ctx char-level english
+rwkv_tiny_head = 1 # 1 is good enough
 
 ########################################################################################################
 # Load data
@@ -94,6 +102,7 @@ train_dataset = Dataset(open(datafile, "r", encoding=datafile_encoding).read(), 
 ########################################################################################################
 
 model = GPT(GPTConfig(train_dataset.vocab_size, train_dataset.ctx_len, model_type=model_type,
+                rwkv_emb_scale=rwkv_emb_scale, rwkv_layer_decay=rwkv_layer_decay, rwkv_tiny_attn=rwkv_tiny_attn, rwkv_tiny_head=rwkv_tiny_head,
                 n_layer=n_layer, n_head=n_head, n_embd=n_embd, n_attn=n_attn, n_ffn=n_ffn))
 
 print('model', model_type, 'epoch', n_epoch, 'batchsz', batch_size, 'betas', betas, 'eps', eps, 'wd', weight_decay, 'ctx', ctx_len, 'layer', n_layer, 'head', n_head, 'embd', n_embd, 'attn', n_attn, 'ffn', n_ffn)
