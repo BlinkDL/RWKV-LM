@@ -45,9 +45,8 @@ class Trainer:
                 setattr(cfg, k, config.__dict__[k]) # combine cfg
             wandb.init(project="RWKV-LM", name=self.get_run_name() + '-' + datetime.datetime.today().strftime('%Y-%m-%d-%H-%M-%S'), config=cfg, save_code=False)
 
-        # take over whatever gpus are on the system
         self.device = 'cpu'
-        if torch.cuda.is_available():
+        if torch.cuda.is_available(): # take over whatever gpus are on the system
             self.device = torch.cuda.current_device()
             self.model = torch.nn.DataParallel(self.model).to(self.device)
 
@@ -57,8 +56,7 @@ class Trainer:
         run_name = str(cfg.vocab_size) + '-' + str(cfg.ctx_len) + '-' + cfg.model_type + '-' + str(cfg.n_layer) + '-' + str(cfg.n_embd)
         return run_name
 
-    def save_checkpoint(self):
-        # DataParallel wrappers keep raw model object in .module attribute
+    def save_checkpoint(self): # DataParallel wrappers keep raw model object in .module attribute        
         raw_model = self.model.module if hasattr(self.model, "module") else self.model
         logger.info("saving %s", self.config.ckpt_path)
         torch.save(raw_model.state_dict(), self.config.ckpt_path)
@@ -94,14 +92,7 @@ class Trainer:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip)
                     optimizer.step()
                     
-                    # try:
-                    #     torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip, error_if_nonfinite=True)
-                    #     optimizer.step()
-                    # except:
-                    #     pass # ignore nan sample -> sometimes can continue
-
-                    # decay the learning rate based on our progress
-                    if config.lr_decay:
+                    if config.lr_decay: # decay the learning rate based on our progress
                         self.tokens += (y >= 0).sum() # number of tokens processed this step (i.e. label is not -100)
                         if self.tokens < config.warmup_tokens:
                             # linear warmup
@@ -118,8 +109,7 @@ class Trainer:
                     else:
                         lr = config.learning_rate
 
-                    # report progress
-                    now_loss = loss.item()
+                    now_loss = loss.item() # report progress
                     
                     if 'wandb' in sys.modules:
                         wandb.log({"loss": now_loss}, step = self.steps * self.config.batch_size)

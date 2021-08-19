@@ -24,6 +24,7 @@ model_type = 'RWKV'
 # datafile = u"V:\\NLP\\enwik8"
 datafile = u"V:\\NLP\\simplebooks\\simplebooks-92-raw\\train.txt"
 datafile_encoding = 'utf-8'
+# datafile = u"D:\\NLP-Data\\ww100M.txt"
 # datafile = u"Y:\\BlinkNLP\\_txt_\\txt\\_all.txt"
 # datafile_encoding = 'utf-16'
 
@@ -51,10 +52,9 @@ weight_decay = 0 if model_type == 'RWKV' else 0.01  # wd is not useful when we h
 epoch_length_fixed = 10000                          # make an 'epoch' very short, so we can see the training progress
 
 ######## special hyperparameters for RWKV model ########
-rwkv_layer_decay = 1.0                               # reduce initial weight in higher layers. try 0.5 ~ 1.0
-rwkv_emb_scale = 0.4 if datafile_type == 0 else 0.8  # use 0.4 for char-level english, 0.8 for chinese
+rwkv_emb_scale = 0.4                                # scale of initial embedding. 0.4 is a good choice
 rwkv_tiny_attn = 64 if (datafile_type == 0 and ctx_len > 600) else 0 # extra tiny attention dim, useful for long ctx char-level english
-rwkv_tiny_head = 1 # 1 is good enough
+rwkv_tiny_head = 1                                  # 1 is good enough. 8 is slow
 
 ########################################################################################################
 # Load data
@@ -102,7 +102,7 @@ train_dataset = Dataset(open(datafile, "r", encoding=datafile_encoding).read(), 
 ########################################################################################################
 
 model = GPT(GPTConfig(train_dataset.vocab_size, train_dataset.ctx_len, model_type=model_type,
-                rwkv_emb_scale=rwkv_emb_scale, rwkv_layer_decay=rwkv_layer_decay, rwkv_tiny_attn=rwkv_tiny_attn, rwkv_tiny_head=rwkv_tiny_head,
+                rwkv_emb_scale=rwkv_emb_scale, rwkv_tiny_attn=rwkv_tiny_attn, rwkv_tiny_head=rwkv_tiny_head,
                 n_layer=n_layer, n_head=n_head, n_embd=n_embd, n_attn=n_attn, n_ffn=n_ffn))
 
 print('model', model_type, 'epoch', n_epoch, 'batchsz', batch_size, 'betas', betas, 'eps', eps, 'wd', weight_decay, 'ctx', ctx_len, 'layer', n_layer, 'head', n_head, 'embd', n_embd, 'attn', n_attn, 'ffn', n_ffn)
