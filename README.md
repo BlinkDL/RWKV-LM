@@ -20,6 +20,8 @@ alt="\begin{align*}
 "https://render.githubusercontent.com/render/math?math=%5Cdisplaystyle+%5Ctext%7Bsoftmax%7D_t%28%5Ctext%7BK%7D_%7Bu%2Cc%7D%29+%3D+%5Cfrac%7B%5Cexp%28%5Ctext%7BK%7D_%7Bu%2Cc%7D%29%7D%7B%5Csum_%7Bv+%5Cleq+t%7D%5Cexp%28%5Ctext%7BK%7D_%7Bv%2Cc%7D%29%7D" 
 alt="\text{softmax}_t(\text{K}_{u,c}) = \frac{\exp(\text{K}_{u,c})}{\sum_{v \leq t}\exp(\text{K}_{v,c})}">  
  
+Initialize K and R matrices (and the output projection matrix) to ZERO for fast & stable convergence.
+ 
 (2) We decompose W_{t,u,c} and introduce multi-head W (here h is the corresponding head of c):
 
 <img src=
@@ -28,7 +30,7 @@ alt="W_{t,u,c}=f_h(t-u)\cdot \alpha_h(u) \cdot \beta_h(t)">
 
 Moreover we multiply the final output of Time-mix layer by γ(t). The reason for the α β γ factors, is because the context size is smaller when t is small, and this can be compensated using the α β γ factors.
 
-* The Channel-mix is similar to GeGLU (https://arxiv.org/abs/2002.05202) with an extra R factor.
+* The Channel-mix is similar to GeGLU (https://arxiv.org/abs/2002.05202) with an extra R factor. Initialize R and W matrices to ZERO for fast & stable convergence.
 
 * Finally, we add extra token-shift (time-shift mixing) as in (https://github.com/BlinkDL/minGPT-tuned).
 
@@ -91,7 +93,7 @@ Blue: MHA_pro (MHA with various tweaks & RWKV-type-FFN) - slow - needs more VRAM
 
 # Initialization
 
-We use careful initialization for RWKV to get fast convergence - orthogonal matrices with proper scaling, special time_w curves, and reducing output weights in higher layers. Check model.py for details.
+We use careful initialization for RWKV to get fast convergence - orthogonal matrices with proper scaling, and special time_w curves. Check model.py for details.
 
 Some learned time_w examples:
 
