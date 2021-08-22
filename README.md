@@ -54,13 +54,13 @@ You can use token-shift in usual QKV self-attention too. I looked at the weights
 
 p.s. There is a MHA_pro model in this repo with strong performance. Give it a try :)
 
-# Sampling method
+# The top-a Sampling method
 
-We also propose a new sampling method (as in src/utils.py):
+We also propose a new sampling method called top-a (as in src/utils.py):
 
 (1) Find the max probability p_max after softmax.
 
-(2) Remove all entries whose probability is lower than 0.02 * pow(p_max, 2)
+(2) Remove all entries whose probability is lower than 0.02 * pow(p_max, 2). So it's adaptive, hence "top-a".
 
 (3) Feel free to tune the 0.02 and 2 factor.
 
