@@ -36,7 +36,7 @@ Moreover we multiply the final output of Time-mix layer by γ(t). The reason for
 
 # Token-shift (time-shift mixing)
 
-The token-shift means explicitly using both (half channel of this token) & (half channel of prev token) to generate all vectors. 
+The token-shift explicitly uses (half the channels of this token) & (half the channels of prev token) to generate all vectors (QKV, RWKV, ...).
 
 ```
 self.time_shift = nn.ZeroPad2d((0,0,1,-1))
@@ -44,7 +44,9 @@ self.time_shift = nn.ZeroPad2d((0,0,1,-1))
 x = torch.cat([self.time_shift(x[:, :, :C//2]), x[:, :, C//2:]], dim = -1)
 ```
 
-I found dividing channels by 2 and shift-1 works the best for Chinese LM. You may want to use more shift for English char-level LM. I checked the weights and found you may want to use less mixing in higher layers.
+Dividing channels by 2 and shift-1 works great for char-level English and char-level Chinese LM.
+
+However for BPE-level English LM, it's only effective if your embedding is large enough (at least 1024 - so the usual small L12-D768 model is not enough).
 
 My theory on the effectiveness of token-shift:
 
@@ -56,7 +58,7 @@ When we train a GPT, the hidden representation of a token has to accomplish two 
 
 The shifted channels can focus on (2), so we have good propagation of info. It's like some kind of residual connection, or a small RNN inside the transformer.
 
-You can use token-shift in usual QKV self-attention too. I looked at the weights, and found V really likes the shifted channels, less so for Q. Makes sense if you think about it.
+You can use token-shift in usual QKV self-attention too. I looked at the weights, and found V really likes the shifted channels, less so for Q. Makes sense if you think about it. I also found you may want to use less mixing in higher layers.
 
 p.s. There is a MHA_pro model in this repo with strong performance. Give it a try :)
 
