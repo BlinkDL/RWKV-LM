@@ -38,6 +38,12 @@ Moreover we multiply the final output of Time-mix layer by γ(t). The reason for
 
 The token-shift means explicitly using both (half channel of this token) & (half channel of prev token) to generate all vectors. 
 
+```
+self.time_shift = nn.ZeroPad2d((0,0,1,-1))
+
+x = torch.cat([self.time_shift(x[:, :, :C//2]), x[:, :, C//2:]], dim = -1)
+```
+
 I found dividing channels by 2 and shift-1 works the best for Chinese LM. You may want to use more shift for English char-level LM. I checked the weights and found you may want to use less mixing in higher layers.
 
 My theory on the effectiveness of token-shift:
@@ -63,6 +69,18 @@ We also propose a new sampling method called top-a (as in src/utils.py):
 (2) Remove all entries whose probability is lower than 0.02 * pow(p_max, 2). So it's adaptive, hence "top-a".
 
 (3) Feel free to tune the 0.02 and 2 factor.
+
+The idea of top-a:
+1. If max_prob=0.9, then remove all tokens with prob < 0.0162 (so, removing most alternatives)
+2. If max_prob=0.5, then remove all tokens with prob < 0.0050 (so, allowing more choices)
+3. If max_prob=0.1, then remove all tokens with prob < 0.0002 (so, allowing lots of possibilities)
+
+```
+probs = F.softmax(logits, dim=-1)
+
+limit = torch.pow(torch.max(probs), 2.0) * 0.02
+logits[probs < limit] = -float('Inf')
+```
 
 # Performance
 
