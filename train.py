@@ -125,7 +125,7 @@ NUM_OF_RUNS = 5
 LENGTH_OF_EACH = 300
 
 for run in range(NUM_OF_RUNS):
-    context = "it was"
+    context = "\n"
 
     if model_level == 'word':
         x = np.array([train_dataset.stoi[s] for s in context.strip().lower().split(' ')], dtype=np.int64)
