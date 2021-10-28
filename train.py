@@ -41,6 +41,8 @@ epoch_save_path = 'trained-'
 batch_size = 48                                      # if you see "CUDA out of memory", reduce this.
                                                      # if you have good GPU, increase this.
                                                      # use GPU-Z to find the highest value for your VRAM.
+
+n_epoch = 100                                        # the 'epoch' here is actually very short (and of fixed length)
 ########################################################################################
 
 model_level = 'character' # 'character' (recommended) or 'word'
@@ -52,7 +54,6 @@ n_embd = n_head * 64
 n_attn = n_embd
 n_ffn = n_embd
 
-n_epoch = 50                                        # the 'epoch' here is actually very short (and of fixed length)
 lr_init = 8e-4 if model_type == 'RWKV' else 4e-4    # RWKV can use higher lr
 lr_final = 1e-5
 
