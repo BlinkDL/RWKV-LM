@@ -55,8 +55,8 @@ n_embd = n_head * 64
 n_attn = n_embd
 n_ffn = n_embd
 
-lr_init = 8e-4 if model_type == 'RWKV' else 4e-4    # RWKV can use higher lr
-lr_final = 1e-5
+lr_init = 8e-4 if model_type == 'RWKV' else 4e-4    # RWKV can use higher lr.  8e-4 = 0.0008   4e-4 = 0.0004
+lr_final = 1e-5                                     # 1e-5 = 0.00001
 
 betas = (0.9, 0.999) if model_type == 'RWKV' else (0.9, 0.99)
 eps = 1e-8
