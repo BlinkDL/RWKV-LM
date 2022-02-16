@@ -62,6 +62,18 @@ You can use token-shift in usual QKV self-attention too. I looked at the weights
 
 p.s. There is a MHA_pro model in this repo with strong performance. Give it a try :)
 
+# The Head-QK Trick: learning to copy and avoid tokens
+
+In usual transformer, a small model has difficulty copying tokens (such as person names) in the context. We add extra Q & K to the final output such that the model can directly copy (or avoid) tokens in the context. Afterwards the model will teach itself NER (named entity recognition) if you look at the learned weights.
+```
+q = self.head_q(x)[:,:T,:]
+k = self.head_k(x)[:,:T,:]
+c = (q @ k.transpose(-2, -1)) * (1.0 / 256)
+c = c.masked_fill(self.copy_mask[:T,:T] == 0, 0)
+c = c @ F.one_hot(idx, num_classes = self.config.vocab_size).float()       
+x = self.head(x) + c
+```
+
 # The top-a Sampling method
 
 We also propose a new sampling method called top-a (as in src/utils.py):
