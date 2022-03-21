@@ -1,5 +1,21 @@
 # The RWKV Language Model
 
+## v2
+
+RWKV v2 is a RNN which can also be directly trained like a GPT transformer.
+
+You only need x_t, a_t, b_t of position t to compute the vectors for position t+1. 
+
+Hence it can be 100x faster than GPT, and 100x more VRAM friendly.
+
+I AM STILL TRAINING A LM TO TEST ITS CONVERGENCE.
+
+The model:
+
+![RWKV-v2-RNN](RWKV-v2-RNN.png)
+
+## v1
+
 We propose the RWKV language model, with alternating time-mix and channel-mix layers:
 
 <img src=
