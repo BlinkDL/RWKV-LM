@@ -10,7 +10,9 @@ Hence it can be 100x faster than GPT, and 100x more VRAM friendly.
 
 The a b c d factors work together to build a time-decay curve: u, 1, w, w^2, w^3, ...
 
-Write out the formulas for "token at pos 2" and "token at pos 3" and you will get the idea.
+Write out the formulas for "token at pos 2" and "token at pos 3" and you will get the idea:
+* a and b: EMAs of kv and k.
+* c and d: a and b combined with self-attention.
 
 The model:
 
