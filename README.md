@@ -1,12 +1,14 @@
 # The RWKV Language Model
 
-## v2
+## RWKV v2 RNN
 
 RWKV v2 is a RNN which can also be directly trained like a GPT transformer.
 
 You only need x_t, a_t, b_t of position t to compute the vectors for position t+1. 
 
 Hence it can be 100x faster than GPT, and 100x more VRAM friendly.
+
+## How it works
 
 The a b c d factors work together to build a time-decay curve: u, 1, w, w^2, w^3, ...
 
