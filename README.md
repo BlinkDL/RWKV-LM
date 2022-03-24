@@ -16,7 +16,7 @@ Write out the formulas for "token at pos 2" and "token at pos 3" and you will ge
 * a and b: EMAs of kv and k.
 * c and d: a and b combined with self-attention.
 
-kv / k is the memory mechanism. The token with high k can be remember for a long period, if W is close to 1 in the channel.
+kv / k is the memory mechanism. The token with high k can be remembered for a long duration, if W is close to 1 in the channel.
 
 The pseudocode (execution from top to bottom):
 
