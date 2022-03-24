@@ -10,7 +10,7 @@ Hence it can be 100x faster than GPT, and 100x more VRAM friendly.
 
 ## How it works
 
-The a b c d factors work together to build a time-decay curve: u, 1, w, w^2, w^3, ...
+The a b c d factors work together to build a time-decay curve: X, 1, W, W^2, W^3, ...
 
 Write out the formulas for "token at pos 2" and "token at pos 3" and you will get the idea:
 * a and b: EMAs of kv and k.
