@@ -1,6 +1,6 @@
 # The RWKV Language Model
 
-## RWKV v2 RNN
+## RWKV v2 RNN: Language is in O(1)
 
 RWKV v2 is a RNN which can also be directly trained like a GPT transformer.
 
@@ -15,6 +15,8 @@ The a b c d factors work together to build a time-decay curve: X, 1, W, W^2, W^3
 Write out the formulas for "token at pos 2" and "token at pos 3" and you will get the idea:
 * a and b: EMAs of kv and k.
 * c and d: a and b combined with self-attention.
+
+kv / k is the memory mechanism. The token with high k can be remember for a long period, if W is close to 1 in the channel.
 
 The pseudocode (execution from top to bottom):
 
