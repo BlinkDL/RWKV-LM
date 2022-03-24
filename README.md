@@ -1,6 +1,6 @@
 # The RWKV Language Model
 
-## RWKV v2 RNN: Language is in O(1)
+## RWKV v2 RNN: Language is O(1)
 
 RWKV v2 is a RNN which can also be directly trained like a GPT transformer.
 
