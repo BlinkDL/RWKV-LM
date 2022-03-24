@@ -16,7 +16,7 @@ Write out the formulas for "token at pos 2" and "token at pos 3" and you will ge
 * a and b: EMAs of kv and k.
 * c and d: a and b combined with self-attention.
 
-The model:
+The pseudocode (execution from top to bottom):
 
 ![RWKV-v2-RNN](RWKV-v2-RNN.png)
 
