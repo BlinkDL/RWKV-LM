@@ -10,6 +10,48 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from torch.utils.data import Dataset
+
+
+class Dataset(Dataset):
+    def __init__(self, data, ctx_len, epoch_length_fixed):
+        print('building token list...', end=' ')
+        unique = sorted(list(set(data)))
+        # print()
+        # for u in unique:
+        #     print(u, end=' ')
+        # print('\n\n')
+
+        xx = 0
+        xxObj = {}
+        for u in unique:
+            xxObj[xx] = u
+            xx += 1
+        with open('vocab.json', "w", encoding="utf-16") as vocab_file:
+            vocab_file.write(json.dumps(xxObj, ensure_ascii=False))
+
+        data_size, vocab_size = len(data), len(unique)
+        print('data has %d tokens, %d unique.' % (data_size, vocab_size))
+        self.stoi = {ch: i for i, ch in enumerate(unique)}
+        self.itos = {i: ch for i, ch in enumerate(unique)}
+        self.ctx_len = ctx_len
+        self.epoch_length_fixed = epoch_length_fixed
+        self.vocab_size = vocab_size
+        self.data = data
+
+    def __len__(self):
+        return self.epoch_length_fixed
+
+    def __getitem__(self, idx):
+        # cheat: pick a random spot in dataset
+        i = np.random.randint(0, len(self.data) - (self.ctx_len + 1))
+        chunk = self.data[i:i+self.ctx_len+1]
+        dix = [self.stoi[s] for s in chunk]
+        x = torch.tensor(dix[:-1], dtype=torch.long,
+                         device=torch.device('cuda'))
+        y = torch.tensor(dix[1:], dtype=torch.long,
+                         device=torch.device('cuda'))
+        return x, y
 
 
 class TOKENIZER():

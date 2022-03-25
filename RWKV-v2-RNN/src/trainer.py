@@ -22,7 +22,7 @@ import math
 logger = logging.getLogger(__name__)
 torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.allow_tf32 = True
-torch.backends.cuda.matmul.allow_tf32 = True  
+torch.backends.cuda.matmul.allow_tf32 = True
 
 log_file = open("mylog.txt", "a")
 
@@ -151,7 +151,7 @@ class Trainer:
                         self.avg_loss = self.avg_loss * \
                             (1.0 - factor) + now_loss * factor
                     pbar.set_description(
-                        f"epoch {epoch+1} prog {progress*100.0:.2f}% iter {it}: ppl {math.exp(self.avg_loss):.2f} loss {self.avg_loss:.4f} lr {lr:e}")
+                        f"mini-epoch {epoch+1} prog {progress*100.0:.2f}% iter {it}: ppl {math.exp(self.avg_loss):.2f} loss {self.avg_loss:.4f} lr {lr:e}")
 
         self.tokens = 0  # counter used for learning rate decay
         for epoch in range(config.max_epochs):

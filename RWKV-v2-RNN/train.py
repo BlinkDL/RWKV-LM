@@ -7,12 +7,12 @@ import datetime
 import json
 from src.model import GPT, GPTConfig
 from src.trainer import Trainer, TrainerConfig
-from torch.utils.data import Dataset
+from src.utils import Dataset
 import torch
 import numpy as np
 torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.allow_tf32 = True
-torch.backends.cuda.matmul.allow_tf32 = True  
+torch.backends.cuda.matmul.allow_tf32 = True
 
 ### Step 1: set training data ##########################################################################
 
@@ -36,20 +36,19 @@ model_type = 'RWKV'
 # If you see "CUDA out of memory", reduce it. Use GPU-Z to find the highest value for your VRAM.
 batch_size = 12
 
-### Step 4: set learning rate, training 'epochs' #######################################################
+### Step 4: set learning rate, training mini-epochs #######################################################
 
 lr_init = 6e-4
 lr_final = 1e-5
-# the 'epoch' here is very short and of fixed length (ctx_len * epoch_length_fixed tokens)
+# the mini-epoch is very short and of fixed length (ctx_len * epoch_length_fixed tokens)
 n_epoch = 500
-# 0 = never, 1 = every 'epoch', 2 = every two 'epoch', etc.
+# 0 = never, 1 = every mini-epoch, 2 = every two mini-epochs, etc.
 epoch_save_frequency = 30
 epoch_save_path = 'trained-'
 
 epoch_length_fixed = 10000
 
 ########################################################################################################
-
 
 # import src.utils
 # src.utils.set_seed(42) # remember to change seed if you load a model
@@ -71,50 +70,8 @@ num_workers = 0
 ########################################################################################################
 
 print('loading data... ' + datafile)
-
-
-class Dataset(Dataset):
-    def __init__(self, data, ctx_len):
-        print('building token list...', end=' ')
-        unique = sorted(list(set(data)))
-        # print()
-        # for u in unique:
-        #     print(u, end=' ')
-        # print('\n\n')
-
-        xx = 0
-        xxObj = {}
-        for u in unique:
-            xxObj[xx] = u
-            xx += 1
-        with open('vocab.json', "w", encoding="utf-16") as vocab_file:
-            vocab_file.write(json.dumps(xxObj, ensure_ascii=False))
-
-        data_size, vocab_size = len(data), len(unique)
-        print('data has %d tokens, %d unique.' % (data_size, vocab_size))
-        self.stoi = {ch: i for i, ch in enumerate(unique)}
-        self.itos = {i: ch for i, ch in enumerate(unique)}
-        self.ctx_len = ctx_len
-        self.vocab_size = vocab_size
-        self.data = data
-
-    def __len__(self):
-        return epoch_length_fixed
-
-    def __getitem__(self, idx):
-        # cheat: pick a random spot in dataset
-        i = np.random.randint(0, len(self.data) - (self.ctx_len + 1))
-        chunk = self.data[i:i+self.ctx_len+1]
-        dix = [self.stoi[s] for s in chunk]
-        x = torch.tensor(dix[:-1], dtype=torch.long,
-                         device=torch.device('cuda'))
-        y = torch.tensor(dix[1:], dtype=torch.long,
-                         device=torch.device('cuda'))
-        return x, y
-
-
-train_dataset = Dataset(
-    open(datafile, "r", encoding=datafile_encoding).read(), ctx_len)
+train_dataset = Dataset(open(
+    datafile, "r", encoding=datafile_encoding).read(), ctx_len, epoch_length_fixed)
 
 ########################################################################################################
 # Train model
