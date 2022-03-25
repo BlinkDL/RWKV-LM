@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 ########################################################################################################
 
 T_MAX = 1024          # increase this if your ctx_len > 1024
-B_GROUP_FORWARD = 8   # set to 8 for best performance
+B_GROUP_FORWARD = 4   # set to 8 for best performance
 B_GROUP_BACKWARD = 2  # set to 2 for best performance
 
 timex_cuda = load(name="timex", sources=["cuda/timex_op.cpp", "cuda/timex_cuda.cu"],

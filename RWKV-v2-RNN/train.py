@@ -34,14 +34,14 @@ model_type = 'RWKV'
 # ===> batch_size must be divisible by B_GROUP_FORWARD and B_GROUP_BACKWARD in model.py
 # For example, if your batch_size = 20, you can set B_GROUP_FORWARD = 4, B_GROUP_BACKWARD = 2
 # If you see "CUDA out of memory", reduce it. Use GPU-Z to find the highest value for your VRAM.
-batch_size = 40
+batch_size = 12
 
 ### Step 4: set learning rate, training 'epochs' #######################################################
 
 lr_init = 6e-4
 lr_final = 1e-5
 # the 'epoch' here is very short and of fixed length (ctx_len * epoch_length_fixed tokens)
-n_epoch = 1000
+n_epoch = 500
 # 0 = never, 1 = every 'epoch', 2 = every two 'epoch', etc.
 epoch_save_frequency = 30
 epoch_save_path = 'trained-'
@@ -124,8 +124,8 @@ if __name__ == '__main__':
     model = GPT(GPTConfig(train_dataset.vocab_size, train_dataset.ctx_len, model_type=model_type,
                           n_layer=n_layer, n_embd=n_embd)).cuda()
 
-    # # load a trained model. remember to change random seed
-    # m2 = torch.load('trained-10000.pth')
+    # # # load a trained model. remember to change random seed
+    # m2 = torch.load('trained-61.pth')
     # model.load_state_dict(m2)
 
     print('model', model_type, 'epoch', n_epoch, 'batchsz', batch_size, 'betas',
@@ -137,5 +137,5 @@ if __name__ == '__main__':
 
     trainer.train()
 
-    torch.save(model, 'trained-' + str(n_epoch) + trainer.get_run_name() +
+    torch.save(model, 'trained-' + str(n_epoch) + '-' + trainer.get_run_name() +
                '-' + datetime.datetime.today().strftime('%Y-%m-%d-%H-%M-%S') + '.pth')
