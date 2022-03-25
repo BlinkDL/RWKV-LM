@@ -137,5 +137,5 @@ if __name__ == '__main__':
 
     trainer.train()
 
-    torch.save(model, 'trained-' + str(n_epoch) + '-' + trainer.get_run_name() +
+    torch.save(model.state_dict(), 'trained-' + str(n_epoch) + '-' + trainer.get_run_name() +
                '-' + datetime.datetime.today().strftime('%Y-%m-%d-%H-%M-%S') + '.pth')
