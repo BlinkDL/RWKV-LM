@@ -8,7 +8,7 @@ You only need x_t, a_t, b_t of position t to compute the vectors for position t+
 
 Hence it can be 100x faster than GPT, and 100x more VRAM friendly.
 
-See the release for a 27M params model on enwik8 with 1.65 dev perplexity (0.72 BPC).
+See the release for a **27M params model on enwik8 with 0.72 BPC(dev)**.
 
 ## How it works
 
