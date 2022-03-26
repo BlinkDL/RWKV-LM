@@ -8,6 +8,8 @@ You only need x_t, a_t, b_t of position t to compute the vectors for position t+
 
 Hence it can be 100x faster than GPT, and 100x more VRAM friendly.
 
+See the release for a 27M params model on enwik8 with 1.65 dev perplexity (0.72 BPC).
+
 ## How it works
 
 The a b c d factors work together to build a time-decay curve: X, 1, W, W^2, W^3, ...
