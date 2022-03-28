@@ -6,6 +6,8 @@ RWKV v2 is a RNN which can also be directly trained like a GPT transformer. You 
 
 See the release for a **27M params model on enwik8 with 0.72 BPC(dev)**.
 
+![RWKV-v2-RNN](RWKV-v2-RNN-run.png)
+
 ## How it works
 
 The a b c d factors work together to build a time-decay curve: X, 1, W, W^2, W^3, ...
