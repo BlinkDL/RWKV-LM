@@ -2,7 +2,7 @@
 
 ## RWKV v2: RNN with Transformer Performance
 
-RWKV v2 is a RNN which can also be directly trained like a GPT transformer. You only need x_t, a_t, b_t of position t to compute the vectors for position t+1. Hence it can be 100x faster than GPT, and 100x more VRAM friendly, and you get a free sentence embedding.
+RWKV v2 is a RNN which can also be directly trained like a GPT transformer (parallelizable). You only need x_t, a_t, b_t of position t to compute the vectors for position t+1. Hence it can be 100x faster than GPT, and 100x more VRAM friendly, and you get a free sentence embedding.
 
 See the release for a **27M params model on enwik8 with 0.72 BPC(dev)**.
 
@@ -17,6 +17,8 @@ Write out the formulas for "token at pos 2" and "token at pos 3" and you will ge
 * c and d: a and b combined with self-attention.
 
 kv / k is the memory mechanism. The token with high k can be remembered for a long duration, if W is close to 1 in the channel.
+
+RWKV v2 is parallelizable because the time-decay of each channel is data-indepedent (and trainable). For example, in usual RNN you can adjust the time-decay of a channel from 0.8 to 0.5 etc., while in RWKV v2 you simply move the information from a 0.8-channel to a 0.5-channel to achieve the same effect.
 
 It's also using my SmallInitEmb trick https://github.com/BlinkDL/SmallInitEmb (applicable to all transformers), and a custom CUDA kernel https://github.com/BlinkDL/RWKV-CUDA .
 
