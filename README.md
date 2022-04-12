@@ -26,6 +26,14 @@ The pseudocode (execution from top to bottom):
 
 ![RWKV-v2-RNN](RWKV-v2-RNN.png)
 
+# The top-p-x sampling method
+
+We propose a new sampling method called top-p-x:
+
+it's like top-p, and the only difference is you also keep all tokens whose prob > x.
+
+Try x = 0.01 first.
+
 ## v1
 
 We propose the RWKV language model, with alternating time-mix and channel-mix layers:
@@ -106,20 +114,20 @@ c = c @ F.one_hot(idx, num_classes = self.config.vocab_size).float()
 x = self.head(x) + c
 ```
 
-# The top-a Sampling method
+# The top-a sampling method
 
 We also propose a new sampling method called top-a (as in src/utils.py):
 
 (1) Find the max probability p_max after softmax.
 
-(2) Remove all entries whose probability is lower than 0.02 * pow(p_max, 2). So it's adaptive, hence "top-a".
+(2) Remove all entries whose probability is lower than 0.2 * pow(p_max, 2). So it's adaptive, hence "top-a".
 
-(3) Feel free to tune the 0.02 and 2 factor. Tune 0.02 first.
+(3) Feel free to tune the 0.2 and 2 factor. Tune 0.2 first.
 
 The idea of top-a:
-1. If max_prob=0.9, then remove all tokens with prob < 0.0162 (so, removing most alternatives)
-2. If max_prob=0.5, then remove all tokens with prob < 0.0050 (so, allowing more choices)
-3. If max_prob=0.1, then remove all tokens with prob < 0.0002 (so, allowing lots of possibilities)
+1. If max_prob=0.9, then remove all tokens with prob < 0.162 (so, removing all alternatives)
+2. If max_prob=0.5, then remove all tokens with prob < 0.05  (so, allowing more choices)
+3. If max_prob=0.1, then remove all tokens with prob < 0.002 (so, allowing lots of possibilities)
 
 ```
 probs = F.softmax(logits, dim=-1)
