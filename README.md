@@ -36,6 +36,8 @@ I propose a simple new method to find better LR schedules. The method is cost-ef
 
 UPDATE: In "Conclusion 1.", remember to use the best-fitting regime (ignore the initial steps where our approximations break down) to fit the parameters.
 
+In the last three plots, black = predicted loss curve of the new LR schedule, blue = original (unoptimized) real loss curve, orange = new LR schedule.
+
 # The top-p-x sampling method
 
 We propose a new sampling method called top-p-x:
