@@ -32,7 +32,9 @@ The pseudocode (execution from top to bottom):
 
 I propose a simple new method to find better LR schedules. The method is cost-efficient and practical for large LMs. The takeaway is we can model the loss curve dynamics (phenomenology) w.r.t. the LR, and a nice closed-form LR curve can be directly computed from it using variantional method. Moreover we can predict the final loss with reasonable accuracy.
 
-UPDATE: In "Conclusion 1.", remember to use the best-fitting regime (ignore the initial steps where our approximations break down) to fit the parameters. Try this: exponential LR decay from lr to 0.2 * lr in 3 hrs.
+UPDATE: In "Conclusion 1.", use the best-fitting regime (ignore the initial steps where our approximations break down) to fit the parameters.
+
+Try this: fixed lr for 1 hr, then exponential decay to 0.2 * lr in 12 hrs, and choose the t=[1hr, 13hr] segment.
 
 In the last three plots, black = predicted loss curve of the new LR schedule, blue = original (unoptimized) real loss curve, orange = new LR schedule.
 
