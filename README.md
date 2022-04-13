@@ -34,6 +34,8 @@ I propose a simple new method to find better LR schedules. The method is cost-ef
 
 ![better_lr_schedule](Research/better_lr_schedule.png)
 
+UPDATE: In "Conclusion 1.", remember to use the best-fitting regime (ignore the initial steps where our approximations break down) to fit the parameters.
+
 # The top-p-x sampling method
 
 We propose a new sampling method called top-p-x:
