@@ -28,6 +28,12 @@ The pseudocode (execution from top to bottom):
 
 ![RWKV-v2-RNN](RWKV-v2-RNN.png)
 
+# Better Learning Rate Schedule via Variantional Method of Loss Curve
+
+I propose a simple new method to find better LR schedules. The method is cost-efficient and practical for large LMs. The takeaway is we can model the loss curve dynamics (phenomenology) w.r.t. the LR, and a nice closed-form LR curve can be directly computed from it using variantional method. Moreover we can predict the final loss with reasonable accuracy.
+
+![better_lr_schedule](Research/better_lr_schedule.png)
+
 # The top-p-x sampling method
 
 We propose a new sampling method called top-p-x:
