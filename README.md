@@ -4,6 +4,8 @@
 
 RWKV v2 is a RNN which can also be directly trained like a GPT transformer (parallelizable). You only need x_t, a_t, b_t of position t to compute the vectors for position t+1. Hence it can be 100x faster than GPT, and 100x more VRAM friendly, and you get a free sentence embedding.
 
+I am training it on the Pile: https://github.com/BlinkDL/RWKV-v2-RNN-Pile
+
 See the release for a **27M params model on enwik8 with 0.72 BPC(dev)**.
 
 ![RWKV-v2-RNN](RWKV-v2-RNN-run.png)
