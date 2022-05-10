@@ -4,7 +4,7 @@
 
 RWKV v2 is a RNN with Transformer-level performance, which can also be directly trained like a GPT transformer (parallelizable). And it's attention-free. You only need x_t, a_t, b_t of position t to compute the vectors for position t+1.
 
-So it's combining the best of RNN and transformer - great performance, fast inference, saves VRAM, and fast training. Moreover you get a free sentence embedding.
+So it's combining the best of RNN and transformer - great performance, fast inference, saves VRAM, fast training, "infinite" ctx_len, and free sentence embedding.
 
 I am training it on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile) and it might reach GPT-Neo performance within 100B tokens:
 
