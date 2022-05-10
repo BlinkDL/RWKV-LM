@@ -30,7 +30,7 @@ The a b c d factors work together to build a time-decay curve: X, 1, W, W^2, W^3
 
 Write out the formulas for "token at pos 2" and "token at pos 3" and you will get the idea:
 * a and b: EMAs of kv and k.
-* c and d: a and b combined with self-attention.
+* c and d: these are a and b combined with "self-attention".
 
 kv / k is the memory mechanism. The token with high k can be remembered for a long duration, if W is close to 1 in the channel.
 
@@ -38,7 +38,7 @@ RWKV v2 is parallelizable because the time-decay of each channel is data-indepen
 
 It's also using my SmallInitEmb trick https://github.com/BlinkDL/SmallInitEmb (applicable to all transformers), and a custom CUDA kernel https://github.com/BlinkDL/RWKV-CUDA .
 
-I find it might be nice to make the model stay on a mid-lr for a long period, because in theory that's where most learning shall happen. For example: 6e-4 to 1e-4 in 20% of steps, stays at 1e-4 for 30% of steps (actually I monitor the loss and decay the lr when it plateaus), then 1e-4 to 1e-5 in 50% of steps.
+I find it might be nice to make the model stay on a mid-lr for a long period, because in theory that's where most learning shall happen. For example: constant 6e-4 for 10% of steps, 6e-4 to 1e-4 in 15% of steps, stays at 1e-4 for 25% of steps (actually I monitor the loss and decay the lr when it plateaus), then 1e-4 to 1e-5 in 50% of steps.
 
 # Better Learning Rate Schedule via Variantional Method of Loss Curve
 
