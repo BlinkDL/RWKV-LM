@@ -56,7 +56,7 @@ it's like top-p, and the only difference is you also keep all tokens whose prob 
 
 Try x = 0.01 first.
 
-## v1
+## RWKV v1
 
 We propose the RWKV language model, with alternating time-mix and channel-mix layers:
 
