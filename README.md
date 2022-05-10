@@ -16,6 +16,8 @@ All of the trained models will be open-source. Inference is very fast (only matr
 
 See the release for a 27M params model on enwik8 with 0.72 BPC(dev). Run run.py in https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN :)
 
+See https://github.com/BlinkDL/RWKV-v2-RNN-Pile for models trained on the Pile.
+
 ## How it works
 
 RWKV is inspired by Apple's AFT (https://arxiv.org/abs/2105.14103).
