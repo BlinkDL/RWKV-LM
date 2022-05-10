@@ -12,7 +12,9 @@ I am training it on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile) and i
 
 All of the trained models will be open-source. Inference is very fast (only matrix-vector multiplications, no matrix-matrix multiplications) even on CPUs, and I believe you can run a 1B params RWKV-v2-RNN with reasonable speed on your phone.
 
-See the release for a 27M params model on enwik8 with 0.72 BPC(dev).
+### Quick start
+
+See the release for a 27M params model on enwik8 with 0.72 BPC(dev). Run run.py in https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN :)
 
 ## How it works
 
