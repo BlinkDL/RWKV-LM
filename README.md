@@ -6,11 +6,11 @@ RWKV v2 is a RNN with Transformer-level performance, which can also be directly 
 
 So it's combining the best of RNN and transformer - great performance, fast inference, saves VRAM, and fast training. Moreover you get a free sentence embedding.
 
-I am training it on the Pile: https://github.com/BlinkDL/RWKV-v2-RNN-Pile
-
-It might reach GPT-Neo performance within 100B tokens:
+I am training it on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile) and it might reach GPT-Neo performance within 100B tokens:
 
 ![RWKV-v2-430M-Pile](RWKV-v2-430M-Pile.png)
+
+All of the trained models will be open-source. Inference is very fast (only matrix-vector multiplications, no matrix-matrix multiplications) even on CPUs, and I believe you can run a 1B params RWKV-v2-RNN with reasonable speed on your phone.
 
 See the release for a 27M params model on enwik8 with 0.72 BPC(dev).
 
