@@ -8,7 +8,7 @@ So it's combining the best of RNN and transformer - great performance, fast infe
 
 Reddit discussion: https://www.reddit.com/r/MachineLearning/comments/umq908/r_rwkvv2rnn_a_parallelizable_rnn_with/
 
-I am training it on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile) and it might reach GPT-Neo performance within 100B tokens:
+I am training it on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile) and it shall be able to reach GPT-Neo performance on most tasks within 100B tokens:
 
 ![RWKV-v2-430M-Pile](RWKV-v2-430M-Pile.png)
 
