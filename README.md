@@ -22,6 +22,11 @@ Read the inference code in https://github.com/BlinkDL/RWKV-v2-RNN-Pile/blob/main
 
 See the release for a 27M params model on enwik8 with 0.72 BPC(dev). Run run.py in https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN :)
 
+Fine-tuning & training:
+https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN
+
+Note: change 1e-15 to 1e-9 in https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model.py and https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model_run.py and probably you need other changes as well. You can compare the output with the latest code ( https://github.com/BlinkDL/RWKV-v2-RNN-Pile ) to verify it.
+
 ## How it works
 
 RWKV is inspired by Apple's AFT (https://arxiv.org/abs/2105.14103).
