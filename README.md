@@ -104,6 +104,16 @@ In the last three plots, black = predicted loss curve of the new LR schedule, bl
 
 ![better_lr_schedule](Research/better_lr_schedule.png)
 
+## How to sample a large dataset
+
+I am using a trick to sample the Pile deterministically yet randomly enough.
+
+Let's say the pile has x chunks (a chunk = ctx_len tokens).
+
+pick a prime number p just less than x, and make sure p = 2 (mod 3).
+
+Use (step * step * step) mod p to sample it. 
+
 ## The top-p-x sampling method
 
 We propose a new sampling method called top-p-x:
