@@ -1,4 +1,4 @@
-# The RWKV Language Model
+# The RWKV Language Model (and my tricks for LMs in general)
 
 ## RWKV-2: RNN with Transformer-level Performance
 
@@ -92,7 +92,7 @@ It's also using my SmallInitEmb trick https://github.com/BlinkDL/SmallInitEmb (a
 
 I find it might be nice to make the model stay on a mid-lr for a long period, because in theory that's where most learning shall happen. For example: constant 6e-4 for 10% of steps, 6e-4 to 1e-4 in 15% of steps, stays at 1e-4 for 25% of steps (actually I monitor the loss and decay the lr when it plateaus), then 1e-4 to 1e-5 in 50% of steps.
 
-## How to sample a large dataset
+## How to sample a large dataset (for training)
 
 I am using a trick to sample the Pile deterministically yet randomly enough.
 
@@ -102,7 +102,7 @@ pick a prime number p just less than x, and make sure p = 2 (mod 3).
 
 Use (step * step * step) mod p to sample it. Add some bias to step for extra randomness.
 
-## The top-p-x sampling method
+## The top-p-x sampling method (for inference)
 
 We propose a new sampling method called top-p-x:
 
