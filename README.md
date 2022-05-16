@@ -92,18 +92,6 @@ It's also using my SmallInitEmb trick https://github.com/BlinkDL/SmallInitEmb (a
 
 I find it might be nice to make the model stay on a mid-lr for a long period, because in theory that's where most learning shall happen. For example: constant 6e-4 for 10% of steps, 6e-4 to 1e-4 in 15% of steps, stays at 1e-4 for 25% of steps (actually I monitor the loss and decay the lr when it plateaus), then 1e-4 to 1e-5 in 50% of steps.
 
-## Better Learning Rate Schedule via Variantional Method of Loss Curve
-
-I propose a simple new method to find better LR schedules. The method is cost-efficient and practical for large LMs. The takeaway is we can model the loss curve dynamics (phenomenology) w.r.t. the LR, and a nice closed-form LR curve can be directly computed from it using variantional method. Moreover we can predict the final loss with reasonable accuracy.
-
-UPDATE: In "Conclusion 1.", use the best-fitting regime (ignore the initial steps where our approximations break down) to fit the parameters.
-
-Try this: fixed lr for 1 hr, then exponential decay to 0.2 * lr in 12 hrs, and choose the t=[1hr, 13hr] segment.
-
-In the last three plots, black = predicted loss curve of the new LR schedule, blue = original (unoptimized) real loss curve, orange = new LR schedule.
-
-![better_lr_schedule](Research/better_lr_schedule.png)
-
 ## How to sample a large dataset
 
 I am using a trick to sample the Pile deterministically yet randomly enough.
@@ -121,6 +109,18 @@ We propose a new sampling method called top-p-x:
 it's like top-p, and the only difference is you also keep all tokens whose prob > x.
 
 Try x = 0.01 first.
+
+## Better Learning Rate Schedule via Variantional Method of Loss Curve
+
+I propose a simple new method to find better LR schedules. The method is cost-efficient and practical for large LMs. The takeaway is we can model the loss curve dynamics (phenomenology) w.r.t. the LR, and a nice closed-form LR curve can be directly computed from it using variantional method. Moreover we can predict the final loss with reasonable accuracy.
+
+UPDATE: In "Conclusion 1.", use the best-fitting regime (ignore the initial steps where our approximations break down) to fit the parameters.
+
+Try this: fixed lr for 1 hr, then exponential decay to 0.2 * lr in 12 hrs, and choose the t=[1hr, 13hr] segment.
+
+In the last three plots, black = predicted loss curve of the new LR schedule, blue = original (unoptimized) real loss curve, orange = new LR schedule.
+
+![better_lr_schedule](Research/better_lr_schedule.png)
 
 # RWKV v1
 
