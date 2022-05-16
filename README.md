@@ -1,4 +1,4 @@
-# The RWKV Language Model (and my tricks for LMs in general)
+# The RWKV Language Model (and my tricks for LMs)
 
 ## RWKV-2: RNN with Transformer-level Performance
 
