@@ -22,6 +22,8 @@ Read the inference code in https://github.com/BlinkDL/RWKV-v2-RNN-Pile/blob/main
 
 See the release here for a 27M params model on enwik8 with 0.72 BPC(dev). Run run.py in https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN.
 
+You can even run it in your browser: https://github.com/BlinkDL/AI-Writer/tree/main/docs/eng https://blinkdl.github.io/AI-Writer/eng/ (this is using tf.js WASM single-thread mode).
+
 Fine-tuning & training (I usually fine-tune with 4e-5 lr, and decay to 1e-5 when it plateaus):
 https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN
 
@@ -192,8 +194,8 @@ p.s. There is a MHA_pro model in this repo with strong performance. Give it a tr
 
 In usual transformer, a small model has difficulty copying tokens (such as person names) in the context. We add extra Q & K to the final output such that the model can directly copy (or avoid) tokens in the context. Afterwards the model will teach itself NER (named entity recognition) if you look at the learned weights.
 ```
-q = self.head_q(x)[:,:T,:]
-k = self.head_k(x)[:,:T,:]
+q = self.head_q(x)[:,:T,:] # projecting to 256-d
+k = self.head_k(x)[:,:T,:] # projecting to 256-d
 c = (q @ k.transpose(-2, -1)) * (1.0 / 256)
 c = c.masked_fill(self.copy_mask[:T,:T] == 0, 0)
 c = c @ F.one_hot(idx, num_classes = self.config.vocab_size).float()       
