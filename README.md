@@ -16,18 +16,16 @@ All of the trained models will be open-source. Inference is very fast (only matr
 
 ## Quick start
 
-See https://github.com/BlinkDL/RWKV-v2-RNN-Pile for L24-D1024 and L12-D768 models trained on the Pile (and the latest code).
+Check https://github.com/BlinkDL/RWKV-v2-RNN-Pile for L24-D1024 and L12-D768 models trained on the Pile (and the latest code). It's very fast on CPU (the default mode).
 
-Read the inference code in https://github.com/BlinkDL/RWKV-v2-RNN-Pile/blob/main/src/model.py first :)
+Read the inference code in https://github.com/BlinkDL/RWKV-v2-RNN-Pile/blob/main/src/model.py and try using the final hidden state（.xx .aa .bb) for other tasks.
 
-See the release for a 27M params model on enwik8 with 0.72 BPC(dev). Run run.py in https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN :)
+See the release here for a 27M params model on enwik8 with 0.72 BPC(dev). Run run.py in https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN.
 
-Fine-tuning & training:
+Fine-tuning & training (I usually fine-tune with 4e-5 lr, and decay to 1e-5 when it plateaus):
 https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN
 
-Note: For fine-tuning the Pile model, change 1e-15 to 1e-9 in https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model.py and https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model_run.py and probably you need other changes as well. You can compare the output with the latest code ( https://github.com/BlinkDL/RWKV-v2-RNN-Pile ) to verify it.
-
-I usually fine-tune with 4e-5 lr, and decay to 1e-5 when it plateaus.
+**Important**: For fine-tuning the Pile model, change 1e-15 to 1e-9 (to avoid NaN) in https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model.py and https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model_run.py and probably you need other changes as well. You can compare the output with the latest code ( https://github.com/BlinkDL/RWKV-v2-RNN-Pile ) to verify it.
 
 ## How it works
 
