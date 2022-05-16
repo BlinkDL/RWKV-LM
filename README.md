@@ -112,7 +112,7 @@ Let's say the pile has x chunks (a chunk = ctx_len tokens).
 
 pick a prime number p just less than x, and make sure p = 2 (mod 3).
 
-Use (step * step * step) mod p to sample it. 
+Use (step * step * step) mod p to sample it. Add some bias to step for extra randomness.
 
 ## The top-p-x sampling method
 
