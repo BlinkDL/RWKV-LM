@@ -8,6 +8,11 @@ So it's combining the best of RNN and transformer - great performance, fast infe
 
 Reddit discussion: https://www.reddit.com/r/MachineLearning/comments/umq908/r_rwkvv2rnn_a_parallelizable_rnn_with/
 
+**You can find me (BlinkDL) in the EleutherAI Discord: https://www.eleuther.ai/get-involved/.**
+
+User feedback:
+> *I've so far toyed around the character-based model on our relatively small pre-training dataset (around 10GB of text), and the results are extremely good - similar ppl to models taking much, much longer to train.*
+
 I am training it on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile) and it shall be able to reach GPT-Neo performance on most tasks within 100B tokens:
 
 ![RWKV-v2-430M-Pile](RWKV-v2-430M-Pile.png)
