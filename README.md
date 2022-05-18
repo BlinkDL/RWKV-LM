@@ -8,6 +8,8 @@ So it's combining the best of RNN and transformer - great performance, fast infe
 
 Reddit discussion: https://www.reddit.com/r/MachineLearning/comments/umq908/r_rwkvv2rnn_a_parallelizable_rnn_with/
 
+Tweet from Sepp Hochreiter (thank you!): https://twitter.com/HochreiterSepp/status/1524270961314484227
+
 **You can find me (BlinkDL) in the EleutherAI Discord: https://www.eleuther.ai/get-involved/.**
 
 User feedback:
