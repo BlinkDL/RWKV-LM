@@ -40,7 +40,7 @@ https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN
 
 RWKV is inspired by Apple's AFT (https://arxiv.org/abs/2105.14103).
 
-However it's also using a number of my tricks, such as:
+And it's also using a number of my tricks, such as:
 
 * SmallInitEmb: https://github.com/BlinkDL/SmallInitEmb (applicable to all transformers) which helps the embedding quality, and stabilizes Post-LN (which is what I am using).
 
@@ -50,7 +50,7 @@ However it's also using a number of my tricks, such as:
 
 * Extra R-gate in the FFN (applicable to all transformers). I am also using reluSquared from Primer.
 
-* Better initilization: I init most of the matrices to ZERO (see RWKV_Init in https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model.py)
+* Better initilization: I init most of the matrices to ZERO (see RWKV_Init in https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model.py).
 
 * You can transfer some parameters from a small model to a large model, for faster and better convergence (see https://www.reddit.com/r/MachineLearning/comments/umq908/r_rwkvv2rnn_a_parallelizable_rnn_with/).
 
