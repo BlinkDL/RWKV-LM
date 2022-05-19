@@ -40,6 +40,22 @@ https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN
 
 RWKV is inspired by Apple's AFT (https://arxiv.org/abs/2105.14103).
 
+However it's also using a number of my tricks, such as:
+
+* SmallInitEmb: https://github.com/BlinkDL/SmallInitEmb (applicable to all transformers) which helps the embedding quality, and stabilizes Post-LN (which is what I am using).
+
+* Token-shift: https://github.com/BlinkDL/RWKV-LM#token-shift-time-shift-mixing (applicable to all transformers), especially helpful for char-level models.
+
+* Head-QK: https://github.com/BlinkDL/RWKV-LM#the-head-qk-trick-learning-to-copy-and-avoid-tokens (applicable to all transformers). Note: I am not using it in the Pile model to keep it 100% RNN.
+
+* Extra R-gate in the FFN (applicable to all transformers). I am also using reluSquared from Primer.
+
+* Better initilization: I init most of the matrices to ZERO (see RWKV_Init in https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model.py)
+
+* You can transfer some parameters from a small model to a large model, for faster and better convergence (see https://www.reddit.com/r/MachineLearning/comments/umq908/r_rwkvv2rnn_a_parallelizable_rnn_with/).
+
+* My CUDA kernel: https://github.com/BlinkDL/RWKV-CUDA to speedup training.
+
 ### From GPT to RWKV-2 (the formulas)
 
 Let F[t] be the system state at t.
@@ -96,8 +112,6 @@ Write out the formulas for "token at pos 2" and "token at pos 3" and you will ge
 kv / k is the memory mechanism. The token with high k can be remembered for a long duration, if W is close to 1 in the channel.
 
 RWKV v2 is parallelizable because the time-decay of each channel is data-independent (and trainable). For example, in usual RNN you can adjust the time-decay of a channel from say 0.8 to 0.5 (these are called "gates"), while in RWKV v2 you simply move the information from a W-0.8-channel to a W-0.5-channel to achieve the same effect.
-
-It's also using my SmallInitEmb trick https://github.com/BlinkDL/SmallInitEmb (applicable to all transformers), and a custom CUDA kernel https://github.com/BlinkDL/RWKV-CUDA .
 
 I find it might be nice to make the model stay on a mid-lr for a long period, because in theory that's where most learning shall happen. For example: constant 6e-4 for 10% of steps, 6e-4 to 1e-4 in 15% of steps, stays at 1e-4 for 25% of steps (actually I monitor the loss and decay the lr when it plateaus), then 1e-4 to 1e-5 in 50% of steps.
 
