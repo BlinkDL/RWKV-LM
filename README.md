@@ -36,6 +36,8 @@ https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN
 
 **Important**: For fine-tuning the Pile model, change 1e-15 to 1e-9 (to avoid NaN) in https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model.py and https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model_run.py and probably you need other changes as well. You can compare the output with the latest code ( https://github.com/BlinkDL/RWKV-v2-RNN-Pile ) to verify it.
 
+**Fixing NaN or loss spikes**: load a previous checkpoint, decrease LR a bit, and increase beta2 (I will go 0.99 -> 0.999 -> 0.9999 as time goes on).
+
 ## How it works
 
 RWKV is inspired by Apple's AFT (https://arxiv.org/abs/2105.14103).
