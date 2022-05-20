@@ -31,12 +31,12 @@ See the release here for a 27M params model on enwik8 with 0.72 BPC(dev). Run ru
 
 You can even run it in your browser: https://github.com/BlinkDL/AI-Writer/tree/main/docs/eng https://blinkdl.github.io/AI-Writer/eng/ (this is using tf.js WASM single-thread mode).
 
-Fine-tuning & training (I usually fine-tune with 4e-5 lr, and decay to 1e-5 when it plateaus):
+Fine-tuning & training (for a small model, try 4e-5 lr, and decay to 1e-5 when it plateaus):
 https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN
 
-**Important**: For fine-tuning the Pile model, change 1e-15 to 1e-9 (to avoid NaN) in https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model.py and https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model_run.py and probably you need other changes as well. You can compare the output with the latest code ( https://github.com/BlinkDL/RWKV-v2-RNN-Pile ) to verify it.
+**Important**: For fine-tuning the Pile model, change K_EPS from 1e-16 to 1e-9 (to avoid NaN) in https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model.py and https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model_run.py and disable HeadQK (so it's a pure RNN). You can compare the output with the latest code ( https://github.com/BlinkDL/RWKV-v2-RNN-Pile ) to verify it.
 
-**Fixing NaN or loss spikes**: load a previous checkpoint, decrease LR a bit, and increase beta2 (I will go 0.99 -> 0.999 -> 0.9999 as time goes on).
+**Fixing NaN or loss spikes**: load a previous checkpoint, decrease LR a bit, and increase beta2 (try 0.99 -> 0.999 -> 0.9999 as time goes on).
 
 ## How it works
 
@@ -48,7 +48,7 @@ And it's also using a number of my tricks, such as:
 
 * Token-shift: https://github.com/BlinkDL/RWKV-LM#token-shift-time-shift-mixing (applicable to all transformers), especially helpful for char-level models.
 
-* Head-QK: https://github.com/BlinkDL/RWKV-LM#the-head-qk-trick-learning-to-copy-and-avoid-tokens (applicable to all transformers). Note: I am not using it in the Pile model to keep it 100% RNN.
+* Head-QK: https://github.com/BlinkDL/RWKV-LM#the-head-qk-trick-learning-to-copy-and-avoid-tokens (applicable to all transformers). Note: it's helpful, but I disabled it in the Pile model to keep it 100% RNN.
 
 * Extra R-gate in the FFN (applicable to all transformers). I am also using reluSquared from Primer.
 
