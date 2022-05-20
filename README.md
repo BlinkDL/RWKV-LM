@@ -15,7 +15,7 @@ Tweet from Sepp Hochreiter (thank you!): https://twitter.com/HochreiterSepp/stat
 User feedback:
 > *I've so far toyed around the character-based model on our relatively small pre-training dataset (around 10GB of text), and the results are extremely good - similar ppl to models taking much, much longer to train.*
 
-I am training it on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile) and it shall be able to reach GPT-Neo performance on most tasks within 100B tokens:
+I am training a L24-D1024 RWKV-2 on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile):
 
 ![RWKV-v2-430M-Pile](RWKV-v2-430M-Pile.png)
 
