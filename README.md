@@ -45,7 +45,7 @@ Fine-tuning: for a small model, try 4e-5 lr, and decay to 1e-5 when it plateaus.
 
 **Important**: For fine-tuning the Pile model, change K_EPS from 1e-16 to 1e-9 (to avoid NaN) in https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model.py and https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model_run.py and disable HeadQK (so it's a pure RNN). You can compare the output with the latest code ( https://github.com/BlinkDL/RWKV-v2-RNN-Pile ) to verify it.
 
-**Fixing NaN or loss spikes**: load a previous checkpoint, decrease LR a bit.
+**Fixing NaN or loss spikes**: load a previous checkpoint, decrease LR a bit. I find you can decrease the LR faster than GPT, and eventually to 1/50 of max LR (instead of 1/10).
 
 ## How it works
 
