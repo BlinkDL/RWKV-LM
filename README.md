@@ -41,13 +41,15 @@ Training: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN
 
 You will be training the "GPT" version because it's paralleziable and faster to train. I find RWKV-2 can extrapolate, so training with ctxLen 768 can work for ctxLen of several thousand. You can fine-tune the model with longer ctxLen later and it can quickly adapt to longer ctxLens.
 
-I find it might be nice to make the model stay on a mid-lr for a long period, because in theory that's where most learning shall happen. For example: constant 6e-4 for 10% of steps, 6e-4 to 1e-4 in 15% of steps, stays at 1e-4 for 25% of steps (I monitor the loss and decay the lr when it plateaus or hits a NaN), then 1e-4 to 1e-5 in 50% of steps.
+My LR schedule for the L24-D1024 RWKV-2:
+
+![RWKV-v2-430M-Pile-LR](RWKV-v2-430M-Pile-LR.png)
+
+Fixing NaN or loss spikes: load a previous checkpoint, decrease LR a bit. I find you can decrease the LR faster than GPT, and eventually to 1/50 of LR_max.
 
 Fine-tuning: for a small model, try 4e-5 lr, and decay to 1e-5 when it plateaus.
 
 **Important**: For fine-tuning the Pile model, change K_EPS from 1e-16 to 1e-9 (to avoid NaN) in https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model.py and https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model_run.py and disable HeadQK (so it's a pure RNN). You can compare the output with the latest code ( https://github.com/BlinkDL/RWKV-v2-RNN-Pile ) to verify it.
-
-**Fixing NaN or loss spikes**: load a previous checkpoint, decrease LR a bit. I find you can decrease the LR faster than GPT, and eventually to 1/50 of max LR (instead of 1/10).
 
 ## How it works
 
