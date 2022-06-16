@@ -17,11 +17,11 @@ User feedback:
 
 > *dear god rwkv is fast. i switched to another tab after starting training it from scratch & when i returned it was emitting plausible english & maori words, i left to go microwave some coffee & when i came back it was producing fully grammatically correct sentences.*
 
-I am training a L24-D1024 RWKV-2 on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile):
+I am training RWKV-2 on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile):
 
 ![RWKV-v2-430M-Pile](RWKV-v2-430M-Pile.png)
 
-All of the trained models will be open-source. Inference is very fast (only matrix-vector multiplications, no matrix-matrix multiplications) even on CPUs, and I believe you can run a 1B params RWKV-v2-RNN with reasonable speed on your phone.
+All of the trained models will be open-source. Inference is very fast (only matrix-vector multiplications, no matrix-matrix multiplications) even on CPUs, and I believe you can run a 1.5B params RWKV-v2-RNN with reasonable speed on your phone.
 
 ## Quick start
 
