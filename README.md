@@ -126,6 +126,12 @@ kv / k is the memory mechanism. The token with high k can be remembered for a lo
 
 RWKV v2 is parallelizable because the time-decay of each channel is data-independent (and trainable). For example, in usual RNN you can adjust the time-decay of a channel from say 0.8 to 0.5 (these are called "gates"), while in RWKV v2 you simply move the information from a W-0.8-channel to a W-0.5-channel to achieve the same effect.
 
+## RWKV v2.x improvements
+
+The latest improvements:
+* Use different TimeMix for R/K/V.
+* Use preLN instead of postLN.
+
 ## How to sample a large dataset (for training)
 
 I am using a trick to sample the Pile deterministically yet randomly enough.
