@@ -69,6 +69,25 @@ And it's also using a number of my tricks, such as:
 
 * My CUDA kernel: https://github.com/BlinkDL/RWKV-CUDA to speedup training.
 
+### The pseudocode (execution from top to bottom):
+
+![RWKV-v2-RNN](RWKV-v2-RNN.png)
+
+The a b c d factors work together to build a time-decay curve: X, 1, W, W^2, W^3, ...
+
+Write out the formulas for "token at pos 2" and "token at pos 3" and you will get the idea:
+* a and b: EMAs of kv and k.
+* c and d: these are a and b combined with "self-attention".
+
+kv / k is the memory mechanism. The token with high k can be remembered for a long duration, if W is close to 1 in the channel.
+
+RWKV v2 is parallelizable because the time-decay of each channel is data-independent (and trainable). For example, in usual RNN you can adjust the time-decay of a channel from say 0.8 to 0.5 (these are called "gates"), while in RWKV v2 you simply move the information from a W-0.8-channel to a W-0.5-channel to achieve the same effect.
+
+## RWKV v2.x improvements (not yet uploaded to github. used in the latest 1.5B run)
+
+* Use different trainable TimeMix factors for R / K / V.
+* Use preLN instead of postLN.
+
 ### From GPT to RWKV-2 (the formulas)
 
 Let F[t] be the system state at t.
@@ -111,26 +130,6 @@ where A[t] and B[t] are the numerator and denominator of the previous step, resp
 I believe RWKV-2 is performant because W is like repeatedly applying a diagonal matrix. Note (P^{-1} D P)^n = P^{-1} D^n P, so it is similar to repeatedly applying a general diagonalizable matrix.
 
 Moreover it's possible to turn it into a continuous ODE (a bit similar to State Space Models). I will write about it later.
-
-### The pseudocode (execution from top to bottom):
-
-![RWKV-v2-RNN](RWKV-v2-RNN.png)
-
-The a b c d factors work together to build a time-decay curve: X, 1, W, W^2, W^3, ...
-
-Write out the formulas for "token at pos 2" and "token at pos 3" and you will get the idea:
-* a and b: EMAs of kv and k.
-* c and d: these are a and b combined with "self-attention".
-
-kv / k is the memory mechanism. The token with high k can be remembered for a long duration, if W is close to 1 in the channel.
-
-RWKV v2 is parallelizable because the time-decay of each channel is data-independent (and trainable). For example, in usual RNN you can adjust the time-decay of a channel from say 0.8 to 0.5 (these are called "gates"), while in RWKV v2 you simply move the information from a W-0.8-channel to a W-0.5-channel to achieve the same effect.
-
-## RWKV v2.x improvements
-
-The latest improvements:
-* Use different TimeMix for R/K/V.
-* Use preLN instead of postLN.
 
 ## How to sample a large dataset (for training)
 
