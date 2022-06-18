@@ -83,7 +83,7 @@ kv / k is the memory mechanism. The token with high k can be remembered for a lo
 
 RWKV v2 is parallelizable because the time-decay of each channel is data-independent (and trainable). For example, in usual RNN you can adjust the time-decay of a channel from say 0.8 to 0.5 (these are called "gates"), while in RWKV v2 you simply move the information from a W-0.8-channel to a W-0.5-channel to achieve the same effect.
 
-## RWKV v2.x improvements (not yet uploaded to github. used in the latest 1.5B run)
+### RWKV v2.x improvements (not yet uploaded to github. used in the latest 1.5B run)
 
 * Use different trainable TimeMix factors for R / K / V.
 * Use preLN instead of postLN.
