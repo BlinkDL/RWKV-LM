@@ -12,6 +12,8 @@ Tweet from Sepp Hochreiter (thank you!): https://twitter.com/HochreiterSepp/stat
 
 **You can find me (BlinkDL) in the EleutherAI Discord: https://www.eleuther.ai/get-involved/**
 
+**I am looking for CUDA gurus to optimize the kernel :) Please contact me if you are interested. Thank you.**
+
 User feedback:
 > *I've so far toyed around the character-based model on our relatively small pre-training dataset (around 10GB of text), and the results are extremely good - similar ppl to models taking much, much longer to train.*
 
