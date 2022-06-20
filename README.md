@@ -83,7 +83,7 @@ Write out the formulas for "token at pos 2" and "token at pos 3" and you will ge
 
 kv / k is the memory mechanism. The token with high k can be remembered for a long duration, if W is close to 1 in the channel.
 
-RWKV v2 is parallelizable because the time-decay of each channel is data-independent (and trainable). For example, in usual RNN you can adjust the time-decay of a channel from say 0.8 to 0.5 (these are called "gates"), while in RWKV v2 you simply move the information from a W-0.8-channel to a W-0.5-channel to achieve the same effect.
+**RWKV v2 is parallelizable because the time-decay of each channel is data-independent (and trainable)**. For example, in usual RNN you can adjust the time-decay of a channel from say 0.8 to 0.5 (these are called "gates"), while in RWKV v2 you simply move the information from a W-0.8-channel to a W-0.5-channel to achieve the same effect.
 
 ### RWKV v2+ improvements (not yet uploaded to github. used in the latest 1.5B run)
 
@@ -103,7 +103,7 @@ x = x + self.att(self.ln1(x))
 x = x + self.ffn(self.ln2(x))
 ```
 
-I need a better CUDA kernel to (1) pull off maxK so there's need to clamp k to 60. (2) fix divide-by-zero without using K_EPS. (3) support bf16/fp16. Please let me know if you are a CUDA expert :)
+I need a better CUDA kernel to (1) pull off maxK so there's need to clamp k to 60. (2) fix divide-by-zero without using K_EPS. (3) support bf16/fp16. **Please let me know if you are a CUDA expert :)**
 
 Removing the maxK limitation will also make it easy to clean the state of a KV-V channel, by using a huge K.
 
