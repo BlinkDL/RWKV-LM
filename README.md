@@ -95,13 +95,17 @@ xv = x * self.time_mix_v + xx * (1 - self.time_mix_v)
 xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)
 ```
 
-Use preLN instead of postLN:
+Use preLN instead of postLN (more stable & faster convergence):
 ```
 if self.layer_id == 0:
 	x = self.ln0(x)
 x = x + self.att(self.ln1(x))
 x = x + self.ffn(self.ln2(x))
 ```
+
+I need a better CUDA kernel to (1) pull off maxK so there's need to clamp k to 60. (2) fix divide-by-zero without using K_EPS. (3) support bf16/fp16. Please let me know if you are a CUDA expert :)
+
+Removing the maxK limitation will also make it easy to clean the state of a KV-V channel, by using a huge K.
 
 ### From GPT to RWKV-2 (the formulas)
 
