@@ -49,6 +49,8 @@ My LR schedule for the L24-D1024 RWKV-2:
 
 Fixing NaN or loss spikes: load a previous checkpoint, decrease LR a bit. I find you can decrease the LR faster than GPT, and eventually to 1/50 of LR_max.
 
+**UPDATE: Search for "RWKV v2+" here and change RWKV-2 to PreLN to make it more stable.**
+
 Fine-tuning: see https://github.com/BlinkDL/RWKV-v2-RNN-Pile.
 
 ## How it works
