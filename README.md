@@ -39,7 +39,7 @@ See the release here for a 27M params model on enwik8 with 0.72 BPC(dev). Run ru
 
 Training: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN
 
-You will be training the "GPT" version because it's paralleziable and faster to train. I find RWKV-2 can extrapolate, so training with ctxLen 768 can work for ctxLen of several thousand. You can fine-tune the model with longer ctxLen later and it can quickly adapt to longer ctxLens.
+You will be training the "GPT" version because it's paralleziable and faster to train. I find RWKV-2 can extrapolate, so training with ctxLen 768 can work for ctxLen of 1000+. You can fine-tune the model with longer ctxLen and it can quickly adapt to longer ctxLens.
 
 **UPDATE: Search for "RWKV v2+" here and change RWKV-2 to PreLN to make it more stable.**
 
@@ -82,7 +82,7 @@ kv / k is the memory mechanism. The token with high k can be remembered for a lo
 ### RWKV v2+ improvements (not yet uploaded to github. used in the latest 1.5B run)
 
 Use different trainable TimeMix factors for R / K / V in SA and FF layers. Example:
-```
+```python
 xx = self.time_shift(x)
 xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)
 xv = x * self.time_mix_v + xx * (1 - self.time_mix_v)
@@ -90,7 +90,7 @@ xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)
 ```
 
 Use preLN instead of postLN (more stable & faster convergence):
-```
+```python
 if self.layer_id == 0:
 	x = self.ln0(x)
 x = x + self.att(self.ln1(x))
