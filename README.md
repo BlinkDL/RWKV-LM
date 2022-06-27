@@ -101,10 +101,6 @@ I need a better CUDA kernel to (1) pull off maxK so there's need to clamp k to 6
 
 Removing the maxK limitation will also make it easy to clean the state of a KV-V channel, by using a huge K.
 
-Namely, this is my plan:
-
-![RWKV-v3-plan](RWKV-v3-plan.png)
-
 ## Explaining the code for RWKV v2+ GPT mode
 
 Note: this is for the latest v2+ model.
@@ -202,6 +198,12 @@ rkv = torch.sigmoid(self.receptance(xr)) * kv
 return rkv
 ```
 The self.value, self.receptance matrices are all initialized to zero.
+
+## Towards RWKV-3
+
+RWKV-3 will work under FP16.
+
+![RWKV-v3-plan](RWKV-v3-plan.png)
 
 ## From GPT to RWKV-2 (the formulas)
 
