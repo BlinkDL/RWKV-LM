@@ -101,7 +101,7 @@ I need a better CUDA kernel to (1) pull off maxK so there's need to clamp k to 6
 
 Removing the maxK limitation will also make it easy to clean the state of a KV-V channel, by using a huge K.
 
-Namely, this is my plan (there's a typo: the range shall be [e^10, (n+1) * e^10]):
+Namely, this is my plan:
 
 ![RWKV-v3-plan](RWKV-v3-plan.png)
 
