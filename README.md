@@ -101,6 +101,10 @@ I need a better CUDA kernel to (1) pull off maxK so there's need to clamp k to 6
 
 Removing the maxK limitation will also make it easy to clean the state of a KV-V channel, by using a huge K.
 
+Namely, this is what I plan to do:
+
+![RWKV-v3-plan](RWKV-v3-plan.png)
+
 ========================================================================
 
 ### Explaining the code for RWKV v2+ GPT mode
