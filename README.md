@@ -61,7 +61,7 @@ And it's also using a number of my tricks, such as:
 
 * Better initilization: I init most of the matrices to ZERO (see RWKV_Init in https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model.py).
 
-* You can transfer some parameters from a small model to a large model, for faster and better convergence (see https://www.reddit.com/r/MachineLearning/comments/umq908/r_rwkvv2rnn_a_parallelizable_rnn_with/).
+* You can transfer some parameters from a small model to a large model (note: I sort & smooth them too), for faster and better convergence (see https://www.reddit.com/r/MachineLearning/comments/umq908/r_rwkvv2rnn_a_parallelizable_rnn_with/).
 
 * My CUDA kernel: https://github.com/BlinkDL/RWKV-CUDA to speedup training.
 
@@ -173,7 +173,7 @@ rwkv = self.output(rwkv) # final output projection
 
 The self.key, self.receptance, self.output matrices are all initialized to zero.
 
-The time_mix, time_decay, time_first vectors are transferred from a smaller trained model.
+The time_mix, time_decay, time_first vectors are transferred from a smaller trained model (note: I sort & smooth them too).
 
 #### The GPT mode - FFN block
 
