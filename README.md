@@ -65,7 +65,7 @@ And it's also using a number of my tricks, such as:
 
 * My CUDA kernel: https://github.com/BlinkDL/RWKV-CUDA to speedup training.
 
-### The pseudocode (execution from top to bottom):
+## The pseudocode (execution from top to bottom):
 
 ![RWKV-v2-RNN](RWKV-v2-RNN.png)
 
@@ -79,9 +79,7 @@ kv / k is the memory mechanism. The token with high k can be remembered for a lo
 
 **RWKV v2 is parallelizable because the time-decay of each channel is data-independent (and trainable)**. For example, in usual RNN you can adjust the time-decay of a channel from say 0.8 to 0.5 (these are called "gates"), while in RWKV v2 you simply move the information from a W-0.8-channel to a W-0.5-channel to achieve the same effect.
 
-========================================================================
-
-### RWKV v2+ improvements (not yet uploaded to github. used in the latest 1.5B run)
+## RWKV v2+ improvements (not yet uploaded to github. used in the latest 1.5B run)
 
 Use different trainable TimeMix factors for R / K / V in SA and FF layers. Example:
 ```python
@@ -107,13 +105,11 @@ Namely, this is my plan:
 
 ![RWKV-v3-plan](RWKV-v3-plan.png)
 
-========================================================================
-
-### Explaining the code for RWKV v2+ GPT mode
+## Explaining the code for RWKV v2+ GPT mode
 
 Note: this is for the latest v2+ model.
 
-#### The GPT mode - overview
+### The GPT mode - overview
 
 The building blocks of RWKV-2 GPT mode are similar to that of a usual preLN GPT.
 
@@ -139,7 +135,7 @@ For the first 15B tokens, LR is fixed at 3e-4, and beta=(0.9, 0.99).
 
 Then I set beta=(0.9, 0.999), and do an exponential decay of LR, reaching 1e-5 at 332B tokens.
 
-#### The GPT mode - ATT block
+### The GPT mode - ATT block
 
 The RWKV-2 does not have any attention in the usual sense, but we will call this block ATT anyway.
 ```python
@@ -181,7 +177,7 @@ The self.key, self.receptance, self.output matrices are all initialized to zero.
 
 The time_mix, time_decay, time_first vectors are transferred from a smaller trained model (note: I sort & smooth them too).
 
-#### The GPT mode - FFN block
+### The GPT mode - FFN block
 
 The FFN block has three tricks comparing with the usual GPT:
 
@@ -207,9 +203,7 @@ return rkv
 ```
 The self.value, self.receptance matrices are all initialized to zero.
 
-========================================================================
-
-### From GPT to RWKV-2 (the formulas)
+## From GPT to RWKV-2 (the formulas)
 
 Let F[t] be the system state at t.
 
