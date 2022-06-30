@@ -39,9 +39,9 @@ See the release here for a 27M params model on enwik8 with 0.72 BPC(dev). Run ru
 
 Training: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN
 
-You will be training the "GPT" version because it's paralleziable and faster to train. I find RWKV-2 can extrapolate, so training with ctxLen 768 can work for ctxLen of 1000+. You can fine-tune the model with longer ctxLen and it can quickly adapt to longer ctxLens.
+You will be training the "GPT" version because it's paralleziable and faster to train. I find RWKV can extrapolate, so training with ctxLen 768 can work for ctxLen of 1000+. You can fine-tune the model with longer ctxLen and it can quickly adapt to longer ctxLens.
 
-**UPDATE: Search for "RWKV v2+" here and change RWKV-2 to PreLN to make it more stable.**
+**UPDATE: Search for "RWKV-3" here (which is using PreLN) to make it more stable.**
 
 Fine-tuning: see https://github.com/BlinkDL/RWKV-v2-RNN-Pile.
 
@@ -77,9 +77,9 @@ Write out the formulas for "token at pos 2" and "token at pos 3" and you will ge
 
 kv / k is the memory mechanism. The token with high k can be remembered for a long duration, if W is close to 1 in the channel.
 
-**RWKV v2 is parallelizable because the time-decay of each channel is data-independent (and trainable)**. For example, in usual RNN you can adjust the time-decay of a channel from say 0.8 to 0.5 (these are called "gates"), while in RWKV v2 you simply move the information from a W-0.8-channel to a W-0.5-channel to achieve the same effect.
+**RWKV is parallelizable because the time-decay of each channel is data-independent (and trainable)**. For example, in usual RNN you can adjust the time-decay of a channel from say 0.8 to 0.5 (these are called "gates"), while in RWKV you simply move the information from a W-0.8-channel to a W-0.5-channel to achieve the same effect.
 
-## RWKV v2+ improvements (not yet uploaded to github. used in the latest 1.5B run)
+## RWKV-3 improvements (not yet uploaded to github. used in the latest 1.5B run)
 
 Use different trainable TimeMix factors for R / K / V in SA and FF layers. Example:
 ```python
@@ -101,13 +101,13 @@ I need a better CUDA kernel to (1) pull off maxK so there's need to clamp k to 6
 
 Removing the maxK limitation will also make it easy to clean the state of a KV-V channel, by using a huge K.
 
-## Explaining the code for RWKV v2+ GPT mode
+## Explaining the code for RWKV-3 GPT mode
 
-Note: this is for the latest v2+ model.
+Note: this is for the latest RWKV-3 model.
 
 ### The GPT mode - overview
 
-The building blocks of RWKV-2 GPT mode are similar to that of a usual preLN GPT.
+The building blocks of RWKV-3 GPT mode are similar to that of a usual preLN GPT.
 
 The only difference is an extra LN after embedding. Note you can absorb this LN into the embedding after finishing the training.
 ```python
@@ -123,7 +123,7 @@ x = self.head(x)    # output: x = logits
 ```
 It is important to initialize emb to tiny values, such as nn.init.uniform_(a=-1e-4, b=1e-4), to utilize my trick https://github.com/BlinkDL/SmallInitEmb.
 
-For the 1.5B RWKV-2, I use Adam (no wd, no dropout) optimizer on 8 * A100 40G.
+For the 1.5B RWKV-3, I use Adam (no wd, no dropout) optimizer on 8 * A100 40G.
 
 batchSz = 32 * 896, ctxLen = 896. I am using tf32 so the batchSz is a bit small. 
 
@@ -133,7 +133,7 @@ Then I set beta=(0.9, 0.999), and do an exponential decay of LR, reaching 1e-5 a
 
 ### The GPT mode - ATT block
 
-The RWKV-2 does not have any attention in the usual sense, but we will call this block ATT anyway.
+The RWKV-3 does not have any attention in the usual sense, but we will call this block ATT anyway.
 ```python
 B, T, C = x.size() # x = (Batch,Time,Channel)
 
@@ -199,13 +199,13 @@ return rkv
 ```
 The self.value, self.receptance matrices are all initialized to zero.
 
-## Towards RWKV-3
+## Towards RWKV-4
 
-RWKV-3 will work under FP16.
+RWKV-4 will work under FP16.
 
 ![RWKV-v3-plan](RWKV-v3-plan.png)
 
-## From GPT to RWKV-2 (the formulas)
+## From GPT to RWKV (the formulas)
 
 Let F[t] be the system state at t.
 
@@ -219,7 +219,7 @@ The **simplified formula** for GPT:
 
 It's very capable in theory, however that **does not mean we can fully utilize its capability with usual optimizers**. I suspect the loss landscape is too difficult for our current methods.
 
-Compare with the **simplified formula** for RWKV-2 (the parallel mode, looks similar to Apple's AFT):
+Compare with the **simplified formula** for RWKV (the parallel mode, looks similar to Apple's AFT):
 
 ![F[\mathrm{t}+1]=\sigma(\mathbf{R}x[\mathrm{t}]) \cdot \frac{\sum_{\mathrm{i}=0}^{\mathrm{t}} \exp (\mathbf{W} \cdot(\mathrm{t}-\mathrm{i})) \cdot \exp (\mathbf{K}F[\mathrm{i}]) \cdot(\mathbf{V}F[\mathrm{i}])}{\sum_{\mathrm{i}=0}^{\mathrm{t}} \exp (\mathbf{W} \cdot(\mathrm{t}-\mathrm{i})) \cdot \exp (\mathbf{K }F[\mathrm{i}])}](https://render.githubusercontent.com/render/math?math=%5Ccolor%7Bblack%7D%5Cdisplaystyle+F%5B%5Cmathrm%7Bt%7D%2B1%5D%3D%5Csigma%28%5Cmathbf%7BR%7Dx%5B%5Cmathrm%7Bt%7D%5D%29+%5Ccdot+%5Cfrac%7B%5Csum_%7B%5Cmathrm%7Bi%7D%3D0%7D%5E%7B%5Cmathrm%7Bt%7D%7D+%5Cexp+%28%5Cmathbf%7BW%7D+%5Ccdot%28%5Cmathrm%7Bt%7D-%5Cmathrm%7Bi%7D%29%29+%5Ccdot+%5Cexp+%28%5Cmathbf%7BK%7DF%5B%5Cmathrm%7Bi%7D%5D%29+%5Ccdot%28%5Cmathbf%7BV%7DF%5B%5Cmathrm%7Bi%7D%5D%29%7D%7B%5Csum_%7B%5Cmathrm%7Bi%7D%3D0%7D%5E%7B%5Cmathrm%7Bt%7D%7D+%5Cexp+%28%5Cmathbf%7BW%7D+%5Ccdot%28%5Cmathrm%7Bt%7D-%5Cmathrm%7Bi%7D%29%29+%5Ccdot+%5Cexp+%28%5Cmathbf%7BK+%7DF%5B%5Cmathrm%7Bi%7D%5D%29%7D)
 
@@ -244,7 +244,7 @@ Therefore it's straightforward to verify:
 
 where A[t] and B[t] are the numerator and denominator of the previous step, respectively.
 
-I believe RWKV-2 is performant because W is like repeatedly applying a diagonal matrix. Note (P^{-1} D P)^n = P^{-1} D^n P, so it is similar to repeatedly applying a general diagonalizable matrix.
+I believe RWKV is performant because W is like repeatedly applying a diagonal matrix. Note (P^{-1} D P)^n = P^{-1} D^n P, so it is similar to repeatedly applying a general diagonalizable matrix.
 
 Moreover it's possible to turn it into a continuous ODE (a bit similar to State Space Models). I will write about it later.
 
