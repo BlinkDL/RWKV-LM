@@ -39,6 +39,8 @@ See the release here for a 27M params model on enwik8 with 0.72 BPC(dev). Run ru
 
 ### Training / Fine-tuning
 
+Colab for fine-tuning: https://colab.research.google.com/drive/1BwceyZczs5hQr1wefmCREonEWhY-zeST
+
 Training: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN
 
 You will be training the "GPT" version because it's paralleziable and faster to train. I find RWKV can extrapolate, so training with ctxLen 768 can work for ctxLen of 1000+. You can fine-tune the model with longer ctxLen and it can quickly adapt to longer ctxLens.
