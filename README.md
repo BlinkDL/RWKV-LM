@@ -6,15 +6,19 @@ RWKV-2 is a RNN with Transformer-level performance, which can also be directly t
 
 So it's combining the best of RNN and transformer - **great performance, fast inference, saves VRAM, fast training, "infinite" ctx_len, and free sentence embedding** (using the final hidden state).
 
-Join our Discord! https://discord.gg/bDSBUMeFpc :)
+Inference speed on single A40 (tf32):
+
+RWKV-2 1.5B = always 0.015 sec/token, tested using simple pytorch code (no CUDA), GPU utilization 45%, VRAM 7823M
+
+GPT2-XL 1.3B = 0.032 sec/token (for ctxlen 1000), tested using HF, GPU utilization 45% too (interesting), VRAM 9655M
+
+Join our Discord: https://discord.gg/bDSBUMeFpc :) I am looking for CUDA gurus to optimize the kernel. Thank you.
 
 Reddit discussion: https://www.reddit.com/r/MachineLearning/comments/umq908/r_rwkvv2rnn_a_parallelizable_rnn_with/
 
 Tweet from Sepp Hochreiter (thank you!): https://twitter.com/HochreiterSepp/status/1524270961314484227
 
-**You can find me (BlinkDL) in the EleutherAI Discord: https://www.eleuther.ai/get-involved/**
-
-**I am looking for CUDA gurus to optimize the kernel :) Please contact me if you are interested. Thank you.**
+You can find me (BlinkDL) in the EleutherAI Discord too: https://www.eleuther.ai/get-involved/
 
 User feedback:
 > *I've so far toyed around the character-based model on our relatively small pre-training dataset (around 10GB of text), and the results are extremely good - similar ppl to models taking much, much longer to train.*
