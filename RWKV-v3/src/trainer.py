@@ -125,11 +125,12 @@ class Trainer:
                                 float(config.warmup_tokens)
                             progress = 0
                         else:
-                            # cosine learning rate decay
-                            progress = float(self.tokens - config.warmup_tokens) / float(
-                                max(1, config.final_tokens - config.warmup_tokens))
-                            lr_mult = (0.5 + lr_final_factor / 2) + (0.5 - lr_final_factor /
-                                                                     2) * math.cos(math.pi * progress)  # better 1.0 ~ 0.1
+                            # exponential learning rate decay
+                            progress = float(self.tokens - config.warmup_tokens) / float(max(1, config.final_tokens - config.warmup_tokens))
+                            if progress >= 1:
+                                lr_mult = lr_final_factor
+                            else:
+                                lr_mult = math.exp(math.log(lr_final_factor) * pow(progress, 1))
                         lr = config.learning_rate * lr_mult
                         for param_group in optimizer.param_groups:
                             param_group['lr'] = lr
