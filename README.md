@@ -39,25 +39,21 @@ Check https://github.com/BlinkDL/RWKV-v2-RNN-Pile for L24-D1024 and L12-D768 mod
 
 Read the inference code in https://github.com/BlinkDL/RWKV-v2-RNN-Pile/blob/main/src/model.py and try using the final hidden state（.xx .aa .bb) as a faithful sentence embedding for other tasks (probably you shall begin with .xx and .aa/.bb (.aa divided by .bb)).
 
-See the release here for a 27M params model on enwik8 with 0.72 BPC(dev). Run run.py in https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN. You can even run it in your browser: https://github.com/BlinkDL/AI-Writer/tree/main/docs/eng https://blinkdl.github.io/AI-Writer/eng/ (this is using tf.js WASM single-thread mode).
+For RWKV-2: see the release here for a 27M params model on enwik8 with 0.72 BPC(dev). Run run.py in https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN. You can even run it in your browser: https://github.com/BlinkDL/AI-Writer/tree/main/docs/eng https://blinkdl.github.io/AI-Writer/eng/ (this is using tf.js WASM single-thread mode).
 
 ### Training / Fine-tuning
 
-Colab for fine-tuning: https://colab.research.google.com/drive/1BwceyZczs5hQr1wefmCREonEWhY-zeST
-
-Training: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN
+Training RWKV-3: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v3
 
 You will be training the "GPT" version because it's paralleziable and faster to train. I find RWKV can extrapolate, so training with ctxLen 768 can work for ctxLen of 1000+. You can fine-tune the model with longer ctxLen and it can quickly adapt to longer ctxLens.
 
-**UPDATE: Search for "RWKV-3" here (which is using PreLN) to make it more stable.**
-
-Fine-tuning: see https://github.com/BlinkDL/RWKV-v2-RNN-Pile.
+Colab for fine-tuning the Pile models: https://colab.research.google.com/drive/1BwceyZczs5hQr1wefmCREonEWhY-zeST
 
 ## How it works
 
 RWKV is inspired by Apple's AFT (https://arxiv.org/abs/2105.14103).
 
-And it's also using a number of my tricks, such as:
+Moreover it's using a number of my tricks, such as:
 
 * SmallInitEmb: https://github.com/BlinkDL/SmallInitEmb (applicable to all transformers) which helps the embedding quality, and stabilizes Post-LN (which is what I am using).
 
@@ -87,7 +83,7 @@ kv / k is the memory mechanism. The token with high k can be remembered for a lo
 
 **RWKV is parallelizable because the time-decay of each channel is data-independent (and trainable)**. For example, in usual RNN you can adjust the time-decay of a channel from say 0.8 to 0.5 (these are called "gates"), while in RWKV you simply move the information from a W-0.8-channel to a W-0.5-channel to achieve the same effect.
 
-## RWKV-3 improvements (not yet uploaded to github. used in the latest 1.5B run)
+## RWKV-3 improvements (used in the latest 1.5B run)
 
 Use different trainable TimeMix factors for R / K / V in SA and FF layers. Example:
 ```python
@@ -110,8 +106,6 @@ I need a better CUDA kernel to (1) pull off maxK so there's need to clamp k to 6
 Removing the maxK limitation will also make it easy to clean the state of a KV-V channel, by using a huge K.
 
 ## Explaining the code for RWKV-3 GPT mode
-
-Note: this is for the latest RWKV-3 model.
 
 ### The GPT mode - overview
 
