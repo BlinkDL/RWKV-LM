@@ -59,7 +59,7 @@ batch_size = 12
 # Let's say you will train a L6-D512 model.
 # 1) Set lr_init = lr_final = 8e-4. Let it run for some mini-epochs, until the improvement of loss become slow.
 # 2) Check epoch_save_frequency and make sure the partially-trained model is saved. Ctrl+C to stop the run.
-# 3) Set lr_init = 8e-4, lr_final = 1e-5, warmup_tokens = ctx_len * batch_size * 50, betas = (0.9, 0.999)
+# 3) Set lr_init = 8e-4, lr_final = 1e-5, warmup_tokens = ctx_len * batch_size * 50, betas = (0.9, 0.999).
 # 4) Search for "torch.load" here and modify it to load the partially-trained model. Continue the training.
 # 
 # For L12-D768, set lr_init = 6e-4. For L24-D1024, set lr_init = 4e-4. For L24-D2048, set lr_init = 3e-4.

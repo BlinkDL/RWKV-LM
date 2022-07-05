@@ -115,7 +115,7 @@ class Block(nn.Module):
         if self.layer_id == 0:
             x = self.ln0(x)
         if self.layer_id == 0 and RWKV_CFG.model_type == 'RWKV-ffnPre':
-            x = x + self.ffnPre(x)
+            x = x + self.ffnPre(self.ln1(x))
         else:
             x = x + self.att(self.ln1(x))
         x = x + self.ffn(self.ln2(x))
