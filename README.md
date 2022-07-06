@@ -8,7 +8,7 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 Inference speed on single A40 (tf32):
 
-RWKV-2 1.5B = always 0.015 sec/token, tested using simple pytorch code (no CUDA), GPU utilization 45%, VRAM 7823M
+RWKV-3 1.5B = always 0.015 sec/token, tested using simple pytorch code (no CUDA), GPU utilization 45%, VRAM 7823M
 
 GPT2-XL 1.3B = 0.032 sec/token (for ctxlen 1000), tested using HF, GPU utilization 45% too (interesting), VRAM 9655M
 
@@ -73,7 +73,7 @@ Moreover it's using a number of my tricks, such as:
 
 ![RWKV-v2-RNN](RWKV-v2-RNN.png)
 
-The a b c d factors work together to build a time-decay curve: X, 1, W, W^2, W^3, ...
+The a b c d factors work together to build a time-decay curve: [X, 1, W, W^2, W^3, ...].
 
 Write out the formulas for "token at pos 2" and "token at pos 3" and you will get the idea:
 * a and b: EMAs of kv and k.
@@ -82,6 +82,8 @@ Write out the formulas for "token at pos 2" and "token at pos 3" and you will ge
 kv / k is the memory mechanism. The token with high k can be remembered for a long duration, if W is close to 1 in the channel.
 
 **RWKV is parallelizable because the time-decay of each channel is data-independent (and trainable)**. For example, in usual RNN you can adjust the time-decay of a channel from say 0.8 to 0.5 (these are called "gates"), while in RWKV you simply move the information from a W-0.8-channel to a W-0.5-channel to achieve the same effect.
+
+The R-gate is important for performance. k = info strength of this token (to be passed to future tokens). r = whether to apply the info to this token.
 
 ## RWKV-3 improvements (used in the latest 1.5B run)
 
