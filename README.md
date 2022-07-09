@@ -27,7 +27,7 @@ User feedback:
 
 I am training RWKV-2 on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile):
 
-![RWKV-v2-430M-Pile](RWKV-v2-430M-Pile.png)
+![RWKV-v3-1.5B-Pile](RWKV-v3-1.5B-Pile.png)
 
 All of the trained models will be open-source. Inference is very fast (only matrix-vector multiplications, no matrix-matrix multiplications) even on CPUs, and I believe you can run a 1.5B params RWKV-v2-RNN with reasonable speed on your phone.
 
