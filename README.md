@@ -6,13 +6,15 @@ RWKV-2 is a RNN with Transformer-level performance, which can also be directly t
 
 So it's combining the best of RNN and transformer - **great performance, fast inference, saves VRAM, fast training, "infinite" ctx_len, and free sentence embedding** (using the final hidden state).
 
+**How it works**: RWKV gathers information to a number of channels, which are also decaying with different speeds as you move to the next token. It's very simple once you understand it.
+
 Inference speed on single A40 (tf32):
 
 RWKV-3 1.5B = always 0.015 sec/token, tested using simple pytorch code (no CUDA), GPU utilization 45%, VRAM 7823M
 
 GPT2-XL 1.3B = 0.032 sec/token (for ctxlen 1000), tested using HF, GPU utilization 45% too (interesting), VRAM 9655M
 
-Join our Discord: https://discord.gg/bDSBUMeFpc :) I am looking for CUDA gurus to optimize the kernel. Thank you.
+**Join our Discord**: https://discord.gg/bDSBUMeFpc :) I am looking for CUDA gurus to optimize the kernel. Thank you.
 
 Reddit discussion: https://www.reddit.com/r/MachineLearning/comments/umq908/r_rwkvv2rnn_a_parallelizable_rnn_with/
 
@@ -25,7 +27,7 @@ User feedback:
 
 > *dear god rwkv is fast. i switched to another tab after starting training it from scratch & when i returned it was emitting plausible english & maori words, i left to go microwave some coffee & when i came back it was producing fully grammatically correct sentences.*
 
-I am training RWKV-2 on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile):
+I am training RWKV-3 on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile):
 
 ![RWKV-v3-1.5B-Pile](RWKV-v3-1.5B-Pile.png)
 
