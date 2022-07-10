@@ -16,7 +16,15 @@ GPT2-XL 1.3B = 0.032 sec/token (for ctxlen 1000), tested using HF, GPU utilizati
 
 ## Join our Discord: https://discord.gg/bDSBUMeFpc :)
 
-You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it :) We have plenty of potential compute (A100 40Gs) now (thanks to CoreWeave), so if you have interesting ideas I can run them. I am also looking for CUDA gurus to optimize the kernel. Thank you.
+You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to CoreWeave), so if you have interesting ideas I can run them. I am also looking for CUDA gurus to optimize the kernel. Thank you.
+
+Here are some of my TODOs. Let's work together :)
+
+* FP16 inference & training, and scaling to 6B -> 20B -> 66B (there will be compute when we have the infrastructure). From the L12-D768 L24-D1024 L24-D2048 results, RWKV scales well.
+
+* HuggingFace integration, and optimized CPU & iOS & Android & WASM & WebGL inference. RWKV is a RNN and very friendly for edge devices. Let's make it possible to run a LLM on your phone.
+
+* Test it on bidirectional & MLM tasks, and image & audio & video tokens.
 
 Reddit discussion: https://www.reddit.com/r/MachineLearning/comments/umq908/r_rwkvv2rnn_a_parallelizable_rnn_with/
 
