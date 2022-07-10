@@ -14,7 +14,9 @@ RWKV-3 1.5B = always 0.015 sec/token, tested using simple pytorch code (no CUDA)
 
 GPT2-XL 1.3B = 0.032 sec/token (for ctxlen 1000), tested using HF, GPU utilization 45% too (interesting), VRAM 9655M
 
-**Join our Discord**: https://discord.gg/bDSBUMeFpc :) I am looking for CUDA gurus to optimize the kernel. Thank you.
+## Join our Discord: https://discord.gg/bDSBUMeFpc :)
+
+I am looking for CUDA gurus to optimize the kernel. Thank you.
 
 Reddit discussion: https://www.reddit.com/r/MachineLearning/comments/umq908/r_rwkvv2rnn_a_parallelizable_rnn_with/
 
