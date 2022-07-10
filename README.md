@@ -16,7 +16,7 @@ GPT2-XL 1.3B = 0.032 sec/token (for ctxlen 1000), tested using HF, GPU utilizati
 
 ## Join our Discord: https://discord.gg/bDSBUMeFpc :)
 
-I am looking for CUDA gurus to optimize the kernel. Thank you.
+RWKV Discord: https://discord.gg/bDSBUMeFpc :) I am looking for CUDA gurus to optimize the kernel. Thank you.
 
 Reddit discussion: https://www.reddit.com/r/MachineLearning/comments/umq908/r_rwkvv2rnn_a_parallelizable_rnn_with/
 
