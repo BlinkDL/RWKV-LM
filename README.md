@@ -16,7 +16,7 @@ GPT2-XL 1.3B = 0.032 sec/token (for ctxlen 1000), tested using HF, GPU utilizati
 
 ## Join our Discord: https://discord.gg/bDSBUMeFpc :)
 
-RWKV Discord: https://discord.gg/bDSBUMeFpc :) We have plenty of potential compute (lots of A100 40G) now (thanks to CoreWeave). I can run your RWKV project. Try pytorch lightning lite and then it's easy to use deepspeed. I am also looking for CUDA gurus to optimize the kernel. Thank you.
+You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it :) We have plenty of potential compute (A100 40Gs) now (thanks to CoreWeave), so if you have interesting ideas I can run them. I am also looking for CUDA gurus to optimize the kernel. Thank you.
 
 Reddit discussion: https://www.reddit.com/r/MachineLearning/comments/umq908/r_rwkvv2rnn_a_parallelizable_rnn_with/
 
