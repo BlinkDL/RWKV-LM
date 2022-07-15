@@ -43,6 +43,8 @@ You can find me (BlinkDL) in the EleutherAI Discord too: https://www.eleuther.ai
 
 How it works: RWKV gathers information to a number of channels, which are also decaying with different speeds as you move to the next token. It's very simple once you understand it.
 
+**RWKV is parallelizable because the time-decay of each channel is data-independent (and trainable)**. For example, in usual RNN you can adjust the time-decay of a channel from say 0.8 to 0.5 (these are called "gates"), while in RWKV you simply move the information from a W-0.8-channel to a W-0.5-channel to achieve the same effect.
+
 ### Inference
 
 Check https://github.com/BlinkDL/RWKV-v2-RNN-Pile for L24-D1024 and L12-D768 models trained on the Pile (and the latest code). It's very fast on CPU (the default mode).
@@ -90,8 +92,6 @@ Write out the formulas for "token at pos 2" and "token at pos 3" and you will ge
 * c and d: these are a and b combined with "self-attention".
 
 kv / k is the memory mechanism. The token with high k can be remembered for a long duration, if W is close to 1 in the channel.
-
-**RWKV is parallelizable because the time-decay of each channel is data-independent (and trainable)**. For example, in usual RNN you can adjust the time-decay of a channel from say 0.8 to 0.5 (these are called "gates"), while in RWKV you simply move the information from a W-0.8-channel to a W-0.5-channel to achieve the same effect.
 
 The R-gate is important for performance. k = info strength of this token (to be passed to future tokens). r = whether to apply the info to this token.
 
