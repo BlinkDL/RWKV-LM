@@ -16,7 +16,7 @@ How it works: RWKV gathers information to a number of channels, which are also d
 
 ## Join our Discord: https://discord.gg/bDSBUMeFpc :)
 
-You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to CoreWeave), so if you have interesting ideas I can run them. I am also looking for CUDA gurus to optimize the kernel. Thank you.
+You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to CoreWeave), so if you have interesting ideas I can run them. I am also looking for CUDA gurus to optimize the kernel (https://github.com/BlinkDL/RWKV-CUDA). Thank you.
 
 Here are some of my TODOs. Let's work together :)
 
@@ -113,7 +113,7 @@ x = x + self.att(self.ln1(x))
 x = x + self.ffn(self.ln2(x))
 ```
 
-I need a better CUDA kernel to (1) pull off maxK so there's need to clamp k to 60. (2) fix divide-by-zero without using K_EPS. (3) support bf16/fp16. **Please let me know if you are a CUDA expert :)**
+I need a better CUDA kernel (https://github.com/BlinkDL/RWKV-CUDA) to (1) pull off maxK so there's need to clamp k to 60. (2) fix divide-by-zero without using K_EPS. (3) support bf16/fp16. **Please let me know if you are a CUDA expert :)**
 
 Removing the maxK limitation will also make it easy to clean the state of a KV-V channel, by using a huge K.
 
