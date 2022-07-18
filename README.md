@@ -22,7 +22,7 @@ You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build 
 
 Here are some of my TODOs. Let's work together :)
 
-* FP16 inference & training, and scaling to 6B -> 20B -> 66B (there will be compute when we have the infrastructure). From the L12-D768 L24-D1024 L24-D2048 results, RWKV scales well.
+* Scaling to 6B -> 20B -> 66B (there will be compute when we have the infrastructure). From the L12-D768 L24-D1024 L24-D2048 results, RWKV scales well.
 
 * HuggingFace integration, and optimized CPU & iOS & Android & WASM & WebGL inference. RWKV is a RNN and very friendly for edge devices. Let's make it possible to run a LLM on your phone.
 
