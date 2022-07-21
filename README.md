@@ -14,13 +14,13 @@ How it works: RWKV gathers information to a number of channels, which are also d
 
 **RWKV is parallelizable because the time-decay of each channel is data-independent (and trainable)**. For example, in usual RNN you can adjust the time-decay of a channel from say 0.8 to 0.5 (these are called "gates"), while in RWKV you simply move the information from a W-0.8-channel to a W-0.5-channel to achieve the same effect. Moreover, you can fine-tune RWKV into a non-parallelizable RNN (then you can use outputs of later layers of the previous token) if you want extra performance.
 
-**UPDATE**: I am testing RWKV-4 fp16! 100% faster training than tf32. Scaling to 3B and 7B soon.
-
 ## Join our Discord: https://discord.gg/bDSBUMeFpc :)
 
 You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to CoreWeave), so if you have interesting ideas I can run them. I am also looking for CUDA gurus to optimize the kernel (https://github.com/BlinkDL/RWKV-CUDA). Thank you.
 
 Here are some of my TODOs. Let's work together :)
+
+* Now we have RWKV-4 with DeepSpeedStage2 & FP16 & Better CUDA Kernel (100% faster training than tf32): https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4. It will be great if someone can take a look to make it support multinode and Stage3.
 
 * Scaling to 6B -> 20B -> 66B (there will be compute when we have the infrastructure). From the L12-D768 L24-D1024 L24-D2048 results, RWKV scales well.
 
@@ -57,11 +57,11 @@ For RWKV-2: see the release here for a 27M params model on enwik8 with 0.72 BPC(
 
 ### Training / Fine-tuning
 
-Training RWKV-3: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v3
+Training RWKV-4: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4
 
-You will be training the "GPT" version because it's paralleziable and faster to train. I find RWKV can extrapolate, so training with ctxLen 768 can work for ctxLen of 1000+. You can fine-tune the model with longer ctxLen and it can quickly adapt to longer ctxLens.
+You will be training the "GPT" version because it's paralleziable and faster to train. RWKV-4 can extrapolate, so training with ctxLen 1024 can work for ctxLen of 2500+. You can fine-tune the model with longer ctxLen and it can quickly adapt to longer ctxLens.
 
-Colab for fine-tuning the Pile models: https://colab.research.google.com/drive/1BwceyZczs5hQr1wefmCREonEWhY-zeST
+Colab for fine-tuning the RWKV-2 Pile models: https://colab.research.google.com/drive/1BwceyZczs5hQr1wefmCREonEWhY-zeST
 
 ## How it works
 
