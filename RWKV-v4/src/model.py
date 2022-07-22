@@ -68,8 +68,8 @@ def RUN_CUDA(B, T, C, w, u, k, v):
 ########################################################################################################
 
 def RWKV_Init(module, config):  # fancy initialization of all lin & emb layer in the module
-    print('\n[--> first run, init model params (very slow for large models) <--]\n')
-    print('\n[so you shall only do it for 1 single GPU and save the checkpt and load it when using multiple GPU]\n')
+    print('\n[--> first run, init model params (very slow for large models) <--]')
+    print('[so you shall only do it for 1 single GPU and save the checkpt and load it when using multiple GPU]\n')
     for m in module.modules():
         if not isinstance(m, (nn.Linear, nn.Embedding)):
             continue

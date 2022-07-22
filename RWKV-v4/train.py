@@ -7,7 +7,12 @@ import os
 os.environ['USE_WANDB'] = '0' # 0 = False, 1 = True
 
 ### This is using DeepSpeed stage2 + FP16 ##############################################################
-
+# 
+# Currently it's slow to initialize a new model. Hence I suggest this procedure for multi-GPU training:
+# 1) leave RWKV_NUM_GPUS = '1' and let it run for 1 'mini-epoch' and it will save a 'trained-1.pth'
+# 2) set RWKV_NUM_GPUS = '8' (or your #GPU), batch_size = NUM_GPUS * single_gpu_batchsz, 
+#    EPOCH_BEGIN = 1, LOAD_MODEL = True, and it will load 'trained-1.pth' and continue the training
+#
 os.environ['RWKV_NUM_GPUS'] = '1' # num of GPUs to use
 NUM_GPUS = int(os.environ['RWKV_NUM_GPUS'])
 
