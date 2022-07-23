@@ -16,7 +16,13 @@ How it works: RWKV gathers information to a number of channels, which are also d
 
 ## Join our Discord: https://discord.gg/bDSBUMeFpc :)
 
-You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to CoreWeave), so if you have interesting ideas I can run them. I am also looking for CUDA gurus to optimize the kernel (https://github.com/BlinkDL/RWKV-CUDA). Thank you.
+You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to CoreWeave), so if you have interesting ideas I can run them.
+
+I am training RWKV-3 on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile):
+
+![RWKV-v3-1.5B-Pile](RWKV-v3-1.5B-Pile.png)
+
+All of the trained models will be open-source. Inference is very fast (only matrix-vector multiplications, no matrix-matrix multiplications) even on CPUs, so you can even run a LLM on your phone.
 
 Here are some of my TODOs. Let's work together :)
 
@@ -27,12 +33,6 @@ Here are some of my TODOs. Let's work together :)
 * HuggingFace integration, and optimized CPU & iOS & Android & WASM & WebGL inference. RWKV is a RNN and very friendly for edge devices. Let's make it possible to run a LLM on your phone.
 
 * Test it on bidirectional & MLM tasks, and image & audio & video tokens.
-
-I am training RWKV-3 on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile):
-
-![RWKV-v3-1.5B-Pile](RWKV-v3-1.5B-Pile.png)
-
-All of the trained models will be open-source. Inference is very fast (only matrix-vector multiplications, no matrix-matrix multiplications) even on CPUs, and I believe you can run a 1.5B params RWKV-v2-RNN with reasonable speed on your phone.
 
 User feedback:
 > *I've so far toyed around the character-based model on our relatively small pre-training dataset (around 10GB of text), and the results are extremely good - similar ppl to models taking much, much longer to train.*
