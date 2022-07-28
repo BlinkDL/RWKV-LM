@@ -6,6 +6,8 @@ import os
 
 os.environ['USE_WANDB'] = '0' # 0 = False, 1 = True
 
+os.environ['RWKV_FLOAT_MODE'] = 'bf16' # 'bf16' (stable) or 'fp16' (will overflow after training a large model for very long. can be solved in the future)
+
 ### This is using DeepSpeed stage2 + FP16 ##############################################################
 # 
 # Currently it's slow to initialize a new model. Hence I suggest this procedure for multi-GPU training:
@@ -116,8 +118,8 @@ train_dataset = Dataset(open(
 if __name__ == '__main__':
     from src.trainer import Trainer, TrainerConfig
 
-    print('model', model_type, 'epoch', n_epoch, 'batchsz', batch_size, 'betas',
-          betas, 'eps', eps, 'ctx', ctx_len, 'layer', n_layer, 'embd', n_embd, )
+    print('\nmodel', model_type, os.environ['RWKV_FLOAT_MODE'], 'epoch', n_epoch, 'batchsz', batch_size, 'betas',
+          betas, 'eps', eps, 'ctx', ctx_len, 'layer', n_layer, 'embd', n_embd, '\n')
 
     tconf = TrainerConfig(model_type=model_type, max_epochs=n_epoch, batch_size=batch_size,
                           learning_rate=lr_init, lr_decay=True, lr_final=lr_final, betas=betas, eps=eps,
@@ -132,9 +134,52 @@ if __name__ == '__main__':
 
     from pytorch_lightning.strategies import DeepSpeedStrategy
     
-    # you can set grad_norm_clip in deepspeed.json
-    
-    trainer = Trainer(strategy=DeepSpeedStrategy(config='deepspeed.json'), devices=NUM_GPUS, accelerator="gpu", precision=16)
+    DEEPSPEED_CFG = {
+        "zero_allow_untested_optimizer":True,
+        "zero_optimization":{
+            "stage":2,
+            "contiguous_gradients":True,
+            "overlap_comm":True,
+            "allgather_partitions":True,
+            "reduce_scatter":True,
+            "allgather_bucket_size":200000000,
+            "reduce_bucket_size":200000000,
+            "sub_group_size":1000000000000
+        },
+        "activation_checkpointing":{
+            "partition_activations":False,
+            "cpu_checkpointing":False,
+            "contiguous_memory_optimization":False,
+            "synchronize_checkpoint_boundary":False
+        },
+        "aio":{
+            "block_size":1048576,
+            "queue_depth":8,
+            "single_submit":False,
+            "overlap_events":True,
+            "thread_count":1
+        },
+        "gradient_clipping": 1.0,
+        "gradient_accumulation_steps": 1,
+    }
+
+    if os.environ['RWKV_FLOAT_MODE'] == 'fp16':
+        DEEPSPEED_CFG["fp16"] = {
+            "fp16": True,
+            "enabled": True,
+            "loss_scale": 0,
+            "initial_scale_power": 12,
+            "loss_scale_window": 1000,
+            "hysteresis": 2,
+            "min_loss_scale": 1
+        }
+        trainer = Trainer(strategy=DeepSpeedStrategy(config=DEEPSPEED_CFG), devices=NUM_GPUS, accelerator="gpu", precision=16)
+    elif os.environ['RWKV_FLOAT_MODE'] == 'bf16':
+        DEEPSPEED_CFG["bf16"] = {
+            "enabled": True
+        }
+        trainer = Trainer(strategy=DeepSpeedStrategy(config=DEEPSPEED_CFG), devices=NUM_GPUS, accelerator="gpu", precision='bf16')
+
     print(trainer._strategy.config)
 
     trainer.run(m_cfg, train_dataset, None, tconf)

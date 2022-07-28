@@ -3,7 +3,7 @@
 ########################################################################################################
 
 import numpy as np
-import math
+import math, os
 import time
 import types
 import copy
@@ -17,6 +17,8 @@ torch.backends.cuda.matmul.allow_tf32 = True
 np.set_printoptions(precision=4, suppress=True, linewidth=200)
 
 ### Step 1: set model ##################################################################################
+
+os.environ['RWKV_FLOAT_MODE'] = 'bf16' # 'bf16' (stable) or 'fp16' (will overflow after training a large model for very long. can be solved in the future)
 
 ctx_len = 1024
 n_layer = 6
