@@ -264,6 +264,31 @@ I believe RWKV is performant because W is like repeatedly applying a diagonal ma
 
 Moreover it's possible to turn it into a continuous ODE (a bit similar to State Space Models). I will write about it later.
 
+## Multimodal ideas
+
+I have an idea for [text --> 32x32 RGB image] using a LM (transformer, RWKV, etc.). Will test it soon.
+
+Firstly, LM loss (instead of L2 loss), so the image will not be blurry.
+
+Secondly, color quantization. For example, only allowing 8 levels for R/G/B. Then the image vocab size is 8x8x8 = 512 (for each pixel), instead of 2^24.
+Therefore, a 32x32 RGB image = a len1024 sequence of vocab512 (image tokens), which is a typical input for usual LMs.
+(Later we can use diffusion models to upsample and generate RGB888 images. We might be able to use a LM for this too.)
+
+Thirdly, 2D positional embeddings that are easy for the model to understand.
+For example, add one-hot X & Y coords to the first 64(=32+32) channels. Say if the pixel is at x=8, y=20, then we will add 1 to channel 8 and channel 52 (=32+20).
+Moreover probably we can add the float X & Y coords (normalized to 0~1 range) to another 2 channels. And other periodic pos. encoding might help too (will test). 
+
+Finally, RandRound when doing the color quantization in the DataLoader.
+For example, if the float level is 4.578, then there is a 57.8% chance to use 5, and (1-57.8%) chance to use 4.
+And we can allow both 4 and 5 in the prediction, but the loss will be higher if the prediction is 4.
+
+Multi-task training might help too. I will try this dataset format:
+[TxtFirst] [Desc of Img (txt tokens)] [Img] [img tokens]
+and sometimes
+[ImgFirst] [img tokens] [Txt] [Desc of Img (txt tokens)]
+... the order of the imgs shall be randomized in the DataLoader, and [TxtFirst] [ImgFirst] [Img] [Txt] are special tokens
+and do random sampling of the full dataset. So sometimes the model will see the img tokens first and then the corresponding txt tokens, which is a [img -> txt] task. And the model will see some partial imgs and partial txts. I think a char-level LM might help the model to write correct text on images.
+
 ## How to sample a large dataset (for training)
 
 I am using a trick to sample the Pile deterministically yet randomly enough.
