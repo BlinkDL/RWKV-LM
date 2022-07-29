@@ -9,7 +9,7 @@ import math, os
 from torch.nn import functional as F
 import torch.nn as nn
 
-RWKV_HEAD_QK_DIM = 256
+RWKV_HEAD_QK_DIM = 0
 print(f'\nRWKV_HEAD_QK_DIM {RWKV_HEAD_QK_DIM}\n')
 
 DEBUG_TIME = False   # True False - show trained time-coeffs

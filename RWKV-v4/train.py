@@ -35,6 +35,7 @@ import logging, types
 from src.utils import Dataset
 import torch
 import numpy as np
+from src.binidx import MMapIndexedDataset # for the Megatron-LM 'binidx' format
 
 np.set_printoptions(precision=4, suppress=True, linewidth=200)
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -46,8 +47,10 @@ torch.backends.cuda.matmul.allow_tf32 = True
 ### Step 1: set training data ##########################################################################
 
 datafile = "../data/enwik8" # your data
-datafile_encoding = 'utf-8'
-# datafile_encoding = 'utf-16le'
+datafile_encoding = 'utf-8' # 'utf-8' 'utf-16le' 'binidx'
+
+# datafile = './my-gpt_seq_document'
+# datafile_encoding = 'binidx'
 
 ### Step 2: set model size #############################################################################
 
@@ -65,7 +68,7 @@ model_type = 'RWKV'
 ### Step 3: set batch size #############################################################################
 
 # if you see "CUDA out of memory", reduce batch_size. Use nvidia-smi to find the highest value for your GPU.
-batch_size = 12
+batch_size = 12 * NUM_GPUS
 assert (batch_size % NUM_GPUS == 0)
 
 ### Step 4: set learning rate, number of mini-epochs #######################################################
@@ -109,8 +112,11 @@ num_workers = 1 # DataLoader worker. I only tested num_workers = 1
 ########################################################################################################
 
 print('loading data... ' + datafile)
-train_dataset = Dataset(open(
-    datafile, "r", encoding=datafile_encoding).read(), ctx_len, epoch_length_fixed)
+if datafile_encoding != 'binidx':
+    train_dataset = Dataset(open(
+        datafile, "r", encoding=datafile_encoding).read(), ctx_len, epoch_length_fixed)
+else:
+    train_dataset = Dataset(MMapIndexedDataset(datafile), ctx_len, epoch_length_fixed)
 
 ########################################################################################################
 # Train model
