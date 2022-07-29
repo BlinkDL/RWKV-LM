@@ -85,13 +85,14 @@ class TOKENIZER():
             self.UNKNOWN_CHAR = self.stoi[UNKNOWN_CHAR]
 
     def refine_context(self, context):
-        context = context.strip().split('\n')
-        for c in range(len(context)):
-            context[c] = context[c].strip().strip('\u3000').strip('\r')
-        context = list(filter(lambda c: c != '', context))
-        context = '\n' + ('\n'.join(context)).strip()
-        if context == '':
-            context = '\n'
+        if self.charMode:
+            context = context.strip().split('\n')
+            for c in range(len(context)):
+                context[c] = context[c].strip().strip('\u3000').strip('\r')
+            context = list(filter(lambda c: c != '', context))
+            context = '\n' + ('\n'.join(context)).strip()
+            if context == '':
+                context = '\n'
 
         return context
 
