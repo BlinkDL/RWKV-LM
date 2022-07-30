@@ -18,6 +18,8 @@ np.set_printoptions(precision=4, suppress=True, linewidth=200)
 ### Step 1: set model ##################################################################################
 
 os.environ['RWKV_FLOAT_MODE'] = 'bf16' # 'bf16' or 'fp16'
+os.environ['RWKV_RUN_DEVICE'] = 'cpu'   # 'cpu' (already very fast) or 'cuda'
+RUN_DEVICE = os.environ['RWKV_RUN_DEVICE']
 
 ctx_len = 1024
 n_layer = 6
@@ -45,7 +47,6 @@ else:
 
 ### Step 3: other config ###############################################################################
 
-RUN_DEVICE = 'cpu'   # 'cpu' (already very fast) or 'cuda'
 DEBUG_DEBUG = False  # True False - show softmax output
 
 NUM_TRIALS = 999
