@@ -19,6 +19,21 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.allow_tf32 = True
 torch.backends.cuda.matmul.allow_tf32 = True
 
+class L2Wrap(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, loss, y):
+        ctx.save_for_backward(y)
+        return loss
+    @staticmethod
+    def backward(ctx, grad_output):
+        y = ctx.saved_tensors[0]
+        # to encourage the logits to be close to 0
+        factor = 1e-4 / (y.shape[0] * y.shape[1])
+        maxx, ids = torch.max(y, -1, keepdim=True)
+        gy = torch.zeros_like(y)
+        gy.scatter_(-1, ids, maxx * factor)
+        return (grad_output, gy)
+
 class TrainerConfig:
     batch_size = 64
     learning_rate = 4e-4
@@ -109,14 +124,15 @@ class Trainer(LightningLite):
             
             for it, (x, y) in pbar:
                 with torch.set_grad_enabled(is_train):
-                    _, loss = model(x, y) # forward the model
-                
+                    yyy, loss = model(x, y) # forward the model
+                    lossL2 = L2Wrap.apply(loss, yyy)
+
                 all_loss = [loss.clone() for _ in range(NUM_GPUS)]
                 torch.distributed.all_gather(all_loss, loss)
 
                 if is_train:  # backprop and update the parameters
                     model.zero_grad()
-                    self.backward(loss)
+                    self.backward(lossL2)
 
                     # deepspeed will handle gradient_clipping
 

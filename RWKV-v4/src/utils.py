@@ -22,13 +22,19 @@ class Dataset(Dataset):
         self.data = data
 
         if 'MMapIndexedDataset' in str(type(self.data)):
-            self.vocab_size = 253 # your vocab_size
-            print('current vocab size = ', self.vocab_size, "(make sure it's correct)")
+            self.vocab_size = int(os.environ['VOCAB_SIZE'])
+            print('current vocab size =', self.vocab_size, "(make sure it's correct)")
             self.data_size = len(self.data._bin_buffer) // 2
-            self.item_cnt = len(self.data)            
+            print(f'data has {self.data_size} tokens.')
+        elif 'numpy' in str(type(self.data)):
+            self.vocab_size = int(os.environ['VOCAB_SIZE'])
+            print('current vocab size =', self.vocab_size, "(make sure it's correct)")
+            self.data_size = len(self.data)
+            print(f'data has {self.data_size} tokens.')
         else:
             print('building token list...', end=' ')
             unique = sorted(list(set(data)))
+            self.vocab_size = len(unique)
             # print()
             # for u in unique:
             #     print(u, end=' ')
@@ -41,25 +47,25 @@ class Dataset(Dataset):
                 xx += 1
             with open('vocab.json', "w", encoding="utf-16") as vocab_file:
                 vocab_file.write(json.dumps(xxObj, ensure_ascii=False))
-
-            data_size, vocab_size = len(data), len(unique)
-            print('data has %d tokens, %d unique.' % (data_size, vocab_size))
+            self.data_size = len(self.data)
+            print('data has %d tokens, %d unique.' % (self.data_size, self.vocab_size))
             self.stoi = {ch: i for i, ch in enumerate(unique)}
             self.itos = {i: ch for i, ch in enumerate(unique)}
-            self.vocab_size = vocab_size
 
     def __len__(self):
         return self.epoch_length_fixed // NUM_GPUS
 
     def __getitem__(self, idx):
-        # cheat: pick a random spot in dataset
+        #
+        # we are cheating: pick a random spot in dataset
+        #
+        i = np.random.randint(0, self.data_size - (self.ctx_len + 1))
         if 'MMapIndexedDataset' in str(type(self.data)):
-            i = np.random.randint(0, self.data_size - (self.ctx_len + 1))      
             dix = self.data.get(idx=0, offset=i, length=self.ctx_len + 1).astype(int)
+        elif 'numpy' in str(type(self.data)):
+            dix = self.data[i:i+self.ctx_len+1]
         else:
-            i = np.random.randint(0, len(self.data) - (self.ctx_len + 1))
-            chunk = self.data[i:i+self.ctx_len+1]
-            dix = [self.stoi[s] for s in chunk]
+            dix = [self.stoi[s] for s in self.data[i:i+self.ctx_len+1]]
         
         x = torch.tensor(dix[:-1], dtype=torch.long)
         y = torch.tensor(dix[1:], dtype=torch.long)
@@ -70,8 +76,12 @@ class TOKENIZER():
     def __init__(self, WORD_NAME, UNKNOWN_CHAR='\ue083'):
         if 'list' in str(type(WORD_NAME)):
             self.charMode = False
-            from transformers import GPT2TokenizerFast
-            self.tokenizer = GPT2TokenizerFast(WORD_NAME[0], WORD_NAME[1])
+            if WORD_NAME[0] == WORD_NAME[1]:
+                from transformers import PreTrainedTokenizerFast
+                self.tokenizer = PreTrainedTokenizerFast(tokenizer_file=WORD_NAME[0])
+            else:
+                from transformers import GPT2TokenizerFast
+                self.tokenizer = GPT2TokenizerFast(WORD_NAME[0], WORD_NAME[1])
         else:
             self.charMode = True
             with open(WORD_NAME + '.json', "r", encoding="utf-16") as result_file:
@@ -85,15 +95,13 @@ class TOKENIZER():
             self.UNKNOWN_CHAR = self.stoi[UNKNOWN_CHAR]
 
     def refine_context(self, context):
-        if self.charMode:
-            context = context.strip().split('\n')
-            for c in range(len(context)):
-                context[c] = context[c].strip().strip('\u3000').strip('\r')
-            context = list(filter(lambda c: c != '', context))
-            context = '\n' + ('\n'.join(context)).strip()
-            if context == '':
-                context = '\n'
-
+        context = context.strip().split('\n')
+        for c in range(len(context)):
+            context[c] = context[c].strip().strip('\u3000').strip('\r')
+        context = list(filter(lambda c: c != '', context))
+        context = '\n' + ('\n'.join(context)).strip()
+        if context == '':
+            context = '\n'
         return context
 
     def sample_logits(self, out, x, ctx_len, temperature=1.0, top_p_usual=None, top_p_newline=None):

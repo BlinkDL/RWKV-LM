@@ -3,39 +3,11 @@
 ########################################################################################################
 
 import os
-
-os.environ['USE_WANDB'] = '0' # 0 = False, 1 = True
-
-os.environ['RWKV_FLOAT_MODE'] = 'bf16' # 'bf16' (stable) or 'fp16' (will overflow after training a large model for very long. can be solved in the future)
-
-### This is using DeepSpeed stage2 + FP16 ##############################################################
-# 
-# Currently it's slow to initialize a new model. Hence I suggest this procedure for multi-GPU training:
-# 1) leave RWKV_NUM_GPUS = '1' and let it run for 1 'mini-epoch' and it will save a 'trained-1.pth'
-# 2) set RWKV_NUM_GPUS = '8' (or your #GPU), batch_size = NUM_GPUS * single_gpu_batchsz, 
-#    EPOCH_BEGIN = 1, LOAD_MODEL = True, and it will load 'trained-1.pth' and continue the training
-#
-os.environ['RWKV_NUM_GPUS'] = '1' # num of GPUs to use
-NUM_GPUS = int(os.environ['RWKV_NUM_GPUS'])
-
-### Change these if you want to continue training from a saved model ###################################
-
-EPOCH_BEGIN = 0
-LOAD_MODEL = False # shall we continue from the #EPOCH_BEGIN model?
-os.environ['RWKV_LOAD_MODEL'] = str(LOAD_MODEL)
-
-########################################################################################################
-
-# if False: # True False ---> Set to False if you don't understand it
-#     print("\n\n[[[ SPECIAL DEBUG MODE FOR MYSELF. DON'T ENABLE THIS IF YOU DON'T UNDERSTAND IT ]]]\n\n")
-#     import src.utils
-#     src.utils.set_seed(42) # make training deterministic (including dataloader). if you are doing this, remember to change seed when you load a model (otherwise the dataloader loads old samples)
-
 import logging, types
 from src.utils import Dataset
 import torch
 import numpy as np
-from src.binidx import MMapIndexedDataset # for the Megatron-LM 'binidx' format
+from src.binidx import MMapIndexedDataset
 
 np.set_printoptions(precision=4, suppress=True, linewidth=200)
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -44,35 +16,95 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.allow_tf32 = True
 torch.backends.cuda.matmul.allow_tf32 = True
 
-### Step 1: set training data ##########################################################################
+# if False: # True False ---> Set to False if you don't understand it
+#     print("\n\n[[[ SPECIAL DEBUG MODE FOR MYSELF. DON'T ENABLE THIS IF YOU DON'T UNDERSTAND IT ]]]\n\n")
+#     import src.utils
+#     src.utils.set_seed(42) # make training deterministic (including dataloader). if you are doing this, remember to change seed when you load a model (otherwise the dataloader loads old samples)
+
+########################################################################################################
+# Step 1: set training data & cfg
+########################################################################################################
+
+EXPRESS_PILE_MODE = False # True: express mode for fine-tuning a pile model // False: usual training
+
+EXPRESS_PILE_MODEL_NAME = 'RWKV-4-Pile-169M-20220807-8023'
+EXPRESS_PILE_MODEL_TYPE = 'RWKV-4-Pile-169M'
+# EXPRESS_PILE_MODEL_NAME = 'RWKV-4-Pile-430M-20220808-8066'
+# EXPRESS_PILE_MODEL_TYPE = 'RWKV-4-Pile-430M'
+
+########################################################################################################
 
 datafile = "../data/enwik8" # your data
-datafile_encoding = 'utf-8' # 'utf-8' 'utf-16le' 'binidx'
+datafile_encoding = 'utf-8' # 'utf-8' / 'utf-16le' / 'numpy' (for fine-tuning pile models) / 'binidx' (the Megatron-LM 'binidx' format)
 
-# datafile = './my-gpt_seq_document'
+# datafile = 'my-gpt_seq_document'
 # datafile_encoding = 'binidx'
 
-### Step 2: set model size #############################################################################
+if EXPRESS_PILE_MODE:
+    datafile = 'train.npy' # use 'prepare-data.py' in https://github.com/BlinkDL/RWKV-v2-RNN-Pile/tree/main/RWKV-v3 to tokenize .txt into .npy
+    datafile_encoding = 'numpy'
 
-ctx_len = 1024 # increase T_MAX in model.py if your ctx_len is very long
+#
+# set VOCAB_SIZE = 0 (auto-compute) if you are training a char-level LM from scratch
+# set VOCAB_SIZE = 50277 for fine-tuning pile models
+# set VOCAB_SIZE = your_vocab_size for 'binidx' data
+#
+os.environ['VOCAB_SIZE'] = '0'
+if EXPRESS_PILE_MODE:
+    os.environ['VOCAB_SIZE'] = '50277'
+
+#
+# Currently it's slow to initialize a new model. Hence I suggest this procedure for multi-GPU training:
+# 1) set RWKV_NUM_GPUS = '1' and let it run for 1 miniEpoch and it will save a trained-1.pth
+# 2) set RWKV_NUM_GPUS = '8' (or your #GPU), batch_size = single_gpu_batchsz * RWKV_NUM_GPUS,
+#    EPOCH_BEGIN = 1, LOAD_MODEL = True, and it will load 'trained-1.pth' and continue the training from it
+#
+os.environ['RWKV_NUM_GPUS'] = '1' # num of GPUs to use
+
+os.environ['RWKV_FLOAT_MODE'] = 'bf16' # 'bf16' (stable) or 'fp16' (will overflow after training a large model for very long. can be solved in the future) or 'fp32'
+
+os.environ['USE_WANDB'] = '0' # wandb logging. 0 = False, 1 = True
+
+########################################################################################################
+# Step 2: set model details
+########################################################################################################
+
+EPOCH_BEGIN = 0 # begins with miniEpoch = EPOCH_BEGIN
+LOAD_MODEL = False # shall we load the #EPOCH_BEGIN model and continue the training from it?
+
 n_layer = 6
 n_embd = 512
+ctx_len = 1024 # increase T_MAX in src/model.py if your ctx_len is very long
 
-# 'RWKV' or 'RWKV-ffnPre' (better in some cases)
-model_type = 'RWKV'
+model_type = 'RWKV' # 'RWKV' or 'RWKV-ffnPre' (sometimes better)
 
-# ---> there is also a RWKV_HEAD_QK_DIM in model.py and model_run.py <---
-# set it to 256, then it's using my headQK trick (similar to a tiny attention) to improve loss
+# there is also a RWKV_HEAD_QK_DIM in model.py and model_run.py
+# set it to 256, then it's using my headQK trick (a tiny attention) to improve loss
 # set it to 0, then it's a pure RNN (attention-free)
 
-### Step 3: set batch size #############################################################################
+if EXPRESS_PILE_MODE:
+    LOAD_MODEL = True
+    if EXPRESS_PILE_MODEL_TYPE == 'RWKV-4-Pile-169M':
+        n_layer = 12
+        n_embd = 768
+        ctx_len = 1024
+    elif EXPRESS_PILE_MODEL_TYPE == 'RWKV-4-Pile-430M':
+        n_layer = 24
+        n_embd = 1024
+        ctx_len = 1024
+    elif EXPRESS_PILE_MODEL_TYPE == 'RWKV-4-Pile-1B5':
+        n_layer = 24
+        n_embd = 2048
+        ctx_len = 1024
+
+########################################################################################################
+# Step 3: set batch size & learning rate etc.
+########################################################################################################
 
 # if you see "CUDA out of memory", reduce batch_size. Use nvidia-smi to find the highest value for your GPU.
-batch_size = 12 * NUM_GPUS
-assert (batch_size % NUM_GPUS == 0)
+batch_size = 12 * int(os.environ['RWKV_NUM_GPUS'])
+assert (batch_size % int(os.environ['RWKV_NUM_GPUS']) == 0)
 
-### Step 4: set learning rate, number of mini-epochs #######################################################
-#
 # By default we are using exponential LR decay.
 # Here are my suggestions for training.
 # Let's say you are training a L6-D512 model.
@@ -93,34 +125,51 @@ epoch_length_fixed = (10000 // batch_size) * batch_size # feel free to increase 
 # epoch_save_frequency 0 = never, 1 = every mini-epoch, 2 = every two mini-epochs, ...
 epoch_save_frequency = 10
 epoch_save_path = 'trained-'
-MODEL_NAME = epoch_save_path + str(EPOCH_BEGIN)
 
-########################################################################################################
+if EXPRESS_PILE_MODE:
+    if EXPRESS_PILE_MODEL_TYPE == 'RWKV-4-Pile-169M':
+        lr_init = 2e-5
+    else:
+        lr_init = 1e-5
+    lr_final = 1e-5
+    n_epoch = 100000
+
+### misc stuffs ########################################################################################
 
 if LOAD_MODEL and EPOCH_BEGIN > 0: # we are not saving gradients, so let's have some warmup if we load a model
     warmup_tokens = 50 * ctx_len * batch_size // NUM_GPUS
 else:
     warmup_tokens = 0
 
-betas = (0.9, 0.99)
+betas = (0.9, 0.99) # set betas = (0.9, 0.999) if your model has been trained for a while
 eps = 1e-8
 
 num_workers = 1 # DataLoader worker. I only tested num_workers = 1
+
+NUM_GPUS = int(os.environ['RWKV_NUM_GPUS'])
+os.environ['RWKV_LOAD_MODEL'] = str(LOAD_MODEL)
+MODEL_NAME = epoch_save_path + str(EPOCH_BEGIN)
+
+if EXPRESS_PILE_MODE:
+    betas = (0.9, 0.999)
+    MODEL_NAME = EXPRESS_PILE_MODEL_NAME
 
 ########################################################################################################
 # Load data
 ########################################################################################################
 
-print('loading data... ' + datafile)
-if datafile_encoding != 'binidx':
-    train_dataset = Dataset(open(
-        datafile, "r", encoding=datafile_encoding).read(), ctx_len, epoch_length_fixed)
-else:
+print(f'loading {datafile_encoding} data... ' + datafile)
+if datafile_encoding == 'binidx':
     train_dataset = Dataset(MMapIndexedDataset(datafile), ctx_len, epoch_length_fixed)
+elif datafile_encoding == 'numpy':
+    train_dataset = Dataset(np.load(datafile).astype('int'), ctx_len, epoch_length_fixed)
+else:
+    train_dataset = Dataset(open(datafile, "r", encoding=datafile_encoding).read(), ctx_len, epoch_length_fixed)
 
 ########################################################################################################
 # Train model
 ########################################################################################################
+
 if __name__ == '__main__':
     from src.trainer import Trainer, TrainerConfig
 
@@ -180,11 +229,15 @@ if __name__ == '__main__':
             "min_loss_scale": 1
         }
         trainer = Trainer(strategy=DeepSpeedStrategy(config=DEEPSPEED_CFG), devices=NUM_GPUS, accelerator="gpu", precision=16)
+        
     elif os.environ['RWKV_FLOAT_MODE'] == 'bf16':
         DEEPSPEED_CFG["bf16"] = {
             "enabled": True
         }
         trainer = Trainer(strategy=DeepSpeedStrategy(config=DEEPSPEED_CFG), devices=NUM_GPUS, accelerator="gpu", precision='bf16')
+
+    elif os.environ['RWKV_FLOAT_MODE'] == 'fp32':
+        trainer = Trainer(strategy=DeepSpeedStrategy(config=DEEPSPEED_CFG), devices=NUM_GPUS, accelerator="gpu", precision=32)
 
     print(trainer._strategy.config)
 
