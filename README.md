@@ -14,7 +14,7 @@ GPT2-XL 1.3B on A40 (tf32) = 0.032 sec/token (for ctxlen 1000), tested using HF,
 
 You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to CoreWeave), so if you have interesting ideas I can run them.
 
-I am training RWKV-3 on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile):
+I am training RWKV-3 and RWKV-4 on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile):
 
 ![RWKV-v3-1.5B-Pile](RWKV-v3-1.5B-Pile.png)
 
@@ -26,7 +26,7 @@ How it works: RWKV gathers information to a number of channels, which are also d
 
 Here are some of my TODOs. Let's work together :)
 
-* Now we have RWKV-4 with DeepSpeedStage2 & FP16 & Better CUDA Kernel (100% faster training than tf32): https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4. It will be great if someone can take a look to make it support multinode and Stage3.
+* Now we have RWKV-4 with DeepSpeedStage2 & FP16 & Better CUDA Kernel (100% faster training than tf32): https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4. It will be great if someone can take a look to make it support multi-nodes and Stage3.
 
 * Scaling to 6B -> 20B -> 66B (there will be compute when we have the infrastructure). From the L12-D768 L24-D1024 L24-D2048 results, RWKV scales well.
 
@@ -47,21 +47,25 @@ You can find me (BlinkDL) in the EleutherAI Discord too: https://www.eleuther.ai
 
 ## Quick start
 
+Use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4 for the latest RWKV-4 model.
+
 ### Inference
 
-Check https://github.com/BlinkDL/RWKV-v2-RNN-Pile for L24-D1024 and L12-D768 models trained on the Pile (and the latest code). It's very fast on CPU (the default mode).
+Download RWKV-4 Pile models from https://huggingface.co/BlinkDL. Set TOKEN_MODE = 'pile' in run.py and run it. It's fast even on CPU (the default mode).
 
-Read the inference code in https://github.com/BlinkDL/RWKV-v2-RNN-Pile/blob/main/src/model.py and try using the final hidden state（.xx .aa .bb) as a faithful sentence embedding for other tasks (probably you shall begin with .xx and .aa/.bb (.aa divided by .bb)).
+Read the inference code in src/model.py and try using the final hidden state（.xx .aa .bb) as a faithful sentence embedding for other tasks. Probably you shall begin with .xx and .aa/.bb (.aa divided by .bb).
 
-For RWKV-2: see the release here for a 27M params model on enwik8 with 0.72 BPC(dev). Run run.py in https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN. You can even run it in your browser: https://github.com/BlinkDL/AI-Writer/tree/main/docs/eng https://blinkdl.github.io/AI-Writer/eng/ (this is using tf.js WASM single-thread mode).
+For the old RWKV-2: see the release here for a 27M params model on enwik8 with 0.72 BPC(dev). Run run.py in https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN. You can even run it in your browser: https://github.com/BlinkDL/AI-Writer/tree/main/docs/eng https://blinkdl.github.io/AI-Writer/eng/ (this is using tf.js WASM single-thread mode).
 
 ### Training / Fine-tuning
 
-Training RWKV-4: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4
+Training RWKV-4 from scratch: run train.py, which by default is using the enwik8 dataset (https://data.deepai.org/enwik8.zip).
 
 You will be training the "GPT" version because it's paralleziable and faster to train. RWKV-4 can extrapolate, so training with ctxLen 1024 can work for ctxLen of 2500+. You can fine-tune the model with longer ctxLen and it can quickly adapt to longer ctxLens.
 
-Colab for fine-tuning the RWKV-2 Pile models: https://colab.research.google.com/drive/1BwceyZczs5hQr1wefmCREonEWhY-zeST
+Fine-tuning RWKV-4 Pile models: use 'prepare-data.py' in https://github.com/BlinkDL/RWKV-v2-RNN-Pile/tree/main/RWKV-v3 to tokenize .txt into train.npy data. Then set EXPRESS_PILE_MODE to 'pile' in train.py, and run it.
+
+Colab for fine-tuning RWKV-2 Pile models: https://colab.research.google.com/drive/1BwceyZczs5hQr1wefmCREonEWhY-zeST
 
 ## How it works
 
