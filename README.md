@@ -16,7 +16,7 @@ You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build 
 
 I am training RWKV-3 and RWKV-4 on the Pile (https://github.com/BlinkDL/RWKV-v2-RNN-Pile):
 
-![RWKV-v3-1.5B-Pile](RWKV-v3-1.5B-Pile.png)
+![RWKV-v4-1.5B-Pile](RWKV-v4-1.5B-Pile.png)
 
 All of the trained models will be open-source. Inference is very fast (only matrix-vector multiplications, no matrix-matrix multiplications) even on CPUs, so you can even run a LLM on your phone.
 
