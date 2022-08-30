@@ -19,7 +19,7 @@ print(f'\nRWKV_HEAD_QK_DIM {RWKV_HEAD_QK_DIM}\n')
 # CUDA Kernel
 ########################################################################################################
 
-T_MAX = 4096 # increase this if your ctx_len is long
+T_MAX = 1024 # increase this if your ctx_len is long [NOTE: TAKES LOTS OF VRAM!]
 # it's possible to go beyond CUDA limitations if you slice the ctx and pass the hidden state in each slice
 
 from torch.utils.cpp_extension import load
@@ -62,10 +62,10 @@ class WKV(torch.autograd.Function):
         assert T <= T_MAX
         assert B * C % min(C, 1024) == 0
         w, u, k, v = ctx.saved_tensors
-        gw = torch.zeros((B, C), device='cuda')
-        gu = torch.zeros((B, C), device='cuda')
-        gk = torch.zeros((B, T, C), device='cuda')
-        gv = torch.zeros((B, T, C), device='cuda')
+        gw = torch.zeros((B, C), device='cuda').contiguous()
+        gu = torch.zeros((B, C), device='cuda').contiguous()
+        gk = torch.zeros((B, T, C), device='cuda').contiguous()
+        gv = torch.zeros((B, T, C), device='cuda').contiguous()
         if os.environ['RWKV_FLOAT_MODE'] != 'fp32':
             wkv_cuda.backward(B, T, C, w, u, k, v, gy.float().contiguous(), gw, gu, gk, gv)
         else:

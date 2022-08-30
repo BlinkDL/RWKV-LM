@@ -19,7 +19,7 @@ DEBUG_TIME = False   # True False - show trained time-coeffs
 ########################################################################################################
 
 if os.environ['RWKV_RUN_DEVICE'] == 'cuda':
-    T_MAX = 4096 # increase this if your ctx_len is long
+    T_MAX = 1024 # increase this if your ctx_len is long [NOTE: TAKES LOTS OF VRAM!]
     # it's possible to go beyond CUDA limitations if you slice the ctx and pass the hidden state in each slice
 
     from torch.utils.cpp_extension import load

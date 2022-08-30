@@ -13,6 +13,7 @@ import logging
 import datetime
 import math
 from pytorch_lightning.lite import LightningLite
+import gc
 
 logger = logging.getLogger(__name__)
 torch.backends.cudnn.benchmark = True
@@ -99,7 +100,9 @@ class Trainer(LightningLite):
         model, config = self.model, self.config
         raw_model = model.module if hasattr(self.model, "module") else model
         optimizer = raw_model.configure_optimizers(config)
-        model, optimizer = self.setup(model, optimizer) 
+        model, optimizer = self.setup(model, optimizer)
+        gc.collect()
+        torch.cuda.empty_cache()
         print('[3]')
 
         def run_epoch(split):
@@ -127,8 +130,11 @@ class Trainer(LightningLite):
                     yyy, loss = model(x, y) # forward the model
                     lossL2 = L2Wrap.apply(loss, yyy)
 
-                all_loss = [loss.clone() for _ in range(NUM_GPUS)]
-                torch.distributed.all_gather(all_loss, loss)
+                if os.environ['RWKV_DEEPSPEED'] == '0':
+                    all_loss = [loss.clone()]
+                else:
+                    all_loss = [loss.clone() for _ in range(NUM_GPUS)]
+                    torch.distributed.all_gather(all_loss, loss)
 
                 if is_train:  # backprop and update the parameters
                     model.zero_grad()

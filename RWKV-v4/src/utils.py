@@ -82,6 +82,7 @@ class TOKENIZER():
             else:
                 from transformers import GPT2TokenizerFast
                 self.tokenizer = GPT2TokenizerFast(WORD_NAME[0], WORD_NAME[1])
+            self.vocab_size = len(self.tokenizer)
         else:
             self.charMode = True
             with open(WORD_NAME + '.json', "r", encoding="utf-16") as result_file:
