@@ -12,9 +12,6 @@ from src.binidx import MMapIndexedDataset
 np.set_printoptions(precision=4, suppress=True, linewidth=200)
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
                     datefmt="%Y-%m-%d %H:%M:%S", level=logging.INFO,)
-torch.backends.cudnn.benchmark = True
-torch.backends.cudnn.allow_tf32 = True
-torch.backends.cuda.matmul.allow_tf32 = True
 
 # if False: # True False ---> Set to False if you don't understand it
 #     print("\n\n[[[ SPECIAL DEBUG MODE FOR MYSELF. DON'T ENABLE THIS IF YOU DON'T UNDERSTAND IT ]]]\n\n")
@@ -61,7 +58,12 @@ if EXPRESS_PILE_MODE:
 #
 os.environ['RWKV_NUM_GPUS'] = '1' # num of GPUs to use
 
-os.environ['RWKV_FLOAT_MODE'] = 'bf16' # 'bf16' (stable) or 'fp16' (will overflow after training a large model for very long. can be solved in the future) or 'fp32'
+#
+# 'bf16' (fast & stable)
+# 'fp16' (fast & will overflow after training a large model for very long. can be solved in the future)
+# 'tf32' (decent speed & stable)
+# 'fp32' (!!!very slow!!! only for verification)
+os.environ['RWKV_FLOAT_MODE'] = 'bf16'
 
 os.environ['RWKV_DEEPSPEED'] = '1' # Use DeepSpeed? 0 = False, 1 = True
 
@@ -158,6 +160,14 @@ MODEL_NAME = epoch_save_path + str(EPOCH_BEGIN)
 if EXPRESS_PILE_MODE:
     betas = (0.9, 0.999)
     MODEL_NAME = EXPRESS_PILE_MODEL_NAME
+
+torch.backends.cudnn.benchmark = True
+if os.environ['RWKV_FLOAT_MODE'] == 'fp32':
+    torch.backends.cudnn.allow_tf32 = False
+    torch.backends.cuda.matmul.allow_tf32 = False
+else:
+    torch.backends.cudnn.allow_tf32 = True
+    torch.backends.cuda.matmul.allow_tf32 = True
 
 ########################################################################################################
 # Load data

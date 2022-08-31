@@ -16,9 +16,14 @@ from pytorch_lightning.lite import LightningLite
 import gc
 
 logger = logging.getLogger(__name__)
+
 torch.backends.cudnn.benchmark = True
-torch.backends.cudnn.allow_tf32 = True
-torch.backends.cuda.matmul.allow_tf32 = True
+if os.environ['RWKV_FLOAT_MODE'] == 'fp32':
+    torch.backends.cudnn.allow_tf32 = False
+    torch.backends.cuda.matmul.allow_tf32 = False
+else:
+    torch.backends.cudnn.allow_tf32 = True
+    torch.backends.cuda.matmul.allow_tf32 = True
 
 class L2Wrap(torch.autograd.Function):
     @staticmethod
