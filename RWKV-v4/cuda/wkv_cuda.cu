@@ -111,14 +111,14 @@ __global__ void kernel_backward(const int B, const int T, const int C,
 }
 
 void cuda_forward(int B, int T, int C, float *w, float *u, float *k, float *v, float *y) {
-    dim3 threadsPerBlock( min(C, 256) );
+    dim3 threadsPerBlock( min(C, 32) ); // requires --maxrregcount 60 for optimal performance
     assert(B * C % threadsPerBlock.x == 0);
     dim3 numBlocks(B * C / threadsPerBlock.x);
     kernel_forward<<<numBlocks, threadsPerBlock>>>(B, T, C, w, u, k, v, y);
 }
 
 void cuda_backward(int B, int T, int C, float *w, float *u, float *k, float *v, float *gy, float *gw, float *gu, float *gk, float *gv) {
-    dim3 threadsPerBlock( min(C, 256) );
+    dim3 threadsPerBlock( min(C, 32) ); // requires --maxrregcount 60 for optimal performance
     assert(B * C % threadsPerBlock.x == 0);
     dim3 numBlocks(B * C / threadsPerBlock.x);
     kernel_backward<<<numBlocks, threadsPerBlock>>>(B, T, C, w, u, k, v, gy, gw, gu, gk, gv);
