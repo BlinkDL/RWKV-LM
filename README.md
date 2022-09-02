@@ -71,7 +71,7 @@ You will be training the "GPT" version because it's paralleziable and faster to 
 
 Read the inference code in src/model.py and try using the final hidden state（.xx .aa .bb) as a faithful sentence embedding for other tasks. Probably you shall begin with .xx and .aa/.bb (.aa divided by .bb).
 
-Colab for fine-tuning RWKV-2 Pile models: https://colab.research.google.com/drive/1BwceyZczs5hQr1wefmCREonEWhY-zeST
+Colab for fine-tuning RWKV-4 Pile models: https://colab.research.google.com/github/resloved/RWKV-notebooks/blob/master/RWKV_v4_RNN_Pile_Fine_Tuning.ipynb
 
 ## How it works
 
