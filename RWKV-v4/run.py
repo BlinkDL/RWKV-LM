@@ -57,6 +57,11 @@ elif TOKEN_MODE == 'pile':
     # n_embd = 1024
     # ctx_len = 1024
 
+    # MODEL_NAME = 'RWKV-4-Pile-1B5-20220903-8040'
+    # n_layer = 24
+    # n_embd = 2048
+    # ctx_len = 1024    
+
 os.environ['RWKV_FLOAT_MODE'] = 'fp32'  # 'bf16' / 'fp16' / 'fp32' (note: only using fp32 at this moment)
 os.environ['RWKV_RUN_DEVICE'] = 'cpu'   # 'cpu' (already very fast) or 'cuda'
 model_type = 'RWKV' # 'RWKV' or 'RWKV-ffnPre'
