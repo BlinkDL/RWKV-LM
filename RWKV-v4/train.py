@@ -28,6 +28,8 @@ EXPRESS_PILE_MODEL_NAME = 'RWKV-4-Pile-169M-20220807-8023'
 EXPRESS_PILE_MODEL_TYPE = 'RWKV-4-Pile-169M'
 # EXPRESS_PILE_MODEL_NAME = 'RWKV-4-Pile-430M-20220808-8066'
 # EXPRESS_PILE_MODEL_TYPE = 'RWKV-4-Pile-430M'
+# EXPRESS_PILE_MODEL_NAME = 'RWKV-4-Pile-1B5-20220903-8040'
+# EXPRESS_PILE_MODEL_TYPE = 'RWKV-4-Pile-1B5'
 
 ########################################################################################################
 
