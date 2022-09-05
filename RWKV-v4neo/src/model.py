@@ -2,7 +2,7 @@
 # The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM
 ########################################################################################################
 
-import os, math, gc
+import os, math, gc, time
 from re import L
 import torch
 import torch.nn as nn
@@ -265,7 +265,7 @@ class RWKV(pl.LightningModule):
             {"params": [p for n, p in self.named_parameters()], "weight_decay": 0.0},
         ]
         if self.deepspeed_offload:
-            return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adam_w_mode=False, weight_decay=0, amsgrad=False)
+            return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adamw_mode=False, weight_decay=0, amsgrad=False)
         return FusedAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adam_w_mode=False, weight_decay=0, amsgrad=False)
 
     @property
@@ -310,14 +310,26 @@ class RWKV(pl.LightningModule):
         return x
 
     def training_step(self, batch, batch_idx):
+        args = self.args
         idx, targets = batch
         logits = self(idx)
         loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
 
-        self.trainer.my_loss = loss.item()
-        self.trainer.my_epoch_loss = loss.item()
-        self.log("lr", self.trainer.my_lr, prog_bar=True, on_step=True)
-        self.log("loss", self.trainer.my_epoch_loss, prog_bar=True, on_step=True)
+        if self.trainer.global_rank == 0:
+            t_now = time.time_ns()
+            try:
+                t_cost = (t_now - self.trainer.my_time_ns) / 1e9
+                self.log("REAL it/s", 1.0 / t_cost, prog_bar=True, on_step=True)
+                self.log("token/s", args.ctx_len * float(args.devices) * args.micro_bsz / t_cost, prog_bar=True, on_step=True)
+            except:
+                pass
+            self.trainer.my_time_ns = t_now
+            self.trainer.my_loss = loss.item()
+            self.trainer.my_loss_sum += self.trainer.my_loss
+            self.trainer.my_loss_count += 1
+            self.trainer.my_epoch_loss = self.trainer.my_loss_sum / self.trainer.my_loss_count
+            self.log("lr", self.trainer.my_lr, prog_bar=True, on_step=True)
+            self.log("loss", self.trainer.my_epoch_loss, prog_bar=True, on_step=True)
 
         return L2Wrap.apply(loss, logits)
 
