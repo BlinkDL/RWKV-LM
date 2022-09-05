@@ -339,36 +339,42 @@ class RWKV(pl.LightningModule):
             gain = 1.0
             scale = 1.0
             if "ln_" in n or ".ln" in n or "time_" in n or "_mask" in n:
-                m[n] = p.cpu()
-                continue
-            elif n == "emb.weight":
-                scale = -25 * self.args.lr_init
+                m[n] = p
             else:
-                if shape[0] > shape[1]:
-                    gain = math.sqrt(shape[0] / shape[1])
-                for kk in [".att.key.", ".att.receptance.", ".att.output.", ".att.key.", ".ffn.value.", ".ffn.receptance.", ".ffnPre.value.", ".ffnPre.receptance.", "head_q."]:
-                    if kk in n:
+                if n == "emb.weight":
+                    scale = -25 * self.args.lr_init
+                else:
+                    if shape[0] > shape[1]:
+                        gain = math.sqrt(shape[0] / shape[1])
+                    for kk in [".att.key.", ".att.receptance.", ".att.output.", ".att.key.", ".ffn.value.", ".ffn.receptance.", ".ffnPre.value.", ".ffnPre.receptance.", "head_q."]:
+                        if kk in n:
+                            scale = 0
+                    if n == "head.weight":
+                        scale = 0.5
+                    if "head_k." in n:
+                        scale = 0.1
+                    if "head_q." in n:
                         scale = 0
-                if n == "head.weight":
-                    scale = 0.5
-                if "head_k." in n:
-                    scale = 0.1
-                if "head_q." in n:
-                    scale = 0
 
-            print(f"{str(shape[0]).ljust(5)} {str(shape[1]).ljust(5)} {str(scale).ljust(4)} {n}")
+                print(f"{str(shape[0]).ljust(5)} {str(shape[1]).ljust(5)} {str(scale).ljust(4)} {n}")
 
-            if self.args.accelerator.upper() == "GPU":
-                m[n] = torch.empty((shape[0], shape[1]), device="cuda")
-            else:
-                m[n] = torch.empty((shape[0], shape[1]))
+                if self.args.accelerator.upper() == "GPU":
+                    m[n] = torch.empty((shape[0], shape[1]), device="cuda")
+                else:
+                    m[n] = torch.empty((shape[0], shape[1]))
 
-            if scale == 0:
-                nn.init.zeros_(m[n])
-            elif scale < 0:
-                nn.init.normal_(m[n], mean=0.0, std=-scale)
-            else:
-                nn.init.orthogonal_(m[n], gain=gain * scale)
+                if scale == 0:
+                    nn.init.zeros_(m[n])
+                elif scale < 0:
+                    nn.init.normal_(m[n], mean=0.0, std=-scale)
+                else:
+                    nn.init.orthogonal_(m[n], gain=gain * scale)
+
+            m[n] = m[n].cpu()
+            if os.environ["RWKV_FLOAT_MODE"] == "fp16":
+                m[n] = m[n].half()
+            elif os.environ["RWKV_FLOAT_MODE"] == "bf16":
+                m[n] = m[n].bfloat16()
 
             # if n == "emb.weight":
             #     print(m[n])
