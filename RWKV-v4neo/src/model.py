@@ -13,6 +13,18 @@ from pytorch_lightning.strategies import DeepSpeedStrategy
 import deepspeed
 from deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam
 
+
+def __nop(ob):
+    return ob
+
+
+MyModule = nn.Module
+MyFunction = __nop
+if os.environ["RWKV_JIT"] == "1":
+    MyModule = torch.jit.ScriptModule
+    MyFunction = torch.jit.script_method
+
+
 ########################################################################################################
 # CUDA Kernel
 ########################################################################################################
@@ -88,7 +100,7 @@ def RUN_CUDA(B, T, C, w, u, k, v):
 ########################################################################################################
 
 
-class RWKV_TimeMix(torch.jit.ScriptModule):
+class RWKV_TimeMix(MyModule):
     def __init__(self, config, layer_id):
         super().__init__()
         self.layer_id = layer_id
@@ -128,7 +140,7 @@ class RWKV_TimeMix(torch.jit.ScriptModule):
 
         self.output = nn.Linear(attn_sz, config.n_embd, bias=False)
 
-    @torch.jit.script_method
+    @MyFunction
     def jit_func(self, x):
 
         # Mix x with the previous timestep to produce xk, xv, xr
@@ -155,7 +167,7 @@ class RWKV_TimeMix(torch.jit.ScriptModule):
         return rwkv
 
 
-class RWKV_ChannelMix(torch.jit.ScriptModule):
+class RWKV_ChannelMix(MyModule):
     def __init__(self, config, layer_id):
         super().__init__()
         self.layer_id = layer_id
@@ -177,7 +189,7 @@ class RWKV_ChannelMix(torch.jit.ScriptModule):
         self.receptance = nn.Linear(config.n_embd, config.n_embd, bias=False)
         self.value = nn.Linear(hidden_sz, config.n_embd, bias=False)
 
-    @torch.jit.script_method
+    @MyFunction
     def forward(self, x):
         xx = self.time_shift(x)
         xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)
