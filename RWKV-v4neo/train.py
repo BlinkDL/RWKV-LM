@@ -3,7 +3,7 @@
 ########################################################################################################
 
 if __name__ == "__main__":
-    print()
+    print("\n\n\n!!! NOTE: THIS IS STILL WIP !!!\n\n\n")
     import os, warnings, math, datetime
     import numpy as np
     from argparse import ArgumentParser
