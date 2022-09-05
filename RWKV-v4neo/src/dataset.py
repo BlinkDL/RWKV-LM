@@ -2,12 +2,13 @@
 # The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM
 ########################################################################################################
 
-import json
+import json, math
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 from pytorch_lightning.utilities import rank_zero_info
 from .binidx import MMapIndexedDataset
+from .utils import MaybeIsPrime
 
 
 class MyDataset(Dataset):
@@ -20,6 +21,18 @@ class MyDataset(Dataset):
             print("current vocab size =", self.vocab_size, "(make sure it's correct)")
             self.data_size = len(self.data._bin_buffer) // 2
             print(f"data has {self.data_size} tokens.")
+
+            if args.my_pile_mode > 0:
+                assert self.data_size == 332115325534 and self.vocab_size == 50277 and args.ctx_len == 1024
+                self.samples_per_epoch = args.epoch_steps * int(args.devices) * args.micro_bsz
+                assert self.samples_per_epoch == 40320
+                print("########## Pile 20b-tokenized mode {args.my_pile_mode} ##########")
+                self.magic_prime = 324331313
+                dataset_slot = self.data_size // args.ctx_len
+                assert MaybeIsPrime(self.magic_prime)
+                assert self.magic_prime % 3 == 2
+                assert self.magic_prime / dataset_slot > 0.999999 and self.magic_prime / dataset_slot <= 1
+
         elif args.data_type == "numpy":
             self.data = np.load(args.data_file).astype("int")
             self.vocab_size = args.vocab_size
@@ -48,15 +61,29 @@ class MyDataset(Dataset):
             self.itos = {i: ch for i, ch in enumerate(unique)}
 
     def __len__(self):
-        return self.args.epoch_steps * int(self.args.devices) * self.args.micro_bsz
+        return self.args.epoch_steps * self.args.micro_bsz
 
     def __getitem__(self, idx):
         #
         # we are cheating: pick a random spot in dataset
         #
+        rank = self.global_rank
+        epoch = self.real_epoch
+        world_size = self.world_size
+        # print(f"epoch {epoch} idx {idx} rank {rank}/{world_size}")
+
         ctx_len = self.args.ctx_len
         req_len = ctx_len + 1
-        i = np.random.randint(0, self.data_size - req_len)
+
+        if self.args.my_pile_mode > 0:
+            ii = 1 + epoch * self.samples_per_epoch + (idx * world_size) + rank
+            factor = (math.sqrt(5) - 1) / 2
+            factor = int(self.magic_prime * factor)
+            i = ((factor * ii * ii * ii) % self.magic_prime) * ctx_len
+            # print(f"epoch {epoch} idx {idx} rank {rank}/{world_size} ii {ii} pos {round(i / self.data_size, 3)}")
+        else:
+            i = np.random.randint(0, self.data_size - req_len)
+
         if "MMapIndexedDataset" in str(type(self.data)):
             dix = self.data.get(idx=0, offset=i, length=req_len).astype(int)
         elif "numpy" in str(type(self.data)):

@@ -2,7 +2,7 @@
 # The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM
 ########################################################################################################
 
-import os, math, gc, time
+import os, math, gc
 from re import L
 import torch
 import torch.nn as nn
@@ -20,7 +20,7 @@ def __nop(ob):
 
 MyModule = nn.Module
 MyFunction = __nop
-if os.environ["RWKV_JIT"] == "1":
+if os.environ["RWKV_JIT_ON"] == "1":
     MyModule = torch.jit.ScriptModule
     MyFunction = torch.jit.script_method
 
@@ -273,9 +273,31 @@ class RWKV(pl.LightningModule):
             self.register_buffer("copy_mask", torch.tril(torch.ones(args.ctx_len, args.ctx_len)))
 
     def configure_optimizers(self):
+        lr_1x = set()
+        lr_2x = set()
+        lr_3x = set()
+        for n, p in self.named_parameters():
+            if ("time_mix" in n) and (self.args.my_pile_mode == 2):
+                lr_2x.add(n)
+            elif "time_decay" in n:
+                lr_2x.add(n)
+            elif "time_first" in n:
+                lr_3x.add(n)
+            else:
+                lr_1x.add(n)
+        lr_1x = sorted(list(lr_1x))
+        lr_2x = sorted(list(lr_2x))
+        lr_3x = sorted(list(lr_3x))
+        # print('1x', lr_1x)
+        # print('2x', lr_2x)
+        # print('3x', lr_3x)
+        param_dict = {n: p for n, p in self.named_parameters()}
         optim_groups = [
-            {"params": [p for n, p in self.named_parameters()], "weight_decay": 0.0},
+            {"params": [param_dict[n] for n in lr_1x], "weight_decay": 0.0, "my_lr_scale": 1.0},
+            {"params": [param_dict[n] for n in lr_2x], "weight_decay": 0.0, "my_lr_scale": 2.0},
+            {"params": [param_dict[n] for n in lr_3x], "weight_decay": 0.0, "my_lr_scale": 3.0},
         ]
+
         if self.deepspeed_offload:
             return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adamw_mode=False, weight_decay=0, amsgrad=False)
         return FusedAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adam_w_mode=False, weight_decay=0, amsgrad=False)
@@ -326,24 +348,12 @@ class RWKV(pl.LightningModule):
         idx, targets = batch
         logits = self(idx)
         loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
-
-        if self.trainer.global_rank == 0:
-            t_now = time.time_ns()
-            try:
-                t_cost = (t_now - self.trainer.my_time_ns) / 1e9
-                self.log("REAL it/s", 1.0 / t_cost, prog_bar=True, on_step=True)
-                self.log("token/s", args.ctx_len * float(args.devices) * args.micro_bsz / t_cost, prog_bar=True, on_step=True)
-            except:
-                pass
-            self.trainer.my_time_ns = t_now
-            self.trainer.my_loss = loss.item()
-            self.trainer.my_loss_sum += self.trainer.my_loss
-            self.trainer.my_loss_count += 1
-            self.trainer.my_epoch_loss = self.trainer.my_loss_sum / self.trainer.my_loss_count
-            self.log("lr", self.trainer.my_lr, prog_bar=True, on_step=True)
-            self.log("loss", self.trainer.my_epoch_loss, prog_bar=True, on_step=True)
-
         return L2Wrap.apply(loss, logits)
+
+    def training_step_end(self, batch_parts):
+        all = self.all_gather(batch_parts)
+        if self.trainer.is_global_zero:
+            self.trainer.my_loss_all = all
 
     def generate_init_weight(self):
         print(
