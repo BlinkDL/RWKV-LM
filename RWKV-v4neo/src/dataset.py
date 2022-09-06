@@ -24,7 +24,7 @@ class MyDataset(Dataset):
 
             if args.my_pile_stage > 0:
                 assert self.data_size == 332115325534 and self.vocab_size == 50277 and args.ctx_len == 1024
-                self.samples_per_epoch = args.epoch_steps * int(args.devices) * args.micro_bsz
+                self.samples_per_epoch = args.epoch_steps * args.real_bsz
                 assert self.samples_per_epoch == 40320
                 print(f"########## Pile 20b-tokenized stage {args.my_pile_stage} ##########")
                 self.magic_prime = 324331313
