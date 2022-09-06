@@ -12,7 +12,7 @@ from pytorch_lightning.utilities import rank_zero_info, rank_zero_only
 from pytorch_lightning.strategies import DeepSpeedStrategy
 import deepspeed
 from deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam
-
+# from deepspeed.runtime.fp16.onebit.zoadam import ZeroOneAdam
 
 def __nop(ob):
     return ob
@@ -44,7 +44,7 @@ class WKV(torch.autograd.Function):
         ctx.T = T
         ctx.C = C
         assert T <= T_MAX
-        assert B * C % min(C, 1024) == 0
+        assert B * C % min(C, 32) == 0
         if "32" in os.environ["RWKV_FLOAT_MODE"]:
             w = -torch.exp(w.contiguous())
             u = u.contiguous()
@@ -71,7 +71,7 @@ class WKV(torch.autograd.Function):
         T = ctx.T
         C = ctx.C
         assert T <= T_MAX
-        assert B * C % min(C, 1024) == 0
+        assert B * C % min(C, 32) == 0
         w, u, k, v = ctx.saved_tensors
         gw = torch.zeros((B, C), device="cuda").contiguous()
         gu = torch.zeros((B, C), device="cuda").contiguous()
@@ -306,6 +306,7 @@ class RWKV(pl.LightningModule):
         if self.deepspeed_offload:
             return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adamw_mode=False, weight_decay=0, amsgrad=False)
         return FusedAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adam_w_mode=False, weight_decay=0, amsgrad=False)
+        # return ZeroOneAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, weight_decay=0, amsgrad=False, cuda_aware=False)
 
     @property
     def deepspeed_offload(self) -> bool:

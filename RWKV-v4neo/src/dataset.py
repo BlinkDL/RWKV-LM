@@ -26,7 +26,7 @@ class MyDataset(Dataset):
                 assert self.data_size == 332115325534 and self.vocab_size == 50277 and args.ctx_len == 1024
                 self.samples_per_epoch = args.epoch_steps * int(args.devices) * args.micro_bsz
                 assert self.samples_per_epoch == 40320
-                print("########## Pile 20b-tokenized mode {args.my_pile_mode} ##########")
+                print(f"########## Pile 20b-tokenized mode {args.my_pile_mode} ##########")
                 self.magic_prime = 324331313
                 dataset_slot = self.data_size // args.ctx_len
                 assert MaybeIsPrime(self.magic_prime)
