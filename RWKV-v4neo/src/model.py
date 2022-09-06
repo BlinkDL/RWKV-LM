@@ -273,30 +273,35 @@ class RWKV(pl.LightningModule):
             self.register_buffer("copy_mask", torch.tril(torch.ones(args.ctx_len, args.ctx_len)))
 
     def configure_optimizers(self):
-        lr_1x = set()
-        lr_2x = set()
-        lr_3x = set()
-        for n, p in self.named_parameters():
-            if ("time_mix" in n) and (self.args.my_pile_mode == 2):
-                lr_2x.add(n)
-            elif "time_decay" in n:
-                lr_2x.add(n)
-            elif "time_first" in n:
-                lr_3x.add(n)
-            else:
-                lr_1x.add(n)
-        lr_1x = sorted(list(lr_1x))
-        lr_2x = sorted(list(lr_2x))
-        lr_3x = sorted(list(lr_3x))
-        # print('1x', lr_1x)
-        # print('2x', lr_2x)
-        # print('3x', lr_3x)
-        param_dict = {n: p for n, p in self.named_parameters()}
-        optim_groups = [
-            {"params": [param_dict[n] for n in lr_1x], "weight_decay": 0.0, "my_lr_scale": 1.0},
-            {"params": [param_dict[n] for n in lr_2x], "weight_decay": 0.0, "my_lr_scale": 2.0},
-            {"params": [param_dict[n] for n in lr_3x], "weight_decay": 0.0, "my_lr_scale": 3.0},
-        ]
+        if self.args.layerwise_lr > 0:
+            lr_1x = set()
+            lr_2x = set()
+            lr_3x = set()
+            for n, p in self.named_parameters():
+                if ("time_mix" in n) and (self.args.my_pile_mode == 2):
+                    lr_2x.add(n)
+                elif "time_decay" in n:
+                    lr_2x.add(n)
+                elif "time_first" in n:
+                    lr_3x.add(n)
+                else:
+                    lr_1x.add(n)
+            lr_1x = sorted(list(lr_1x))
+            lr_2x = sorted(list(lr_2x))
+            lr_3x = sorted(list(lr_3x))
+            # print('1x', lr_1x)
+            # print('2x', lr_2x)
+            # print('3x', lr_3x)
+            param_dict = {n: p for n, p in self.named_parameters()}
+            optim_groups = [
+                {"params": [param_dict[n] for n in lr_1x], "weight_decay": 0.0, "my_lr_scale": 1.0},
+                {"params": [param_dict[n] for n in lr_2x], "weight_decay": 0.0, "my_lr_scale": 2.0},
+                {"params": [param_dict[n] for n in lr_3x], "weight_decay": 0.0, "my_lr_scale": 3.0},
+            ]
+        else:
+            optim_groups = [
+                {"params": [p for n, p in self.named_parameters()], "weight_decay": 0.0},
+            ]
 
         if self.deepspeed_offload:
             return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adamw_mode=False, weight_decay=0, amsgrad=False)
