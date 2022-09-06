@@ -12,6 +12,8 @@ class train_callback(pl.Callback):
 
     def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):
         args = self.args
+        # if args.cuda_cleanup > 0:
+        #     torch.cuda.empty_cache()
         g_step = trainer.global_step
 
         # LR schedule
