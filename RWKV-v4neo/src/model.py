@@ -12,7 +12,9 @@ from pytorch_lightning.utilities import rank_zero_info, rank_zero_only
 from pytorch_lightning.strategies import DeepSpeedStrategy
 import deepspeed
 from deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam
+
 # from deepspeed.runtime.fp16.onebit.zoadam import ZeroOneAdam
+
 
 def __nop(ob):
     return ob
@@ -278,7 +280,7 @@ class RWKV(pl.LightningModule):
             lr_2x = set()
             lr_3x = set()
             for n, p in self.named_parameters():
-                if ("time_mix" in n) and (self.args.my_pile_mode == 2):
+                if ("time_mix" in n) and (self.args.my_pile_stage == 2):
                     lr_2x.add(n)
                 elif "time_decay" in n:
                     lr_2x.add(n)
@@ -382,7 +384,7 @@ class RWKV(pl.LightningModule):
                 m[n] = p
             else:
                 if n == "emb.weight":
-                    scale = -25 * self.args.lr_init
+                    scale = -1 * self.args.lr_init
                 else:
                     if shape[0] > shape[1]:
                         gain = math.sqrt(shape[0] / shape[1])
@@ -406,7 +408,7 @@ class RWKV(pl.LightningModule):
                 if scale == 0:
                     nn.init.zeros_(m[n])
                 elif scale < 0:
-                    nn.init.normal_(m[n], mean=0.0, std=-scale)
+                    nn.init.uniform_(m[n], a=scale, b=-scale)
                 else:
                     nn.init.orthogonal_(m[n], gain=gain * scale)
 

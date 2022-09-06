@@ -5,6 +5,10 @@
 *.xlsx
 *.xls
 wandb/
+data/
+vocab.json
+*.sh
+*log/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

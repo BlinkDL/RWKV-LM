@@ -22,11 +22,11 @@ class MyDataset(Dataset):
             self.data_size = len(self.data._bin_buffer) // 2
             print(f"Data has {self.data_size} tokens.")
 
-            if args.my_pile_mode > 0:
+            if args.my_pile_stage > 0:
                 assert self.data_size == 332115325534 and self.vocab_size == 50277 and args.ctx_len == 1024
                 self.samples_per_epoch = args.epoch_steps * int(args.devices) * args.micro_bsz
                 assert self.samples_per_epoch == 40320
-                print(f"########## Pile 20b-tokenized mode {args.my_pile_mode} ##########")
+                print(f"########## Pile 20b-tokenized stage {args.my_pile_stage} ##########")
                 self.magic_prime = 324331313
                 dataset_slot = self.data_size // args.ctx_len
                 assert MaybeIsPrime(self.magic_prime)
@@ -46,7 +46,7 @@ class MyDataset(Dataset):
                     aa = (i) % 10000
                     bb = (i * i) % 10000
                     cc = aa + bb
-                    self.data += f'.{aa}+{bb}={cc}.'
+                    self.data += f".{aa}+{bb}={cc}."
             else:
                 self.data = open(args.data_file, "r", encoding=args.data_type).read()
             print("Building token list...")
@@ -84,7 +84,7 @@ class MyDataset(Dataset):
         ctx_len = args.ctx_len
         req_len = ctx_len + 1
 
-        if args.my_pile_mode > 0:
+        if args.my_pile_stage > 0:
             ii = 1 + epoch * self.samples_per_epoch + (idx * world_size) + rank
             factor = (math.sqrt(5) - 1) / 2
             factor = int(self.magic_prime * factor)
