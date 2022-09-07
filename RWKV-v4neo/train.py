@@ -240,7 +240,6 @@ if __name__ == "__main__":
             max_p = args.my_pile_prev_p
             if max_p == -1:
                 args.load_model = f"{args.proj_dir}/rwkv-init.pth"
-                args.warmup_steps = 0
             else:
                 args.load_model = f"{args.proj_dir}/rwkv-{max_p}.pth"
             args.epoch_begin = max_p + 1
