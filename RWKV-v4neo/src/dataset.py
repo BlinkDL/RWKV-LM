@@ -23,15 +23,14 @@ class MyDataset(Dataset):
             print(f"Data has {self.data_size} tokens.")
 
             if args.my_pile_stage > 0:
-                assert self.data_size == 332115325534 and self.vocab_size == 50277 and args.ctx_len == 1024
+                assert self.data_size == 332115325534 and self.vocab_size == 50277
                 self.samples_per_epoch = args.epoch_steps * args.real_bsz
                 assert self.samples_per_epoch == 40320
                 print(f"########## Pile 20b-tokenized stage {args.my_pile_stage} ##########")
-                self.magic_prime = 324331313
                 dataset_slot = self.data_size // args.ctx_len
-                assert MaybeIsPrime(self.magic_prime)
-                assert self.magic_prime % 3 == 2
-                assert self.magic_prime / dataset_slot > 0.999999 and self.magic_prime / dataset_slot <= 1
+                assert MaybeIsPrime(args.magic_prime)
+                assert args.magic_prime % 3 == 2
+                assert args.magic_prime / dataset_slot > 0.999999 and args.magic_prime / dataset_slot <= 1
         elif args.data_type == "numpy":
             self.data = np.load(args.data_file).astype("int")
             self.vocab_size = args.vocab_size
@@ -87,8 +86,9 @@ class MyDataset(Dataset):
         if args.my_pile_stage > 0:
             ii = 1 + epoch * self.samples_per_epoch + (idx * world_size) + rank
             factor = (math.sqrt(5) - 1) / 2
-            factor = int(self.magic_prime * factor)
-            i = ((factor * ii * ii * ii) % self.magic_prime) * ctx_len
+            factor = int(args.magic_prime * factor)
+            i = ((factor * ii * ii * ii) % args.magic_prime) * ctx_len
+            i = i + args.my_pile_shift
             # print(f"epoch {epoch} idx {idx} rank {rank}/{world_size} ii {ii} pos {round(i / self.data_size, 3)}")
         else:
             i = np.random.randint(0, self.data_size - req_len)

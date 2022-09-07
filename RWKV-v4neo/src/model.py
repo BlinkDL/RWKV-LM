@@ -31,12 +31,12 @@ if os.environ["RWKV_JIT_ON"] == "1":
 # CUDA Kernel
 ########################################################################################################
 
-T_MAX = 1024  # increase this if your ctx_len is long [NOTE: TAKES LOTS OF VRAM!]
+T_MAX = int(os.environ["RWKV_T_MAX"])  # TAKES LOTS OF VRAM!
 # it's possible to go beyond CUDA limitations if you slice the ctx and pass the hidden state in each slice
 
 from torch.utils.cpp_extension import load
 
-wkv_cuda = load(name="wkv", sources=["cuda/wkv_op.cpp", "cuda/wkv_cuda.cu"], verbose=True, extra_cuda_cflags=["-res-usage", "--maxrregcount 60", "--use_fast_math", "-O3", "-Xptxas -O3", f"-DTmax={T_MAX}"])
+wkv_cuda = load(name=f"wkv_{T_MAX}", sources=["cuda/wkv_op.cpp", "cuda/wkv_cuda.cu"], verbose=True, extra_cuda_cflags=["-res-usage", "--maxrregcount 60", "--use_fast_math", "-O3", "-Xptxas -O3", f"-DTmax={T_MAX}"])
 
 
 class WKV(torch.autograd.Function):

@@ -14,17 +14,17 @@ class train_callback(pl.Callback):
         args = self.args
         # if args.cuda_cleanup > 0:
         #     torch.cuda.empty_cache()
-        g_step = trainer.global_step
+        real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
 
         # LR schedule
         w_step = args.warmup_steps
-        if g_step < w_step:
-            lr = args.lr_init * (g_step / w_step)
+        if trainer.global_step < w_step:
+            lr = args.lr_init * (trainer.global_step / w_step)
         else:
-            if args.lr_final == args.lr_init:
+            if args.lr_final == args.lr_init or args.epoch_count == 0:
                 lr = args.lr_init
             else:
-                progress = (g_step - w_step) / (args.epoch_count * args.epoch_steps - w_step - 1)
+                progress = (real_step - w_step + 1) / (args.epoch_count * args.epoch_steps - w_step)
                 progress = min(1, max(0, progress))
 
                 if args.lr_final == 0 or args.lr_init == 0:  # linear decay
@@ -40,9 +40,9 @@ class train_callback(pl.Callback):
                 param_group["lr"] = lr
 
         trainer.my_lr = lr
-        # rank_zero_info(f"{g_step} {lr}")
+        # rank_zero_info(f"{real_step} {lr}")
 
-        if g_step == 0:
+        if trainer.global_step == 0:
             if trainer.is_global_zero:  # logging
                 trainer.my_loss_sum = 0
                 trainer.my_loss_count = 0
