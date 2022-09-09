@@ -19,7 +19,7 @@ class train_callback(pl.Callback):
         # LR schedule
         w_step = args.warmup_steps
         if trainer.global_step < w_step:
-            lr = args.lr_init * (0.1 + 0.9 * trainer.global_step / w_step)
+            lr = args.lr_init * (0.2 + 0.8 * trainer.global_step / w_step)
         else:
             if args.lr_final == args.lr_init or args.epoch_count == 0:
                 lr = args.lr_init

@@ -135,18 +135,19 @@ if __name__ == "__main__":
         if args.my_pile_stage == 2:
             assert args.lr_final == args.lr_init
         if args.my_pile_stage >= 2:  # find latest saved model
-            pths = os.listdir(args.proj_dir)
-            max_p = -1
-            for p in pths:
+            list_p = []
+            for p in os.listdir(args.proj_dir):
                 if p.startswith("rwkv") and p.endswith(".pth"):
                     p = ((p.split("-"))[1].split("."))[0]
                     if p == "init":
                         p = -1
                     else:
                         p = int(p)
-                    if p > max_p:
-                        args.my_pile_prev_p = max_p  # in case max_p is corrupted
-                        max_p = p
+                    list_p += [p]
+            list_p.sort()
+            max_p = list_p[-1]
+            if len(list_p) > 1:
+                args.my_pile_prev_p = list_p[-2]  # in case max_p is corrupted
             if max_p == -1:
                 args.load_model = f"{args.proj_dir}/rwkv-init.pth"
             else:
@@ -163,7 +164,7 @@ if __name__ == "__main__":
         f"""
 ############################################################################
 #
-# RWKV-4 {args.precision.upper()} on {args.devices} x {args.accelerator.upper()}, {args.strategy} {'with grad_cp' if args.grad_cp > 0 else ''}
+# RWKV-4 {args.precision.upper()} on {args.devices}x{args.accelerator.upper()}, bsz {args.devices}x{args.micro_bsz}={args.real_bsz}, {args.strategy} {'with grad_cp' if args.grad_cp > 0 else ''}
 #
 # Data = {args.data_file} ({args.data_type}), ProjDir = {args.proj_dir}
 #
