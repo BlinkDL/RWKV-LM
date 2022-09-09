@@ -71,7 +71,7 @@ class train_callback(pl.Callback):
         args = self.args
         if trainer.is_global_zero:  # logging
             t_now = time.time_ns()
-            token_per_step = args.ctx_len * float(args.devices) * args.micro_bsz
+            token_per_step = args.ctx_len * args.real_bsz
             real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
             try:
                 t_cost = (t_now - trainer.my_time_ns) / 1e9
@@ -101,6 +101,7 @@ class train_callback(pl.Callback):
         dataset.global_rank = trainer.global_rank
         dataset.real_epoch = int(args.epoch_begin + trainer.current_epoch)
         dataset.world_size = trainer.world_size
+        # print(f'########## world_size {dataset.world_size} global_rank {dataset.global_rank} real_epoch {dataset.real_epoch} ##########')
 
     def on_train_epoch_end(self, trainer, pl_module):
         args = self.args

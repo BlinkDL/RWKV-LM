@@ -3,7 +3,7 @@
 ########################################################################################################
 
 if __name__ == "__main__":
-    print("\n!!! work in progress !!!\n")
+    print("########## work in progress ##########")
     import os, warnings, math, datetime, sys, time
     import numpy as np
     from argparse import ArgumentParser
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     args.log_every_n_steps = int(1e20)
     args.max_epochs = -1  # continue forever
     args.betas = (args.beta1, args.beta2)
-    args.real_bsz = int(args.devices) * args.micro_bsz
+    args.real_bsz = int(args.num_nodes) * int(args.devices) * args.micro_bsz
     os.environ["RWKV_T_MAX"] = str(args.ctx_len)
 
     if not os.path.exists(args.proj_dir):
@@ -164,7 +164,7 @@ if __name__ == "__main__":
         f"""
 ############################################################################
 #
-# RWKV-4 {args.precision.upper()} on {args.devices}x{args.accelerator.upper()}, bsz {args.devices}x{args.micro_bsz}={args.real_bsz}, {args.strategy} {'with grad_cp' if args.grad_cp > 0 else ''}
+# RWKV-4 {args.precision.upper()} on {args.num_nodes}x{args.devices} {args.accelerator.upper()}, bsz {args.num_nodes}x{args.devices}x{args.micro_bsz}={args.real_bsz}, {args.strategy} {'with grad_cp' if args.grad_cp > 0 else ''}
 #
 # Data = {args.data_file} ({args.data_type}), ProjDir = {args.proj_dir}
 #
