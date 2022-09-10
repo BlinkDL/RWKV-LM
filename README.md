@@ -16,7 +16,7 @@ Training speed: RWKV-4 1.5B BF16 ctxlen1024 = 106K tokens/s on 8xA100 40G.
 
 You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to CoreWeave), so if you have interesting ideas I can run them.
 
-I am training RWKV-3 and RWKV-4 on the Pile (https://huggingface.co/BlinkDL):
+I am training RWKV-4 3B and 7B on the Pile (https://huggingface.co/BlinkDL).
 
 ![RWKV-v4-1.5B-Pile](RWKV-v4-1.5B-Pile.png)
 
@@ -27,10 +27,6 @@ How it works: RWKV gathers information to a number of channels, which are also d
 **RWKV is parallelizable because the time-decay of each channel is data-independent (and trainable)**. For example, in usual RNN you can adjust the time-decay of a channel from say 0.8 to 0.5 (these are called "gates"), while in RWKV you simply move the information from a W-0.8-channel to a W-0.5-channel to achieve the same effect. Moreover, you can fine-tune RWKV into a non-parallelizable RNN (then you can use outputs of later layers of the previous token) if you want extra performance.
 
 Here are some of my TODOs. Let's work together :)
-
-* Now we have RWKV-4 with DeepSpeedStage2 & FP16 & Better CUDA Kernel (100% faster training than tf32): https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4. It will be great if someone can take a look to make it support multi-nodes and Stage3.
-
-* Scaling to 6B -> 20B -> 66B (there will be compute when we have the infrastructure). From the L12-D768 L24-D1024 L24-D2048 results, RWKV scales well.
 
 * HuggingFace integration, and optimized CPU & iOS & Android & WASM & WebGL inference. RWKV is a RNN and very friendly for edge devices. Let's make it possible to run a LLM on your phone.
 
