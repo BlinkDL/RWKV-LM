@@ -93,6 +93,7 @@ if __name__ == "__main__":
     parser.add_argument("--grad_cp", default=0, type=int)  # gradient checkpt: saves VRAM, but slower
     parser.add_argument("--my_pile_stage", default=0, type=int)  # my special pile mode
     parser.add_argument("--my_pile_shift", default=-1, type=int)  # my special pile mode - text shift
+    parser.add_argument("--my_pile_edecay", default=0, type=int)
     parser.add_argument("--layerwise_lr", default=1, type=int)  # layerwise lr for faster convergence (but slower it/s)
     parser.add_argument("--ds_bucket_mb", default=200, type=int)  # deepspeed bucket size in MB. 200 seems enough
     # parser.add_argument("--cuda_cleanup", default=0, type=int)  # extra cuda cleanup (sometimes helpful)
@@ -117,10 +118,13 @@ if __name__ == "__main__":
     if args.my_pile_stage > 0:
         if args.ctx_len == 1024:
             args.magic_prime = 324331313
+            args.epoch_count = 8043
         elif args.ctx_len == 2048:
             args.magic_prime = 162165671
+            args.epoch_count = 4021
         elif args.ctx_len == 4096:
             args.magic_prime = 81082817
+            args.epoch_count = 2010
         if args.my_pile_shift < 0:
             if args.ctx_len == 1024:
                 args.my_pile_shift = 0
@@ -129,7 +133,6 @@ if __name__ == "__main__":
             elif args.ctx_len == 4096:
                 args.my_pile_shift = 768
 
-        args.epoch_count = 8043
         args.epoch_steps = 40320 // args.real_bsz
         assert args.epoch_steps * args.real_bsz == 40320
         if args.my_pile_stage == 2:

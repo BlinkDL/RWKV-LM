@@ -9,6 +9,8 @@ data/
 vocab.json
 *.sh
 *log/
+test/
+tools/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
