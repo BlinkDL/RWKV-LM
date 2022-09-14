@@ -20,6 +20,8 @@ I am training RWKV-4 3B and 7B on the Pile (https://wandb.ai/blinkdl/RWKV-v4-Pil
 
 ![RWKV-v4-1.5B-Pile](RWKV-v4-1.5B-Pile.png)
 
+![RWKV-eval](RWKV-eval.png)
+
 All of the trained models will be open-source. Inference is very fast (only matrix-vector multiplications, no matrix-matrix multiplications) even on CPUs, so you can even run a LLM on your phone.
 
 How it works: RWKV gathers information to a number of channels, which are also decaying with different speeds as you move to the next token. It's very simple once you understand it.
