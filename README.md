@@ -14,7 +14,7 @@ Training speed: RWKV-4 1.5B BF16 ctxlen1024 = 106K tokens/s on 8xA100 40G.
 
 ## Join our Discord: https://discord.gg/bDSBUMeFpc :)
 
-You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to CoreWeave), so if you have interesting ideas I can run them.
+You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to Stability and EleutherAI), so if you have interesting ideas I can run them.
 
 I am training RWKV-4 3B and 7B on the Pile (https://wandb.ai/blinkdl/RWKV-v4-Pile and https://huggingface.co/BlinkDL).
 
