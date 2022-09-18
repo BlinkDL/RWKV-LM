@@ -2,7 +2,7 @@
 # The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM
 ########################################################################################################
 
-import json, math
+import json, math, random
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -37,6 +37,19 @@ class MyDataset(Dataset):
             print("Current vocab size =", self.vocab_size, "(make sure it's correct)")
             self.data_size = len(self.data)
             print(f"Data has {self.data_size} tokens.")
+        elif args.data_type == "wds_img":
+            def identity(x):
+                return x            
+            import torchvision as vision
+            import webdataset as wds
+            import torchvision.transforms as transforms
+            img_transform = transforms.Compose(
+                [transforms.CenterCrop(256)]
+            )
+            self.data = iter(wds.WebDataset(args.data_file, resampled=True).shuffle(1000).decode("torchrgb").to_tuple("jpg", "json", "txt").map_tuple(img_transform, identity, identity).with_epoch(1000000))
+            print("WebDataset loaded.")
+            self.vocab_size = -1
+            self.data_size = -1
         else:
             if args.data_type == "dummy":
                 print("Building dummy data...")
@@ -71,35 +84,38 @@ class MyDataset(Dataset):
         return self.args.epoch_steps * self.args.micro_bsz
 
     def __getitem__(self, idx):
-        #
-        # we are cheating: pick a random spot in dataset
-        #
         args = self.args
         rank = self.global_rank
         epoch = self.real_epoch
         world_size = self.world_size
         # print(f"epoch {epoch} idx {idx} rank {rank}/{world_size}")
 
-        ctx_len = args.ctx_len
-        req_len = ctx_len + 1
-
-        if args.my_pile_stage > 0:
-            ii = 1 + epoch * self.samples_per_epoch + (idx * world_size) + rank
-            factor = (math.sqrt(5) - 1) / 2
-            factor = int(args.magic_prime * factor)
-            i = ((factor * ii * ii * ii) % args.magic_prime) * ctx_len
-            i = i + args.my_pile_shift
-            # print(f"epoch {epoch} idx {idx} rank {rank}/{world_size} ii {ii} pos {round(i / self.data_size, 3)}")
+        if args.data_type == "wds_img":            
+            dd = next(self.data) # jpg, json, txt
+            # print(f"epoch {epoch} idx {idx} rank {rank}/{world_size} {dd[2]}")
+            return dd[0], dd[2]
         else:
-            i = np.random.randint(0, self.data_size - req_len)
+            ctx_len = args.ctx_len
+            req_len = ctx_len + 1
 
-        if args.data_type == "binidx":
-            dix = self.data.get(idx=0, offset=i, length=req_len).astype(int)
-        elif args.data_type == "numpy":
-            dix = self.data[i : i + req_len]
-        else:
-            dix = [self.stoi[s] for s in self.data[i : i + req_len]]
+            if args.my_pile_stage > 0:
+                ii = 1 + epoch * self.samples_per_epoch + (idx * world_size) + rank
+                factor = (math.sqrt(5) - 1) / 2
+                factor = int(args.magic_prime * factor)
+                i = ((factor * ii * ii * ii) % args.magic_prime) * ctx_len
+                i = i + args.my_pile_shift
+                # print(f"epoch {epoch} idx {idx} rank {rank}/{world_size} ii {ii} pos {round(i / self.data_size, 3)}")
+            else:
+                # cheat: pick a random spot in dataset
+                i = np.random.randint(0, self.data_size - req_len)
 
-        x = torch.tensor(dix[:-1], dtype=torch.long)
-        y = torch.tensor(dix[1:], dtype=torch.long)
-        return x, y
+            if args.data_type == "binidx":
+                dix = self.data.get(idx=0, offset=i, length=req_len).astype(int)
+            elif args.data_type == "numpy":
+                dix = self.data[i : i + req_len]
+            else:
+                dix = [self.stoi[s] for s in self.data[i : i + req_len]]
+
+            x = torch.tensor(dix[:-1], dtype=torch.long)
+            y = torch.tensor(dix[1:], dtype=torch.long)
+            return x, y

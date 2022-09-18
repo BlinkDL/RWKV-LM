@@ -158,7 +158,7 @@ if __name__ == "__main__":
                 if args.my_pile_stage == 2:
                     args.warmup_steps = 10
                 else:
-                    args.warmup_steps = 50
+                    args.warmup_steps = 30
             args.epoch_begin = max_p + 1
 
     samples_per_epoch = args.epoch_steps * args.real_bsz
@@ -188,7 +188,7 @@ if __name__ == "__main__":
     )
     rank_zero_info(str(vars(args)) + "\n")
 
-    assert args.data_type in ["utf-8", "utf-16le", "numpy", "binidx", "dummy"]
+    assert args.data_type in ["utf-8", "utf-16le", "numpy", "binidx", "dummy", "wds_img"]
 
     if args.lr_final == 0 or args.lr_init == 0:
         rank_zero_info("\n\nNote: lr_final = 0 or lr_init = 0. Using linear LR schedule instead.\n\n")
@@ -223,12 +223,16 @@ if __name__ == "__main__":
 
     from src.trainer import train_callback, generate_init_weight
     from src.dataset import MyDataset
-    from src.model import RWKV
 
     train_data = MyDataset(args)
     args.vocab_size = train_data.vocab_size
 
-    model = RWKV(args)
+    if args.data_type == 'wds_img':
+        from src.model_img import RWKV_IMG
+        model = RWKV_IMG(args)
+    else:
+        from src.model import RWKV
+        model = RWKV(args)
 
     if len(args.load_model) == 0 or args.my_pile_stage == 1:  # shall we build the initial weights?
         init_weight_name = f"{args.proj_dir}/rwkv-init.pth"
@@ -250,6 +254,10 @@ if __name__ == "__main__":
             print(f"Trying {args.load_model}")
             load_dict = torch.load(args.load_model, map_location="cpu")
 
+    # load_keys = load_dict.keys()
+    # for k in model.state_dict():
+    #     if k not in load_keys:
+    #         load_dict[k] = model.state_dict()[k]
     model.load_state_dict(load_dict)
 
     trainer = Trainer.from_argparse_args(
