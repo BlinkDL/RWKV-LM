@@ -38,18 +38,9 @@ class MyDataset(Dataset):
             self.data_size = len(self.data)
             print(f"Data has {self.data_size} tokens.")
         elif args.data_type == "wds_img":
-            def identity(x):
-                return x            
-            import torchvision as vision
-            import webdataset as wds
-            import torchvision.transforms as transforms
-            img_transform = transforms.Compose(
-                [transforms.CenterCrop(256)]
-            )
-            self.data = iter(wds.WebDataset(args.data_file, resampled=True).shuffle(1000).decode("torchrgb").to_tuple("jpg", "json", "txt").map_tuple(img_transform, identity, identity).with_epoch(1000000))
-            print("WebDataset loaded.")
             self.vocab_size = -1
             self.data_size = -1
+            self.data = None
         else:
             if args.data_type == "dummy":
                 print("Building dummy data...")
@@ -90,9 +81,29 @@ class MyDataset(Dataset):
         world_size = self.world_size
         # print(f"epoch {epoch} idx {idx} rank {rank}/{world_size}")
 
-        if args.data_type == "wds_img":            
+        if args.data_type == "wds_img":
+            if self.data == None:
+                def identity(x):
+                    return x            
+                import webdataset as wds
+                import torchvision.transforms as transforms
+                img_transform = transforms.Compose(
+                    [transforms.CenterCrop(256)]
+                )
+                self.data_raw = wds.WebDataset(args.data_file, resampled=True).shuffle(10000, initial=1000, rng=random.Random(epoch*100000+rank)).decode("torchrgb").to_tuple("jpg", "json", "txt").map_tuple(img_transform, identity, identity)
+                for pp in self.data_raw.pipeline:
+                    if 'Resampled' in str(pp):
+                        pp.deterministic = True
+                        def worker_seed():
+                            return rank*100000+epoch
+                        pp.worker_seed = worker_seed
+                self.data = iter(self.data_raw)
+                # print(f"WebDataset loaded for rank {rank} epoch {epoch}")
+
             dd = next(self.data) # jpg, json, txt
             # print(f"epoch {epoch} idx {idx} rank {rank}/{world_size} {dd[2]}")
+            # with open(f"sample_{rank}.txt", "a", encoding="utf-8") as tmp:
+            #     tmp.write(f"epoch {epoch} idx {idx} rank {rank}/{world_size} {int(dd[1]['key'])}\n")
             return dd[0], dd[2]
         else:
             ctx_len = args.ctx_len
