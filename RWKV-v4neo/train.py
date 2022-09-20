@@ -3,24 +3,10 @@
 ########################################################################################################
 
 if __name__ == "__main__":
-    print("########## work in progress ##########")
-    import os, warnings, math, datetime, sys, time
-    import numpy as np
     from argparse import ArgumentParser
-    import torch
-    from torch.utils.data import DataLoader
-    import deepspeed
-    import pytorch_lightning as pl
     from pytorch_lightning import Trainer
-    from pytorch_lightning import seed_everything
-    from pytorch_lightning.utilities import rank_zero_info, rank_zero_only
 
-    # print("WARNING: THIS IS ONLY FOR DEBUG")
-    # seed_everything(42)
-
-    np.set_printoptions(precision=4, suppress=True, linewidth=200)
-    warnings.filterwarnings("ignore", ".*Consider increasing the value of the `num_workers` argument*")
-    warnings.filterwarnings("ignore", ".*The progress bar already tracks a metric with the*")
+    print("########## work in progress ##########")
 
     ########################################################################################################
     #
@@ -61,11 +47,11 @@ if __name__ == "__main__":
     # --accelerator gpu --devices 1 --precision fp16 --strategy deepspeed_stage_2_offload --grad_cp 1
 
     parser = ArgumentParser()
-    parser = Trainer.add_argparse_args(parser)
 
     parser.add_argument("--load_model", default="", type=str)  # full path, with .pth
     parser.add_argument("--wandb", default="", type=str)  # wandb project name. if "" then don't use wandb
     parser.add_argument("--proj_dir", default="out", type=str)
+    parser.add_argument("--random_seed", default="-1", type=int)
 
     parser.add_argument("--data_file", default="", type=str)
     parser.add_argument("--data_type", default="utf-8", type=str)
@@ -98,7 +84,35 @@ if __name__ == "__main__":
     parser.add_argument("--ds_bucket_mb", default=200, type=int)  # deepspeed bucket size in MB. 200 seems enough
     # parser.add_argument("--cuda_cleanup", default=0, type=int)  # extra cuda cleanup (sometimes helpful)
 
+    parser.add_argument("--my_img_version", default=0, type=int)
+    parser.add_argument("--my_img_size", default=0, type=int)
+    parser.add_argument("--my_img_bit", default=0, type=int)
+    parser.add_argument("--my_img_clip", default='x', type=str)
+    parser.add_argument("--my_img_clip_scale", default=1, type=float)
+
+    parser = Trainer.add_argparse_args(parser)
     args = parser.parse_args()
+
+    ########################################################################################################
+
+    import os, warnings, math, datetime, sys, time
+    import numpy as np
+    import torch
+    from torch.utils.data import DataLoader
+    import deepspeed
+    import pytorch_lightning as pl
+    from pytorch_lightning import seed_everything
+    from pytorch_lightning.utilities import rank_zero_info, rank_zero_only
+
+    if args.random_seed >= 0:
+        print(f"########## WARNING: GLOBAL SEED SET TO f{args.random_seed} ##########\n" * 3)
+        seed_everything(args.random_seed)
+
+    np.set_printoptions(precision=4, suppress=True, linewidth=200)
+    warnings.filterwarnings("ignore", ".*Consider increasing the value of the `num_workers` argument*")
+    warnings.filterwarnings("ignore", ".*The progress bar already tracks a metric with the*")
+    # os.environ["WDS_SHOW_SEED"] = "1"
+
     args.my_timestamp = datetime.datetime.today().strftime("%Y-%m-%d-%H-%M-%S")
     args.enable_checkpointing = False
     args.replace_sampler_ddp = False
@@ -112,6 +126,11 @@ if __name__ == "__main__":
     args.real_bsz = int(args.num_nodes) * int(args.devices) * args.micro_bsz
     os.environ["RWKV_T_MAX"] = str(args.ctx_len)
 
+    if args.data_type == "wds_img":
+        args.run_name = f"v{args.my_img_version}-{args.my_img_size}-{args.my_img_bit}bit-{args.my_img_clip}x{args.my_img_clip_scale}"
+        args.proj_dir = f"{args.proj_dir}-{args.run_name}"
+    else:
+        args.run_name = f"{args.vocab_size} ctx{args.ctx_len} L{args.n_layer} D{args.n_embd}"
     if not os.path.exists(args.proj_dir):
         os.makedirs(args.proj_dir)
 

@@ -87,9 +87,13 @@ class MyDataset(Dataset):
                     return x            
                 import webdataset as wds
                 import torchvision.transforms as transforms
-                img_transform = transforms.Compose(
-                    [transforms.CenterCrop(256)]
-                )
+                # img_transform = transforms.Compose(
+                #     [transforms.CenterCrop(256)]
+                # )
+                img_transform = transforms.Compose([
+                    transforms.CenterCrop(512),
+                    transforms.Resize((args.my_img_size))
+                ])
                 self.data_raw = wds.WebDataset(args.data_file, resampled=True).shuffle(10000, initial=1000, rng=random.Random(epoch*100000+rank)).decode("torchrgb").to_tuple("jpg", "json", "txt").map_tuple(img_transform, identity, identity)
                 for pp in self.data_raw.pipeline:
                     if 'Resampled' in str(pp):

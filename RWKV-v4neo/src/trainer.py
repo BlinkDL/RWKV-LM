@@ -61,11 +61,9 @@ class train_callback(pl.Callback):
                 if len(args.wandb) > 0:
                     print("Login to wandb...")
                     import wandb
-
-                    model_name = f"{args.vocab_size} ctx{args.ctx_len} L{args.n_layer} D{args.n_embd}"
                     wandb.init(
                         project=args.wandb,
-                        name=model_name + " " + args.my_timestamp,
+                        name=args.run_name + " " + args.my_timestamp,
                         config=args,
                         save_code=False,
                     )
