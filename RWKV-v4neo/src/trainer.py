@@ -111,8 +111,16 @@ class train_callback(pl.Callback):
         args = self.args
         if trainer.is_global_zero:  # logging & save state_dict
             if (args.epoch_save > 0 and trainer.current_epoch % args.epoch_save == 0) or trainer.current_epoch == args.epoch_count - 1:
+                if args.data_type == 'wds_img':
+                    raw_dict = pl_module.state_dict()
+                    to_save_dict = {}
+                    for k in raw_dict:
+                        if k.startswith('encoder.') or k.startswith('decoder.'):
+                            to_save_dict[k] = raw_dict[k]
+                else:
+                    to_save_dict = pl_module.state_dict()
                 torch.save(
-                    pl_module.state_dict(),
+                    to_save_dict,
                     f"{args.proj_dir}/rwkv-{args.epoch_begin + trainer.current_epoch}.pth",
                 )
             trainer.my_log.write(f"{args.epoch_begin + trainer.current_epoch} {trainer.my_epoch_loss:.6f} {math.exp(trainer.my_epoch_loss):.4f} {trainer.my_lr:.8f} {datetime.datetime.now()} {trainer.current_epoch}\n")

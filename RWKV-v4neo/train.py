@@ -84,11 +84,14 @@ if __name__ == "__main__":
     parser.add_argument("--ds_bucket_mb", default=200, type=int)  # deepspeed bucket size in MB. 200 seems enough
     # parser.add_argument("--cuda_cleanup", default=0, type=int)  # extra cuda cleanup (sometimes helpful)
 
-    parser.add_argument("--my_img_version", default=0, type=int)
+    parser.add_argument("--my_img_version", default=0, type=str)
     parser.add_argument("--my_img_size", default=0, type=int)
     parser.add_argument("--my_img_bit", default=0, type=int)
     parser.add_argument("--my_img_clip", default='x', type=str)
     parser.add_argument("--my_img_clip_scale", default=1, type=float)
+    parser.add_argument("--my_img_l1_scale", default=0, type=float)
+    parser.add_argument("--my_img_encoder", default='x', type=str)
+    # parser.add_argument("--my_img_noise_scale", default=0, type=float)
 
     parser = Trainer.add_argparse_args(parser)
     args = parser.parse_args()
@@ -105,7 +108,7 @@ if __name__ == "__main__":
     from pytorch_lightning.utilities import rank_zero_info, rank_zero_only
 
     if args.random_seed >= 0:
-        print(f"########## WARNING: GLOBAL SEED SET TO f{args.random_seed} ##########\n" * 3)
+        print(f"########## WARNING: GLOBAL SEED SET TO {args.random_seed} ##########\n" * 3)
         seed_everything(args.random_seed)
 
     np.set_printoptions(precision=4, suppress=True, linewidth=200)
