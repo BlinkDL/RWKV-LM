@@ -62,9 +62,14 @@ elif TOKEN_MODE == "pile":
     # n_embd = 1024
     # ctx_len = 1024
 
-    MODEL_NAME = '/fsx/BlinkDL/rwkv-release/RWKV-4-Pile-1B5-20220903-8040'
-    n_layer = 24
-    n_embd = 2048
+    # MODEL_NAME = '/fsx/BlinkDL/rwkv-release/RWKV-4-Pile-1B5-20220903-8040'
+    # n_layer = 24
+    # n_embd = 2048
+    # ctx_len = 1024
+
+    MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-3b/RWKV-4-Pile-3B-20220925-4537'
+    n_layer = 32
+    n_embd = 2560
     ctx_len = 1024
 
 os.environ["RWKV_FLOAT_MODE"] = "fp32"  # currently only supprts fp32
@@ -78,7 +83,31 @@ model_type = "RWKV"  # 'RWKV' or 'RWKV-ffnPre'
 # context = 'A'
 # context = "\nIn the"
 # context = '\nSugar:'
-context = "\nIn a shocking finding, scientist discovered a herd of dragons living in a remote, previously unexplored valley, in Tibet. Even more surprising to the researchers was the fact that the dragons spoke perfect Chinese."
+# context = "\nIn a shocking finding, scientist discovered a herd of dragons living in a remote, previously unexplored valley, in Tibet. Even more surprising to the researchers was the fact that the dragons spoke perfect Chinese."
+
+context = "\n深圳是" # test Chinese
+context = "\n東京は" # test Japanese
+
+# context = ''' # A good prompt for chatbot
+# The following is a conversation between a highly knowledgeable and intelligent AI assistant, called RWKV, and a human user, called User. In the following interactions, User and RWKV will converse in natural language, and RWKV will do its best to answer User’s questions. RWKV was built to be respectful, polite and inclusive. It knows a lot, and always tells the truth. The conversation begins.
+
+# User: OK RWKV, I’m going to start by quizzing you with a few warm-up questions. Who is currently the president of the USA?
+
+# RWKV: It’s Joe Biden; he was sworn in earlier this year.
+
+# User: What year was the French Revolution?
+
+# RWKV: It started in 1789, but it lasted 10 years until 1799.
+
+# User: Can you guess who I might want to marry?
+
+# RWKV: Only if you tell me more about yourself - what are your interests?
+
+# User: Aha, I’m going to refrain from that for now. Now for a science question. What can you tell me about the Large Hadron Collider (LHC)?
+
+# RWKV: It’s a large and very expensive piece of science equipment. If I understand correctly, it’s a high-energy particle collider, built by CERN, and completed in 2008. They used it to confirm the existence of the Higgs boson in 2012.
+
+# User:'''
 
 NUM_TRIALS = 999
 LENGTH_PER_TRIAL = 333
@@ -144,6 +173,7 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
         model.load(init_state)
 
     # record_time('model_pre')
+    out_last = src_len
     for i in range(src_len, src_len + (1 if DEBUG_DEBUG else LENGTH_PER_TRIAL)):
         # time_ref = time.time_ns()
 
@@ -162,7 +192,7 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
             out[0] = -999999999  # disable <|endoftext|>
 
         time_ref = time.time_ns()
-        char = tokenizer.sample_logits(
+        ttt = tokenizer.sample_logits(
             out,
             x,
             ctx_len,
@@ -170,11 +200,16 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
             top_p_usual=top_p,
             top_p_newline=top_p_newline,
         )
+        ctx += [ttt]
+
         if tokenizer.charMode:
-            print(tokenizer.itos[char], end="", flush=True)
+            char = tokenizer.itos[ttt]
+            print(char, end="", flush=True)
         else:
-            print(tokenizer.tokenizer.decode(char), end="", flush=True)
-        ctx += [char]
+            char = tokenizer.tokenizer.decode(ctx[out_last:])
+            if '\ufffd' not in char:
+                print(char, end="", flush=True)
+                out_last = i+1
 
         # record_time('model_sampling')
     print()
