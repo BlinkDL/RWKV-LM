@@ -44,6 +44,8 @@ class RWKV_RNN(MyModule): # this is running in FP32 at this moment
                 w[x] = w[x].squeeze()
             if '.time_decay' in x:
                 w[x] = -torch.exp(w[x])
+            if 'pos_emb_x' in x:
+                self.w.pos_emb = (w['pos_emb_x'] + w['pos_emb_y']).reshape(ctx_len+1, -1)[:-1,:]
             if DEBUG_TIME and '.time_' in x:
                 print(x, w[x].squeeze().cpu().numpy())
 
@@ -150,6 +152,11 @@ class RWKV_RNN(MyModule): # this is running in FP32 at this moment
         with torch.no_grad():
             w = self.w
             x = w.emb.weight[ctx[-1]]
+            try:
+                pos_emb = w.pos_emb[len(ctx)-1]
+                x = x + pos_emb
+            except:
+                pass
 
             for i in range(self.n_layer):
                 if i == 0:

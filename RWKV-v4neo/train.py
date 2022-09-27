@@ -92,6 +92,11 @@ if __name__ == "__main__":
     parser.add_argument("--my_img_l1_scale", default=0, type=float)
     parser.add_argument("--my_img_encoder", default='x', type=str)
     # parser.add_argument("--my_img_noise_scale", default=0, type=float)
+    parser.add_argument("--my_sample_len", default=0, type=int)
+    parser.add_argument("--my_ffn_shift", default=1, type=int)
+    parser.add_argument("--my_att_shift", default=1, type=int)
+    parser.add_argument("--my_pos_emb", default=0, type=int)
+    parser.add_argument("--load_partial", default=0, type=int)
 
     parser = Trainer.add_argparse_args(parser)
     args = parser.parse_args()
@@ -108,7 +113,7 @@ if __name__ == "__main__":
     from pytorch_lightning.utilities import rank_zero_info, rank_zero_only
 
     if args.random_seed >= 0:
-        print(f"########## WARNING: GLOBAL SEED SET TO {args.random_seed} ##########\n" * 3)
+        print(f"########## WARNING: GLOBAL SEED {args.random_seed} THIS WILL AFFECT MULTIGPU SAMPLING ##########\n" * 3)
         seed_everything(args.random_seed)
 
     np.set_printoptions(precision=4, suppress=True, linewidth=200)
@@ -210,7 +215,7 @@ if __name__ == "__main__":
     )
     rank_zero_info(str(vars(args)) + "\n")
 
-    assert args.data_type in ["utf-8", "utf-16le", "numpy", "binidx", "dummy", "wds_img"]
+    assert args.data_type in ["utf-8", "utf-16le", "numpy", "binidx", "dummy", "wds_img", "uint16"]
 
     if args.lr_final == 0 or args.lr_init == 0:
         rank_zero_info("\n\nNote: lr_final = 0 or lr_init = 0. Using linear LR schedule instead.\n\n")
@@ -276,10 +281,11 @@ if __name__ == "__main__":
             print(f"Trying {args.load_model}")
             load_dict = torch.load(args.load_model, map_location="cpu")
 
-    # load_keys = load_dict.keys()
-    # for k in model.state_dict():
-    #     if k not in load_keys:
-    #         load_dict[k] = model.state_dict()[k]
+    if args.load_partial == 1:
+        load_keys = load_dict.keys()
+        for k in model.state_dict():
+            if k not in load_keys:
+                load_dict[k] = model.state_dict()[k]
     model.load_state_dict(load_dict)
 
     trainer = Trainer.from_argparse_args(
