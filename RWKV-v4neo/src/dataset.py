@@ -47,6 +47,7 @@ class MyDataset(Dataset):
             self.vocab_size = -1
             self.data_size = -1
             self.data = None
+            self.error_count = 0
         else:
             if args.data_type == "dummy":
                 print("Building dummy data...")
@@ -88,7 +89,7 @@ class MyDataset(Dataset):
         # print(f"epoch {epoch} idx {idx} rank {rank}/{world_size}")
 
         if args.data_type == "wds_img":
-            if self.data == None:
+            def init_wds(self, bias=0):
                 def identity(x):
                     return x            
                 import webdataset as wds
@@ -100,17 +101,28 @@ class MyDataset(Dataset):
                     transforms.CenterCrop(512),
                     transforms.Resize((args.my_img_size))
                 ])
-                self.data_raw = wds.WebDataset(args.data_file, resampled=True, handler=wds.handlers.warn_and_continue).shuffle(10000, initial=1000, rng=random.Random(epoch*100000+rank)).decode("torchrgb").to_tuple("jpg", "json", "txt").map_tuple(img_transform, identity, identity)
+                self.data_raw = wds.WebDataset(args.data_file, resampled=True).shuffle(10000, initial=1000, rng=random.Random(epoch*100000+rank+bias*1e9)).decode("torchrgb").to_tuple("jpg", "json", "txt").map_tuple(img_transform, identity, identity)
                 for pp in self.data_raw.pipeline:
                     if 'Resampled' in str(pp):
                         pp.deterministic = True
                         def worker_seed():
-                            return rank*100000+epoch
+                            return rank*100000+epoch+bias*1e9
                         pp.worker_seed = worker_seed
                 self.data = iter(self.data_raw)
                 # print(f"WebDataset loaded for rank {rank} epoch {epoch}")
-
-            dd = next(self.data) # jpg, json, txt
+            if self.data == None:
+                init_wds(self)
+            trial = 0
+            while trial < 10:
+                try:
+                    dd = next(self.data) # jpg, json, txt
+                    break
+                except:
+                    print(f'[dataloader error - epoch {epoch} rank {rank} - trying a new shuffle]')
+                    self.error_count += 1
+                    init_wds(self, self.error_count)
+                    trial += 1
+                    pass
             # print(f"epoch {epoch} idx {idx} rank {rank}/{world_size} {dd[2]}")
             # with open(f"sample_{rank}.txt", "a", encoding="utf-8") as tmp:
             #     tmp.write(f"epoch {epoch} idx {idx} rank {rank}/{world_size} {int(dd[1]['key'])}\n")
