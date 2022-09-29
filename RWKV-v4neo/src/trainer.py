@@ -135,11 +135,14 @@ def generate_init_weight(model, init_weight_name):
     mm = model.generate_init_weight()
 
     if model.args.my_pile_stage == 1:
-        print(f"Combine weights from {model.args.load_model}...")
-        load_dict = torch.load(model.args.load_model, map_location="cpu")
-        for k in load_dict:
-            assert k in mm
-            mm[k] = load_dict[k].reshape(mm[k].shape)
+        try:
+            print(f"Combine weights from {model.args.load_model}...")
+            load_dict = torch.load(model.args.load_model, map_location="cpu")
+            for k in load_dict:
+                assert k in mm
+                mm[k] = load_dict[k].reshape(mm[k].shape)
+        except:
+            print(f"\n\n!!! FAIL !!!\n\n")
 
     print(f"Save to {init_weight_name}...")
     torch.save(mm, init_weight_name)
