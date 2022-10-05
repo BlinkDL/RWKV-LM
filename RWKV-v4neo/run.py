@@ -3,13 +3,15 @@
 ########################################################################################################
 
 import numpy as np
-import math, os
+import math, os, sys
 import time
-import types
-import copy
 import torch
 from src.utils import TOKENIZER
 
+try:
+    os.environ["CUDA_VISIBLE_DEVICES"] = sys.argv[1]
+except:
+    pass
 torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.allow_tf32 = True
 torch.backends.cuda.matmul.allow_tf32 = True
@@ -62,17 +64,22 @@ elif TOKEN_MODE == "pile":
     # n_embd = 1024
     # ctx_len = 1024
 
-    MODEL_NAME = '/fsx/BlinkDL/rwkv-release/RWKV-4-Pile-1B5-20220903-8040'
-    n_layer = 24
-    n_embd = 2048
-    ctx_len = 1024
-
-    # MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-3b/RWKV-4-Pile-3B-20220925-4537'
-    # n_layer = 32
-    # n_embd = 2560
+    # MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-1b5/RWKV-4-Pile-1B5-20220929-ctx4096'
+    # n_layer = 24
+    # n_embd = 2048
     # ctx_len = 1024
 
-os.environ["RWKV_FLOAT_MODE"] = "fp32"  # currently only supprts fp32 (it can do bf16 and fp16. just wait a bit... busy these days)
+    MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-3b/RWKV-4-Pile-3B-20221003-6783'
+    n_layer = 32
+    n_embd = 2560
+    ctx_len = 1024
+
+    # MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-7b/RWKV-4-Pile-7B-20221004-3047'
+    # n_layer = 32
+    # n_embd = 4096
+    # ctx_len = 1024
+
+os.environ["RWKV_FLOAT_MODE"] = "fp32"  # fp32 (faster at this moment) or bf16 (slower but saves VRAM)
 os.environ["RWKV_RUN_DEVICE"] = "cpu"  # 'cpu' (already very fast) or 'cuda'
 model_type = "RWKV"  # 'RWKV' or 'RWKV-ffnPre'
 
@@ -127,7 +134,13 @@ from src.model_run import RWKV_RNN
 model = RWKV_RNN(
     MODEL_NAME, os.environ["RWKV_RUN_DEVICE"], model_type, n_layer, n_embd, ctx_len
 )
+
+# input(0)
+
+print(f'\nLoading tokenizer {WORD_NAME}...')
 tokenizer = TOKENIZER(WORD_NAME, UNKNOWN_CHAR=UNKNOWN_CHAR)
+if TOKEN_MODE == "pile":
+    assert tokenizer.tokenizer.decode([187]) == '\n'
 
 ########################################################################################################
 
@@ -139,9 +152,9 @@ else:
 src_len = len(ctx)
 src_ctx = ctx.copy()
 
-print("Your prompt has " + str(src_len) + " tokens.")
+print("\nYour prompt has " + str(src_len) + " tokens.")
 print(
-    "\nNote: currently the first run takes a while if your prompt is long, as we are using RNN to preprocess the prompt. Use GPT to build the hidden state for better speed.\n"
+    "Note: currently the first run takes a while if your prompt is long, as we are using RNN to preprocess the prompt. Use GPT to build the hidden state for better speed.\n"
 )
 
 time_slot = {}
@@ -154,24 +167,24 @@ def record_time(name):
     if tt < time_slot[name]:
         time_slot[name] = tt
 
+init_state = None
+init_out = None
+state = None
+out = None
+
 for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
     print(("-" * 50) + '\n' + context, end="")
 
     time_ref = time.time_ns()
     ctx = src_ctx.copy()
-    model.clear()
 
     if TRIAL == 0:
-        init_state = types.SimpleNamespace()
         for i in range(src_len):
             x = ctx[: i + 1]
             if i == src_len - 1:
-                init_state.out = model.forward(x)
+                init_out, init_state = model.forward(x, init_state)
             else:
-                model.forward(x, preprocess_only=True)
-        model.save(init_state)
-    else:
-        model.load(init_state)
+                init_state = model.forward(x, init_state, preprocess_only=True)
 
     record_time('preprocess')
     out_last = src_len
@@ -180,12 +193,12 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
         x = x[-ctx_len:]
 
         if i == src_len:
-            out = copy.deepcopy(init_state.out)
+            out = init_out.clone()
+            state = init_state.clone()
         else:
-            out = model.forward(x)
+            out, state = model.forward(x, state)
         if DEBUG_DEBUG:
             print("model", np.array(x), "==>", np.array(out), np.max(out.cpu().numpy()), np.min(out.cpu().numpy()))
-
         if TOKEN_MODE == "pile":
             out[0] = -999999999  # disable <|endoftext|>
 
@@ -213,3 +226,5 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
     print(
         f"\n\n--- preprocess {round(time_slot['preprocess'], 2)}s, generation {round(time_slot['total']-time_slot['preprocess'], 2)}s ", end = ''
     )
+
+print(("-" * 50) + '\n')
