@@ -61,8 +61,15 @@ class RWKV_RNN(nn.Module):
                 else:
                     if self.FLOAT_MODE == "fp32":
                         w[x] = w[x].float()
+
                     elif self.FLOAT_MODE == "bf16":
                         w[x] = w[x].bfloat16()
+
+                    elif self.FLOAT_MODE == "fp16":
+                        if ('weight' in x or 'bias' in x) and 'ln' in x:
+                            w[x] = w[x].float()
+                        else:
+                            w[x] = w[x].half()
 
                 w[x].requires_grad = False
                 if args.RUN_DEVICE == 'cuda' and x != 'emb.weight':
@@ -108,7 +115,13 @@ class RWKV_RNN(nn.Module):
         torch.cuda.empty_cache()
 
     def LN(self, x, w):
-        return F.layer_norm(x, (self.args.n_embd,), weight=w.weight, bias=w.bias)
+        if (self.FLOAT_MODE == "fp32"):
+            return F.layer_norm(x, (self.args.n_embd,), weight=w.weight, bias=w.bias)
+        elif (self.FLOAT_MODE == "bf16"):
+            return F.layer_norm(x, (self.args.n_embd,), weight=w.weight, bias=w.bias)
+        elif (self.FLOAT_MODE == "fp16"):
+            # layer_norm is not supported in fp16
+            return F.layer_norm(x.float(), (self.args.n_embd,), weight=w.weight, bias=w.bias).half()
 
     # state[] 0=ffn_xx 1=att_xx 2=att_aa 3=att_bb 4=att_pp
 
@@ -120,16 +133,24 @@ class RWKV_RNN(nn.Module):
             xr = x * time_mix_r + \
                 state[5*i+0].type(torch.bfloat16) * (1 - time_mix_r)
             state[5*i+0] = x.float()
+        elif self.FLOAT_MODE == "fp16":
+            xk = x * time_mix_k.float() + state[5*i+0] * (1 - time_mix_k)
+            xr = x * time_mix_r.float() + state[5*i+0] * (1 - time_mix_r)
+            state[5*i+0] = x.float()
         else:
             xk = x * time_mix_k + state[5*i+0] * (1 - time_mix_k)
             xr = x * time_mix_r + state[5*i+0] * (1 - time_mix_r)
             state[5*i+0] = x
 
+        if (self.FLOAT_MODE == "fp16"):
+            r = torch.sigmoid(rw.float() @ xr)
+            k = torch.square(torch.relu(kw.float() @ xk))
+            kv = vw.float() @ k
+            return (r * kv).half()
         r = torch.sigmoid(rw @ xr)
         k = torch.square(torch.relu(kw @ xk))
         kv = vw @ k
-
-        return r * kv
+        return (r * kv)
 
     @MyFunction
     def SA(self, x, state, i, time_mix_k, time_mix_v, time_mix_r, time_first, time_decay, kw, vw, rw, ow):
@@ -141,20 +162,42 @@ class RWKV_RNN(nn.Module):
             xr = x * time_mix_r + \
                 state[5*i+1].type(torch.bfloat16) * (1 - time_mix_r)
             state[5*i+1] = x.float()
+        elif self.FLOAT_MODE == "fp16":
+            xk = x * time_mix_k + \
+                state[5*i+1].type(torch.half) * (1 - time_mix_k)
+            xv = x * time_mix_v + \
+                state[5*i+1].type(torch.half) * (1 - time_mix_v)
+            xr = x * time_mix_r + \
+                state[5*i+1].type(torch.half) * (1 - time_mix_r)
+            state[5*i+1] = x.float()
         else:
             xk = x * time_mix_k + state[5*i+1] * (1 - time_mix_k)
             xv = x * time_mix_v + state[5*i+1] * (1 - time_mix_v)
             xr = x * time_mix_r + state[5*i+1] * (1 - time_mix_r)
             state[5*i+1] = x
 
-        r = torch.sigmoid(rw @ xr)
-        k = kw @ xk
-        v = vw @ xv
-
         if self.FLOAT_MODE == "bf16":
+            r = torch.sigmoid(rw @ xr)
+            k = kw @ xk
+            v = vw @ xv
             kk = k.float()
             vv = v.float()
+        elif self.FLOAT_MODE == "fp16":
+            # @ is not supported in fp16
+            # r = torch.sigmoid(rw @ xr)
+            # k = kw @ xk
+            # v = vw @ xv
+            # kk = k.float()
+            # vv = v.float()
+            r = torch.sigmoid(rw.float() @ xr.float())
+            k = kw.float() @ xk.float()
+            v = vw.float() @ xv.float()
+            kk = k
+            vv = v
         else:
+            r = torch.sigmoid(rw @ xr)
+            k = kw @ xk
+            v = vw @ xv
             kk = k
             vv = v
         aa = state[5*i+2]
@@ -175,10 +218,20 @@ class RWKV_RNN(nn.Module):
         state[5*i+4] = p
         if self.FLOAT_MODE == "bf16":
             wkv = (a / b).type(torch.bfloat16)
+        elif self.FLOAT_MODE == "fp16":
+            wkv = (a / b)
         else:
             wkv = a / b
 
-        return ow @ (r * wkv)
+        if (self.FLOAT_MODE == "fp16"):
+
+            # print types
+
+            return (ow.float() @ (r * wkv)).half()
+        elif (self.FLOAT_MODE == "bf16"):
+            return (ow @ (r * wkv))
+        elif (self.FLOAT_MODE == "fp32"):
+            return ow @ (r * wkv)
 
     def forward(self, ctx, state, preprocess_only=False):
         with torch.no_grad():

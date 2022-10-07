@@ -72,8 +72,8 @@ ctx_len = 1024
 
 args.RUN_DEVICE = "cuda"  # 'cpu' (already very fast) // 'cuda'
 # how many layers to offload to cuda, smaller number is slower, but uses less vram. // n_layer
-args.cudalayers = n_layer
-args.FLOAT_MODE = "fp32"  # fp32 // bf16 (saves VRAM, slightly less accurate)
+args.cudalayers = 9
+args.FLOAT_MODE = "fp16"  # fp32 // bf16 (saves VRAM, slightly less accurate)
 
 args.MODEL_NAME = MODEL_NAME
 args.n_layer = n_layer
@@ -121,7 +121,7 @@ context = "\nIn a shocking finding, scientist discovered a herd of dragons livin
 # User:'''
 
 NUM_TRIALS = 999
-LENGTH_PER_TRIAL = 333
+LENGTH_PER_TRIAL = 10
 
 TEMPERATURE = 1.0
 top_p = 0.8
@@ -216,8 +216,8 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
         if DEBUG_DEBUG:
             print("model", np.array(x), "==>", np.array(out), np.max(
                 out.cpu().numpy()), np.min(out.cpu().numpy()))
-        if TOKEN_MODE == "pile":
-            out[0] = -999999999  # disable <|endoftext|>
+        # if TOKEN_MODE == "pile":
+        #    out[0] = -999999999  # disable <|endoftext|>
 
         ttt = tokenizer.sample_logits(
             out,
