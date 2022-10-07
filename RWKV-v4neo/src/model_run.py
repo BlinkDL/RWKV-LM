@@ -4,7 +4,9 @@
 
 import types
 import torch
-import math, os, gc
+import math
+import os
+import gc
 from torch.nn import functional as F
 import torch.nn as nn
 from typing import List, Dict
@@ -13,8 +15,12 @@ from typing import List, Dict
 #     import torchdynamo
 #     MyFunction = torchdynamo.optimize(os.environ["RWKV_RUN_BACKEND"]) # !!!BUGGY!!! wrong output
 # except:
+
+
 def __nop(ob):
     return ob
+
+
 MyFunction = __nop
 
 RWKV_HEAD_QK_DIM = 0
@@ -23,6 +29,7 @@ print(f'\nRWKV_HEAD_QK_DIM {RWKV_HEAD_QK_DIM}\n')
 DEBUG_TIME = False   # True False - show trained time-coeffs
 
 ############################################################################################################
+
 
 class RWKV_RNN(nn.Module):
     def __init__(self, args):
@@ -37,7 +44,8 @@ class RWKV_RNN(nn.Module):
             # refine weights and send to correct device
             keys = list(w.keys())
             if 'pos_emb_x' in keys:
-                w['pos_emb'] = (w['pos_emb_x'] + w['pos_emb_y']).reshape(args.ctx_len+1, -1)[:-1,:]
+                w['pos_emb'] = (w['pos_emb_x'] + w['pos_emb_y']
+                                ).reshape(args.ctx_len+1, -1)[:-1, :]
             keys = list(w.keys())
             print_need_newline = False
             for x in keys:
@@ -58,16 +66,20 @@ class RWKV_RNN(nn.Module):
 
                 w[x].requires_grad = False
                 if args.RUN_DEVICE == 'cuda' and x != 'emb.weight':
-                    w[x] = w[x].cuda()
+
+                    if ((x.split('.')[1] == "weight" or x.split('.')[1] == "bias") or int(x.split('.')[1]) < args.cudalayers):
+                        w[x] = w[x].cuda()
 
                 if ('blocks.' not in x) or ('blocks.0.' in x):
                     if print_need_newline:
-                        print('\n', end = '')
+                        print('\n', end='')
                         print_need_newline = False
-                    print(x.ljust(40), str(w[x].dtype).replace('torch.', '').ljust(10), w[x].device)
+                    print(x.ljust(40), str(w[x].dtype).replace(
+                        'torch.', '').ljust(10), w[x].device)
                 else:
                     print_need_newline = True
-                    print('.', end = '', flush = True)
+                    print(
+                        '.' if "cpu" in f'{w[x].device}' else "x", end='', flush=True)
 
         # store weights in self.w
         keys = list(w.keys())
@@ -103,8 +115,10 @@ class RWKV_RNN(nn.Module):
     @MyFunction
     def FF(self, x, state, i, time_mix_k, time_mix_r, kw, vw, rw):
         if self.FLOAT_MODE == "bf16":
-            xk = x * time_mix_k + state[5*i+0].type(torch.bfloat16) * (1 - time_mix_k)
-            xr = x * time_mix_r + state[5*i+0].type(torch.bfloat16) * (1 - time_mix_r)
+            xk = x * time_mix_k + \
+                state[5*i+0].type(torch.bfloat16) * (1 - time_mix_k)
+            xr = x * time_mix_r + \
+                state[5*i+0].type(torch.bfloat16) * (1 - time_mix_r)
             state[5*i+0] = x.float()
         else:
             xk = x * time_mix_k + state[5*i+0] * (1 - time_mix_k)
@@ -120,9 +134,12 @@ class RWKV_RNN(nn.Module):
     @MyFunction
     def SA(self, x, state, i, time_mix_k, time_mix_v, time_mix_r, time_first, time_decay, kw, vw, rw, ow):
         if self.FLOAT_MODE == "bf16":
-            xk = x * time_mix_k + state[5*i+1].type(torch.bfloat16) * (1 - time_mix_k)
-            xv = x * time_mix_v + state[5*i+1].type(torch.bfloat16) * (1 - time_mix_v)
-            xr = x * time_mix_r + state[5*i+1].type(torch.bfloat16) * (1 - time_mix_r)
+            xk = x * time_mix_k + \
+                state[5*i+1].type(torch.bfloat16) * (1 - time_mix_k)
+            xv = x * time_mix_v + \
+                state[5*i+1].type(torch.bfloat16) * (1 - time_mix_v)
+            xr = x * time_mix_r + \
+                state[5*i+1].type(torch.bfloat16) * (1 - time_mix_r)
             state[5*i+1] = x.float()
         else:
             xk = x * time_mix_k + state[5*i+1] * (1 - time_mix_k)
@@ -160,10 +177,10 @@ class RWKV_RNN(nn.Module):
             wkv = (a / b).type(torch.bfloat16)
         else:
             wkv = a / b
-        
+
         return ow @ (r * wkv)
 
-    def forward(self, ctx, state, preprocess_only = False):
+    def forward(self, ctx, state, preprocess_only=False):
         with torch.no_grad():
             w = self.w
             args = self.args
@@ -175,30 +192,37 @@ class RWKV_RNN(nn.Module):
                 pos_emb = w.pos_emb[len(ctx)-1]
                 x = x + pos_emb
             except:
-                pass             
+                pass
 
             if state == None:
-                state = torch.zeros(args.n_layer * 5, args.n_embd, device=self.RUN_DEVICE)
+                state = torch.zeros(
+                    args.n_layer * 5, args.n_embd, device=self.RUN_DEVICE)
                 for i in range(args.n_layer):
                     state[5*i+4] -= 1e30
 
             for i in range(args.n_layer):
+                if (x.device != w.blocks[i].ln1.weight.device):
+
+                    x = x.to("cpu")
+                    state = state.to("cpu")
                 if i == 0:
                     x = self.LN(x, w.blocks[i].ln0)
-                
-                ww = w.blocks[i].att
-                x = x + self.SA(self.LN(x, w.blocks[i].ln1), state, i, 
-                    ww.time_mix_k, ww.time_mix_v, ww.time_mix_r, ww.time_first, ww.time_decay, 
-                    ww.key.weight, ww.value.weight, ww.receptance.weight, ww.output.weight)
-                
-                ww = w.blocks[i].ffn
-                x = x + self.FF(self.LN(x, w.blocks[i].ln2), state, i, 
-                    ww.time_mix_k, ww.time_mix_r, 
-                    ww.key.weight, ww.value.weight, ww.receptance.weight)
 
+                ww = w.blocks[i].att
+                x = x + self.SA(self.LN(x, w.blocks[i].ln1), state, i,
+                                ww.time_mix_k, ww.time_mix_v, ww.time_mix_r, ww.time_first, ww.time_decay,
+                                ww.key.weight, ww.value.weight, ww.receptance.weight, ww.output.weight)
+
+                ww = w.blocks[i].ffn
+                x = x + self.FF(self.LN(x, w.blocks[i].ln2), state, i,
+                                ww.time_mix_k, ww.time_mix_r,
+                                ww.key.weight, ww.value.weight, ww.receptance.weight)
+            if args.RUN_DEVICE == 'cuda':
+                state = state.to("cuda")
             if preprocess_only:
                 return state
-
+            if args.RUN_DEVICE == 'cuda':
+                x = x.to("cuda")
             x = self.LN(x, w.ln_out)
             x = w.head.weight @ x
 

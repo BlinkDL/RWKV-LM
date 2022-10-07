@@ -2,8 +2,14 @@
 # The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM
 ########################################################################################################
 
+from src.model_run import RWKV_RNN
 import numpy as np
-import math, os, sys, types, time, gc
+import math
+import os
+import sys
+import types
+import time
+import gc
 import torch
 from src.utils import TOKENIZER
 try:
@@ -21,8 +27,6 @@ args = types.SimpleNamespace()
 # Do this first: pip install torchdynamo
 ########################################################################################################
 
-args.RUN_DEVICE = "cpu"  # 'cpu' (already very fast) // 'cuda'
-args.FLOAT_MODE = "fp32" # fp32 // bf16 (saves VRAM, slightly less accurate)
 # if args.RUN_DEVICE == "cuda":
 #     os.environ["RWKV_RUN_BACKEND"] = 'nvfuser' # !!!BUGGY!!! wrong output
 
@@ -35,7 +39,7 @@ UNKNOWN_CHAR = None
 vocab_size = 50277
 
 # note; you can set MODEL_NAME to your fine-tuned model
-# MODEL_NAME = "/fsx/BlinkDL/rwkv-release/RWKV-4-Pile-169M-20220807-8023"
+# MODEL_NAME = "100"
 # n_layer = 12
 # n_embd = 768
 # ctx_len = 1024
@@ -55,7 +59,7 @@ vocab_size = 50277
 # n_embd = 2048
 # ctx_len = 4096
 
-MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-3b/RWKV-4-Pile-3B-20221003-6783'
+MODEL_NAME = '600'
 n_layer = 32
 n_embd = 2560
 ctx_len = 1024
@@ -64,6 +68,12 @@ ctx_len = 1024
 # n_layer = 32
 # n_embd = 4096
 # ctx_len = 1024
+
+
+args.RUN_DEVICE = "cuda"  # 'cpu' (already very fast) // 'cuda'
+# how many layers to offload to cuda, smaller number is slower, but uses less vram. // n_layer
+args.cudalayers = n_layer
+args.FLOAT_MODE = "fp32"  # fp32 // bf16 (saves VRAM, slightly less accurate)
 
 args.MODEL_NAME = MODEL_NAME
 args.n_layer = n_layer
@@ -122,7 +132,6 @@ DEBUG_DEBUG = False  # True False --> show softmax output
 ########################################################################################################
 
 print(f'\nUsing {args.RUN_DEVICE.upper()}. Loading {MODEL_NAME}...')
-from src.model_run import RWKV_RNN
 
 model = RWKV_RNN(args)
 
@@ -156,12 +165,14 @@ print(
 time_slot = {}
 time_ref = time.time_ns()
 
+
 def record_time(name):
     if name not in time_slot:
         time_slot[name] = 1e20
     tt = (time.time_ns() - time_ref) / 1e9
     if tt < time_slot[name]:
         time_slot[name] = tt
+
 
 init_state = None
 init_out = None
@@ -170,6 +181,13 @@ out = None
 
 for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
     print(("-" * 50) + '\n' + context, end="")
+
+    print("torch.cuda.memory_allocated: %fGB" %
+          (torch.cuda.memory_allocated(0)/1024/1024/1024))
+    print("torch.cuda.memory_reserved: %fGB" %
+          (torch.cuda.memory_reserved(0)/1024/1024/1024))
+    print("torch.cuda.max_memory_reserved: %fGB" %
+          (torch.cuda.max_memory_reserved(0)/1024/1024/1024))
 
     time_ref = time.time_ns()
     ctx = src_ctx.copy()
@@ -196,7 +214,8 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
         else:
             out, state = model.forward(x, state)
         if DEBUG_DEBUG:
-            print("model", np.array(x), "==>", np.array(out), np.max(out.cpu().numpy()), np.min(out.cpu().numpy()))
+            print("model", np.array(x), "==>", np.array(out), np.max(
+                out.cpu().numpy()), np.min(out.cpu().numpy()))
         if TOKEN_MODE == "pile":
             out[0] = -999999999  # disable <|endoftext|>
 
@@ -222,7 +241,7 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
     record_time('total')
     # print(f'\n\n{time_slot}\n\n')
     print(
-        f"\n\n--- preprocess {round(time_slot['preprocess'], 2)}s, generation {round(time_slot['total']-time_slot['preprocess'], 2)}s ", end = ''
+        f"\n\n--- preprocess {round(time_slot['preprocess'], 2)}s, generation {round(time_slot['total']-time_slot['preprocess'], 2)}s ", end=''
     )
 
 print(("-" * 50) + '\n')
