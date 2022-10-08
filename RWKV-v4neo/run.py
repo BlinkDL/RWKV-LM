@@ -73,7 +73,7 @@ ctx_len = 1024
 args.RUN_DEVICE = "cuda"  # 'cpu' (already very fast) // 'cuda'
 # how many layers to offload to cuda, smaller number is slower, but uses less vram. // n_layer
 args.cudalayers = 12
-args.FLOAT_MODE = "bf16"  # fp32 // bf16 (saves VRAM, slightly less accurate)
+args.FLOAT_MODE = "fp16"  # fp32 // bf16 (saves VRAM, slightly less accurate)
 
 args.MODEL_NAME = MODEL_NAME
 args.n_layer = n_layer

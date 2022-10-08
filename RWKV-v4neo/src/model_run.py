@@ -67,7 +67,7 @@ class RWKV_RNN(nn.Module):
 
                     elif self.FLOAT_MODE == "fp16":
                         if ('weight' in x or 'bias' in x) and 'ln' in x:
-                            w[x] = w[x].float()
+                            w[x] = w[x].half()
                         else:
                             w[x] = w[x].half()
 
@@ -121,7 +121,7 @@ class RWKV_RNN(nn.Module):
             return F.layer_norm(x, (self.args.n_embd,), weight=w.weight, bias=w.bias)
         elif (self.FLOAT_MODE == "fp16"):
             # layer_norm is not supported in fp16
-            return F.layer_norm(x.float(), (self.args.n_embd,), weight=w.weight, bias=w.bias).half()
+            return F.layer_norm(x.float(), (self.args.n_embd,), weight=w.weight.float(), bias=w.bias.float()).half()
 
     # state[] 0=ffn_xx 1=att_xx 2=att_aa 3=att_bb 4=att_pp
 
@@ -134,22 +134,23 @@ class RWKV_RNN(nn.Module):
                 state[5*i+0].type(torch.bfloat16) * (1 - time_mix_r)
             state[5*i+0] = x.float()
         elif self.FLOAT_MODE == "fp16":
-            xk = x * time_mix_k.float() + state[5*i+0] * (1 - time_mix_k)
-            xr = x * time_mix_r.float() + state[5*i+0] * (1 - time_mix_r)
-            state[5*i+0] = x.float()
+
+            xk = x * time_mix_k + state[5*i+0].half() * (1 - time_mix_k)
+            xr = x * time_mix_r + state[5*i+0].half() * (1 - time_mix_r)
+            state[5*i+0] = x
         else:
             xk = x * time_mix_k + state[5*i+0] * (1 - time_mix_k)
             xr = x * time_mix_r + state[5*i+0] * (1 - time_mix_r)
             state[5*i+0] = x
 
         if (self.FLOAT_MODE == "fp16"):
-            r = torch.sigmoid(rw.float() @ xr)
-            k = torch.square(torch.relu(kw.float() @ xk))
-            kv = vw.float() @ k
-            return (r * kv).half()
-        r = torch.sigmoid(rw @ xr)
-        k = torch.square(torch.relu(kw @ xk))
-        kv = vw @ k
+            r = torch.sigmoid(torch.matmul(rw, xr))
+            k = torch.square(torch.relu(torch.matmul(kw, xk)))
+            kv = torch.matmul(vw, k)
+            return (r * kv)
+        r = torch.sigmoid(torch.matmul(rw, xr))
+        k = torch.square(torch.relu(torch.matmul(kw, xk)))
+        kv = torch.matmul(vw, k)
         return (r * kv)
 
     @MyFunction
@@ -169,7 +170,7 @@ class RWKV_RNN(nn.Module):
                 state[5*i+1].type(torch.half) * (1 - time_mix_v)
             xr = x * time_mix_r + \
                 state[5*i+1].type(torch.half) * (1 - time_mix_r)
-            state[5*i+1] = x.float()
+            state[5*i+1] = x
         else:
             xk = x * time_mix_k + state[5*i+1] * (1 - time_mix_k)
             xv = x * time_mix_v + state[5*i+1] * (1 - time_mix_v)
@@ -189,9 +190,12 @@ class RWKV_RNN(nn.Module):
             # v = vw @ xv
             # kk = k.float()
             # vv = v.float()
-            r = torch.sigmoid(rw.float() @ xr.float())
-            k = kw.float() @ xk.float()
-            v = vw.float() @ xv.float()
+            #r = torch.sigmoid(rw.float() @ xr.float())
+            r = torch.sigmoid(torch.matmul(rw, xr))
+            #k = kw.float() @ xk.float()
+            k = torch.matmul(kw, xk)
+            #v = vw.float() @ xv.float()
+            v = torch.matmul(vw, xv)
             kk = k
             vv = v
         else:
@@ -219,15 +223,15 @@ class RWKV_RNN(nn.Module):
         if self.FLOAT_MODE == "bf16":
             wkv = (a / b).type(torch.bfloat16)
         elif self.FLOAT_MODE == "fp16":
-            wkv = (a / b)
+            wkv = (a / b).half()
         else:
             wkv = a / b
 
         if (self.FLOAT_MODE == "fp16"):
 
             # print types
-
-            return (ow.float() @ (r * wkv)).half()
+            return torch.matmul(ow, r * wkv)
+            # return (ow.float() @ (r * wkv)).half()
         elif (self.FLOAT_MODE == "bf16"):
             return (ow @ (r * wkv))
         elif (self.FLOAT_MODE == "fp32"):
@@ -277,6 +281,6 @@ class RWKV_RNN(nn.Module):
             if args.RUN_DEVICE == 'cuda':
                 x = x.to("cuda")
             x = self.LN(x, w.ln_out)
-            x = w.head.weight @ x
+            x = torch.matmul(w.head.weight, x)
 
-            return x.float(), state
+            return x, state
