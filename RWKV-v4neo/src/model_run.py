@@ -92,14 +92,21 @@ class RWKV_RNN(nn.Module):
         gc.collect()
         torch.cuda.empty_cache()
 
-    def LN(self, x, w, b):
+    def LN(self, x: torch.Tensor, w, b):
         if (self.FLOAT_MODE == "fp32"):
             return F.layer_norm(x, (self.argsnumns["n_embd"],), weight=w, bias=b)
         elif (self.FLOAT_MODE == "bf16"):
             return F.layer_norm(x, (self.argsnumns["n_embd"],), weight=w, bias=b)
         else:
             # layer_norm is not supported in fp16
-            return torch.layer_norm(x, (self.argsnumns["n_embd"],), weight=w, bias=b)
+            # layer norm on half-in
+            if (x.device.type is "cpu"):
+                return torch.layer_norm(x, (self.argsnumns["n_embd"],), weight=w, bias=b)
+            else:
+                # abandon all hope, ye who enter here
+                return F.layer_norm(
+                    x.float(), (self.argsnumns["n_embd"],), weight=w.float(), bias=b.float()).half()
+
             # return F.layer_norm(x.float(), (self.args["n_embd"],), weight=w.weight.float(), bias=w.bias.float()).half()
 
     # state[] 0=ffn_xx 1=att_xx 2=att_aa 3=att_bb 4=att_pp
@@ -122,10 +129,17 @@ class RWKV_RNN(nn.Module):
             state[5*i+0] = x
 
         if (self.FLOAT_MODE == "fp16"):
-            r = torch.sigmoid(torch.matmul(rw, xr))
-            k = torch.square(torch.relu(torch.matmul(kw, xk)))
-            kv = torch.matmul(vw, k)
-            return (r * kv)
+            if (x.device.type is "cuda"):
+                r = torch.sigmoid(torch.matmul(rw, xr))
+                k = torch.square(torch.relu(torch.matmul(kw, xk)))
+                kv = torch.matmul(vw, k)
+                return (r * kv)
+            else:
+                r = torch.sigmoid(torch.matmul(rw.float(), xr.float()))
+                k = torch.square(torch.relu(
+                    torch.matmul(kw.float(), xk.float())))
+                kv = torch.matmul(vw.float(), k.float())
+                return (r * kv).half()
         r = torch.sigmoid(torch.matmul(rw, xr))
         k = torch.square(torch.relu(torch.matmul(kw, xk)))
         kv = torch.matmul(vw, k)
@@ -161,11 +175,18 @@ class RWKV_RNN(nn.Module):
             kk = k.float()
             vv = v.float()
         elif self.FLOAT_MODE == "fp16":
-            r = torch.sigmoid(torch.matmul(rw, xr))
-            k = torch.matmul(kw, xk)
-            v = torch.matmul(vw, xv)
-            kk = k
-            vv = v
+            if (rw.device.type is "cuda"):
+                r = torch.sigmoid(torch.matmul(rw, xr))
+                k = torch.matmul(kw, xk)
+                v = torch.matmul(vw, xv)
+                kk = k
+                vv = v
+            else:
+                r = torch.sigmoid(torch.matmul(rw.float(), xr.float()))
+                k = torch.matmul(kw.float(), xk.float())
+                v = torch.matmul(vw.float(), xv.float())
+                kk = k
+                vv = v
         else:
             r = torch.sigmoid(rw @ xr)
             k = kw @ xk
@@ -191,14 +212,19 @@ class RWKV_RNN(nn.Module):
         if self.FLOAT_MODE == "bf16":
             wkv = (a / b).type(torch.bfloat16)
         elif self.FLOAT_MODE == "fp16":
-            wkv = (a / b).half()
+            wkv = (a / b)
+            if (rw.device.type is "cuda"):
+                wkv = wkv.half()
         else:
             wkv = a / b
 
         if (self.FLOAT_MODE == "fp16"):
 
             # print types
-            return torch.matmul(ow, r * wkv)
+            if (rw.device.type is "cuda"):
+                return torch.matmul(ow, r * wkv)
+            else:
+                return torch.matmul(ow.float(), r * wkv).half()
             # return (ow.float() @ (r * wkv)).half()
         elif (self.FLOAT_MODE == "bf16"):
             return (ow @ (r * wkv))
@@ -251,7 +277,12 @@ class RWKV_RNN(nn.Module):
                 return state, x
             if args["RUN_DEVICE"] == 'cuda':
                 x = x.to("cuda")
+
             x = self.LN(x, w["ln_out.weight"], w["ln_out.bias"])
-            x = torch.matmul(w["head.weight"], x)
+
+            if (args["RUN_DEVICE"] == "cpu" and self.FLOAT_MODE == "fp16"):
+                x = torch.matmul(w["head.weight"].float(), x.float()).half()
+            else:
+                x = torch.matmul(w["head.weight"], x)
 
             return x, state

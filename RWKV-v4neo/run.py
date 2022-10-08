@@ -77,10 +77,12 @@ args["RUN_DEVICE"] = "cuda"  # 'cpu' (already very fast) // 'cuda'
 # how many layers to offload to cuda, smaller number is slower, but uses less vram. // 0 -> n_layer
 argsnums["cudalayers"] = 12
 # fp32 // bf16 (saves VRAM, slightly less accurate) // fp16 (saves VRAM, slightly less accurate, can only be used with cuda, sometimes faster)
-args["FLOAT_MODE"] = "fp16"
+args["FLOAT_MODE"] = "fp32"
+# opt
+opt = "jit"  # none // jit
 
 if (args["RUN_DEVICE"] == "cpu" and args["FLOAT_MODE"] == "fp16"):
-    raise Exception("fp16 is only supported on cuda")
+    print(Warning("fp16 is only supported on cuda, workarounds may be slow"))
 
 if args["RUN_DEVICE"] == "cuda":
     os.environ["RWKV_RUN_BACKEND"] = 'nvfuser'  # !!!BUGGY!!! wrong output
@@ -145,8 +147,10 @@ DEBUG_DEBUG = False  # True False --> show softmax output
 print(f'\nUsing {args["RUN_DEVICE"].upper()}. Loading {MODEL_NAME}...')
 
 model = RWKV_RNN(args, argsnums)
-model = torch.jit.script(model)
-model = torch.jit.optimize_for_inference(model)
+if (opt == "jit"):
+    model = torch.jit.script(model)
+    model = torch.jit.optimize_for_inference(model)
+    model = model.eval()
 
 state = torch.zeros(
     argsnums["n_layer"] * 5, argsnums["n_embd"], device=args["RUN_DEVICE"])

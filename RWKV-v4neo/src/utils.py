@@ -52,11 +52,14 @@ class TOKENIZER():
             context = '\n'
         return context
 
-    def sample_logits(self, out, x, ctx_len, temperature=1.0, top_p_usual=None, top_p_newline=None):
+    def sample_logits(self, out: torch.Tensor, x, ctx_len, temperature=1.0, top_p_usual=None, top_p_newline=None):
         # out[self.UNKNOWN_CHAR] = -float('Inf')
        # out[self.UNKNOWN_CHAR] = -float('Inf')
         lastChar = int(x[-1])
 
+        # turn to float if is half and cpu
+        if out.dtype == torch.half and out.device == torch.device('cpu'):
+            out = out.float()
         probs = F.softmax(out, dim=-1)
 
         if self.charMode:
