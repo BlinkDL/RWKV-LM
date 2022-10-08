@@ -20,15 +20,14 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.allow_tf32 = True
 torch.backends.cuda.matmul.allow_tf32 = True
 np.set_printoptions(precision=4, suppress=True, linewidth=200)
-args = types.SimpleNamespace()
+args = {}
+argsnums = {}
 
 ########################################################################################################
 # Step 1: set model & config
 # Do this first: pip install torchdynamo
 ########################################################################################################
 
-# if args.RUN_DEVICE == "cuda":
-#     os.environ["RWKV_RUN_BACKEND"] = 'nvfuser' # !!!BUGGY!!! wrong output
 
 TOKEN_MODE = "pile"
 WORD_NAME = [
@@ -39,56 +38,64 @@ UNKNOWN_CHAR = None
 vocab_size = 50277
 
 # note; you can set MODEL_NAME to your fine-tuned model
-MODEL_NAME = "100"
-n_layer = 12
-n_embd = 768
-ctx_len = 1024
+size = "tiny"  # tini/mini/medium/medium-ext/large/xl/xxl
 
-# MODEL_NAME = '/fsx/BlinkDL/rwkv-release/RWKV-4-Pile-430M-20220808-8066'
-# n_layer = 24
-# n_embd = 1024
-# ctx_len = 1024
+if (size == "tiny"):
+    MODEL_NAME = "100"
+    n_layer = 12
+    n_embd = 768
+    ctx_len = 1024
 
-# MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-1b5/RWKV-4-Pile-1B5-20220903-8040'
-# n_layer = 24
-# n_embd = 2048
-# ctx_len = 1024
+elif (size == "mini"):
+    MODEL_NAME = '/fsx/BlinkDL/rwkv-release/RWKV-4-Pile-430M-20220808-8066'
+    n_layer = 24
+    n_embd = 1024
+    ctx_len = 1024
+elif (size == "medium"):
+    MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-1b5/RWKV-4-Pile-1B5-20220903-8040'
+    n_layer = 24
+    n_embd = 2048
+    ctx_len = 1024
+elif (size == "medium-ext"):
+    MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-1b5/RWKV-4-Pile-1B5-20220929-ctx4096'
+    n_layer = 24
+    n_embd = 2048
+    ctx_len = 4096
+elif (size == "large"):
+    MODEL_NAME = 'RWKV-4-Pile-3B-20221005-7348'
+    n_layer = 32
+    n_embd = 2560
+    ctx_len = 1024
+elif (size == "xl"):
+    MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-7b/RWKV-4-Pile-7B-20221004-3047'
+    n_layer = 32
+    n_embd = 4096
+    ctx_len = 1024
 
-# MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-1b5/RWKV-4-Pile-1B5-20220929-ctx4096'
-# n_layer = 24
-# n_embd = 2048
-# ctx_len = 4096
 
-# MODEL_NAME = '600'
-# n_layer = 32
-# n_embd = 2560
-# ctx_len = 1024
-
-# MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-7b/RWKV-4-Pile-7B-20221004-3047'
-# n_layer = 32
-# n_embd = 4096
-# ctx_len = 1024
-
-
-args.RUN_DEVICE = "cpu"  # 'cpu' (already very fast) // 'cuda'
+args["RUN_DEVICE"] = "cuda"  # 'cpu' (already very fast) // 'cuda'
 # how many layers to offload to cuda, smaller number is slower, but uses less vram. // 0 -> n_layer
-args.cudalayers = 6
+argsnums["cudalayers"] = 12
 # fp32 // bf16 (saves VRAM, slightly less accurate) // fp16 (saves VRAM, slightly less accurate, can only be used with cuda, sometimes faster)
-args.FLOAT_MODE = "fp32"
+args["FLOAT_MODE"] = "fp16"
 
-if (args.RUN_DEVICE == "cpu" and args.FLOAT_MODE == "fp16"):
+if (args["RUN_DEVICE"] == "cpu" and args["FLOAT_MODE"] == "fp16"):
     raise Exception("fp16 is only supported on cuda")
 
-args.MODEL_NAME = MODEL_NAME
-args.n_layer = n_layer
-args.n_embd = n_embd
-args.ctx_len = ctx_len
-args.vocab_size = vocab_size
-args.head_qk = 0
-args.pre_ffn = 0
-args.grad_cp = 0
-args.my_pos_emb = 0
-os.environ["RWKV_RUN_DEVICE"] = args.RUN_DEVICE
+if args["RUN_DEVICE"] == "cuda":
+    os.environ["RWKV_RUN_BACKEND"] = 'nvfuser'  # !!!BUGGY!!! wrong output
+
+
+args["MODEL_NAME"] = MODEL_NAME
+argsnums["n_layer"] = n_layer
+argsnums["n_embd"] = n_embd
+argsnums["ctx_len"] = ctx_len
+argsnums["vocab_size"] = vocab_size
+argsnums["head_qk"] = 0
+argsnums["pre_ffn"] = 0
+argsnums["grad_cp"] = 0
+argsnums["my_pos_emb"] = 0
+os.environ["RWKV_RUN_DEVICE"] = args["RUN_DEVICE"]
 
 ########################################################################################################
 # Step 2: set prompt & sampling stuffs
@@ -135,12 +142,20 @@ DEBUG_DEBUG = False  # True False --> show softmax output
 
 ########################################################################################################
 
-print(f'\nUsing {args.RUN_DEVICE.upper()}. Loading {MODEL_NAME}...')
+print(f'\nUsing {args["RUN_DEVICE"].upper()}. Loading {MODEL_NAME}...')
 
-model = RWKV_RNN(args)
+model = RWKV_RNN(args, argsnums)
+model = torch.jit.script(model)
+model = torch.jit.optimize_for_inference(model)
+
+state = torch.zeros(
+    argsnums["n_layer"] * 5, argsnums["n_embd"], device=args["RUN_DEVICE"])
+for i in range(argsnums["n_layer"]):
+    state[5*i+4] -= 1e30
+init_state = state
 
 print(f'\nOptimizing speed...')
-model.forward([187], None)
+model.forward([187], state)
 gc.collect()
 torch.cuda.empty_cache()
 
@@ -178,10 +193,9 @@ def record_time(name):
         time_slot[name] = tt
 
 
-init_state = None
-init_out = None
-state = None
-out = None
+init_out = []
+
+out = []
 
 for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
     print(("-" * 50) + '\n' + context, end="")
@@ -202,7 +216,8 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
             if i == src_len - 1:
                 init_out, init_state = model.forward(x, init_state)
             else:
-                init_state = model.forward(x, init_state, preprocess_only=True)
+                init_state, o = model.forward(
+                    x, init_state, preprocess_only=True)
         gc.collect()
         torch.cuda.empty_cache()
 
