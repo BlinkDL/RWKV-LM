@@ -71,9 +71,13 @@ ctx_len = 1024
 
 
 args.RUN_DEVICE = "cuda"  # 'cpu' (already very fast) // 'cuda'
-# how many layers to offload to cuda, smaller number is slower, but uses less vram. // n_layer
+# how many layers to offload to cuda, smaller number is slower, but uses less vram. // 0 -> n_layer
 args.cudalayers = 12
-args.FLOAT_MODE = "fp16"  # fp32 // bf16 (saves VRAM, slightly less accurate)
+# fp32 // bf16 (saves VRAM, slightly less accurate) // fp16 (saves VRAM, slightly less accurate, can only be used with cuda)
+args.FLOAT_MODE = "bf16"
+
+if (args.RUN_DEVICE == "cpu" and args.FLOAT_MODE == "fp16"):
+    raise Exception("fp16 is only supported on cuda")
 
 args.MODEL_NAME = MODEL_NAME
 args.n_layer = n_layer

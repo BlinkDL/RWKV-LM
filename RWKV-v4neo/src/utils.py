@@ -67,7 +67,7 @@ class TOKENIZER():
         else:
             top_p = top_p_usual
 
-        if os.environ["RWKV_RUN_DEVICE"] == "cpu":
+        if probs.dtype == "cpu":
             probs = probs.numpy()
             sorted_probs = np.sort(probs)[::-1]
             cumulative_probs = np.cumsum(sorted_probs)
@@ -81,7 +81,8 @@ class TOKENIZER():
             return out
         else:
             sorted_probs = torch.sort(probs, descending=True)[0]
-            cumulative_probs = torch.cumsum(sorted_probs, dim=-1).cpu().numpy()
+            cumulative_probs = torch.cumsum(
+                sorted_probs.float(), dim=-1).cpu().numpy()
             cutoff = float(sorted_probs[np.argmax(
                 cumulative_probs > top_p_usual)])
             probs[probs < cutoff] = 0
