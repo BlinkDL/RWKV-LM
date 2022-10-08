@@ -12,9 +12,9 @@ import torch.nn as nn
 from typing import List, Dict
 
 
-# import torchdynamo
-# # MyFunction = torchdynamo.optimize(
-# #     os.environ["RWKV_RUN_BACKEND"])  # !!!BUGGY!!! wrong output
+import torchdynamo
+MyFunction = torchdynamo.optimize(
+    "nvfuser")  # !!!BUGGY!!! wrong output
 
 
 RWKV_HEAD_QK_DIM = 0
@@ -92,11 +92,12 @@ class RWKV_RNN(nn.Module):
         gc.collect()
         torch.cuda.empty_cache()
 
+    @MyFunction
     def LN(self, x: torch.Tensor, w, b):
         if (self.FLOAT_MODE == "fp32"):
-            return F.layer_norm(x, (self.argsnumns["n_embd"],), weight=w, bias=b)
+            return torch.layer_norm(x, (self.argsnumns["n_embd"],), weight=w, bias=b)
         elif (self.FLOAT_MODE == "bf16"):
-            return F.layer_norm(x, (self.argsnumns["n_embd"],), weight=w, bias=b)
+            return torch.layer_norm(x, (self.argsnumns["n_embd"],), weight=w, bias=b)
         else:
             # layer_norm is not supported in fp16
             # layer norm on half-in
@@ -104,13 +105,13 @@ class RWKV_RNN(nn.Module):
                 return torch.layer_norm(x, (self.argsnumns["n_embd"],), weight=w, bias=b)
             else:
                 # abandon all hope, ye who enter here
-                return F.layer_norm(
+                return torch.layer_norm(
                     x.float(), (self.argsnumns["n_embd"],), weight=w.float(), bias=b.float()).half()
 
             # return F.layer_norm(x.float(), (self.args["n_embd"],), weight=w.weight.float(), bias=w.bias.float()).half()
 
     # state[] 0=ffn_xx 1=att_xx 2=att_aa 3=att_bb 4=att_pp
-
+    @MyFunction
     def FF(self, x, state, i: int, time_mix_k, time_mix_r, kw, vw, rw):
         if self.FLOAT_MODE == "bf16":
             xk = x * time_mix_k + \
@@ -145,6 +146,7 @@ class RWKV_RNN(nn.Module):
         kv = torch.matmul(vw, k)
         return (r * kv)
 
+    @MyFunction
     def SA(self, x, state, i: int, time_mix_k, time_mix_v, time_mix_r, time_first, time_decay, kw, vw, rw, ow):
         if self.FLOAT_MODE == "bf16":
             xk = x * time_mix_k + \
