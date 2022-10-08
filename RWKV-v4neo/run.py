@@ -39,10 +39,10 @@ UNKNOWN_CHAR = None
 vocab_size = 50277
 
 # note; you can set MODEL_NAME to your fine-tuned model
-# MODEL_NAME = "100"
-# n_layer = 12
-# n_embd = 768
-# ctx_len = 1024
+MODEL_NAME = "100"
+n_layer = 12
+n_embd = 768
+ctx_len = 1024
 
 # MODEL_NAME = '/fsx/BlinkDL/rwkv-release/RWKV-4-Pile-430M-20220808-8066'
 # n_layer = 24
@@ -59,10 +59,10 @@ vocab_size = 50277
 # n_embd = 2048
 # ctx_len = 4096
 
-MODEL_NAME = '600'
-n_layer = 32
-n_embd = 2560
-ctx_len = 1024
+# MODEL_NAME = '600'
+# n_layer = 32
+# n_embd = 2560
+# ctx_len = 1024
 
 # MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-7b/RWKV-4-Pile-7B-20221004-3047'
 # n_layer = 32
@@ -72,8 +72,8 @@ ctx_len = 1024
 
 args.RUN_DEVICE = "cuda"  # 'cpu' (already very fast) // 'cuda'
 # how many layers to offload to cuda, smaller number is slower, but uses less vram. // n_layer
-args.cudalayers = 9
-args.FLOAT_MODE = "fp16"  # fp32 // bf16 (saves VRAM, slightly less accurate)
+args.cudalayers = 12
+args.FLOAT_MODE = "bf16"  # fp32 // bf16 (saves VRAM, slightly less accurate)
 
 args.MODEL_NAME = MODEL_NAME
 args.n_layer = n_layer
