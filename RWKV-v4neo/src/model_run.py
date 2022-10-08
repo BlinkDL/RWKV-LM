@@ -121,7 +121,8 @@ class RWKV_RNN(nn.Module):
             return F.layer_norm(x, (self.args.n_embd,), weight=w.weight, bias=w.bias)
         elif (self.FLOAT_MODE == "fp16"):
             # layer_norm is not supported in fp16
-            return F.layer_norm(x.float(), (self.args.n_embd,), weight=w.weight.float(), bias=w.bias.float()).half()
+            return torch.layer_norm(x, (self.args.n_embd,), weight=w.weight, bias=w.bias)
+            # return F.layer_norm(x.float(), (self.args.n_embd,), weight=w.weight.float(), bias=w.bias.float()).half()
 
     # state[] 0=ffn_xx 1=att_xx 2=att_aa 3=att_bb 4=att_pp
 

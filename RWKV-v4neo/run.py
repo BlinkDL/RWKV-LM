@@ -74,7 +74,7 @@ args.RUN_DEVICE = "cuda"  # 'cpu' (already very fast) // 'cuda'
 # how many layers to offload to cuda, smaller number is slower, but uses less vram. // 0 -> n_layer
 args.cudalayers = 12
 # fp32 // bf16 (saves VRAM, slightly less accurate) // fp16 (saves VRAM, slightly less accurate, can only be used with cuda)
-args.FLOAT_MODE = "bf16"
+args.FLOAT_MODE = "fp16"
 
 if (args.RUN_DEVICE == "cpu" and args.FLOAT_MODE == "fp16"):
     raise Exception("fp16 is only supported on cuda")
@@ -220,8 +220,8 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
         if DEBUG_DEBUG:
             print("model", np.array(x), "==>", np.array(out), np.max(
                 out.cpu().numpy()), np.min(out.cpu().numpy()))
-        # if TOKEN_MODE == "pile":
-        #    out[0] = -999999999  # disable <|endoftext|>
+        if TOKEN_MODE == "pile":
+            out[0] = -99  # disable <|endoftext|>
 
         ttt = tokenizer.sample_logits(
             out,
