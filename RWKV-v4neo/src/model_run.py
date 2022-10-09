@@ -300,7 +300,7 @@ class RWKV_RNN(nn.Module):
 
                 x = x + self.FF(self.LN(x, ln2w, ln2b), state, i,
                                 tmk, tmr, tmkw, tmvw, tmrw)
-                if (self.RUN_DEVICE == "proc"):
+                if (self.RUN_DEVICE == "proc" and i >= self.argsnumns["cudalayers"]):
 
                     for rr in w.keys():
                         if ("blocks."+str(i)+"." in rr):
