@@ -2,6 +2,7 @@
 # The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM
 ########################################################################################################
 
+from genericpath import exists
 from typing import List
 from src.model_run import RWKV_RNN
 import numpy as np
@@ -77,12 +78,12 @@ elif (size == "xl"):
 
 # 'cpu' (already very fast) // 'cuda' // proc (faster then cpu, uses a fraction of the vram of cuda)
 args["RUN_DEVICE"] = "proc"
-# how many layers to offload to cuda, smaller number is slower, but uses less vram. // 0 -> n_layer
-argsnums["cudalayers"] = n_layer
+# how many layers to offload to cuda, smaller number is slower, but uses less vram. // 0 -> n_layer // use to speed up proc
+argsnums["cudalayers"] = 7
 # fp32 // bf16 (saves VRAM, slightly less accurate) // fp16 (saves VRAM, slightly less accurate, can only be used with cuda, sometimes faster)
-args["FLOAT_MODE"] = "fp32"
+args["FLOAT_MODE"] = "fp16"
 # opt
-opt = "jit"  # none // jit
+opt = "none"  # none // jit
 
 if (args["RUN_DEVICE"] == "cpu" and args["FLOAT_MODE"] == "fp16"):
     print(Warning("fp16 is only supported on cuda, workarounds may be slow"))
@@ -106,7 +107,7 @@ os.environ["RWKV_RUN_DEVICE"] = args["RUN_DEVICE"]
 # context = 'A'
 # context = "\nIn the"
 # context = '\nSugar:'
-context = "\nIn a shocking finding, scientist discovered a herd of dragons living in a remote, previously unexplored valley, in Tibet. Even more surprising to the researchers was the fact that the dragons spoke perfect Chinese."
+context = "\nA dog is a great:"
 
 # context = "\n深圳是" # test Chinese
 # context = "\n東京は" # test Japanese
@@ -134,10 +135,10 @@ context = "\nIn a shocking finding, scientist discovered a herd of dragons livin
 # User:'''
 
 NUM_TRIALS = 999
-LENGTH_PER_TRIAL = 10
+LENGTH_PER_TRIAL = 100
 
-TEMPERATURE = 1.0
-top_p = 0.8
+TEMPERATURE = 0.3
+top_p = 0.99
 top_p_newline = 0.9  # only used in TOKEN_MODE = char
 
 DEBUG_DEBUG = False  # True False --> show softmax output
@@ -160,6 +161,7 @@ state = torch.zeros(
 for i in range(argsnums["n_layer"]):
     state[5*i+4] -= 1e30
 init_state = state
+
 
 print(f'\nOptimizing speed...')
 model.forward([187], state)
@@ -218,12 +220,13 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
     ctx = src_ctx.copy()
 
     if TRIAL == 0:
+
         for i in range(src_len):
             x = ctx[: i + 1]
             if i == src_len - 1:
                 init_out, init_state = model.forward(x, init_state)
             else:
-                init_state, o = model.forward(
+                o, state = model.forward(
                     x, init_state, preprocess_only=True)
         gc.collect()
         torch.cuda.empty_cache()
