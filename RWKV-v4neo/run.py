@@ -41,7 +41,7 @@ UNKNOWN_CHAR = None
 vocab_size = 50277
 
 # note; you can set MODEL_NAME to your fine-tuned model
-size = "large"  # tini/mini/medium/medium-ext/large/xl/xxl
+size = "tiny"  # tini/mini/medium/medium-ext/large/xl/xxl
 
 if (size == "tiny"):
     MODEL_NAME = "100"
@@ -77,9 +77,9 @@ elif (size == "xl"):
 
 
 # 'cpu' (already very fast) // 'cuda' // proc (faster then cpu, uses a fraction of the vram of cuda)
-args["RUN_DEVICE"] = "proc"
-# how many layers to offload to cuda, smaller number is slower, but uses less vram. // 0 -> n_layer // use to speed up proc
-argsnums["cudalayers"] = 7
+args["RUN_DEVICE"] = "cpu"
+# how many layers to offload to cuda, smaller number is slower, but uses less vram. // 0 -> n_layer // use to speed up proc as well
+argsnums["cudalayers"] = 0
 # fp32 // bf16 (saves VRAM, slightly less accurate) // fp16 (saves VRAM, slightly less accurate, can only be used with cuda, sometimes faster)
 args["FLOAT_MODE"] = "fp16"
 # opt
@@ -137,8 +137,8 @@ context = "\nA dog is a great:"
 NUM_TRIALS = 999
 LENGTH_PER_TRIAL = 100
 
-TEMPERATURE = 0.3
-top_p = 0.99
+TEMPERATURE = 1.0
+top_p = 0.9
 top_p_newline = 0.9  # only used in TOKEN_MODE = char
 
 DEBUG_DEBUG = False  # True False --> show softmax output
