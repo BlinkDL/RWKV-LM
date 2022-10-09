@@ -40,7 +40,7 @@ UNKNOWN_CHAR = None
 vocab_size = 50277
 
 # note; you can set MODEL_NAME to your fine-tuned model
-size = "tiny"  # tini/mini/medium/medium-ext/large/xl/xxl
+size = "large"  # tini/mini/medium/medium-ext/large/xl/xxl
 
 if (size == "tiny"):
     MODEL_NAME = "100"
@@ -75,11 +75,12 @@ elif (size == "xl"):
     ctx_len = 1024
 
 
-args["RUN_DEVICE"] = "cuda"  # 'cpu' (already very fast) // 'cuda'
+# 'cpu' (already very fast) // 'cuda' // proc (faster then cpu, uses a fraction of the vram of cuda)
+args["RUN_DEVICE"] = "proc"
 # how many layers to offload to cuda, smaller number is slower, but uses less vram. // 0 -> n_layer
-argsnums["cudalayers"] = 12
+argsnums["cudalayers"] = n_layer
 # fp32 // bf16 (saves VRAM, slightly less accurate) // fp16 (saves VRAM, slightly less accurate, can only be used with cuda, sometimes faster)
-args["FLOAT_MODE"] = "bf16"
+args["FLOAT_MODE"] = "fp32"
 # opt
 opt = "jit"  # none // jit
 
@@ -155,7 +156,7 @@ if (opt == "jit"):
 
 
 state = torch.zeros(
-    argsnums["n_layer"] * 5, argsnums["n_embd"], device=args["RUN_DEVICE"])
+    argsnums["n_layer"] * 5, argsnums["n_embd"], device="cpu" if args["RUN_DEVICE"] == "cpu" else "cuda")
 for i in range(argsnums["n_layer"]):
     state[5*i+4] -= 1e30
 init_state = state

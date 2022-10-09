@@ -2,6 +2,7 @@
 # The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM
 ########################################################################################################
 
+from ast import Delete
 import types
 import torch
 import math
@@ -11,11 +12,10 @@ from torch.nn import functional as F
 import torch.nn as nn
 from typing import List, Dict
 
-
+# Make sure to use nightly build of torchdynamo
 import torchdynamo
 MyFunction = torchdynamo.optimize(
     "nvfuser")  # !!!BUGGY!!! wrong output
-
 
 RWKV_HEAD_QK_DIM = 0
 print(f'\nRWKV_HEAD_QK_DIM {RWKV_HEAD_QK_DIM}\n')
@@ -33,9 +33,10 @@ class RWKV_RNN(nn.Module):
         self.argsnumns = argsnumns
         self.FLOAT_MODE = args["FLOAT_MODE"]
         self.RUN_DEVICE = args["RUN_DEVICE"]
-
+        self.cudalayer: Dict[str, torch.Tensor] = {}
         with torch.no_grad():
-            w = torch.load(args["MODEL_NAME"] + '.pth', map_location='cpu')
+            w: Dict[str, torch.Tensor] = torch.load(
+                args["MODEL_NAME"] + '.pth', map_location='cpu')
 
             # refine weights and send to correct device
             keys = list(w.keys())
@@ -72,13 +73,17 @@ class RWKV_RNN(nn.Module):
 
                     if ((x.split('.')[1] == "weight" or x.split('.')[1] == "bias") or int(x.split('.')[1]) < argsnumns["cudalayers"]):
                         w[x] = w[x].cuda()
-
+                if (args["RUN_DEVICE"] == 'proc'):
+                    w[x] = w[x].pin_memory()
+                    if (('blocks.' not in x)) and x != 'emb.weight':
+                        w[x] = w[x].cuda()
                 if ('blocks.' not in x) or ('blocks.0.' in x):
                     if print_need_newline:
                         print('\n', end='')
                         print_need_newline = False
                     print(x.ljust(40), str(w[x].dtype).replace(
                         'torch.', '').ljust(10), w[x].device)
+
                 else:
                     print_need_newline = True
                     print(
@@ -239,40 +244,57 @@ class RWKV_RNN(nn.Module):
             args = self.args
 
             x: torch.Tensor = w["emb.weight"][ctx[-1]]
-            if self.RUN_DEVICE == 'cuda':
+
+            if self.RUN_DEVICE == 'cuda' or self.RUN_DEVICE == "proc":
                 x = x.cuda()
 
             if ("pos_emb" in w.keys()):
                 pos_emb = w["pos_emb"][len(ctx)-1]
                 x = x + pos_emb
 
-            for i in range(self.argsnumns["n_layer"]):
+            for o in range(self.argsnumns["n_layer"]):
+                i = o
+
                 if (i >= self.argsnumns["cudalayers"]):
 
                     x = x.to("cpu")
                     state = state.to("cpu")
-                if i == 0:
+                d: dict[str, torch.Tensor] = w
+                if (self.RUN_DEVICE == "proc"):
+                    d = {}
+                    for rr in w.keys():
+                        if ("blocks."+str(i)+"." in rr):
+
+                            d[rr] = w[rr].to("cuda", non_blocking=True)
+
+                if o == 0:
                     x = self.LN(
-                        x, w["blocks.0.ln0.weight"], w["blocks.0.ln0.bias"])
+                        x, d["blocks.0.ln0.weight"], d["blocks.0.ln0.bias"])
 
-                ww = w
                 v: str = "blocks."+str(i)+".att."
-                ln = self.LN(x, w["blocks."+str(i)+".ln1.weight"],
-                             w["blocks."+str(i)+".ln1.bias"])
+                ln = self.LN(x, d["blocks."+str(i)+".ln1.weight"],
+                             d["blocks."+str(i)+".ln1.bias"])
                 x = x + self.SA(ln, state, i,
-                                ww[v+"time_mix_k"],
-                                ww[v+"time_mix_v"], ww[v+"time_mix_r"], ww[v +
-                                                                           "time_first"], ww[v+"time_decay"],
-                                ww[v+"key.weight"], ww[v+"value.weight"], ww[v+"receptance.weight"], ww[v+"output.weight"])
+                                d[v+"time_mix_k"],
+                                d[v+"time_mix_v"], d[v+"time_mix_r"], d[v +
+                                                                        "time_first"], d[v+"time_decay"],
+                                d[v+"key.weight"], d[v+"value.weight"], d[v+"receptance.weight"], d[v+"output.weight"])
 
-                tmk = self.w["blocks."+str(i)+".ffn.time_mix_k"]
-                tmr = self.w["blocks."+str(i)+".ffn.time_mix_r"]
-                tmkw = self.w["blocks."+str(i)+".ffn.key.weight"]
-                tmvw = self.w["blocks."+str(i)+".ffn.value.weight"]
-                tmrw = self.w["blocks."+str(i)+".ffn.receptance.weight"]
+                tmk = d["blocks."+str(i)+".ffn.time_mix_k"]
+                tmr = d["blocks."+str(i)+".ffn.time_mix_r"]
+                tmkw = d["blocks."+str(i)+".ffn.key.weight"]
+                tmvw = d["blocks."+str(i)+".ffn.value.weight"]
+                tmrw = d["blocks."+str(i)+".ffn.receptance.weight"]
 
-                x = x + self.FF(self.LN(x, w["blocks."+str(i)+".ln2.weight"], w["blocks."+str(i)+".ln2.bias"]), state, i,
+                x = x + self.FF(self.LN(x, d["blocks."+str(i)+".ln2.weight"], d["blocks."+str(i)+".ln2.bias"]), state, i,
                                 tmk, tmr, tmkw, tmvw, tmrw)
+                if (self.RUN_DEVICE == "proc"):
+
+                    for rr in w.keys():
+                        if ("blocks."+str(i)+"." in rr):
+
+                            del d[rr]
+
             if args["RUN_DEVICE"] == 'cuda':
                 state = state.to("cuda")
             if preprocess_only:
@@ -281,7 +303,6 @@ class RWKV_RNN(nn.Module):
                 x = x.to("cuda")
 
             x = self.LN(x, w["ln_out.weight"], w["ln_out.bias"])
-
             if (args["RUN_DEVICE"] == "cpu" and self.FLOAT_MODE == "fp16"):
                 x = torch.matmul(w["head.weight"].float(), x.float()).half()
             else:
