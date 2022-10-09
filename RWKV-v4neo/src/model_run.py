@@ -72,11 +72,11 @@ class RWKV_RNN(nn.Module):
                 if args["RUN_DEVICE"] == 'cuda' and x != 'emb.weight':
 
                     if ((x.split('.')[1] == "weight" or x.split('.')[1] == "bias") or int(x.split('.')[1]) < argsnumns["cudalayers"]):
-                        w[x] = w[x].cuda()
+                        w[x] = w[x].cuda(non_blocking=True)
                 if (args["RUN_DEVICE"] == 'proc'):
                     w[x] = w[x].pin_memory()
                     if (('blocks.' not in x)) and x != 'emb.weight':
-                        w[x] = w[x].cuda()
+                        w[x] = w[x].cuda(non_blocking=True)
                 if ('blocks.' not in x) or ('blocks.0.' in x):
                     if print_need_newline:
                         print('\n', end='')
@@ -271,22 +271,32 @@ class RWKV_RNN(nn.Module):
                     x = self.LN(
                         x, d["blocks.0.ln0.weight"], d["blocks.0.ln0.bias"])
 
-                v: str = "blocks."+str(i)+".att."
-                ln = self.LN(x, d["blocks."+str(i)+".ln1.weight"],
-                             d["blocks."+str(i)+".ln1.bias"])
-                x = x + self.SA(ln, state, i,
-                                d[v+"time_mix_k"],
-                                d[v+"time_mix_v"], d[v+"time_mix_r"], d[v +
-                                                                        "time_first"], d[v+"time_decay"],
-                                d[v+"key.weight"], d[v+"value.weight"], d[v+"receptance.weight"], d[v+"output.weight"])
+                ln1w = d["blocks."+str(i)+".ln1.weight"]
+                ln1b = d["blocks."+str(i)+".ln1.bias"]
 
                 tmk = d["blocks."+str(i)+".ffn.time_mix_k"]
                 tmr = d["blocks."+str(i)+".ffn.time_mix_r"]
                 tmkw = d["blocks."+str(i)+".ffn.key.weight"]
                 tmvw = d["blocks."+str(i)+".ffn.value.weight"]
                 tmrw = d["blocks."+str(i)+".ffn.receptance.weight"]
+                ln2w = d["blocks."+str(i)+".ln2.weight"]
+                ln2b = d["blocks."+str(i)+".ln2.bias"]
+                atmk = d["blocks."+str(i)+".att.time_mix_k"]
+                atmv = d["blocks."+str(i)+".att.time_mix_v"]
+                atmr = d["blocks."+str(i)+".att.time_mix_r"]
+                atf = d["blocks."+str(i)+".att.time_first"]
+                atc = d["blocks."+str(i)+".att.time_decay"]
+                atd = d["blocks."+str(i)+".att.key.weight"]
+                avw = d["blocks."+str(i)+".att.value.weight"]
+                arw = d["blocks."+str(i)+".att.receptance.weight"]
+                aow = d["blocks."+str(i)+".att.output.weight"]
 
-                x = x + self.FF(self.LN(x, d["blocks."+str(i)+".ln2.weight"], d["blocks."+str(i)+".ln2.bias"]), state, i,
+                ln = self.LN(x, ln1w, ln1b)
+                x = x + self.SA(ln, state, i,
+                                atmk, atmv, atmr, atf, atc, atd, avw, arw, aow
+                                )
+
+                x = x + self.FF(self.LN(x, ln2w, ln2b), state, i,
                                 tmk, tmr, tmkw, tmvw, tmrw)
                 if (self.RUN_DEVICE == "proc"):
 
