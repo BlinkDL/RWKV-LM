@@ -77,11 +77,11 @@ elif (size == "xl"):
 
 
 # 'cpu' (already very fast) // 'cuda' // proc (faster then cpu, uses a fraction of the vram of cuda)
-args["RUN_DEVICE"] = "cpu"
+args["RUN_DEVICE"] = "proc"
 # how many layers to offload to cuda, smaller number is slower, but uses less vram. // 0 -> n_layer // use to speed up proc as well
-argsnums["cudalayers"] = 0
+argsnums["cudalayers"] = 12
 # fp32 // bf16 (saves VRAM, slightly less accurate) // fp16 (saves VRAM, slightly less accurate, can only be used with cuda, sometimes faster)
-args["FLOAT_MODE"] = "fp16"
+args["FLOAT_MODE"] = "fp32"
 # opt
 opt = "none"  # none // jit
 
@@ -107,35 +107,34 @@ os.environ["RWKV_RUN_DEVICE"] = args["RUN_DEVICE"]
 # context = 'A'
 # context = "\nIn the"
 # context = '\nSugar:'
-context = "\nA dog is a great:"
 
 # context = "\n深圳是" # test Chinese
 # context = "\n東京は" # test Japanese
 
 ###### A good prompt for chatbot ######
-# context = '''
-# The following is a conversation between a highly knowledgeable and intelligent AI assistant, called RWKV, and a human user, called User. In the following interactions, User and RWKV will converse in natural language, and RWKV will do its best to answer User’s questions. RWKV was built to be respectful, polite and inclusive. It knows a lot, and always tells the truth. The conversation begins.
+context = '''
+The following is a conversation between a highly knowledgeable and intelligent AI assistant, called RWKV, and a human user, called User. In the following interactions, User and RWKV will converse in natural language, and RWKV will do its best to answer User’s questions. RWKV was built to be respectful, polite and inclusive. It knows a lot, and always tells the truth. The conversation begins.
 
-# User: OK RWKV, I’m going to start by quizzing you with a few warm-up questions. Who is currently the president of the USA?
+User: OK RWKV, I’m going to start by quizzing you with a few warm-up questions. Who is currently the president of the USA?
 
-# RWKV: It’s Joe Biden; he was sworn in earlier this year.
+RWKV: It’s Joe Biden; he was sworn in earlier this year.
 
-# User: What year was the French Revolution?
+User: What year was the French Revolution?
 
-# RWKV: It started in 1789, but it lasted 10 years until 1799.
+RWKV: It started in 1789, but it lasted 10 years until 1799.
 
-# User: Can you guess who I might want to marry?
+User: Can you guess who I might want to marry?
 
-# RWKV: Only if you tell me more about yourself - what are your interests?
+RWKV: Only if you tell me more about yourself - what are your interests?
 
-# User: Aha, I’m going to refrain from that for now. Now for a science question. What can you tell me about the Large Hadron Collider (LHC)?
+User: Aha, I’m going to refrain from that for now. Now for a science question. What can you tell me about the Large Hadron Collider (LHC)?
 
-# RWKV: It’s a large and very expensive piece of science equipment. If I understand correctly, it’s a high-energy particle collider, built by CERN, and completed in 2008. They used it to confirm the existence of the Higgs boson in 2012.
+RWKV: It’s a large and very expensive piece of science equipment. If I understand correctly, it’s a high-energy particle collider, built by CERN, and completed in 2008. They used it to confirm the existence of the Higgs boson in 2012.
 
-# User:'''
+User:'''
 
 NUM_TRIALS = 999
-LENGTH_PER_TRIAL = 100
+LENGTH_PER_TRIAL = 330
 
 TEMPERATURE = 1.0
 top_p = 0.9

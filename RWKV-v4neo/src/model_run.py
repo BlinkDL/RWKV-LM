@@ -33,7 +33,6 @@ class RWKV_RNN(nn.Module):
         self.argsnumns = argsnumns
         self.FLOAT_MODE = args["FLOAT_MODE"]
         self.RUN_DEVICE = args["RUN_DEVICE"]
-        self.cudalayer: Dict[str, torch.Tensor] = {}
         with torch.no_grad():
             w: Dict[str, torch.Tensor] = torch.load(
                 args["MODEL_NAME"] + '.pth', map_location='cpu')
@@ -248,7 +247,7 @@ class RWKV_RNN(nn.Module):
             x: torch.Tensor = w["emb.weight"][ctx[-1]]
 
             if self.RUN_DEVICE == 'cuda' or self.RUN_DEVICE == "proc":
-                x = x.cuda(non_blocking=True)
+                x = x.to(device="cuda", non_blocking=True)
 
             if ("pos_emb" in w.keys()):
                 pos_emb = w["pos_emb"][len(ctx)-1]
