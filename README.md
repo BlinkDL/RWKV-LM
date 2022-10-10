@@ -18,7 +18,9 @@ I am doing image experiments too (For example: https://huggingface.co/BlinkDL/cl
 
 You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to Stability and EleutherAI), so if you have interesting ideas I can run them.
 
-Download RWKV-4 0.1/0.4/1.5/3B: https://huggingface.co/BlinkDL. I am training RWKV-4 7/14/24B on the Pile (https://wandb.ai/blinkdl/RWKV-v4-Pile).
+**Download RWKV-4 0.1/0.4/1.5/3B**: https://huggingface.co/BlinkDL
+
+I am training RWKV-4 7/14/24B on the Pile: https://wandb.ai/blinkdl/RWKV-v4-Pile
 
 ![RWKV-eval](RWKV-eval.png)
 
@@ -47,13 +49,13 @@ You can find me (BlinkDL) in the EleutherAI Discord too: https://www.eleuther.ai
 
 ## Quick start
 
-Use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4 for the latest RWKV-4 model.
+Use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4 or https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4neo (latest code).
 
 ### Inference
 
-**Colab for RWKV-4 Pile 1.5B**: https://colab.research.google.com/drive/1F7tZoPZaWJf1fsCmZ5tjw6sYHiFOYVWM
-
 **Run RWKV-4 Pile models:** Download models from https://huggingface.co/BlinkDL. Set TOKEN_MODE = 'pile' in run.py and run it. It's fast even on CPU (the default mode).
+
+**Colab for RWKV-4 Pile 1.5B**: https://colab.research.google.com/drive/1F7tZoPZaWJf1fsCmZ5tjw6sYHiFOYVWM
 
 Run RWKV-4 Pile models in your browser (and onnx version): see this issue https://github.com/BlinkDL/RWKV-LM/issues/7
 
