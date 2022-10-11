@@ -86,7 +86,8 @@ args["FLOAT_MODE"] = "fp32"
 
 # none // ray(slower but may have better answers)
 os.environ["rwkv_sampler"] = "ray"
-os.environ["rwkv_smpler_splits"] = 3
+os.environ["rwkv_smpler_splits"] = "2"
+os.environ["rwkv_ray_depth"] = "3"
 
 # set max threads to 12
 
@@ -248,45 +249,54 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
         if i == src_len:
             out = init_out.clone()
             state = init_state.clone()
-        else:
-            out, state = model.forward(x, state)
-        if DEBUG_DEBUG:
-            print("model", np.array(x), "==>", np.array(out), np.max(
-                out.cpu().numpy()), np.min(out.cpu().numpy()))
-        if TOKEN_MODE == "pile":
-            out[0] = -99  # disable <|endoftext|>
 
-        ttt = tokenizer.sample_logits(
-            out,
-            x,
-            ctx_len,
-            temperature=TEMPERATURE,
-            top_p_usual=top_p,
-            top_p_newline=top_p_newline,
-        )
+        # if DEBUG_DEBUG:
+        #     print("model", np.array(x), "==>", np.array(out), np.max(
+        #         out.cpu().numpy()), np.min(out.cpu().numpy()))
+
         if os.environ["rwkv_sampler"] == "ray":
-            rays = []
-            for t in ttt:
-                out1, state1 = model.forward(x+[t], state.clone())
+
+            def ray_sampler(ctxx, chars, score, statein, depth=0):
+
+                out1, state1 = model.forward(ctxx+chars, statein.clone())
                 ttt1 = tokenizer.sample_logits(
                     out1,
-                    x+[t],
+                    ctxx+chars,
                     ctx_len,
                     temperature=TEMPERATURE,
                     top_p_usual=top_p,
                     top_p_newline=top_p_newline,
                 )
-                for nt in ttt1:
-                    rays.append(
-                        {"state": state1, "score": (out[t] + out1[nt]), "chars": [t, nt]})
-
+                ret = []
+                if (depth < int(os.environ["rwkv_ray_depth"])):
+                    for nt in ttt1:
+                        ret += ray_sampler(ctxx+chars, chars +
+                                           [nt], score+out1[nt], state1, depth+1)
+                else:
+                    for nt in ttt1:
+                        ret.append(
+                            {"state": state1, "score": score+out1[nt], "chars": chars+[nt]})
+                return ret
+            rays = ray_sampler(ctx, [], 0, state)
             mx1 = max(rays, key=lambda x: x["score"])
 
             ctx += mx1["chars"]
             state = mx1["state"]
 
-            l = 2
+            l = len(mx1["chars"])
         else:
+
+            out, state = model.forward(x, state)
+            if TOKEN_MODE == "pile":
+                out[0] = -99  # disable <|endoftext|>
+            ttt = tokenizer.sample_logits(
+                out,
+                x,
+                ctx_len,
+                temperature=TEMPERATURE,
+                top_p_usual=top_p,
+                top_p_newline=top_p_newline,
+            )
             ctx += [ttt]
             l = 1
 
