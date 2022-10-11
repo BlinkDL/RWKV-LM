@@ -42,7 +42,7 @@ UNKNOWN_CHAR = None
 vocab_size = 50277
 
 # note; you can set MODEL_NAME to your fine-tuned model
-size = "large"  # tini/mini/medium/medium-ext/large/xl/xxl
+size = "tiny"  # tini/mini/medium/medium-ext/large/xl/xxl
 
 if (size == "tiny"):
     MODEL_NAME = "100"
@@ -80,12 +80,13 @@ elif (size == "xl"):
 # 'cpu' (already very fast) // 'cuda' // proc (faster then cpu, uses a fraction of the vram of cuda)
 args["RUN_DEVICE"] = "proc"
 # how many layers to offload to cuda, smaller number is slower, but uses less vram. // 0 -> n_layer // use to speed up proc as well
-argsnums["cudalayers"] = 0
+argsnums["cudalayers"] = 12
 # fp32 // bf16 (saves VRAM, slightly less accurate) // fp16 (saves VRAM, slightly less accurate, can only be used with cuda, sometimes faster)
-args["FLOAT_MODE"] = "fp16"
+args["FLOAT_MODE"] = "fp32"
 
 # none // ray(slower but may have better answers)
 os.environ["rwkv_sampler"] = "ray"
+os.environ["rwkv_smpler_splits"] = 3
 
 # set max threads to 12
 
@@ -264,78 +265,26 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
             top_p_newline=top_p_newline,
         )
         if os.environ["rwkv_sampler"] == "ray":
-            out1, state1 = model.forward(x+[ttt[0]], state.clone())
-            ttt1 = tokenizer.sample_logits(
-                out1,
-                x+[ttt[0]],
-                ctx_len,
-                temperature=TEMPERATURE,
-                top_p_usual=top_p,
-                top_p_newline=top_p_newline,
-            )
-            out2, state2 = model.forward(x+[ttt[1]], state.clone())
-            ttt2 = tokenizer.sample_logits(
-                out2,
-                x+[ttt[1]],
-                ctx_len,
-                temperature=TEMPERATURE,
-                top_p_usual=top_p,
-                top_p_newline=top_p_newline,
-            )
-            out3, state3 = model.forward(x+[ttt[2]], state.clone())
-            ttt3 = tokenizer.sample_logits(
-                out3,
-                x+[ttt[2]],
-                ctx_len,
-                temperature=TEMPERATURE,
-                top_p_usual=top_p,
-                top_p_newline=top_p_newline,
-            )
+            rays = []
+            for t in ttt:
+                out1, state1 = model.forward(x+[t], state.clone())
+                ttt1 = tokenizer.sample_logits(
+                    out1,
+                    x+[t],
+                    ctx_len,
+                    temperature=TEMPERATURE,
+                    top_p_usual=top_p,
+                    top_p_newline=top_p_newline,
+                )
+                for nt in ttt1:
+                    rays.append(
+                        {"state": state1, "score": (out[t] + out1[nt]), "chars": [t, nt]})
 
-            out00 = out[ttt[0]]
-            out01 = out[ttt[1]]
-            out02 = out[ttt[2]]
+            mx1 = max(rays, key=lambda x: x["score"])
 
-            # rays 1-9
-            r1 = out00 + out1[ttt1[0]]
-            r2 = out00 + out1[ttt1[1]]
-            r3 = out00 + out1[ttt1[2]]
-            r4 = out01 + out2[ttt2[0]]
-            r5 = out01 + out2[ttt2[1]]
-            r6 = out01 + out2[ttt2[2]]
-            r7 = out02 + out3[ttt3[0]]
-            r8 = out02 + out3[ttt3[1]]
-            r9 = out02 + out3[ttt3[2]]
+            ctx += mx1["chars"]
+            state = mx1["state"]
 
-            mx1 = max(r1, r2, r3, r4, r5, r6, r7, r8, r9)
-
-            if mx1 == r1:
-                ctx += [ttt[0], ttt1[0]]
-                state = state1
-            elif mx1 == r2:
-                ctx += [ttt[0], ttt1[1]]
-                state = state1
-            elif mx1 == r3:
-                ctx += [ttt[0], ttt1[2]]
-                state = state1
-            elif mx1 == r4:
-                ctx += [ttt[1], ttt2[0]]
-                state = state2
-            elif mx1 == r5:
-                ctx += [ttt[1], ttt2[1]]
-                state = state2
-            elif mx1 == r6:
-                ctx += [ttt[1], ttt2[2]]
-                state = state2
-            elif mx1 == r7:
-                ctx += [ttt[2], ttt3[0]]
-                state = state3
-            elif mx1 == r8:
-                ctx += [ttt[2], ttt3[1]]
-                state = state3
-            elif mx1 == r9:
-                ctx += [ttt[2], ttt3[2]]
-                state = state3
             l = 2
         else:
             ctx += [ttt]

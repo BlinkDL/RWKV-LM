@@ -93,7 +93,8 @@ class TOKENIZER():
             if temperature != 1.0:
                 probs = probs.pow(1.0 / temperature)
             if os.environ["rwkv_sampler"] == "ray":
-                out = torch.multinomial(probs.float(), 3, True)
+                out = torch.multinomial(
+                    probs.float(), os.environ["rwkv_smpler_splits"], True)
             else:
                 out = torch.multinomial(probs.float(), 1, True)[0]
             return out
