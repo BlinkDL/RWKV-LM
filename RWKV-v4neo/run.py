@@ -86,8 +86,8 @@ args["FLOAT_MODE"] = "fp32"
 
 # none // ray(slower but may have better answers)
 os.environ["rwkv_sampler"] = "ray"
-os.environ["rwkv_smpler_splits"] = "2"
-os.environ["rwkv_ray_depth"] = "3"
+os.environ["rwkv_smpler_splits"] = "2"  # This is how many branches it checks
+os.environ["rwkv_ray_depth"] = "2"  # This is how deep it goes in each branch
 
 # set max threads to 12
 
