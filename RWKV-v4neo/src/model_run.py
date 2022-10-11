@@ -52,20 +52,18 @@ class RWKV_RNN(nn.Module):
                 if '.time_decay' in x:
                     w[x] = w[x].float()
                     w[x] = -torch.exp(w[x])
-                elif '.time_first' in x:
+
+                if self.FLOAT_MODE == "fp32":
                     w[x] = w[x].float()
-                else:
-                    if self.FLOAT_MODE == "fp32":
-                        w[x] = w[x].float()
 
-                    elif self.FLOAT_MODE == "bf16":
-                        w[x] = w[x].bfloat16()
+                elif self.FLOAT_MODE == "bf16":
+                    w[x] = w[x].bfloat16()
 
-                    elif self.FLOAT_MODE == "fp16":
-                        if ('weight' in x or 'bias' in x) and 'ln' in x:
-                            w[x] = w[x].half()
-                        else:
-                            w[x] = w[x].half()
+                elif self.FLOAT_MODE == "fp16":
+                    if ('weight' in x or 'bias' in x) and 'ln' in x:
+                        w[x] = w[x].half()
+                    else:
+                        w[x] = w[x].half()
 
                 w[x].requires_grad = False
                 if args["RUN_DEVICE"] in ["cuda", "proc"] and x != 'emb.weight':
@@ -100,144 +98,83 @@ class RWKV_RNN(nn.Module):
 
     # @MyFunction
     def LN(self, x: torch.Tensor, w, b):
-        if (self.FLOAT_MODE == "fp32"):
-            return torch.layer_norm(x, (self.argsnumns["n_embd"],), weight=w, bias=b)
-        elif (self.FLOAT_MODE == "bf16"):
-            return torch.layer_norm(x, (self.argsnumns["n_embd"],), weight=w, bias=b)
-        else:
-            # layer_norm is not supported in fp16
-            # layer norm on half-in
-            if (x.device.type is "cpu"):
-                return torch.layer_norm(x, (self.argsnumns["n_embd"],), weight=w, bias=b)
-            else:
-                # abandon all hope, ye who enter here
-                return torch.layer_norm(
-                    x.float(), (self.argsnumns["n_embd"],), weight=w.float(), bias=b.float()).half()
+        if self.RUN_DEVICE == "cpu" and self.FLOAT_MODE == "fp16":
+            return torch.layer_norm(x.float(), (self.argsnumns["n_embd"],), weight=w.float(), bias=b.float()).half()
+        return torch.layer_norm(x, (self.argsnumns["n_embd"],), weight=w, bias=b)
 
-            # return F.layer_norm(x.float(), (self.args["n_embd"],), weight=w.weight.float(), bias=w.bias.float()).half()
+    def MM(self, x: torch.Tensor, y: torch.Tensor):
+        if self.RUN_DEVICE == "cpu" and self.FLOAT_MODE == "fp16":
+            return torch.matmul(x.float(), y.float()).half()
+        return torch.matmul(x, y)
 
-    # state[] 0=ffn_xx 1=att_xx 2=att_aa 3=att_bb 4=att_pp
+    def SM(self, x: torch.Tensor):
+        if self.RUN_DEVICE == "cpu" and self.FLOAT_MODE == "fp16":
+            return torch.softmax(x.float(), dim=-1).half()
+        return torch.softmax(x, dim=-1)
+
+    def SG(self, x: torch.Tensor):
+        if self.RUN_DEVICE == "cpu" and self.FLOAT_MODE == "fp16":
+            return torch.sigmoid(x.float()).half()
+        return torch.sigmoid(x)
+
+    def EX(self, x: torch.Tensor):
+        if self.RUN_DEVICE == "cpu" and self.FLOAT_MODE == "fp16":
+            return torch.exp(x.float()).half()
+        return torch.exp(x)
+
+    def RL(self, x: torch.Tensor):
+        if self.RUN_DEVICE == "cpu" and self.FLOAT_MODE == "fp16":
+            return torch.relu(x.float()).half()
+        return torch.relu(x)
     # @MyFunction
+
     def FF(self, x, state, i: int, time_mix_k, time_mix_r, kw, vw, rw):
-        if self.FLOAT_MODE == "bf16":
-            xk = x * time_mix_k + \
-                state[5*i+0].type(torch.bfloat16) * (1 - time_mix_k)
-            xr = x * time_mix_r + \
-                state[5*i+0].type(torch.bfloat16) * (1 - time_mix_r)
-            state[5*i+0] = x.float()
-        elif self.FLOAT_MODE == "fp16":
 
-            xk = x * time_mix_k + state[5*i+0].half() * (1 - time_mix_k)
-            xr = x * time_mix_r + state[5*i+0].half() * (1 - time_mix_r)
-            state[5*i+0] = x
-        else:
-            xk = x * time_mix_k + state[5*i+0] * (1 - time_mix_k)
-            xr = x * time_mix_r + state[5*i+0] * (1 - time_mix_r)
-            state[5*i+0] = x
+        xk = x * time_mix_k + state[5*i+0] * (1 - time_mix_k)
+        xr = x * time_mix_r + state[5*i+0] * (1 - time_mix_r)
+        state[5*i+0] = x
 
-        if (self.FLOAT_MODE == "fp16"):
-            if (x.device.type is "cuda"):
-                r = torch.sigmoid(torch.matmul(rw, xr))
-                k = torch.square(torch.relu(torch.matmul(kw, xk)))
-                kv = torch.matmul(vw, k)
-                return (r * kv)
-            else:
-                r = torch.sigmoid(torch.matmul(rw.float(), xr.float()))
-                k = torch.square(torch.relu(
-                    torch.matmul(kw.float(), xk.float())))
-                kv = torch.matmul(vw.float(), k.float())
-                return (r * kv).half()
-        r = torch.sigmoid(torch.matmul(rw, xr))
-        k = torch.square(torch.relu(torch.matmul(kw, xk)))
-        kv = torch.matmul(vw, k)
+        r = self.SG(self.MM(rw, xr))
+        dx = self.MM(kw, xk)
+        clamped = self.RL(dx)
+        k = torch.square(clamped)
+        kv = self.MM(vw, k)
         return (r * kv)
 
     # @MyFunction
-    def SA(self, x, state, i: int, time_mix_k, time_mix_v, time_mix_r, time_first, time_decay, kw, vw, rw, ow):
-        if self.FLOAT_MODE == "bf16":
-            xk = x * time_mix_k + \
-                state[5*i+1].type(torch.bfloat16) * (1 - time_mix_k)
-            xv = x * time_mix_v + \
-                state[5*i+1].type(torch.bfloat16) * (1 - time_mix_v)
-            xr = x * time_mix_r + \
-                state[5*i+1].type(torch.bfloat16) * (1 - time_mix_r)
-            state[5*i+1] = x.float()
-        elif self.FLOAT_MODE == "fp16":
-            xk = x * time_mix_k + \
-                state[5*i+1].type(torch.half) * (1 - time_mix_k)
-            xv = x * time_mix_v + \
-                state[5*i+1].type(torch.half) * (1 - time_mix_v)
-            xr = x * time_mix_r + \
-                state[5*i+1].type(torch.half) * (1 - time_mix_r)
-            state[5*i+1] = x
-        else:
-            xk = x * time_mix_k + state[5*i+1] * (1 - time_mix_k)
-            xv = x * time_mix_v + state[5*i+1] * (1 - time_mix_v)
-            xr = x * time_mix_r + state[5*i+1] * (1 - time_mix_r)
-            state[5*i+1] = x
 
-        if self.FLOAT_MODE == "bf16":
-            r = torch.sigmoid(rw @ xr)
-            k = kw @ xk
-            v = vw @ xv
-            kk = k.float()
-            vv = v.float()
-        elif self.FLOAT_MODE == "fp16":
-            if (rw.device.type is "cuda"):
-                r = torch.sigmoid(torch.matmul(rw, xr))
-                k = torch.matmul(kw, xk)
-                v = torch.matmul(vw, xv)
-                kk = k
-                vv = v
-            else:
-                r = torch.sigmoid(torch.matmul(rw.float(), xr.float()))
-                k = torch.matmul(kw.float(), xk.float())
-                v = torch.matmul(vw.float(), xv.float())
-                kk = k
-                vv = v
-        else:
-            r = torch.sigmoid(rw @ xr)
-            k = kw @ xk
-            v = vw @ xv
-            kk = k
-            vv = v
+    def SA(self, x, state, i: int, time_mix_k, time_mix_v, time_mix_r, time_first, time_decay, kw, vw, rw, ow):
+
+        xk = x * time_mix_k + state[5*i+1] * (1 - time_mix_k)
+        xv = x * time_mix_v + state[5*i+1] * (1 - time_mix_v)
+        xr = x * time_mix_r + state[5*i+1] * (1 - time_mix_r)
+        state[5*i+1] = x
+
+        r = self.SG(self.MM(rw, xr))
+        k = self.MM(kw, xk)
+        v = self.MM(vw, xv)
+
         aa = state[5*i+2]
         bb = state[5*i+3]
         pp = state[5*i+4]
-        ww = time_first + kk
+        ww = time_first + k
         p = torch.maximum(pp, ww)
-        e1 = torch.exp(pp - p)
-        e2 = torch.exp(ww - p)
-        a = e1 * aa + e2 * vv
+        e1 = self.EX(pp - p)
+        e2 = self.EX(ww - p)
+
+        a = e1 * aa + e2 * v
         b = e1 * bb + e2
+
         ww = pp + time_decay
-        p = torch.maximum(ww, kk)
-        e1 = torch.exp(ww - p)
-        e2 = torch.exp(kk - p)
-        state[5*i+2] = e1 * aa + e2 * vv
+        p = torch.maximum(ww, k)
+        e1 = self.EX(ww - p)
+        e2 = self.EX(k - p)
+        state[5*i+2] = e1 * aa + e2 * v
         state[5*i+3] = e1 * bb + e2
         state[5*i+4] = p
-        if self.FLOAT_MODE == "bf16":
-            wkv = (a / b).type(torch.bfloat16)
-        elif self.FLOAT_MODE == "fp16":
-            wkv = (a / b)
-            if (rw.device.type is "cuda"):
-                wkv = wkv.half()
-        else:
-            wkv = a / b
 
-        if (self.FLOAT_MODE == "fp16"):
-
-            # print types
-            if (rw.device.type is "cuda"):
-                return torch.matmul(ow, r * wkv)
-            else:
-                return torch.matmul(ow.float(), r * wkv).half()
-            # return (ow.float() @ (r * wkv)).half()
-        elif (self.FLOAT_MODE == "bf16"):
-            return (ow @ (r * wkv))
-        else:
-            return ow @ (r * wkv)
+        rwkv = (r * a) / b
+        return self.MM(ow, rwkv)
 
     def forward(self, ctx: List[int], state: torch.Tensor, preprocess_only: bool = False):
         with torch.no_grad():
@@ -314,9 +251,7 @@ class RWKV_RNN(nn.Module):
                 x = x.to("cuda")
 
             x = self.LN(x, w["ln_out.weight"], w["ln_out.bias"])
-            if (args["RUN_DEVICE"] == "cpu" and self.FLOAT_MODE == "fp16"):
-                x = torch.matmul(w["head.weight"].float(), x.float()).half()
-            else:
-                x = torch.matmul(w["head.weight"], x)
+
+            x = self.MM(w["head.weight"], x)
 
             return x, state

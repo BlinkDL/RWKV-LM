@@ -14,6 +14,7 @@ import time
 import gc
 import torch
 from src.utils import TOKENIZER
+from tqdm import tqdm
 try:
     os.environ["CUDA_VISIBLE_DEVICES"] = sys.argv[1]
 except:
@@ -41,7 +42,7 @@ UNKNOWN_CHAR = None
 vocab_size = 50277
 
 # note; you can set MODEL_NAME to your fine-tuned model
-size = "tiny"  # tini/mini/medium/medium-ext/large/xl/xxl
+size = "large"  # tini/mini/medium/medium-ext/large/xl/xxl
 
 if (size == "tiny"):
     MODEL_NAME = "100"
@@ -79,11 +80,16 @@ elif (size == "xl"):
 # 'cpu' (already very fast) // 'cuda' // proc (faster then cpu, uses a fraction of the vram of cuda)
 args["RUN_DEVICE"] = "proc"
 # how many layers to offload to cuda, smaller number is slower, but uses less vram. // 0 -> n_layer // use to speed up proc as well
-argsnums["cudalayers"] = 12
+argsnums["cudalayers"] = 0
 # fp32 // bf16 (saves VRAM, slightly less accurate) // fp16 (saves VRAM, slightly less accurate, can only be used with cuda, sometimes faster)
-args["FLOAT_MODE"] = "fp32"
+args["FLOAT_MODE"] = "fp16"
+
+# set max threads to 12
+
+torch.set_num_threads(1)
+
 # opt
-opt = "none"  # none // jit
+opt = "jit"  # none // jit
 
 if (args["RUN_DEVICE"] == "cpu" and args["FLOAT_MODE"] == "fp16"):
     print(Warning("fp16 is only supported on cuda, workarounds may be slow"))
@@ -131,10 +137,12 @@ User: Aha, I’m going to refrain from that for now. Now for a science question.
 
 RWKV: It’s a large and very expensive piece of science equipment. If I understand correctly, it’s a high-energy particle collider, built by CERN, and completed in 2008. They used it to confirm the existence of the Higgs boson in 2012.
 
-User:'''
+User: I have a math question for you. What is 5 + 7?
 
+RWKV: oh, thats easy! 5 + 7 is'''
+# context = "hello world! I am your supreme overlord!"
 NUM_TRIALS = 999
-LENGTH_PER_TRIAL = 330
+LENGTH_PER_TRIAL = 20
 
 TEMPERATURE = 1.0
 top_p = 0.9
@@ -156,7 +164,7 @@ if (opt == "jit"):
 
 
 state = torch.zeros(
-    argsnums["n_layer"] * 5, argsnums["n_embd"], device="cpu" if args["RUN_DEVICE"] == "cpu" else "cuda")
+    argsnums["n_layer"] * 5, argsnums["n_embd"], device="cpu" if args["RUN_DEVICE"] == "cpu" else "cuda", dtype=torch.float32 if args["FLOAT_MODE"] == "fp32" else torch.bfloat16 if args["FLOAT_MODE"] == "bf16" else torch.float16)
 for i in range(argsnums["n_layer"]):
     state[5*i+4] -= 1e30
 init_state = state
@@ -204,23 +212,22 @@ def record_time(name):
 init_out = []
 
 out = []
+print(("-" * 50) + '\n' + context, end="")
 
+print("torch.cuda.memory_allocated: %fGB" %
+      (torch.cuda.memory_allocated(0)/1024/1024/1024))
+print("torch.cuda.memory_reserved: %fGB" %
+      (torch.cuda.memory_reserved(0)/1024/1024/1024))
+print("torch.cuda.max_memory_reserved: %fGB" %
+      (torch.cuda.max_memory_reserved(0)/1024/1024/1024))
 for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
-    print(("-" * 50) + '\n' + context, end="")
-
-    print("torch.cuda.memory_allocated: %fGB" %
-          (torch.cuda.memory_allocated(0)/1024/1024/1024))
-    print("torch.cuda.memory_reserved: %fGB" %
-          (torch.cuda.memory_reserved(0)/1024/1024/1024))
-    print("torch.cuda.max_memory_reserved: %fGB" %
-          (torch.cuda.max_memory_reserved(0)/1024/1024/1024))
-
+    print("--")
     time_ref = time.time_ns()
     ctx = src_ctx.copy()
 
     if TRIAL == 0:
 
-        for i in range(src_len):
+        for i in tqdm(range(src_len)):
             x = ctx[: i + 1]
             if i == src_len - 1:
                 init_out, init_state = model.forward(x, init_state)
