@@ -18,7 +18,7 @@ I am doing image experiments too (For example: https://huggingface.co/BlinkDL/cl
 
 You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to Stability and EleutherAI), so if you have interesting ideas I can run them.
 
-**Download RWKV-4 0.1/0.4/1.5/3B**: https://huggingface.co/BlinkDL
+**Download RWKV-4 0.1/0.4/1.5/3/7B weights**: https://huggingface.co/BlinkDL
 
 I am training RWKV-4 7/14/24B on the Pile: https://wandb.ai/blinkdl/RWKV-v4-Pile
 
