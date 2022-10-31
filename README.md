@@ -109,7 +109,7 @@ kv / k is the memory mechanism. The token with high k can be remembered for a lo
 
 The R-gate is important for performance. k = info strength of this token (to be passed to future tokens). r = whether to apply the info to this token.
 
-## RWKV-3 improvements (used in the latest 1.5B run)
+## RWKV-3 improvements
 
 Use different trainable TimeMix factors for R / K / V in SA and FF layers. Example:
 ```python
