@@ -18,9 +18,11 @@ I am doing image experiments too (For example: https://huggingface.co/BlinkDL/cl
 
 You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to Stability and EleutherAI), so if you have interesting ideas I can run them.
 
-**Download RWKV-4 0.1/0.4/1.5/3/7B weights**: https://huggingface.co/BlinkDL
+Twitter: https://twitter.com/BlinkDL_AI
 
-I am training RWKV-4 7/14B on the Pile: https://wandb.ai/blinkdl/RWKV-v4-Pile
+**Download RWKV-4 0.1/0.4/1.5/3/7/14B weights**: https://huggingface.co/BlinkDL
+
+I am training RWKV-4 14B on the Pile: https://wandb.ai/blinkdl/RWKV-v4-Pile
 
 ![RWKV-eval](RWKV-eval.png)
 
@@ -40,8 +42,6 @@ User feedback:
 > *I've so far toyed around the character-based model on our relatively small pre-training dataset (around 10GB of text), and the results are extremely good - similar ppl to models taking much, much longer to train.*
 
 > *dear god rwkv is fast. i switched to another tab after starting training it from scratch & when i returned it was emitting plausible english & maori words, i left to go microwave some coffee & when i came back it was producing fully grammatically correct sentences.*
-
-Latest news on RWKV: https://twitter.com/BlinkDL_AI
 
 Tweet from Sepp Hochreiter (thank you!): https://twitter.com/HochreiterSepp/status/1524270961314484227
 
