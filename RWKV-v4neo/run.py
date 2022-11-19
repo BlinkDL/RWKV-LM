@@ -22,7 +22,7 @@ args = types.SimpleNamespace()
 ########################################################################################################
 
 args.RUN_DEVICE = "cpu"  # 'cpu' (already very fast) // 'cuda'
-args.FLOAT_MODE = "fp32" # fp32 // bf16 (saves VRAM, slightly less accurate)
+args.FLOAT_MODE = "fp32" # fp32 (good for cpu) // fp16 (might overflow) // bf16 (less accurate)
 # if args.RUN_DEVICE == "cuda":
 #     os.environ["RWKV_RUN_BACKEND"] = 'nvfuser' # !!!BUGGY!!! wrong output
 
@@ -34,7 +34,9 @@ WORD_NAME = [
 UNKNOWN_CHAR = None
 vocab_size = 50277
 
-# note; you can set MODEL_NAME to your fine-tuned model
+# Download Pile models: https://huggingface.co/BlinkDL
+# or, set MODEL_NAME to your fine-tuned model
+
 # MODEL_NAME = "/fsx/BlinkDL/rwkv-release/RWKV-4-Pile-169M-20220807-8023"
 # n_layer = 12
 # n_embd = 768
@@ -50,20 +52,15 @@ vocab_size = 50277
 # n_embd = 2048
 # ctx_len = 1024
 
-# MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-1b5/RWKV-4-Pile-1B5-20220929-ctx4096'
-# n_layer = 24
-# n_embd = 2048
-# ctx_len = 4096
-
-MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-3b/RWKV-4-Pile-3B-20221003-6783'
-n_layer = 32
-n_embd = 2560
-ctx_len = 1024
-
-# MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-7b/RWKV-4-Pile-7B-20221004-3047'
+# MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-3b/RWKV-4-Pile-3B-20221008-8023'
 # n_layer = 32
-# n_embd = 4096
+# n_embd = 2560
 # ctx_len = 1024
+
+MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-7b/RWKV-4-Pile-7B-20221115-8047'
+n_layer = 32
+n_embd = 4096
+ctx_len = 1024
 
 args.MODEL_NAME = MODEL_NAME
 args.n_layer = n_layer
