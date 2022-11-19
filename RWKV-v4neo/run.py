@@ -124,7 +124,8 @@ from src.model_run import RWKV_RNN
 model = RWKV_RNN(args)
 
 print(f'\nOptimizing speed...')
-model.forward([187], None)
+out, _ = model.forward([187], None)
+# print(out)
 gc.collect()
 torch.cuda.empty_cache()
 
