@@ -67,7 +67,10 @@ if __name__ == "__main__":
     parser.add_argument("--n_layer", default=6, type=int)
     parser.add_argument("--n_embd", default=512, type=int)
     parser.add_argument("--pre_ffn", default=0, type=int)  # replace first att layer by ffn (sometimes better)
-    parser.add_argument("--head_qk", default=0, type=int)  # my headQK trick. try 256 if you want to test it
+    parser.add_argument("--head_qk", default=0, type=int)  # my headQK trick
+    parser.add_argument("--tiny_att_dim", default=0, type=int)  # tiny attention dim
+    parser.add_argument("--tiny_att_layer", default=-999, type=int)  # tiny attention @ which layer
+    parser.add_argument("--tiny_att_downscale", default=0, type=float)
 
     parser.add_argument("--lr_init", default=6e-4, type=float)  # 6e-4 for L12-D768, 4e-4 for L24-D1024, 3e-4 for L24-D2048
     parser.add_argument("--lr_final", default=1e-5, type=float)
@@ -232,6 +235,7 @@ if __name__ == "__main__":
         os.environ["RWKV_JIT_ON"] = "0"
 
     torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.enabled = True
     if args.precision == "fp32":
         torch.backends.cudnn.allow_tf32 = False
         torch.backends.cuda.matmul.allow_tf32 = False
