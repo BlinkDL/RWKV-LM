@@ -61,6 +61,16 @@ Run RWKV-4 Pile models in your browser (and onnx version): see this issue https:
 
 RWKV-4 Web Demo: https://josephrocca.github.io/rwkv-v4-web/demo/ (note: only greedy sampling for now)
 
+More resources:
+
+https://github.com/harrisonvanderbyl/rwkv_chatbot
+
+https://github.com/Pathos14489/RWKVDistributedInference
+
+https://github.com/AXKuhta/rwkv-onnx-dml
+
+https://github.com/josephrocca/rwkv-v4-web
+
 For the old RWKV-2: see the release here for a 27M params model on enwik8 with 0.72 BPC(dev). Run run.py in https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN. You can even run it in your browser: https://github.com/BlinkDL/AI-Writer/tree/main/docs/eng https://blinkdl.github.io/AI-Writer/eng/ (this is using tf.js WASM single-thread mode).
 
 ### Training / Fine-tuning
