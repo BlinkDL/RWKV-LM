@@ -47,6 +47,8 @@ Tweet from Sepp Hochreiter (thank you!): https://twitter.com/HochreiterSepp/stat
 
 You can find me (BlinkDL) in the EleutherAI Discord too: https://www.eleuther.ai/get-involved/
 
+![RWKV-demo](RWKV-demo.png)
+
 ## Quick start
 
 Use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4 or https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4neo (latest code).
