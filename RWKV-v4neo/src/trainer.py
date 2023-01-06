@@ -124,8 +124,8 @@ class train_callback(pl.Callback):
                         to_save_dict,
                         f"{args.proj_dir}/rwkv-{args.epoch_begin + trainer.current_epoch}.pth",
                     )
-                except:
-                    pass
+                except Exception as e:
+                    print('Error\n\n', e, '\n\n')
             trainer.my_log.write(f"{args.epoch_begin + trainer.current_epoch} {trainer.my_epoch_loss:.6f} {math.exp(trainer.my_epoch_loss):.4f} {trainer.my_lr:.8f} {datetime.datetime.now()} {trainer.current_epoch}\n")
             trainer.my_log.flush()
 
