@@ -8,7 +8,7 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 **Download RWKV-4 0.1/0.4/1.5/3/7/14B weights**: https://huggingface.co/BlinkDL
 
-I am training RWKV-4 14B on the Pile: https://wandb.ai/blinkdl/RWKV-v4-Pile
+I am training RWKV-4 14B on the Pile (final release around Jan-31-2023): https://wandb.ai/blinkdl/RWKV-v4-Pile
 
 ![RWKV-eval2](RWKV-eval2.png)
 
