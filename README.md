@@ -6,6 +6,12 @@ RWKV is a RNN with Transformer-level LLM performance, which can also be directly
 
 So it's combining the best of RNN and transformer - **great performance, fast inference, saves VRAM, fast training, "infinite" ctx_len, and free sentence embedding** (using the final hidden state).
 
+**Download RWKV-4 0.1/0.4/1.5/3/7/14B weights**: https://huggingface.co/BlinkDL
+
+I am training RWKV-4 14B on the Pile: https://wandb.ai/blinkdl/RWKV-v4-Pile
+
+![RWKV-eval2](RWKV-eval2.png)
+
 RWKV-3 1.5B on A40 (tf32) = always 0.015 sec/token, tested using simple pytorch code (no CUDA), GPU utilization 45%, VRAM 7823M
 
 GPT2-XL 1.3B on A40 (tf32) = 0.032 sec/token (for ctxlen 1000), tested using HF, GPU utilization 45% too (interesting), VRAM 9655M
@@ -19,10 +25,6 @@ I am doing image experiments too (For example: https://huggingface.co/BlinkDL/cl
 You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to Stability and EleutherAI), so if you have interesting ideas I can run them.
 
 Twitter: https://twitter.com/BlinkDL_AI
-
-**Download RWKV-4 0.1/0.4/1.5/3/7/14B weights**: https://huggingface.co/BlinkDL
-
-I am training RWKV-4 14B on the Pile: https://wandb.ai/blinkdl/RWKV-v4-Pile
 
 ![RWKV-eval](RWKV-eval.png)
 
