@@ -8,7 +8,7 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 **Download RWKV-4 0.1/0.4/1.5/3/7/14B weights**: https://huggingface.co/BlinkDL
 
-**RWKV chatbot**: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v4neo/chat.py
+**RWKV chatbot**: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v4neo/chat.py (Note: It's not instruct-tuned for conversation yet, so don't expect good quality. Better use +rwkv_gen for free generation).
 
 ---
 
