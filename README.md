@@ -10,7 +10,7 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 **RWKV chatbot**: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v4neo/chat.py (Note: It's not instruct-tuned for conversation yet, so don't expect good quality. Better use +rwkv_gen for free generation).
 
----
+![RWKV-chat](RWKV-chat.png)
 
 I am training RWKV-4 14B on the Pile (final release around Jan-31-2023): https://wandb.ai/blinkdl/RWKV-v4-Pile
 
