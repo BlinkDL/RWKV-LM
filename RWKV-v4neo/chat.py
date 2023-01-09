@@ -280,7 +280,8 @@ print('''Commands:
 +rwkv_more --> continue last free generation [does not work for chat]
 +rwkv_retry --> retry last free generation
 
-Now talk with the bot and enjoy. Remember to +rwkv_reset periodically to clean up the bot's memory !!! Use RWKV-4 14B for best results.
+Now talk with the bot and enjoy. Remember to +rwkv_reset periodically to clean up the bot's memory. Use RWKV-4 14B for best results.
+This is not instruct-tuned for conversation yet, so don't expect good quality. Better use +rwkv_gen for free generation.
 ''')
 
 while True:
