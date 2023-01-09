@@ -140,6 +140,8 @@ def reply_msg(msg):
     print('Bot:', msg + '\n')
 
 def on_message(message):
+    global model_tokens, current_state
+
     srv = 'dummy_server'
 
     msg = message.strip()
