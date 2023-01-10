@@ -56,23 +56,27 @@ bot = "Bot"
 interface = ":"
 
 init_prompt = f'''
-The following is a conversation between a highly knowledgeable and intelligent AI assistant called {bot}, and a human user called {user}. In the following interactions, {user} and {bot} converse in natural language, and {bot} always answer {user}'s questions. {bot} is very smart, polite and humorous. {bot} knows a lot, and always tells the truth. The conversation begins.
-
-{user}{interface} who is president of usa?
-
-{bot}{interface} It’s Joe Biden; he was sworn in earlier this year.
+The following is a verbose and detailed conversation between a highly knowledgeable and intelligent AI assistant called {bot}, and a human user called {user}. {bot} always tells the truth and facts. {bot} is polite and humorous. The conversation begins.
 
 {user}{interface} french revolution what year
 
-{bot}{interface} It started in 1789, but it lasted 10 years until 1799.
+{bot}{interface} The French revolution started in 1789, and lasted 10 years until 1799.
+
+{user}{interface} 3+5=?
+
+{bot}{interface} 3 + 5 = 8, so the answer is 8.
 
 {user}{interface} guess i marry who ?
 
 {bot}{interface} Only if you tell me more about yourself - what are your interests?
 
+{user}{interface} solve for a: 9-a=2
+
+{bot}{interface} The answer is a = 7, because 9 - 7 = 2.
+
 {user}{interface} wat is lhc
 
-{bot}{interface} It’s a large and very expensive piece of science equipment. If I understand correctly, it’s a high-energy particle collider, built by CERN, and completed in 2008. They used it to confirm the existence of the Higgs boson in 2012.
+{bot}{interface} LHC is a large and very expensive piece of science equipment. It’s a high-energy particle collider, built by CERN, and completed in 2008. They used it to confirm the existence of the Higgs boson in 2012.
 
 '''
 
@@ -247,7 +251,7 @@ def on_message(message):
             if i <= 0:
                 newline_adj = -999999999
             elif i <= 30:
-                newline_adj = -2
+                newline_adj = -1
             elif i <= 80:
                 newline_adj = 0
             elif i <= 117:
