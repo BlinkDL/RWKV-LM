@@ -100,6 +100,17 @@ Read the inference code in src/model.py and try using the final hidden state（.
 
 Colab for fine-tuning RWKV-4 Pile models: https://colab.research.google.com/github/resloved/RWKV-notebooks/blob/master/RWKV_v4_RNN_Pile_Fine_Tuning.ipynb
 
+**Large corpus:** Use https://github.com/EleutherAI/gpt-neox to convert .jsonl into .bin and .idx
+```
+python tools/preprocess_data.py --input ./my_data.jsonl --output-prefix ./data/my_data --vocab ./20B_tokenizer.json --dataset-impl mmap --tokenizer-type HFTokenizer --append-eod
+```
+The jsonl format sample:
+```
+{"meta": {"ID": 101}, "text": "This is the first document."}
+{"meta": {"ID": 102}, "text": "Hello\nWorld"}
+{"meta": {"ID": 103}, "text": "1+1=2\n1+2=3\n2+2=4"}
+```
+
 ## How it works
 
 RWKV is inspired by Apple's AFT (https://arxiv.org/abs/2105.14103).
