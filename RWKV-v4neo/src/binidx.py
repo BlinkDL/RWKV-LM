@@ -49,6 +49,58 @@ class MMapIndexedDataset(torch.utils.data.Dataset):
     class Index(object):
         _HDR_MAGIC = b"MMIDIDX\x00\x00"
 
+        @classmethod
+        def writer(cls, path, dtype):
+            class _Writer(object):
+                def __enter__(self):
+                    self._file = open(path, "wb")
+
+                    # Write Magic string so we can check the file format then opening it again.
+                    self._file.write(cls._HDR_MAGIC)
+                    # Write version number
+                    # Little endian unsigned 64 Bit integer
+                    self._file.write(struct.pack("<Q", 1))
+                    # Little endian unsigned 8 Bit integer
+                    self._file.write(struct.pack("<B", code(dtype)))
+
+                    return self
+
+                @staticmethod
+                def _get_pointers(sizes):
+                    dtype_size = dtype().itemsize
+                    address = 0
+                    pointers = []
+
+                    for size in sizes:
+                        pointers.append(address)
+                        address += size * dtype_size
+
+                    return pointers
+
+                def write(self, sizes, doc_idx):
+                    pointers = self._get_pointers(sizes)
+
+                    # Little endian unsigned 64 Bit integer
+                    self._file.write(struct.pack("<Q", len(sizes)))
+                    # Little endian unsigned 64 Bit integer
+                    self._file.write(struct.pack("<Q", len(doc_idx)))
+
+                    sizes = np.array(sizes, dtype=np.int32)
+                    self._file.write(sizes.tobytes(order="C"))
+                    del sizes
+
+                    pointers = np.array(pointers, dtype=np.int64)
+                    self._file.write(pointers.tobytes(order="C"))
+                    del pointers
+
+                    doc_idx = np.array(doc_idx, dtype=np.int64)
+                    self._file.write(doc_idx.tobytes(order="C"))
+
+                def __exit__(self, exc_type, exc_val, exc_tb):
+                    self._file.close()
+
+            return _Writer()
+        
         def __init__(self, path, skip_warmup=False):
             with open(path, "rb") as stream:
                 magic_test = stream.read(9)

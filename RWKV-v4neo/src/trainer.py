@@ -97,6 +97,14 @@ class train_callback(pl.Callback):
                 if kt_s > 0:
                     lll["kt/s"] = kt_s
                 trainer.my_wandb.log(lll, step=int(real_step))
+            if args.magic_prime > 0:
+                if int(real_step) == int(args.magic_prime // args.real_bsz) - 1:
+                    to_save_dict = pl_module.state_dict()
+                    torch.save(
+                        to_save_dict,
+                        f"{args.proj_dir}/rwkv-final.pth",
+                    )
+                
 
     def on_train_epoch_start(self, trainer, pl_module):
         args = self.args

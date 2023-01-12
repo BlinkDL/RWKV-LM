@@ -99,6 +99,7 @@ if __name__ == "__main__":
     parser.add_argument("--my_att_shift", default=1, type=int)
     parser.add_argument("--my_pos_emb", default=0, type=int)
     parser.add_argument("--load_partial", default=0, type=int)
+    parser.add_argument("--magic_prime", default=0, type=int)
 
     parser = Trainer.add_argparse_args(parser)
     args = parser.parse_args()
@@ -145,6 +146,7 @@ if __name__ == "__main__":
         os.makedirs(args.proj_dir)
 
     if args.my_pile_stage > 0:
+        magic_prime_bak = args.magic_prime
         if args.ctx_len == 1024:
             args.magic_prime = 324331313
             args.epoch_count = 8043
@@ -161,6 +163,9 @@ if __name__ == "__main__":
                 args.my_pile_shift = 512
             elif args.ctx_len == 4096:
                 args.my_pile_shift = 768
+
+        if magic_prime_bak > 0:
+            args.magic_prime = magic_prime_bak
 
         args.epoch_steps = 40320 // args.real_bsz
         assert args.epoch_steps * args.real_bsz == 40320
