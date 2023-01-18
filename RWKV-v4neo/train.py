@@ -100,6 +100,7 @@ if __name__ == "__main__":
     parser.add_argument("--my_pos_emb", default=0, type=int)
     parser.add_argument("--load_partial", default=0, type=int)
     parser.add_argument("--magic_prime", default=0, type=int)
+    parser.add_argument("--my_testing", default=0, type=int)
 
     parser = Trainer.add_argparse_args(parser)
     args = parser.parse_args()
