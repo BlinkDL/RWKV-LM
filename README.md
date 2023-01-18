@@ -41,6 +41,8 @@ How it works: RWKV gathers information to a number of channels, which are also d
 
 **RWKV is parallelizable because the time-decay of each channel is data-independent (and trainable)**. For example, in usual RNN you can adjust the time-decay of a channel from say 0.8 to 0.5 (these are called "gates"), while in RWKV you simply move the information from a W-0.8-channel to a W-0.5-channel to achieve the same effect. Moreover, you can fine-tune RWKV into a non-parallelizable RNN (then you can use outputs of later layers of the previous token) if you want extra performance.
 
+![RWKV-formula](RWKV-formula.png)
+
 Here are some of my TODOs. Let's work together :)
 
 * HuggingFace integration (check https://github.com/huggingface/transformers/issues/17230
