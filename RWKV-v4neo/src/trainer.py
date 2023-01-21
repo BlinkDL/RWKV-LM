@@ -98,7 +98,7 @@ class train_callback(pl.Callback):
                     lll["kt/s"] = kt_s
                 trainer.my_wandb.log(lll, step=int(real_step))
             if args.magic_prime > 0:
-                if int(real_step) == int(args.magic_prime // args.real_bsz) - 1:
+                if int(real_step) == int(args.magic_prime * (1 + args.my_qa_mask) // args.real_bsz) - 1:
                     to_save_dict = pl_module.state_dict()
                     torch.save(
                         to_save_dict,

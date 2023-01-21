@@ -32,6 +32,10 @@ class MyDataset(Dataset):
                 self.data_size = len(self.data._bin_buffer) // 2
                 print(f"Data has {self.data_size} tokens.")
 
+            if args.my_qa_mask == 1:
+                self.data_pile = MMapIndexedDataset('/fsx/BlinkDL/pile/pile_20B_tokenizer_text_document')
+                self.data_pile_size = len(self.data_pile._bin_buffer) // 2
+
             if args.my_pile_stage > 0:
                 # assert self.data_size == 332115325534 and self.vocab_size == 50277
                 self.samples_per_epoch = args.epoch_steps * args.real_bsz
@@ -146,25 +150,69 @@ class MyDataset(Dataset):
             else:
                 ctx_len = args.ctx_len
                 req_len = ctx_len + 1
+                magic_prime = args.magic_prime
+                data = self.data
 
                 if args.my_pile_stage > 0:
                     ii = 1 + epoch * self.samples_per_epoch + (idx * world_size) + rank
+
+                    if args.my_qa_mask == 1:
+                        ii_orig = ii
+                        if ii % 2 == 0:
+                            ii = (ii // 2) * args.magic_prime
+                            magic_prime = 324331313
+                            data = self.data_pile
+                        else:
+                            ii = ii // 2
+
                     factor = (math.sqrt(5) - 1) / 2
-                    factor = int(args.magic_prime * factor)
-                    i = ((factor * ii * ii * ii) % args.magic_prime) * ctx_len
-                    i = i + args.my_pile_shift
+                    factor = int(magic_prime * factor)
+                    i = ((factor * ii * ii * ii) % magic_prime) * ctx_len
+                    if (args.my_qa_mask == 0) or (data == self.data_pile):
+                        i = i + args.my_pile_shift
                     # print(f"epoch {epoch} idx {idx} rank {rank}/{world_size} ii {ii} pos {round(i / self.data_size, 3)}")
                 else:
                     # cheat: pick a random spot in dataset
                     i = np.random.randint(0, self.data_size - req_len)
 
                 if args.data_type == "binidx":
-                    dix = self.data.get(idx=0, offset=i, length=req_len).astype(int)
+                    dix = data.get(idx=0, offset=i, length=req_len).astype(int)
                 elif args.data_type == "numpy":
-                    dix = self.data[i : i + req_len]
+                    dix = data[i : i + req_len]
                 else:
-                    dix = [self.stoi[s] for s in self.data[i : i + req_len]]
+                    dix = [self.stoi[s] for s in data[i : i + req_len]]
+
+                if args.my_qa_mask == 1:
+                    if data == self.data_pile:
+                        z = [1] * ctx_len
+                    else:
+                        z = [0] * ctx_len
+                        z_sum = 0
+                        isGood = False
+                        for i in range(3, ctx_len):
+                            if dix[i] == 27 and dix[i-1] == 34 and dix[i-2] == 187 and dix[i-3] == 187:
+                                isGood = True
+                            if dix[i] == 0:
+                                isGood = False
+                            if isGood:
+                                z[i] = 1
+                                z_sum += 1
+                        if z_sum == 0:
+                            z = [1] * ctx_len
+                            i = np.random.randint(0, self.data_pile_size - req_len)
+                            dix = self.data_pile.get(idx=0, offset=i, length=req_len).astype(int)
+                    z = torch.tensor(z, dtype=torch.bfloat16)
 
                 x = torch.tensor(dix[:-1], dtype=torch.long)
                 y = torch.tensor(dix[1:], dtype=torch.long)
+
+                # if ii_orig < 50:
+                #     # if rank == 1:
+                #     print('rank', rank, 'i', ii_orig, ii, i, 'x', x[:5], '...', x[-5:])
+                # else:
+                #     exit(0)
+
+                if args.my_qa_mask == 1:
+                    return x, y, z
+
             return x, y
