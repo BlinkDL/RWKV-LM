@@ -12,6 +12,10 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 ![RWKV-chat](RWKV-chat.png)
 
+**You can run RWKV-4 14B on any GPU using this fork (choose pytorch-stream):** https://github.com/harrisonvanderbyl/rwkv_chatbot
+
+---
+
 I am training RWKV-4 14B on the Pile (final release around Jan-31-2023): https://wandb.ai/blinkdl/RWKV-v4-Pile
 
 ![RWKV-eval2](RWKV-eval2.png)
