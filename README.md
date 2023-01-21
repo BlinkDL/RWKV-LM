@@ -93,9 +93,9 @@ https://github.com/josephrocca/rwkv-v4-web
 
 For the old RWKV-2: see the release here for a 27M params model on enwik8 with 0.72 BPC(dev). Run run.py in https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN. You can even run it in your browser: https://github.com/BlinkDL/AI-Writer/tree/main/docs/eng https://blinkdl.github.io/AI-Writer/eng/ (this is using tf.js WASM single-thread mode).
 
-I have an idea to quantize a matrix with outliers:
+I'd like to build an almost-INT8 version of RWKV. A simple method to quantize a matrix with outliers:
 ```python
-import numpy as np
+import numpy as npA
 
 # the original M, with outliers
 M = np.array([[1,   2,   1,  2],[2,  100,    2, 10],[1,   2,   1, 2],[2,   1, 20, 1]])
@@ -110,6 +110,9 @@ b = np.array([1, 5, 1, 1])
 v = np.array([1.23, 5.44, 9.75, 2.98])
 print(M.dot(v))
 print(Q.dot(v * a) * b)
+
+# even better: decompose M.dot(v) as Q.dot(v * a + aa) * b + bb where aa & bb are vectors too
+# and can apply more scaling to achieve W8A8 (example: https://arxiv.org/pdf/2211.10438.pdf)
 ```
 
 ### Training / Fine-tuning
