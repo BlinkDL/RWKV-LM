@@ -49,7 +49,7 @@ How it works: RWKV gathers information to a number of channels, which are also d
 
 Here are some of my TODOs. Let's work together :)
 
-* HuggingFace integration (check https://github.com/huggingface/transformers/issues/17230
+* Hugging Face integration (check https://github.com/huggingface/transformers/issues/17230
 ), and optimized CPU & iOS & Android & WASM & WebGL inference. RWKV is a RNN and very friendly for edge devices. Let's make it possible to run a LLM on your phone. 
 
 * Test it on bidirectional & MLM tasks, and image & audio & video tokens. I think RWKV can support Encoder-Decoder via this: for each decoder token, use a learned mixture of [decoder previous hidden state] & [encoder final hidden state]. Hence all decoder tokens will have access to the encoder output.
