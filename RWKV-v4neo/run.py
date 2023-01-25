@@ -17,12 +17,11 @@ np.set_printoptions(precision=4, suppress=True, linewidth=200)
 args = types.SimpleNamespace()
 
 ########################################################################################################
-# Step 1: set model & config
-# Do this first: pip install torchdynamo
+# Step 1: set model & config (use v4 to run your trained-from-scratch models. v4 and v4neo are compatible)
 ########################################################################################################
 
-args.RUN_DEVICE = "cpu"  # 'cpu' (already fast) // 'cuda'
-args.FLOAT_MODE = "fp32" # fp32 (good for CPU) // fp16 (good for GPU, does not work for CPU) // bf16 (less accurate, but works for CPU)
+args.RUN_DEVICE = "cuda" # 'cuda' // 'cpu' (already fast)
+args.FLOAT_MODE = "fp16" # fp16 (good for GPU, does not work for CPU) // fp32 (good for CPU) // bf16 (less accurate, but works for CPU)
 
 # if args.RUN_DEVICE == "cuda":
 #     os.environ["RWKV_RUN_BACKEND"] = 'nvfuser' # !!!BUGGY!!! wrong output
@@ -86,6 +85,16 @@ context = "\nIn a shocking finding, scientist discovered a herd of dragons livin
 
 # context = "\n深圳是" # test Chinese
 # context = "\n東京は" # test Japanese
+
+# ###### A good prompt for Q&A ######
+# context = '''
+# Questions & Helpful Answers
+# Ask Research Experts
+# Question:
+# Can penguins fly?
+
+# Full Answer:
+# '''
 
 # ###### A good prompt for chatbot ######
 # context = '''
@@ -215,7 +224,7 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
             print(char, end="", flush=True)
         else:
             char = tokenizer.tokenizer.decode(ctx[out_last:])
-            if '\ufffd' not in char:
+            if '\ufffd' not in char: # is valid utf8 string?
                 print(char, end="", flush=True)
                 out_last = i+1
 
