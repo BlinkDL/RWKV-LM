@@ -12,6 +12,10 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 ![RWKV-chat](RWKV-chat.png)
 
+**You can run RWKV-4 14B on any GPU using this fork (choose pytorch-stream):** https://github.com/harrisonvanderbyl/rwkv_chatbot
+
+---
+
 I am training RWKV-4 14B on the Pile (final release around Jan-31-2023): https://wandb.ai/blinkdl/RWKV-v4-Pile
 
 ![RWKV-eval2](RWKV-eval2.png)
@@ -65,7 +69,12 @@ You can find me (BlinkDL) in the EleutherAI Discord too: https://www.eleuther.ai
 
 ## Quick start
 
-Use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4 or https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4neo (latest code).
+Use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4neo (latest code, compatible with v4).
+
+Here is a great prompt for testing Q&A of LLMs. Works for any model: (found by minimizing ChatGPT ppls for RWKV 1.5B)
+```python
+prompt = f'\nQ & A\n\nQuestion:\n{qq}\n\nDetailed Expert Answer:\n' # let the model generate after this
+```
 
 ### Inference
 
@@ -79,11 +88,13 @@ RWKV-4 Web Demo: https://josephrocca.github.io/rwkv-v4-web/demo/ (note: only gre
 
 More resources:
 
+https://pypi.org/project/rwkvstic/
+
+https://github.com/harrisonvanderbyl/rwkv_chatbot
+
 https://github.com/huggingface/transformers/issues/17230
 
 https://github.com/ArEnSc/Production-RWKV
-
-https://github.com/harrisonvanderbyl/rwkv_chatbot
 
 https://github.com/Pathos14489/RWKVDistributedInference
 
@@ -92,6 +103,28 @@ https://github.com/AXKuhta/rwkv-onnx-dml
 https://github.com/josephrocca/rwkv-v4-web
 
 For the old RWKV-2: see the release here for a 27M params model on enwik8 with 0.72 BPC(dev). Run run.py in https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN. You can even run it in your browser: https://github.com/BlinkDL/AI-Writer/tree/main/docs/eng https://blinkdl.github.io/AI-Writer/eng/ (this is using tf.js WASM single-thread mode).
+
+I'd like to build an almost-INT8 version of RWKV. A simple method to quantize a matrix with outliers:
+```python
+import numpy as npA
+
+# the original M, with outliers
+M = np.array([[1,   2,   1,  2],[2,  100,    2, 10],[1,   2,   1, 2],[2,   1, 20, 1]])
+
+# the scaled M, without outliers
+Q = np.array([[1, 0.2, 0.1,  2],[0.4,  2, 0.04, 2], [1, 0.2, 0.1, 2],[2, 0.1,  2, 1]])
+# we can find optimal a & b to minimize inference error after quantization
+a = np.array([1, 10, 10, 1])
+b = np.array([1, 5, 1, 1])
+
+# test M.v with random v - the results will be the same
+v = np.array([1.23, 5.44, 9.75, 2.98])
+print(M.dot(v))
+print(Q.dot(v * a) * b)
+
+# even better: decompose M.dot(v) as Q.dot(v * a + aa) * b + bb where aa & bb are vectors too
+# and can apply more scaling to achieve W8A8 (example: https://arxiv.org/pdf/2211.10438.pdf)
+```
 
 ### Training / Fine-tuning
 
