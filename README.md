@@ -86,7 +86,7 @@ Run RWKV-4 Pile models in your browser (and onnx version): see this issue https:
 
 RWKV-4 Web Demo: https://josephrocca.github.io/rwkv-v4-web/demo/ (note: only greedy sampling for now)
 
-More resources:
+**More resources**:
 
 https://pypi.org/project/rwkvstic/
 
@@ -95,6 +95,10 @@ https://github.com/harrisonvanderbyl/rwkv_chatbot
 https://github.com/huggingface/transformers/issues/17230
 
 https://github.com/ArEnSc/Production-RWKV
+
+https://github.com/nlpodyssey/verbaflow (in Go)
+
+https://github.com/nlpodyssey/rwkv (in Go)
 
 https://github.com/Pathos14489/RWKVDistributedInference
 
