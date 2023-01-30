@@ -5,8 +5,9 @@
 if __name__ == "__main__":
     from argparse import ArgumentParser
     from pytorch_lightning import Trainer
+    from pytorch_lightning.utilities import rank_zero_info, rank_zero_only
 
-    print("########## work in progress ##########")
+    rank_zero_info("########## work in progress ##########")
 
     ########################################################################################################
     #
@@ -101,7 +102,7 @@ if __name__ == "__main__":
     parser.add_argument("--load_partial", default=0, type=int)
     parser.add_argument("--magic_prime", default=0, type=int)
     parser.add_argument("--my_qa_mask", default=0, type=int)
-    parser.add_argument("--my_testing", default=0, type=int)
+    parser.add_argument("--my_testing", default='', type=str)
 
     parser = Trainer.add_argparse_args(parser)
     args = parser.parse_args()
@@ -115,7 +116,6 @@ if __name__ == "__main__":
     import deepspeed
     import pytorch_lightning as pl
     from pytorch_lightning import seed_everything
-    from pytorch_lightning.utilities import rank_zero_info, rank_zero_only
 
     if args.random_seed >= 0:
         print(f"########## WARNING: GLOBAL SEED {args.random_seed} THIS WILL AFFECT MULTIGPU SAMPLING ##########\n" * 3)
@@ -138,6 +138,7 @@ if __name__ == "__main__":
     args.betas = (args.beta1, args.beta2)
     args.real_bsz = int(args.num_nodes) * int(args.devices) * args.micro_bsz
     os.environ["RWKV_T_MAX"] = str(args.ctx_len)
+    os.environ["RWKV_MY_TESTING"] = args.my_testing
 
     if args.data_type == "wds_img":
         args.run_name = f"v{args.my_img_version}-{args.my_img_size}-{args.my_img_bit}bit-{args.my_img_clip}x{args.my_img_clip_scale}"
@@ -276,11 +277,11 @@ if __name__ == "__main__":
         generate_init_weight(model, init_weight_name)  # save initial weights
         args.load_model = init_weight_name
 
-    print(f"########## Loading {args.load_model}... ##########")
+    rank_zero_info(f"########## Loading {args.load_model}... ##########")
     try:
         load_dict = torch.load(args.load_model, map_location="cpu")
     except:
-        print(f"Bad checkpoint {args.load_model}")
+        rank_zero_info(f"Bad checkpoint {args.load_model}")
         if args.my_pile_stage >= 2:  # try again using another checkpoint
             max_p = args.my_pile_prev_p
             if max_p == -1:
@@ -288,7 +289,7 @@ if __name__ == "__main__":
             else:
                 args.load_model = f"{args.proj_dir}/rwkv-{max_p}.pth"
             args.epoch_begin = max_p + 1
-            print(f"Trying {args.load_model}")
+            rank_zero_info(f"Trying {args.load_model}")
             load_dict = torch.load(args.load_model, map_location="cpu")
 
     if args.load_partial == 1:
@@ -302,6 +303,16 @@ if __name__ == "__main__":
         args,
         callbacks=[train_callback(args)],
     )
+
+    if trainer.global_rank == 0:
+        for n in model.state_dict():
+            shape = model.state_dict()[n].shape
+            shape = [i for i in shape if i != 1]
+            if len(shape) > 1:
+                print(f"{str(shape[0]).ljust(5)} {str(shape[1]).ljust(5)} {n}")
+            else:
+                print(f"{str(shape[0]).ljust(5)}       {n}")
+
     if "deepspeed" in args.strategy:
         trainer.strategy.config["zero_optimization"]["allgather_bucket_size"] = args.ds_bucket_mb * 1000 * 1000
         trainer.strategy.config["zero_optimization"]["reduce_bucket_size"] = args.ds_bucket_mb * 1000 * 1000

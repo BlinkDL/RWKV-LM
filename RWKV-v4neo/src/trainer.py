@@ -1,9 +1,17 @@
-import os, math, time, datetime
+import os, math, time, datetime, subprocess
 import torch
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning.utilities import rank_zero_info, rank_zero_only
 
+def my_save(dd, ff):
+    if '14b-run1' not in ff:
+        torch.save(dd, ff)
+    else:
+        fn = ff.split('/')[-1]
+        fff = '/dev/shm/' + fn
+        torch.save(dd, fff)
+        subprocess.Popen(f" aws s3 mv {fff} s3://rwkv-14b/{fn} --quiet", shell=True)
 
 class train_callback(pl.Callback):
     def __init__(self, args):
@@ -100,7 +108,7 @@ class train_callback(pl.Callback):
             if args.magic_prime > 0:
                 if int(real_step) == int(args.magic_prime * (1 + args.my_qa_mask) // args.real_bsz) - 1:
                     to_save_dict = pl_module.state_dict()
-                    torch.save(
+                    my_save(
                         to_save_dict,
                         f"{args.proj_dir}/rwkv-final.pth",
                     )
@@ -128,7 +136,7 @@ class train_callback(pl.Callback):
                 else:
                     to_save_dict = pl_module.state_dict()
                 try:
-                    torch.save(
+                    my_save(
                         to_save_dict,
                         f"{args.proj_dir}/rwkv-{args.epoch_begin + trainer.current_epoch}.pth",
                     )

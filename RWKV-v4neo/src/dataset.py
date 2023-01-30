@@ -17,7 +17,7 @@ class MyDataset(Dataset):
 
         if args.data_type == "binidx":
             self.vocab_size = args.vocab_size
-            print("Current vocab size =", self.vocab_size, "(make sure it's correct)")
+            rank_zero_info(f"Current vocab size = {self.vocab_size} (make sure it's correct)")
 
             if args.data_file.endswith('/'):
                 d_all = []
@@ -25,12 +25,12 @@ class MyDataset(Dataset):
                     if p.endswith(".idx"):
                         d_all += [p[:-4]]
                 d_all.sort()
-                print(d_all)
+                rank_zero_info(d_all)
                 exit(0)
             else:
                 self.data = MMapIndexedDataset(args.data_file)
                 self.data_size = len(self.data._bin_buffer) // 2
-                print(f"Data has {self.data_size} tokens.")
+                rank_zero_info(f"Data has {self.data_size} tokens.")
 
             if args.my_qa_mask == 1:
                 self.data_pile = MMapIndexedDataset('/fsx/BlinkDL/pile/pile_20B_tokenizer_text_document')
@@ -40,7 +40,7 @@ class MyDataset(Dataset):
                 # assert self.data_size == 332115325534 and self.vocab_size == 50277
                 self.samples_per_epoch = args.epoch_steps * args.real_bsz
                 assert self.samples_per_epoch == 40320
-                print(f"########## Pile 20b-tokenized stage {args.my_pile_stage} ##########")
+                rank_zero_info(f"########## Pile 20b-tokenized stage {args.my_pile_stage} ##########")
                 dataset_slot = self.data_size // args.ctx_len
                 assert MaybeIsPrime(args.magic_prime)
                 assert args.magic_prime % 3 == 2
@@ -48,15 +48,15 @@ class MyDataset(Dataset):
         elif args.data_type == "numpy":
             self.data = np.load(args.data_file).astype("int")
             self.vocab_size = args.vocab_size
-            print("Current vocab size =", self.vocab_size, "(make sure it's correct)")
+            rank_zero_info("Current vocab size =", self.vocab_size, "(make sure it's correct)")
             self.data_size = len(self.data)
-            print(f"Data has {self.data_size} tokens.")
+            rank_zero_info(f"Data has {self.data_size} tokens.")
         elif args.data_type == "uint16":
             self.data = np.fromfile(args.data_file, dtype=np.uint16).astype("int32").reshape(-1, args.my_sample_len)
             self.vocab_size = args.vocab_size
-            print("Current vocab size =", self.vocab_size, "(make sure it's correct)")
+            rank_zero_info("Current vocab size =", self.vocab_size, "(make sure it's correct)")
             self.data_size = self.data.shape[0]
-            print(f"Data has {self.data_size} samples.")
+            rank_zero_info(f"Data has {self.data_size} samples.")
         elif args.data_type == "wds_img":
             self.vocab_size = -1
             self.data_size = -1
@@ -64,7 +64,7 @@ class MyDataset(Dataset):
             self.error_count = 0
         else:
             if args.data_type == "dummy":
-                print("Building dummy data...")
+                rank_zero_info("Building dummy data...")
                 self.data = ""
                 for i in range(100000):
                     aa = (i) % 10000
@@ -73,13 +73,13 @@ class MyDataset(Dataset):
                     self.data += f".{aa}+{bb}={cc}."
             else:
                 self.data = open(args.data_file, "r", encoding=args.data_type).read()
-            print("Building token list...")
+            rank_zero_info("Building token list...")
             unique = sorted(list(set(self.data)))
             self.vocab_size = len(unique)
-            # print()
+            # rank_zero_info()
             # for u in unique:
             #     print(u, end=' ')
-            # print('\n\n')
+            # rank_zero_info('\n\n')
             xx = 0
             xxObj = {}
             for u in unique:
@@ -88,7 +88,7 @@ class MyDataset(Dataset):
             with open(f"{args.proj_dir}/vocab.json", "w", encoding="utf-16le") as vocab_file:
                 vocab_file.write(json.dumps(xxObj, ensure_ascii=False))
             self.data_size = len(self.data)
-            print("Data has %d tokens, %d vocab size." % (self.data_size, self.vocab_size))
+            rank_zero_info(f"Data has {self.data_size} tokens, {self.vocab_size} vocab size.")
             self.stoi = {ch: i for i, ch in enumerate(unique)}
             self.itos = {i: ch for i, ch in enumerate(unique)}
 
