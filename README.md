@@ -93,6 +93,8 @@ so they will share most of the embedding. And we can rapidly compute the output 
 
 Note: the above method is assuming that p(" xyz") / p("xyz") is the same for any "xyz", which can be wrong. A better method is to define emb_space emb_capitalize_first emb_capitalize_all to be a function of emb.
 
+Why I think this is better: At this moment, all our tokenizers spend too many items to represent all variations of 'abc' ' abc' ' Abc' etc. Moreover the model cannot discover that these are actually similar if some of these variations are rare in the dataset.
+
 I plan to test this in a new version of RWKV.
 
 ## Quick start
