@@ -67,6 +67,32 @@ You can find me (BlinkDL) in the EleutherAI Discord too: https://www.eleuther.ai
 
 ![RWKV-demo](RWKV-demo.png)
 
+## New ideas (just to record all of my new ideas)
+
+I have an idea to improve tokenization. We can hardcode some channels to have meanings. Example:
+
+Channel 0 = "space"
+
+Channel 1 = "capitalize first letter"
+
+Channel 2 = "capitalize all letters"
+
+Therefore:
+
+Embedding of "abc":  [0, 0, 0, x0, x1, x2 , ..]
+
+Embedding of " abc":  [1, 0, 0, x0, x1, x2, ..]
+
+Embedding of " Abc":  [1, 1, 0, x0, x1, x2, ..]
+
+Embedding of "ABC": [0, 0, 1, x0, x1, x2, ...]
+
+......
+
+so they will share most of the embedding. And we can rapidly compute the output probability of all variations of "abc".
+
+I plan to test this in a new version of RWKV.
+
 ## Quick start
 
 Use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4neo (latest code, compatible with v4).
