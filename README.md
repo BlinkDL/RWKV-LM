@@ -67,7 +67,7 @@ You can find me (BlinkDL) in the EleutherAI Discord too: https://www.eleuther.ai
 
 ![RWKV-demo](RWKV-demo.png)
 
-## New ideas (just to record all of my new ideas)
+## New ideas (just to record some new ideas)
 
 I have an idea to improve tokenization. We can hardcode some channels to have meanings. Example:
 
@@ -90,6 +90,8 @@ Embedding of "ABC": [0, 0, 1, x0, x1, x2, ...]
 ......
 
 so they will share most of the embedding. And we can rapidly compute the output probability of all variations of "abc".
+
+Note: the above method is assuming that p(" xyz") / p("xyz") is the same for any "xyz", which can be wrong. A better method is to define emb_space emb_capitalize_first emb_capitalize_all to be a function of emb.
 
 I plan to test this in a new version of RWKV.
 
