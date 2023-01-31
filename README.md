@@ -91,11 +91,13 @@ Embedding of "ABC": [0, 0, 1, x0, x1, x2, ...]
 
 so they will share most of the embedding. And we can rapidly compute the output probability of all variations of "abc".
 
-Note: the above method is assuming that p(" xyz") / p("xyz") is the same for any "xyz", which can be wrong. A better method is to define emb_space emb_capitalize_first emb_capitalize_all to be a function of emb.
+Note: the above method is assuming that p(" xyz") / p("xyz") is the same for any "xyz", which can be wrong.
 
-Why I think this is better: At this moment, all our tokenizers spend too many items to represent all variations of 'abc' ' abc' ' Abc' etc. Moreover the model cannot discover that these are actually similar if some of these variations are rare in the dataset.
+Better: define emb_space emb_capitalize_first emb_capitalize_all to be a function of emb.
 
-I plan to test this in a new version of RWKV.
+Maybe the Best: let 'abc' ' abc' etc. to share the last 90% of their embeddings.
+
+At this moment, all our tokenizers spend too many items to represent all variations of 'abc' ' abc' ' Abc' etc. Moreover the model cannot discover that these are actually similar if some of these variations are rare in the dataset. My method can solve this. I plan to test this in a new version of RWKV.
 
 ## Quick start
 
