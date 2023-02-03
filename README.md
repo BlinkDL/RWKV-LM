@@ -108,21 +108,13 @@ Here is a great prompt for testing Q&A of LLMs. Works for any model: (found by m
 prompt = f'\nQ & A\n\nQuestion:\n{qq}\n\nDetailed Expert Answer:\n' # let the model generate after this
 ```
 
-### Inference
-
-**Run RWKV-4 Pile models:** Download models from https://huggingface.co/BlinkDL. Set TOKEN_MODE = 'pile' in run.py and run it. It's fast even on CPU (the default mode).
-
-**Colab for RWKV-4 Pile 1.5B**: https://colab.research.google.com/drive/1F7tZoPZaWJf1fsCmZ5tjw6sYHiFOYVWM
-
-Run RWKV-4 Pile models in your browser (and onnx version): see this issue https://github.com/BlinkDL/RWKV-LM/issues/7
-
-RWKV-4 Web Demo: https://josephrocca.github.io/rwkv-v4-web/demo/ (note: only greedy sampling for now)
-
-**More resources**:
+**Cool Community RWKV Projects (check them!)**:
 
 https://pypi.org/project/rwkvstic/
 
 https://github.com/harrisonvanderbyl/rwkv_chatbot
+
+https://github.com/mrsteyk/RWKV-LM-deepspeed
 
 https://github.com/huggingface/transformers/issues/17230
 
@@ -132,11 +124,23 @@ https://github.com/nlpodyssey/verbaflow (in Go)
 
 https://github.com/nlpodyssey/rwkv (in Go)
 
+https://github.com/resloved/RWKV-notebooks
+
 https://github.com/Pathos14489/RWKVDistributedInference
 
 https://github.com/AXKuhta/rwkv-onnx-dml
 
 https://github.com/josephrocca/rwkv-v4-web
+
+### Inference
+
+**Run RWKV-4 Pile models:** Download models from https://huggingface.co/BlinkDL. Set TOKEN_MODE = 'pile' in run.py and run it. It's fast even on CPU (the default mode).
+
+**Colab for RWKV-4 Pile 1.5B**: https://colab.research.google.com/drive/1F7tZoPZaWJf1fsCmZ5tjw6sYHiFOYVWM
+
+Run RWKV-4 Pile models in your browser (and onnx version): see this issue https://github.com/BlinkDL/RWKV-LM/issues/7
+
+RWKV-4 Web Demo: https://josephrocca.github.io/rwkv-v4-web/demo/ (note: only greedy sampling for now)
 
 For the old RWKV-2: see the release here for a 27M params model on enwik8 with 0.72 BPC(dev). Run run.py in https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN. You can even run it in your browser: https://github.com/BlinkDL/AI-Writer/tree/main/docs/eng https://blinkdl.github.io/AI-Writer/eng/ (this is using tf.js WASM single-thread mode).
 
