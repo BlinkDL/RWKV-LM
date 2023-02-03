@@ -1,8 +1,8 @@
-# The RWKV Language Model (and my tricks for LMs)
+# The RWKV Language Model (and my LM tricks)
 
 ## RWKV: RNN with Transformer-level LLM Performance
 
-RWKV is a RNN with Transformer-level LLM performance, which can also be directly trained like a GPT transformer (parallelizable). And it's attention-free. You only need the hidden state at position t to compute the state at position t+1. You can use the "GPT" mode to quickly computer the hidden state for the "RNN" mode.
+RWKV is a RNN with Transformer-level LLM performance, which can also be directly trained like a GPT transformer (parallelizable). And it's 100% attention-free. You only need the hidden state at position t to compute the state at position t+1. You can use the "GPT" mode to quickly computer the hidden state for the "RNN" mode.
 
 So it's combining the best of RNN and transformer - **great performance, fast inference, saves VRAM, fast training, "infinite" ctx_len, and free sentence embedding** (using the final hidden state).
 
@@ -12,11 +12,11 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 ![RWKV-chat](RWKV-chat.png)
 
-**You can run RWKV-4 14B on any GPU using this fork (choose pytorch-stream):** https://github.com/harrisonvanderbyl/rwkv_chatbot
+**You can run RWKV on low VRAM GPUs with this fork (choose pytorch-stream):** https://github.com/harrisonvanderbyl/rwkv_chatbot
 
 ---
 
-I am training RWKV-4 14B on the Pile (final release around Jan-31-2023): https://wandb.ai/blinkdl/RWKV-v4-Pile
+I am training RWKV-4 14B on the Pile (final release around Feb-15-2023): https://wandb.ai/blinkdl/RWKV-v4-Pile
 
 ![RWKV-eval2](RWKV-eval2.png)
 
