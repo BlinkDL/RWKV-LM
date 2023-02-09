@@ -116,7 +116,13 @@ https://github.com/harrisonvanderbyl/rwkv_chatbot
 
 https://github.com/mrsteyk/RWKV-LM-deepspeed
 
+https://github.com/wozeparrot/tinyrwkv
+
+https://github.com/gururise/rwkv_gradio
+
 https://github.com/huggingface/transformers/issues/17230
+
+https://huggingface.co/spaces/Hazzzardous/RWKV-Instruct
 
 https://github.com/ArEnSc/Production-RWKV
 
@@ -124,7 +130,11 @@ https://github.com/nlpodyssey/verbaflow (in Go)
 
 https://github.com/nlpodyssey/rwkv (in Go)
 
+https://github.com/mrsteyk/rwkvk-rs
+
 https://github.com/resloved/RWKV-notebooks
+
+https://colab.research.google.com/github/harrisonvanderbyl/rwkvstic/blob/master/notebooks/chatbot.ipynb
 
 https://github.com/Pathos14489/RWKVDistributedInference
 
