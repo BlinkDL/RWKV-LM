@@ -12,9 +12,13 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 ![RWKV-chat](RWKV-chat.png)
 
-**You can run RWKV on low VRAM GPUs with this fork (choose pytorch-stream):** https://github.com/harrisonvanderbyl/rwkv_chatbot
+**You can run RWKV on low VRAM GPUs with this pip package:** https://github.com/harrisonvanderbyl/rwkvstic
 
----
+## Join our Discord: https://discord.gg/bDSBUMeFpc :)
+
+You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to Stability and EleutherAI), so if you have interesting ideas I can run them.
+
+Twitter: https://twitter.com/BlinkDL_AI
 
 I am training RWKV-4 14B on the Pile (final release around Feb-15-2023): https://wandb.ai/blinkdl/RWKV-v4-Pile
 
@@ -30,12 +34,6 @@ I am doing image experiments too (For example: https://huggingface.co/BlinkDL/cl
 
 Smooth training - no loss spikes! (lr & bsz change around 15G tokens)
 ![RWKV-loss](RWKV-loss.png)
-
-## Join our Discord: https://discord.gg/bDSBUMeFpc :)
-
-You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to Stability and EleutherAI), so if you have interesting ideas I can run them.
-
-Twitter: https://twitter.com/BlinkDL_AI
 
 ![RWKV-eval](RWKV-eval.png)
 
