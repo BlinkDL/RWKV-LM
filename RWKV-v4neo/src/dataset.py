@@ -32,7 +32,7 @@ class MyDataset(Dataset):
                 self.data_size = len(self.data._bin_buffer) // 2
                 rank_zero_info(f"Data has {self.data_size} tokens.")
 
-            if args.my_qa_mask == 1:
+            if args.my_qa_mask > 0:
                 self.data_pile = MMapIndexedDataset('/fsx/BlinkDL/pile/pile_20B_tokenizer_text_document')
                 self.data_pile_size = len(self.data_pile._bin_buffer) // 2
 
@@ -156,7 +156,7 @@ class MyDataset(Dataset):
                 if args.my_pile_stage > 0:
                     ii = 1 + epoch * self.samples_per_epoch + (idx * world_size) + rank
 
-                    if args.my_qa_mask == 1:
+                    if args.my_qa_mask > 0:
                         ii_orig = ii
                         if ii % 2 == 0:
                             ii = (ii // 2) * args.magic_prime
