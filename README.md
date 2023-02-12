@@ -2,7 +2,7 @@
 
 ## RWKV: RNN with Transformer-level LLM Performance
 
-RWKV is a RNN with Transformer-level LLM performance, which can also be directly trained like a GPT transformer (parallelizable). And it's 100% attention-free. You only need the hidden state at position t to compute the state at position t+1. You can use the "GPT" mode to quickly computer the hidden state for the "RNN" mode.
+RWKV is a RNN with Transformer-level LLM performance, which can also be directly trained like a GPT transformer (parallelizable). And it's 100% attention-free. You only need the hidden state at position t to compute the state at position t+1. You can use the "GPT" mode to quickly compute the hidden state for the "RNN" mode.
 
 So it's combining the best of RNN and transformer - **great performance, fast inference, saves VRAM, fast training, "infinite" ctx_len, and free sentence embedding** (using the final hidden state).
 
@@ -12,9 +12,13 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 ![RWKV-chat](RWKV-chat.png)
 
-**You can run RWKV on low VRAM GPUs with this fork (choose pytorch-stream):** https://github.com/harrisonvanderbyl/rwkv_chatbot
+**You can run RWKV on low VRAM GPUs with this pip package:** https://github.com/harrisonvanderbyl/rwkvstic
 
----
+## Join our Discord: https://discord.gg/bDSBUMeFpc :)
+
+You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to Stability and EleutherAI), so if you have interesting ideas I can run them.
+
+Twitter: https://twitter.com/BlinkDL_AI
 
 I am training RWKV-4 14B on the Pile (final release around Feb-15-2023): https://wandb.ai/blinkdl/RWKV-v4-Pile
 
@@ -30,12 +34,6 @@ I am doing image experiments too (For example: https://huggingface.co/BlinkDL/cl
 
 Smooth training - no loss spikes! (lr & bsz change around 15G tokens)
 ![RWKV-loss](RWKV-loss.png)
-
-## Join our Discord: https://discord.gg/bDSBUMeFpc :)
-
-You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to Stability and EleutherAI), so if you have interesting ideas I can run them.
-
-Twitter: https://twitter.com/BlinkDL_AI
 
 ![RWKV-eval](RWKV-eval.png)
 
@@ -116,7 +114,13 @@ https://github.com/harrisonvanderbyl/rwkv_chatbot
 
 https://github.com/mrsteyk/RWKV-LM-deepspeed
 
+https://github.com/wozeparrot/tinyrwkv
+
+https://github.com/gururise/rwkv_gradio
+
 https://github.com/huggingface/transformers/issues/17230
+
+https://huggingface.co/spaces/Hazzzardous/RWKV-Instruct
 
 https://github.com/ArEnSc/Production-RWKV
 
@@ -124,7 +128,11 @@ https://github.com/nlpodyssey/verbaflow (in Go)
 
 https://github.com/nlpodyssey/rwkv (in Go)
 
+https://github.com/mrsteyk/rwkvk-rs
+
 https://github.com/resloved/RWKV-notebooks
+
+https://colab.research.google.com/github/harrisonvanderbyl/rwkvstic/blob/master/notebooks/chatbot.ipynb
 
 https://github.com/Pathos14489/RWKVDistributedInference
 
@@ -174,7 +182,7 @@ You will be training the "GPT" version because it's paralleziable and faster to 
 
 **Fine-tuning RWKV-4 Pile models:** use 'prepare-data.py' in https://github.com/BlinkDL/RWKV-v2-RNN-Pile/tree/main/RWKV-v3 to tokenize .txt into train.npy data. Then set EXPRESS_PILE_MODE to True in train.py, and run it.
 
-Read the inference code in src/model.py and try using the final hidden state（.xx .aa .bb) as a faithful sentence embedding for other tasks. Probably you shall begin with .xx and .aa/.bb (.aa divided by .bb).
+Read the inference code in src/model.py and try using the final hidden state（.xx .aa .bb) as a faithful sentence embedding for other tasks. Probably you should begin with .xx and .aa/.bb (.aa divided by .bb).
 
 Colab for fine-tuning RWKV-4 Pile models: https://colab.research.google.com/github/resloved/RWKV-notebooks/blob/master/RWKV_v4_RNN_Pile_Fine_Tuning.ipynb
 
@@ -411,7 +419,7 @@ Multi-task training might help too. I will try this dataset format:
 [TxtFirst] [Desc of Img (txt tokens)] [Img] [img tokens]
 and sometimes
 [ImgFirst] [img tokens] [Txt] [Desc of Img (txt tokens)]
-... the order of the imgs shall be randomized in the DataLoader, and [TxtFirst] [ImgFirst] [Img] [Txt] are special tokens
+... the order of the imgs should be randomized in the DataLoader, and [TxtFirst] [ImgFirst] [Img] [Txt] are special tokens
 and do random sampling of the full dataset. So sometimes the model will see the img tokens first and then the corresponding txt tokens, which is a [img -> txt] task. And the model will see some partial imgs and partial txts. I think a char-level LM might help the model to write correct text on images.
 
 ## How to sample a large dataset (for training)
