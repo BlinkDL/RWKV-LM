@@ -20,8 +20,6 @@ You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build 
 
 Twitter: https://twitter.com/BlinkDL_AI
 
-I am training RWKV-4 14B on the Pile (final release around Feb-15-2023): https://wandb.ai/blinkdl/RWKV-v4-Pile
-
 ![RWKV-eval2](RWKV-eval2.png)
 
 RWKV-3 1.5B on A40 (tf32) = always 0.015 sec/token, tested using simple pytorch code (no CUDA), GPU utilization 45%, VRAM 7823M
