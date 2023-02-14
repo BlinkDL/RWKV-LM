@@ -395,6 +395,10 @@ I believe RWKV is performant because W is like repeatedly applying a diagonal ma
 
 Moreover it's possible to turn it into a continuous ODE (a bit similar to State Space Models). I will write about it later.
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=BlinkDL/RWKV-LM&type=Date)](https://star-history.com/#BlinkDL/RWKV-LM&Date)
+
 ## Multimodal ideas
 
 I have an idea for [text --> 32x32 RGB image] using a LM (transformer, RWKV, etc.). Will test it soon.
