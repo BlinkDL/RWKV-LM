@@ -130,6 +130,8 @@ https://github.com/nlpodyssey/rwkv RWKV in Go
 
 https://github.com/mrsteyk/rwkvk-rs RWKV in Rust
 
+https://github.com/imxcstar/CSharp-RWKV-V4 RWKV in C#
+
 https://github.com/resloved/RWKV-notebooks RWKV colab notebooks
 
 https://colab.research.google.com/github/harrisonvanderbyl/rwkvstic/blob/master/notebooks/chatbot.ipynb RWKV chatbot colab notebook
