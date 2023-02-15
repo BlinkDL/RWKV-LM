@@ -106,6 +106,11 @@ if __name__ == "__main__":
     parser.add_argument("--my_qa_mask", default=0, type=int)
     parser.add_argument("--my_testing", default='', type=str)
 
+    parser.add_argument("--lora", action="store_true")
+    parser.add_argument("--lora-r", default=8, type=int)
+    parser.add_argument("--lora-alpha", default=32, type=float)
+    parser.add_argument("--lora-dropout", default=0.01, type=float)
+
     parser = Trainer.add_argparse_args(parser)
     args = parser.parse_args()
 
@@ -219,6 +224,7 @@ if __name__ == "__main__":
 # Each "epoch" = {args.epoch_steps} steps, {samples_per_epoch} samples, {tokens_per_epoch} tokens
 #
 # Model = {args.n_layer} n_layer, {args.n_embd} n_embd, {args.ctx_len} ctx_len
+# LoRA = {f'enabled, {args.lora_r} r, {args.lora_alpha} alpha, {args.lora_dropout} dropout' if args.lora else 'disabled'}
 #
 # Adam = lr {args.lr_init} to {args.lr_final}, warmup {args.warmup_steps} steps, beta {args.betas}, eps {args.adam_eps}
 #
@@ -273,10 +279,24 @@ if __name__ == "__main__":
 
     if args.data_type == 'wds_img':
         from src.model_img import RWKV_IMG
+        assert args.lora, "LoRA not yet supported for RWKV_IMG"
         model = RWKV_IMG(args)
     else:
-        from src.model import RWKV
+        from src.model import RWKV, LORA_CONFIG, LoraLinear
+        if args.lora:
+            assert args.lora_r > 0, "LoRA should have its `r` > 0"
+            LORA_CONFIG["r"] = args.lora_r
+            LORA_CONFIG["alpha"] = args.lora_alpha
+            LORA_CONFIG["dropout"] = args.lora_dropout
         model = RWKV(args)
+        # only train lora parameters
+        if args.lora:
+            model.requires_grad_(False)
+            for name, module in model.named_modules():
+                if 'lora_' in name:
+                    print(f'  LoRA training {name}')
+                    for param in module.parameters():
+                        param.requires_grad = True
 
     if len(args.load_model) == 0 or args.my_pile_stage == 1:  # shall we build the initial weights?
         init_weight_name = f"{args.proj_dir}/rwkv-init.pth"
@@ -303,7 +323,8 @@ if __name__ == "__main__":
         for k in model.state_dict():
             if k not in load_keys:
                 load_dict[k] = model.state_dict()[k]
-    model.load_state_dict(load_dict)
+    # If using LoRA, the LoRA keys might be missing in the original model
+    model.load_state_dict(load_dict, strict=(not args.lora))
 
     trainer = Trainer.from_argparse_args(
         args,

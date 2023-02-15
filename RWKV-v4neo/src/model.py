@@ -14,6 +14,13 @@ from deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam
 
 # from deepspeed.runtime.fp16.onebit.zoadam import ZeroOneAdam
 
+LORA_CONFIG = {
+    "r": 0,
+    "alpha": 0,
+    "dropout": 0
+}
+
+
 try:
     print('RWKV_MY_TESTING', os.environ["RWKV_MY_TESTING"])
 except:
@@ -101,6 +108,23 @@ def RUN_CUDA(B, T, C, w, u, k, v):
 
 
 ########################################################################################################
+# LoRA
+########################################################################################################
+
+
+class LoraLinear(nn.Linear):
+    def __init__(self, in_features: int, out_features: int, bias: bool = True):
+        super().__init__(in_features, out_features, bias=bias)
+        self.lora_A = nn.Linear(in_features, LORA_CONFIG["r"], bias=False)
+        self.lora_B = nn.Linear(LORA_CONFIG["r"], out_features, bias=False)
+        self.lora_dropout = nn.Dropout(LORA_CONFIG["dropout"])
+        self.scaling = LORA_CONFIG["alpha"] / LORA_CONFIG["r"]
+
+    def forward(self, x):
+        return F.linear(x, self.weight, self.bias) + self.lora_B(self.lora_A(self.lora_dropout(x))) * self.scaling
+
+
+########################################################################################################
 # RWKV: RWKV Time-mix + RWKV Channel-mix
 ########################################################################################################
 
@@ -137,9 +161,16 @@ class RWKV_TimeMix(MyModule):
             self.time_mix_r = nn.Parameter(torch.pow(ddd, 0.5 * ratio_1_to_almost0))
 
         self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
-        self.key = nn.Linear(args.n_embd, args.dim_att, bias=False)
-        self.value = nn.Linear(args.n_embd, args.dim_att, bias=False)
-        self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)
+
+        if LORA_CONFIG["r"] > 0:
+            self.key = LoraLinear(args.n_embd, args.dim_att, bias=False)
+            self.value = LoraLinear(args.n_embd, args.dim_att, bias=False)
+            self.receptance = LoraLinear(args.n_embd, args.dim_att, bias=False)
+        else:
+            self.key = nn.Linear(args.n_embd, args.dim_att, bias=False)
+            self.value = nn.Linear(args.n_embd, args.dim_att, bias=False)
+            self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)
+
         self.output = nn.Linear(args.dim_att, args.n_embd, bias=False)
 
         if 'a' in os.environ["RWKV_MY_TESTING"]:
@@ -415,6 +446,10 @@ class RWKV(pl.LightningModule):
             optim_groups = [
                 {"params": [p for n, p in self.named_parameters()], "weight_decay": 0.0},
             ]
+
+        for g in optim_groups:
+            g["params"] = [p for p in g["params"] if p.requires_grad]
+        optim_groups = [g for g in optim_groups if len(g["params"]) > 0]
 
         if self.deepspeed_offload:
             return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adamw_mode=False, weight_decay=0, amsgrad=False)

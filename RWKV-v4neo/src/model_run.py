@@ -42,6 +42,22 @@ class RWKV_RNN(MyModule):
 
         with torch.no_grad():
             w = torch.load(args.MODEL_NAME + '.pth', map_location='cpu')
+            # merge LoRA weights
+            if args.lora_r > 0:
+                keys = set(w.keys())
+                for k in keys:
+                    k: str
+                    if k.endswith('.weight'):
+                        prefix = k[:-len('.weight')]
+                        lora_A = prefix + '.lora_A.weight'
+                        lora_B = prefix + '.lora_B.weight'
+                        if lora_A in keys:
+                            assert lora_B in keys
+                            print(f'merging {lora_A} and {lora_B} into {k}')
+                            assert w[lora_B].shape[1] == w[lora_A].shape[0] == args.lora_r
+                            w[k] += w[lora_B] @ w[lora_A] * (args.lora_alpha / args.lora_r)
+                            del w[lora_A]
+                            del w[lora_B]
             # refine weights and send to correct device
             keys = list(w.keys())
             if 'pos_emb_x' in keys:
