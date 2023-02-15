@@ -10,6 +10,8 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 **RWKV chatbot**: https://github.com/BlinkDL/ChatRWKV
 
+**HF space**: https://huggingface.co/spaces/yahma/rwkv-14b
+
 ![RWKV-chat](RWKV-chat.png)
 
 **You can run RWKV on low VRAM GPUs with this pip package:** https://github.com/harrisonvanderbyl/rwkvstic
@@ -18,7 +20,7 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to Stability and EleutherAI), so if you have interesting ideas I can run them.
 
-Twitter: https://twitter.com/BlinkDL_AI
+**Twitter**: https://twitter.com/BlinkDL_AI
 
 ![RWKV-eval2](RWKV-eval2.png)
 
@@ -106,37 +108,37 @@ prompt = f'\nQ & A\n\nQuestion:\n{qq}\n\nDetailed Expert Answer:\n' # let the mo
 
 **Cool Community RWKV Projects (check them!)**:
 
-https://pypi.org/project/rwkvstic/
+https://pypi.org/project/rwkvstic/ Easy pip package (with 8bit & offload for low VRAM GPUs)
 
-https://github.com/harrisonvanderbyl/rwkv_chatbot
+https://github.com/harrisonvanderbyl/rwkv_chatbot Chatbot using rwkvstic
 
-https://github.com/mrsteyk/RWKV-LM-deepspeed
+https://github.com/gururise/rwkv_gradio RWKV Gradio
 
-https://github.com/wozeparrot/tinyrwkv
+https://github.com/mrsteyk/RWKV-LM-deepspeed Another training fork
 
-https://github.com/gururise/rwkv_gradio
+https://github.com/Blealtan/RWKV-LM-LoRA LoRA fine-tuning
 
-https://github.com/huggingface/transformers/issues/17230
+https://github.com/wozeparrot/tinyrwkv RWKV in tinygrad (nice simple DL framework)
 
-https://huggingface.co/spaces/Hazzzardous/RWKV-Instruct
+https://github.com/huggingface/transformers/issues/17230 RWKV HF package (WIP)
 
-https://github.com/ArEnSc/Production-RWKV
+https://github.com/ArEnSc/Production-RWKV RWKV HF package source
 
-https://github.com/nlpodyssey/verbaflow (in Go)
+https://github.com/nlpodyssey/verbaflow RWKV in Go
 
-https://github.com/nlpodyssey/rwkv (in Go)
+https://github.com/nlpodyssey/rwkv RWKV in Go
 
-https://github.com/mrsteyk/rwkvk-rs
+https://github.com/mrsteyk/rwkvk-rs RWKV in Rust
 
-https://github.com/resloved/RWKV-notebooks
+https://github.com/resloved/RWKV-notebooks RWKV colab notebooks
 
-https://colab.research.google.com/github/harrisonvanderbyl/rwkvstic/blob/master/notebooks/chatbot.ipynb
+https://colab.research.google.com/github/harrisonvanderbyl/rwkvstic/blob/master/notebooks/chatbot.ipynb RWKV chatbot colab notebook
 
-https://github.com/Pathos14489/RWKVDistributedInference
+https://github.com/Pathos14489/RWKVDistributedInference RWKV Distributed Inference
 
-https://github.com/AXKuhta/rwkv-onnx-dml
+https://github.com/AXKuhta/rwkv-onnx-dml RWKV ONNX
 
-https://github.com/josephrocca/rwkv-v4-web
+https://github.com/josephrocca/rwkv-v4-web RWKV-v4 running in the browser (simple demo. greedy decode)
 
 ### Inference
 
