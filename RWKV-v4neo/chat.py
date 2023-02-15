@@ -40,7 +40,8 @@ args.n_layer = 40
 args.n_embd = 5120
 args.ctx_len = 1024
 
-args.lora_r = 8
+# Modify this to use LoRA models; lora_r = 0 will not use LoRA weights.
+args.lora_r = 0
 args.lora_alpha = 32
 
 # args.MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-7b/RWKV-4-Pile-7B-20221115-8047'
