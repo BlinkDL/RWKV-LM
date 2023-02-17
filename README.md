@@ -112,6 +112,8 @@ https://pypi.org/project/rwkvstic/ Easy pip package (with 8bit & offload for low
 
 https://github.com/harrisonvanderbyl/rwkv_chatbot Chatbot using rwkvstic
 
+https://github.com/hizkifw/WebChatRWKVstic WebUI (WIP)
+
 https://github.com/gururise/rwkv_gradio RWKV Gradio
 
 https://github.com/mrsteyk/RWKV-LM-deepspeed Another training fork
