@@ -222,9 +222,9 @@ if __name__ == "__main__":
 #
 # Adam = lr {args.lr_init} to {args.lr_final}, warmup {args.warmup_steps} steps, beta {args.betas}, eps {args.adam_eps}
 #
-# Found torch {torch.__version__}, recommend 1.12.1+cu116 or newer
+# Found torch {torch.__version__}, recommend 1.13.1+cu117 or newer
 # Found deepspeed {deepspeed.__version__}, recommend 0.7.0 (faster than newer versions)
-# Found pytorch_lightning {pl.__version__}, recommend 1.7.4 or newer
+# Found pytorch_lightning {pl.__version__}, recommend 1.9.1 or newer
 #
 ############################################################################
 """

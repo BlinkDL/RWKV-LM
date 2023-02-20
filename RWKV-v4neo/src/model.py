@@ -4,6 +4,8 @@
 
 import os, math, gc
 import torch
+torch._C._jit_set_profiling_executor(True)
+torch._C._jit_set_profiling_mode(True)
 import torch.nn as nn
 from torch.nn import functional as F
 import pytorch_lightning as pl

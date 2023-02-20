@@ -153,14 +153,19 @@ class MyDataset(Dataset):
                 magic_prime = args.magic_prime
                 data = self.data
 
-                if args.my_pile_stage > 0:
+                if args.my_pile_stage > 0 and args.my_pile_stage != 4:
                     ii = 1 + epoch * self.samples_per_epoch + (idx * world_size) + rank
 
                     if args.my_qa_mask > 0:
                         ii_orig = ii
                         if ii % 2 == 0:
                             ii = (ii // 2) * args.magic_prime
-                            magic_prime = 324331313
+                            if args.ctx_len == 1024:
+                                magic_prime = 324331313
+                            elif args.ctx_len == 2048:
+                                magic_prime = 162165671
+                            elif args.ctx_len == 4096:
+                                magic_prime = 81082817
                             data = self.data_pile
                         else:
                             ii = ii // 2
