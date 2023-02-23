@@ -85,9 +85,9 @@ prompt = f'\nQ & A\n\nQuestion:\n{qq}\n\nDetailed Expert Answer:\n' # let the mo
 
 **Cool Community RWKV Projects (check them!)**:
 
-https://pypi.org/project/rwkvstic/ Easy pip package (with 8bit & offload for low VRAM GPUs)
+https://pypi.org/project/rwkvstic/ a pip package (with 8bit & offload for low VRAM GPUs)
 
-https://github.com/harrisonvanderbyl/rwkv_chatbot Chatbot using rwkvstic
+https://github.com/harrisonvanderbyl/rwkv_chatbot a chatbot
 
 https://github.com/hizkifw/WebChatRWKVstic WebUI (WIP)
 
@@ -119,7 +119,7 @@ https://github.com/Pathos14489/RWKVDistributedInference RWKV Distributed Inferen
 
 https://github.com/AXKuhta/rwkv-onnx-dml RWKV ONNX
 
-https://github.com/josephrocca/rwkv-v4-web RWKV-v4 running in the browser (simple demo. greedy decode)
+https://github.com/josephrocca/rwkv-v4-web RWKV-v4 running in the browser
 
 ### Inference
 
