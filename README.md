@@ -25,8 +25,6 @@ print(out.detach().cpu().numpy())                   # same result as above
 
 ![RWKV-chat](RWKV-chat.png)
 
-**You can run RWKV on low VRAM GPUs with this pip package:** https://github.com/harrisonvanderbyl/rwkvstic
-
 ## Join our Discord: https://discord.gg/bDSBUMeFpc :)
 
 You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to Stability and EleutherAI), so if you have interesting ideas I can run them.
