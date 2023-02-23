@@ -183,7 +183,15 @@ ss = json.dumps({"meta": meta, "text": text}, ensure_ascii=False)
 out.write(ss + "\n")
 ```
 
-## New ideas (just to record some new ideas)
+## Towards RWKV-5 (just to record some new ideas)
+
+### List of some ideas
+
+1. Use complex number (so, rotation instead of decay) in some channels.
+
+2. Inject some trainable and interpolable positional encoding?
+
+### Misc
 
 I have an idea to improve tokenization. We can hardcode some channels to have meanings. Example:
 
@@ -213,7 +221,7 @@ Better: define emb_space emb_capitalize_first emb_capitalize_all to be a functio
 
 Maybe the Best: let 'abc' ' abc' etc. to share the last 90% of their embeddings.
 
-At this moment, all our tokenizers spend too many items to represent all variations of 'abc' ' abc' ' Abc' etc. Moreover the model cannot discover that these are actually similar if some of these variations are rare in the dataset. My method can solve this. I plan to test this in a new version of RWKV.
+At this moment, all our tokenizers spend too many items to represent all variations of 'abc' ' abc' ' Abc' etc. Moreover the model cannot discover that these are actually similar if some of these variations are rare in the dataset. The method here can improve this. I plan to test this in a new version of RWKV.
 
 ## How it works
 
