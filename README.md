@@ -93,9 +93,11 @@ https://github.com/hizkifw/WebChatRWKVstic WebUI (WIP)
 
 https://github.com/gururise/rwkv_gradio RWKV Gradio
 
-https://github.com/mrsteyk/RWKV-LM-deepspeed Another training fork
+https://github.com/cryscan/eloise RWKV QQ bot
 
 https://github.com/Blealtan/RWKV-LM-LoRA LoRA fine-tuning
+
+https://github.com/mrsteyk/RWKV-LM-jax
 
 https://github.com/wozeparrot/tinyrwkv RWKV in tinygrad (nice simple DL framework)
 
@@ -109,7 +111,11 @@ https://github.com/nlpodyssey/rwkv RWKV in Go
 
 https://github.com/mrsteyk/rwkvk-rs RWKV in Rust
 
+https://github.com/josephrocca/rwkv-v4-web RWKV in browser
+
 https://github.com/imxcstar/CSharp-RWKV-V4 RWKV in C#
+
+https://github.com/mrsteyk/RWKV-LM-deepspeed Another training fork
 
 https://github.com/resloved/RWKV-notebooks RWKV colab notebooks
 
@@ -118,8 +124,6 @@ https://colab.research.google.com/github/harrisonvanderbyl/rwkvstic/blob/master/
 https://github.com/Pathos14489/RWKVDistributedInference RWKV Distributed Inference
 
 https://github.com/AXKuhta/rwkv-onnx-dml RWKV ONNX
-
-https://github.com/josephrocca/rwkv-v4-web RWKV-v4 running in the browser
 
 ### Inference
 
