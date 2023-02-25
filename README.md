@@ -192,9 +192,11 @@ out.write(ss + "\n")
 
 ### List of some ideas
 
-1. Use complex number (so, rotation instead of decay) in some channels.
+1. Time decay changed to something like (0.9999^T + 0.1) where 0.9999 and 0.1 are learnable. The 0.1 part will be kept forever.
 
-2. Inject some trainable and interpolable positional encoding?
+2. Use complex number (so, rotation instead of decay) in some channels.
+
+3. Inject some trainable and interpolable positional encoding?
 
 ### Misc
 
