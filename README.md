@@ -194,9 +194,9 @@ out.write(ss + "\n")
 
 1. Now time decay is like 0.999^T (0.999 is learnable). Change it to something like (0.999^T + 0.1) where 0.1 is learnable too. The 0.1 part will be kept forever.
 
-2. Use complex number (so, rotation instead of decay) in some channels.
+2. Use complex-valued decay (so, rotation instead of decay) in some channels.
 
-3. Inject some trainable and interpolable positional encoding?
+3. Inject some trainable and extrapolatable positional encoding?
 
 4. Aside from 2d rotation, we can try other Lie groups such as 3d rotation ( SO(3) ). Non-abelian RWKV lol.
 
