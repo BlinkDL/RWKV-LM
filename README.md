@@ -192,7 +192,7 @@ out.write(ss + "\n")
 
 ### Some ideas
 
-1. Now time decay is like 0.999^T (0.999 is learnable). Change it to something like (0.999^T + 0.1) where 0.1 is learnable too. The 0.1 part will be kept forever. Or try A^T + B^T = fast-decay + slow-decay.
+1. Now time decay is like 0.999^T (0.999 is learnable). Change it to something like (0.999^T + 0.1) where 0.1 is learnable too. The 0.1 part will be kept forever. Or, A^T + B^T + C = fast-decay + slow-decay + constant. Can even use different formulas (for example, x^2 instead of e^x, or, without normalization).
 
 2. Use complex-valued decay (so, rotation instead of decay) in some channels.
 
