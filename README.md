@@ -200,7 +200,7 @@ out.write(ss + "\n")
 
 4. Aside from 2d rotation, we can try other Lie groups such as 3d rotation ( SO(3) ). Non-abelian RWKV lol.
 
-5. RWKV might be great on analog devices (search for Analog Matrix-vector multiplication & Photonic Matrix-vector multiplication).
+5. RWKV might be great on analog devices (search for Analog Matrix-vector multiplication & Photonic Matrix-vector multiplication). RNN is very hardware-friendly. SNN RWKV is straightforward. I wonder if it can be optimized for quantum computation too. 
 
 ### Misc
 
