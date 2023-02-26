@@ -2,6 +2,7 @@
 # The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM
 ########################################################################################################
 
+import functools
 import os, math, gc
 import torch
 import torch.nn as nn
@@ -124,6 +125,14 @@ class LoraLinear(nn.Linear):
         return F.linear(x, self.weight, self.bias) + self.lora_B(self.lora_A(self.lora_dropout(x))) * self.scaling
 
 
+@functools.wraps(LoraLinear)
+def make_linear(*args, **kwargs):
+    if LORA_CONFIG["r"] > 0:
+        return LoraLinear(*args, **kwargs)
+    else:
+        return nn.Linear(*args, **kwargs)
+
+
 ########################################################################################################
 # RWKV: RWKV Time-mix + RWKV Channel-mix
 ########################################################################################################
@@ -162,14 +171,9 @@ class RWKV_TimeMix(MyModule):
 
         self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
 
-        if LORA_CONFIG["r"] > 0:
-            self.key = LoraLinear(args.n_embd, args.dim_att, bias=False)
-            self.value = LoraLinear(args.n_embd, args.dim_att, bias=False)
-            self.receptance = LoraLinear(args.n_embd, args.dim_att, bias=False)
-        else:
-            self.key = nn.Linear(args.n_embd, args.dim_att, bias=False)
-            self.value = nn.Linear(args.n_embd, args.dim_att, bias=False)
-            self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)
+        self.key = make_linear(args.n_embd, args.dim_att, bias=False)
+        self.value = make_linear(args.n_embd, args.dim_att, bias=False)
+        self.receptance = make_linear(args.n_embd, args.dim_att, bias=False)
 
         self.output = nn.Linear(args.dim_att, args.n_embd, bias=False)
 
@@ -255,9 +259,9 @@ class RWKV_ChannelMix(MyModule):
             self.time_mix_k = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))
             self.time_mix_r = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))
         
-        self.key = nn.Linear(args.n_embd, args.dim_ffn, bias=False)
-        self.receptance = nn.Linear(args.n_embd, args.n_embd, bias=False)
-        self.value = nn.Linear(args.dim_ffn, args.n_embd, bias=False)
+        self.key = make_linear(args.n_embd, args.dim_ffn, bias=False)
+        self.receptance = make_linear(args.n_embd, args.n_embd, bias=False)
+        self.value = make_linear(args.dim_ffn, args.n_embd, bias=False)
 
     @MyFunction
     def forward(self, x):

@@ -293,7 +293,7 @@ if __name__ == "__main__":
         if args.lora:
             model.requires_grad_(False)
             for name, module in model.named_modules():
-                if 'lora_' in name:
+                if '.lora_' in name or '.time_' in name or '.ln' in name:
                     print(f'  LoRA training {name}')
                     for param in module.parameters():
                         param.requires_grad = True
