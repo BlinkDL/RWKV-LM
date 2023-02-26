@@ -107,9 +107,9 @@ if __name__ == "__main__":
     parser.add_argument("--my_testing", default='', type=str)
 
     parser.add_argument("--lora", action="store_true")
-    parser.add_argument("--lora-r", default=8, type=int)
-    parser.add_argument("--lora-alpha", default=32, type=float)
-    parser.add_argument("--lora-dropout", default=0.01, type=float)
+    parser.add_argument("--lora_r", default=8, type=int)
+    parser.add_argument("--lora_alpha", default=32, type=float)
+    parser.add_argument("--lora_dropout", default=0.01, type=float)
 
     parser = Trainer.add_argparse_args(parser)
     args = parser.parse_args()
