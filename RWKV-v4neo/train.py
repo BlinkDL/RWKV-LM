@@ -110,10 +110,7 @@ if __name__ == "__main__":
     parser.add_argument("--lora_r", default=8, type=int)
     parser.add_argument("--lora_alpha", default=32, type=float)
     parser.add_argument("--lora_dropout", default=0.01, type=float)
-    parser.add_argument("--lora_att", action="store_true")
-    parser.add_argument("--lora_ffn", action="store_true")
-    parser.add_argument("--lora_ln", action="store_true")
-    parser.add_argument("--lora_time", action="store_true")
+    parser.add_argument("--lora_parts", default="att,ln,time", type=str)
 
     parser = Trainer.add_argparse_args(parser)
     args = parser.parse_args()
@@ -292,15 +289,17 @@ if __name__ == "__main__":
             LORA_CONFIG["r"] = args.lora_r
             LORA_CONFIG["alpha"] = args.lora_alpha
             LORA_CONFIG["dropout"] = args.lora_dropout
-            LORA_CONFIG["ffn"] = args.lora_ffn
-            LORA_CONFIG["att"] = args.lora_att
+            LORA_CONFIG["parts"] = set(str(args.lora_parts).split(','))
+            enable_time_finetune = 'time' in LORA_CONFIG["parts"]
+            enable_ln_finetune = 'ln' in LORA_CONFIG["parts"]
         model = RWKV(args)
         # only train lora parameters
         if args.lora:
             model.requires_grad_(False)
             for name, module in model.named_modules():
-                if ('.lora_' in name or (args.lora_time and '.time_' in name)
-                        or (args.lora_ln and '.ln' in name)):
+                if ('.lora_' in name
+                        or (enable_time_finetune and '.time_' in name)
+                        or (enable_ln_finetune and '.ln' in name)):
                     print(f'  LoRA training {name}')
                     for param in module.parameters():
                         param.requires_grad = True

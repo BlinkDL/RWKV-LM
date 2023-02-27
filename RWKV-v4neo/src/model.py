@@ -19,8 +19,7 @@ LORA_CONFIG = {
     "r": 0,
     "alpha": 0,
     "dropout": 0,
-    "att": False,
-    "ffn": False,
+    "parts": {"att", "ln", "time"},
 }
 
 
@@ -129,7 +128,7 @@ class LoraLinear(nn.Linear):
 
 @functools.wraps(LoraLinear)
 def make_linear_att(*args, **kwargs):
-    if LORA_CONFIG["att"] and LORA_CONFIG["r"] > 0:
+    if "att" in LORA_CONFIG["parts"] and LORA_CONFIG["r"] > 0:
         return LoraLinear(*args, **kwargs)
     else:
         return nn.Linear(*args, **kwargs)
@@ -137,7 +136,7 @@ def make_linear_att(*args, **kwargs):
 
 @functools.wraps(LoraLinear)
 def make_linear_ffn(*args, **kwargs):
-    if LORA_CONFIG["ffn"] and LORA_CONFIG["r"] > 0:
+    if "ffn" in LORA_CONFIG["parts"] and LORA_CONFIG["r"] > 0:
         return LoraLinear(*args, **kwargs)
     else:
         return nn.Linear(*args, **kwargs)

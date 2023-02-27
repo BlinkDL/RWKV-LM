@@ -16,7 +16,7 @@ python3 train.py \
   --data_type <data type for finetune> \
   --vocab_size 50277 --ctx_len 1024 --epoch_steps 1000 --epoch_count 1000 --epoch_begin 0 --epoch_save 5 --micro_bsz 2 --n_layer 24 --n_embd 1024 --pre_ffn 0 --head_qk 0 --lr_init 1e-5 --lr_final 1e-5 --warmup_steps 0 --beta1 0.9 --beta2 0.999 --adam_eps 1e-8 --accelerator gpu --devices 1 --precision bf16 --strategy deepspeed_stage_2 --grad_cp 0 \ # all your familiar options
   --lora --lora_r 8 --lora_alpha 32 --lora_dropout 0.01 \
-  --lora_att --lora_ffn --lora_time --lora_ln # configure which parts to finetune
+  --lora_parts=att,ffn,time,ln # configure which parts to finetune
 ```
 
 The `r`, `alpha` and `dropout` options are up to your choice.
