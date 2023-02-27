@@ -18,7 +18,9 @@ from deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam
 LORA_CONFIG = {
     "r": 0,
     "alpha": 0,
-    "dropout": 0
+    "dropout": 0,
+    "att": False,
+    "ffn": False,
 }
 
 
@@ -126,8 +128,16 @@ class LoraLinear(nn.Linear):
 
 
 @functools.wraps(LoraLinear)
-def make_linear(*args, **kwargs):
-    if LORA_CONFIG["r"] > 0:
+def make_linear_att(*args, **kwargs):
+    if LORA_CONFIG["att"] and LORA_CONFIG["r"] > 0:
+        return LoraLinear(*args, **kwargs)
+    else:
+        return nn.Linear(*args, **kwargs)
+
+
+@functools.wraps(LoraLinear)
+def make_linear_ffn(*args, **kwargs):
+    if LORA_CONFIG["ffn"] and LORA_CONFIG["r"] > 0:
         return LoraLinear(*args, **kwargs)
     else:
         return nn.Linear(*args, **kwargs)
@@ -152,7 +162,7 @@ class RWKV_TimeMix(MyModule):
             ddd = torch.ones(1, 1, args.n_embd)
             for i in range(args.n_embd):
                 ddd[0, 0, i] = i / args.n_embd
-            
+
             # fancy time_decay
             decay_speed = torch.ones(args.dim_att)
             for h in range(args.dim_att):
@@ -171,9 +181,9 @@ class RWKV_TimeMix(MyModule):
 
         self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
 
-        self.key = make_linear(args.n_embd, args.dim_att, bias=False)
-        self.value = make_linear(args.n_embd, args.dim_att, bias=False)
-        self.receptance = make_linear(args.n_embd, args.dim_att, bias=False)
+        self.key = make_linear_att(args.n_embd, args.dim_att, bias=False)
+        self.value = make_linear_att(args.n_embd, args.dim_att, bias=False)
+        self.receptance = make_linear_att(args.n_embd, args.dim_att, bias=False)
 
         self.output = nn.Linear(args.dim_att, args.n_embd, bias=False)
 
@@ -258,10 +268,10 @@ class RWKV_ChannelMix(MyModule):
                 ddd[0, 0, i] = i / args.n_embd
             self.time_mix_k = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))
             self.time_mix_r = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))
-        
-        self.key = make_linear(args.n_embd, args.dim_ffn, bias=False)
-        self.receptance = make_linear(args.n_embd, args.n_embd, bias=False)
-        self.value = make_linear(args.dim_ffn, args.n_embd, bias=False)
+
+        self.key = make_linear_ffn(args.n_embd, args.dim_ffn, bias=False)
+        self.receptance = make_linear_ffn(args.n_embd, args.n_embd, bias=False)
+        self.value = make_linear_ffn(args.dim_ffn, args.n_embd, bias=False)
 
     @MyFunction
     def forward(self, x):
@@ -331,7 +341,7 @@ class Block(nn.Module):
             self.ffn = MishGLU(args, layer_id)
         else:
             self.ffn = RWKV_ChannelMix(args, layer_id)
-        
+
         if args.tiny_att_dim > 0 and self.layer_id == args.tiny_att_layer:
             self.tiny_ln = nn.LayerNorm(args.n_embd)
             self.tiny_q = nn.Linear(args.n_embd, args.tiny_att_dim, bias=False)
