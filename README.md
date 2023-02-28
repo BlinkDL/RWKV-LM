@@ -6,7 +6,19 @@ RWKV is a RNN with Transformer-level LLM performance, which can also be directly
 
 So it's combining the best of RNN and transformer - **great performance, fast inference, saves VRAM, fast training, "infinite" ctx_len, and free sentence embedding** (using the final hidden state).
 
-**Download RWKV-4 0.1/0.4/1.5/3/7/14B weights**: https://huggingface.co/BlinkDL
+**Download RWKV-4 0.1/0.4/1.5/3/7/14B weights**: https://huggingface.co/BlinkDL  
+
+Requirements: (rough estimate is disk size = vram size = 2 x parameters)
+| Model Parameters                                             | Size in disk & VRAM      |
+|--------------------------------------------------------------|--------------------------|
+| [RWKV-169m](https://huggingface.co/BlinkDL/rwkv-4-pile-169m) | 339 MB                   |
+| [RWKV-430m](https://huggingface.co/BlinkDL/rwkv-4-pile-430m) | 861 MB                   |
+| [RWKV-4-1b5](https://huggingface.co/BlinkDL/rwkv-4-pile-1b5) | 3.03 GB                  |
+| [RWKV-4-3b](https://huggingface.co/BlinkDL/rwkv-4-pile-3b)   | 5.97 GB                  |
+| [RWKV-4-7b](https://huggingface.co/BlinkDL/rwkv-4-pile-7b)   | 14.8 GB                  |
+| [RWKV-4-14b](https://huggingface.co/BlinkDL/rwkv-4-pile-14b) | 28.3 GB                  |
+
+
 
 **RWKV in 150 lines** (model, inference, text generation): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_in_150_lines.py
 
