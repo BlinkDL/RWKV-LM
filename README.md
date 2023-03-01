@@ -6,6 +6,8 @@ RWKV is a RNN with Transformer-level LLM performance, which can also be directly
 
 So it's combining the best of RNN and transformer - **great performance, fast inference, saves VRAM, fast training, "infinite" ctx_len, and free sentence embedding** (using the final hidden state).
 
+**RWKV pip package**: https://pypi.org/project/rwkv/
+
 **Download RWKV-4 0.1/0.4/1.5/3/7/14B weights**: https://huggingface.co/BlinkDL
 
 **RWKV in 150 lines** (model, inference, text generation): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_in_150_lines.py
@@ -14,7 +16,7 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 ```
 os.environ["RWKV_JIT_ON"] = '1'
 os.environ["RWKV_CUDA_ON"] = '0' # if '1' then use CUDA kernel for seq mode (much faster)
-from rwkv.model import RWKV                         # everything in /v2/rwkv folder
+from rwkv.model import RWKV                         # pip install rwkv
 model = RWKV(model='/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-1b5/RWKV-4-Pile-1B5-20220903-8040', strategy='cuda fp16')
 
 out, state = model.forward([187, 510, 1563, 310, 247], None)   # use 20B_tokenizer.json
