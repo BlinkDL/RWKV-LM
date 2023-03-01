@@ -13,7 +13,7 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 **RWKV in 150 lines** (model, inference, text generation): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_in_150_lines.py
 
 **ChatRWKV v2:** with "stream" and "split" strategies. **3G VRAM is enough to run RWKV 14B :)** https://github.com/BlinkDL/ChatRWKV/tree/main/v2
-```
+```python
 os.environ["RWKV_JIT_ON"] = '1'
 os.environ["RWKV_CUDA_ON"] = '0' # if '1' then use CUDA kernel for seq mode (much faster)
 from rwkv.model import RWKV                         # pip install rwkv
