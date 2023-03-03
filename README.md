@@ -26,7 +26,7 @@ out, state = model.forward([1563], state)           # RNN has state (use deepcop
 out, state = model.forward([310, 247], state)
 print(out.detach().cpu().numpy())                   # same result as above
 ```
-**HF space**: https://huggingface.co/spaces/yahma/rwkv-14b
+**Hugging Face space**: https://huggingface.co/spaces/BlinkDL/ChatRWKV-gradio
 
 ![RWKV-chat](RWKV-chat.png)
 
