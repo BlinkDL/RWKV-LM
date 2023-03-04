@@ -59,6 +59,11 @@ class RWKV_RNN(MyModule):
                             assert lora_B in keys
                             print(f'merging {lora_A} and {lora_B} into {k}')
                             assert w[lora_B].shape[1] == w[lora_A].shape[0] == args.lora_r
+                            # merging needs matmul, which is slow on cpu; work on gpu if possible
+                            if args.RUN_DEVICE == 'cuda':
+                                w[k] = w[k].cuda()
+                                w[lora_A] = w[lora_A].cuda()
+                                w[lora_B] = w[lora_B].cuda()
                             w[k] += w[lora_B] @ w[lora_A] * (args.lora_alpha / args.lora_r)
                             del w[lora_A]
                             del w[lora_B]
