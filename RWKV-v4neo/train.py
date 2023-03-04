@@ -107,6 +107,7 @@ if __name__ == "__main__":
     parser.add_argument("--my_testing", default='', type=str)
 
     parser.add_argument("--lora", action="store_true")
+    parser.add_argument("--lora_load", default="", type=str)
     parser.add_argument("--lora_r", default=8, type=int)
     parser.add_argument("--lora_alpha", default=32, type=float)
     parser.add_argument("--lora_dropout", default=0.01, type=float)
@@ -225,7 +226,7 @@ if __name__ == "__main__":
 # Each "epoch" = {args.epoch_steps} steps, {samples_per_epoch} samples, {tokens_per_epoch} tokens
 #
 # Model = {args.n_layer} n_layer, {args.n_embd} n_embd, {args.ctx_len} ctx_len
-# LoRA = {f'enabled, {args.lora_r} r, {args.lora_alpha} alpha, {args.lora_dropout} dropout' if args.lora else 'disabled'}
+# LoRA = {f'enabled, {args.lora_r} r, {args.lora_alpha} alpha, {args.lora_dropout} dropout, on {args.lora_parts}' if args.lora else 'disabled'}
 #
 # Adam = lr {args.lr_init} to {args.lr_final}, warmup {args.warmup_steps} steps, beta {args.betas}, eps {args.adam_eps}
 #
@@ -331,6 +332,9 @@ if __name__ == "__main__":
                 load_dict[k] = model.state_dict()[k]
     # If using LoRA, the LoRA keys might be missing in the original model
     model.load_state_dict(load_dict, strict=(not args.lora))
+    if os.path.isfile(args.lora_load):
+        model.load_state_dict(torch.load(args.lora_load, map_location="cpu"),
+                              strict=False)
 
     trainer = Trainer.from_argparse_args(
         args,

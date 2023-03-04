@@ -42,8 +42,12 @@ class RWKV_RNN(MyModule):
 
         with torch.no_grad():
             w = torch.load(args.MODEL_NAME + '.pth', map_location='cpu')
-            # merge LoRA weights
             if args.lora_r > 0:
+                # merge LoRA-only slim checkpoint into the main weights
+                w_lora = torch.load(args.MODEL_LORA + '.pth', map_location='cpu')
+                for k in w_lora.keys():
+                    w[k] = w_lora[k]
+                # merge LoRA weights
                 keys = set(w.keys())
                 for k in keys:
                     k: str

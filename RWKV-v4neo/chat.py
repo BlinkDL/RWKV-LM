@@ -35,14 +35,15 @@ args.pre_ffn = 0
 args.grad_cp = 0
 args.my_pos_emb = 0
 
-args.MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-14b/RWKV-4-Pile-14B-20230108-5170'
+args.MODEL_NAME = '/home/blealtancao/rwkv-models/RWKV-4-Pile-14B-20230227-ctx4096-test503'
 args.n_layer = 40
 args.n_embd = 5120
 args.ctx_len = 1024
 
 # Modify this to use LoRA models; lora_r = 0 will not use LoRA weights.
-args.lora_r = 0
-args.lora_alpha = 32
+args.MODEL_LORA = '/home/blealtancao/rwkv-models/lora-full-1e-4/rwkv-30'
+args.lora_r = 4
+args.lora_alpha = 16
 
 # args.MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-7b/RWKV-4-Pile-7B-20221115-8047'
 # args.n_layer = 32
