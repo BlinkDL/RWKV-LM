@@ -38,6 +38,10 @@ You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build 
 
 ![RWKV-eval2](RWKV-eval2.png)
 
+RWKV [loss vs token position] for 10000 long documents in Pile. 1B5-4k is mostly flat after 1500, but 3B-4k and 7B-4k have some slopes, and the slope of 7B-4k is larger. I believe RWKV 100B will be very good at this, and "RWKV 1T is probably all you need" :)
+
+![RWKV-ctxlen](RWKV-ctxlen.png)
+
 RWKV-3 1.5B on A40 (tf32) = always 0.015 sec/token, tested using simple pytorch code (no CUDA), GPU utilization 45%, VRAM 7823M
 
 GPT2-XL 1.3B on A40 (tf32) = 0.032 sec/token (for ctxlen 1000), tested using HF, GPU utilization 45% too (interesting), VRAM 9655M
