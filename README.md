@@ -38,9 +38,11 @@ You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build 
 
 ![RWKV-eval2](RWKV-eval2.png)
 
-RWKV [loss vs token position] for 10000 long documents in Pile. 1B5-4k is mostly flat after 1500, but 3B-4k and 7B-4k have some slopes, and the slope of 7B-4k is larger. I believe RWKV 100B will be very good at this, and "RWKV 1T is probably all you need" :)
+RWKV [loss vs token position] for 10000 ctx4k+ documents in Pile. RWKV 1B5-4k is mostly flat after ctx1500, but 3B-4k and 7B-4k and 14B-4k have some slopes, and they are getting better. This debunks the old view that RNNs cannot model long ctxlens. We can predict that RWKV 100B will be great, and RWKV 1T is probably all you need :)
 
 ![RWKV-ctxlen](RWKV-ctxlen.png)
+
+I believe RNN is a better candidate for fundamental models, because: (1) It's more friendly for ASICs (no kv cache). (2) It's more friendly for RL. (3) When we write, our brain is more similar to RNN. (4) The universe is like an RNN too (because of locality). Transformers are non-local models.
 
 RWKV-3 1.5B on A40 (tf32) = always 0.015 sec/token, tested using simple pytorch code (no CUDA), GPU utilization 45%, VRAM 7823M
 
