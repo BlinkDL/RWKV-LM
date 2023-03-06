@@ -42,9 +42,10 @@ class MyDataset(Dataset):
                 assert self.samples_per_epoch == 40320
                 rank_zero_info(f"########## Pile 20b-tokenized stage {args.my_pile_stage} ##########")
                 dataset_slot = self.data_size // args.ctx_len
-                assert MaybeIsPrime(args.magic_prime)
-                assert args.magic_prime % 3 == 2
-                assert args.magic_prime / dataset_slot > 0.99 and args.magic_prime / dataset_slot <= 1
+                if args.my_pile_stage != 4:
+                    assert MaybeIsPrime(args.magic_prime)
+                    assert args.magic_prime % 3 == 2
+                    assert args.magic_prime / dataset_slot > 0.99 and args.magic_prime / dataset_slot <= 1
         elif args.data_type == "numpy":
             self.data = np.load(args.data_file).astype("int")
             self.vocab_size = args.vocab_size
