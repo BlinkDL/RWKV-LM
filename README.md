@@ -10,10 +10,16 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 **Download RWKV-4 0.1/0.4/1.5/3/7/14B weights**: https://huggingface.co/BlinkDL
 
+**Discord**: https://discord.gg/bDSBUMeFpc
+
+**Twitter**: https://twitter.com/BlinkDL_AI
+
 **RWKV in 150 lines** (model, inference, text generation): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_in_150_lines.py
 
 **ChatRWKV v2:** with "stream" and "split" strategies and INT8. **3G VRAM is enough to run RWKV 14B :)** https://github.com/BlinkDL/ChatRWKV/tree/main/v2
+
 ![RWKV-chat](RWKV-chat.png)
+
 ```python
 os.environ["RWKV_JIT_ON"] = '1'
 os.environ["RWKV_CUDA_ON"] = '0' # if '1' then use CUDA kernel for seq mode (much faster)
@@ -29,11 +35,7 @@ print(out.detach().cpu().numpy())                   # same result as above
 ```
 **Hugging Face space**: https://huggingface.co/spaces/BlinkDL/ChatRWKV-gradio
 
-## Join our Discord: https://discord.gg/bDSBUMeFpc :)
-
 You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to Stability and EleutherAI), so if you have interesting ideas I can run them.
-
-**Twitter**: https://twitter.com/BlinkDL_AI
 
 ![RWKV-eval2](RWKV-eval2.png)
 
