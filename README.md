@@ -24,7 +24,7 @@ print(out.detach().cpu().numpy())                   # same result as above
 
 **Download RWKV-4 0.1/0.4/1.5/3/7/14B weights**: https://huggingface.co/BlinkDL
 
-**Discord**: https://discord.gg/bDSBUMeFpc
+## Join Our Discord: https://discord.gg/bDSBUMeFpc (lots of developers)
 
 **Twitter**: https://twitter.com/BlinkDL_AI
 
