@@ -122,8 +122,7 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
         model.load(init_state)
 
     for i in range(src_len, src_len + (1 if DEBUG_DEBUG else LENGTH_PER_TRIAL)):
-        x = ctx[:i+1]
-        x = x[-ctx_len:]
+        x = ctx[:i+1][-ctx_len:]
 
         if i == src_len:
             out = copy.deepcopy(init_state.out)
@@ -143,7 +142,7 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
             print(tokenizer.itos[int(char)], end='', flush=True)
         else:
             print(tokenizer.tokenizer.decode(int(char)), end='', flush=True)
-        ctx += [char]
+        ctx.append(char)
 
     t_end = time.time_ns()
     print("\n----------", round((t_end - t_begin) / (10 ** 9), 2), end='s ')

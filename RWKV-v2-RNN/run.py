@@ -128,6 +128,6 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
                                        top_p_usual=top_p, top_p_newline=top_p_newline)
         char = char.item()
         print(tokenizer.itos[int(char)], end='', flush=True)
-        ctx += [char]
+        ctx.append(char)
     t_end = time.time_ns()
     print("\n----------", round((t_end - t_begin) / (10 ** 9), 2), end='s ')
