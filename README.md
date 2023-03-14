@@ -214,6 +214,18 @@ out.write(ss + "\n")
 
 5. RWKV might be great on analog devices (search for Analog Matrix-vector multiplication & Photonic Matrix-vector multiplication). RNN is very hardware-friendly. SNN RWKV is straightforward. I wonder if it can be optimized for quantum computation too. 
 
+### Vision Tasks
+
+1. I find it's good to add a 2d pos encoding:
+```
+self.pos_emb_x = nn.Parameter(torch.zeros((1,args.my_pos_emb,args.n_embd)))
+self.pos_emb_y = nn.Parameter(torch.zeros((args.my_pos_emb,1,args.n_embd)))
+...
+x = x + pos_emb_x + pos_emb_y
+```
+
+2. In a langauge model, it's the best to use [tokenShift of 1 token]. However you can try [tokenShift of N (or N-1) (or N+1) tokens] if the image size is N x N, because that will be like mixing [the token above the current positon (or the token above the to-be-predicted positon)] with [current token]. You can use try different tokenShift styles for "ATT" & "FFN", or mixing different tokenShift styles - such as mixing [token A] with [token A-1] and [token A-(N-1)] etc.
+
 ### Misc
 
 I have an idea to improve tokenization. We can hardcode some channels to have meanings. Example:
