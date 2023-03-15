@@ -204,7 +204,7 @@ out.write(ss + "\n")
 
 ### Some ideas
 
-1. Now time decay is like 0.999^T (0.999 is learnable). Change it to something like (0.999^T + 0.1) where 0.1 is learnable too. The 0.1 part will be kept forever. Or, A^T + B^T + C = fast-decay + slow-decay + constant. Can even use different formulas (for example, x^2 instead of e^x, or, without normalization).
+1. Now time decay is like 0.999^T (0.999 is learnable). Change it to something like (0.999^T + 0.1) where 0.1 is learnable too. The 0.1 part will be kept forever. Or, A^T + B^T + C = fast-decay + slow-decay + constant. Can even use different formulas (for example, K^2 instead of e^K for a decay component, or, without normalization).
 
 2. Use complex-valued decay (so, rotation instead of decay) in some channels.
 
@@ -212,7 +212,7 @@ out.write(ss + "\n")
 
 4. Aside from 2d rotation, we can try other Lie groups such as 3d rotation ( SO(3) ). Non-abelian RWKV lol.
 
-5. RWKV might be great on analog devices (search for Analog Matrix-vector multiplication & Photonic Matrix-vector multiplication). RNN is very hardware-friendly. SNN RWKV is straightforward. I wonder if it can be optimized for quantum computation too. 
+5. RWKV might be great on analog devices (search for Analog Matrix-vector multiplication & Photonic Matrix-vector multiplication). RNN is very hardware-friendly (in-memory processing?). Can be a SNN too (https://github.com/ridgerchu/SpikeGPT). I wonder if it can be optimized for quantum computation.
 
 ### Vision Tasks
 
