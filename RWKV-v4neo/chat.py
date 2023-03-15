@@ -42,7 +42,7 @@ args.ctx_len = 1024
 
 # Modify this to use LoRA models; lora_r = 0 will not use LoRA weights.
 args.MODEL_LORA = '/home/blealtancao/rwkv-models/lora-full-1e-4/rwkv-33'
-args.lora_r = 8
+args.lora_r = 0
 args.lora_alpha = 16
 
 # args.MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-7b/RWKV-4-Pile-7B-20221115-8047'

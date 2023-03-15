@@ -6,6 +6,7 @@ import functools
 import os, math, gc
 import torch
 import torch.nn as nn
+from torch.utils.checkpoint import checkpoint as torch_checkpoint
 from torch.nn import functional as F
 import pytorch_lightning as pl
 from pytorch_lightning.utilities import rank_zero_info, rank_zero_only
@@ -114,16 +115,29 @@ def RUN_CUDA(B, T, C, w, u, k, v):
 ########################################################################################################
 
 
-class LoraLinear(nn.Linear):
-    def __init__(self, in_features: int, out_features: int, bias: bool = True):
-        super().__init__(in_features, out_features, bias=bias)
-        self.lora_A = nn.Linear(in_features, LORA_CONFIG["r"], bias=False)
-        self.lora_B = nn.Linear(LORA_CONFIG["r"], out_features, bias=False)
-        self.lora_dropout = nn.Dropout(LORA_CONFIG["dropout"])
-        self.scaling = LORA_CONFIG["alpha"] / LORA_CONFIG["r"]
+class LoraLinear(nn.Module):
+
+    def __init__(self, in_features: int, out_features: int, bias: bool):
+        super().__init__()
+
+        self.weight = nn.Parameter(torch.empty((out_features, in_features)))
+        assert bias == False, "Biased LoraLinear not supported"
+
+        r, alpha, dropout = LORA_CONFIG["r"], LORA_CONFIG[
+            "alpha"], LORA_CONFIG["dropout"]
+        self.lora_A = nn.Parameter(torch.empty(r, in_features))
+        self.lora_B = nn.Parameter(torch.empty(out_features, r))
+        self.lora_dropout = nn.Dropout(dropout)
+        self.scaling = alpha / r
+
+        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+        nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
+        nn.init.zeros_(self.lora_B)
 
     def forward(self, x):
-        return F.linear(x, self.weight, self.bias) + self.lora_B(self.lora_A(self.lora_dropout(x))) * self.scaling
+        return (
+            F.linear(x, self.weight) + self.scaling *
+            F.linear(F.linear(self.lora_dropout(x), self.lora_A), self.lora_B))
 
 
 @functools.wraps(LoraLinear)
@@ -488,13 +502,19 @@ class RWKV(pl.LightningModule):
         if args.tiny_att_dim > 0:
             for block in self.blocks:
                 if args.grad_cp == 1:
-                    x = deepspeed.checkpointing.checkpoint(block, x, x_emb)
+                    if args.lora:
+                        x = torch_checkpoint(block, x, x_emb, use_reentrant=False)
+                    else:
+                        x = deepspeed.checkpointing.checkpoint(block, x, x_emb)
                 else:
                     x = block(x, x_emb)
         else:
             for block in self.blocks:
                 if args.grad_cp == 1:
-                    x = deepspeed.checkpointing.checkpoint(block, x)
+                    if args.lora:
+                        x = torch_checkpoint(block, x, x_emb, use_reentrant=False)
+                    else:
+                        x = deepspeed.checkpointing.checkpoint(block, x)
                 else:
                     x = block(x)
 

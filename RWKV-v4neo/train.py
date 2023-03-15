@@ -254,6 +254,9 @@ if __name__ == "__main__":
     os.environ["RWKV_JIT_ON"] = "1"
     if "deepspeed_stage_3" in args.strategy:
         os.environ["RWKV_JIT_ON"] = "0"
+    if args.lora and args.grad_cp == 1:
+        print('!!!!! LoRA Warning: Gradient Checkpointing requires JIT off, disabling it')
+        os.environ["RWKV_JIT_ON"] = "0"
 
     torch.backends.cudnn.benchmark = True
     torch.backends.cudnn.enabled = True
@@ -298,10 +301,14 @@ if __name__ == "__main__":
         if args.lora:
             model.requires_grad_(False)
             for name, module in model.named_modules():
-                if ('.lora_' in name
-                        or (enable_time_finetune and '.time_' in name)
-                        or (enable_ln_finetune and '.ln' in name)):
+                # have to check param name since it may have been wrapped by torchscript
+                if 'lora_A' in set(n for n, _ in module.named_parameters()):
                     print(f'  LoRA training {name}')
+                    for pname, param in module.named_parameters():
+                        param.requires_grad = 'lora_' in pname
+                elif ((enable_time_finetune and '.time_' in name)
+                        or (enable_ln_finetune and '.ln' in name)):
+                    print(f'  LoRA additionally training {name}')
                     for param in module.parameters():
                         param.requires_grad = True
 
