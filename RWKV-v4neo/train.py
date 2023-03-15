@@ -118,11 +118,12 @@ if __name__ == "__main__":
 
     ########################################################################################################
 
-    import os, warnings, math, datetime, sys, time
+    import os, warnings, math, datetime, sys, time, importlib
     import numpy as np
     import torch
     from torch.utils.data import DataLoader
-    import deepspeed
+    if "deepspeed" in args.strategy:
+        import deepspeed
     import pytorch_lightning as pl
     from pytorch_lightning import seed_everything
 
@@ -230,9 +231,9 @@ if __name__ == "__main__":
 #
 # Adam = lr {args.lr_init} to {args.lr_final}, warmup {args.warmup_steps} steps, beta {args.betas}, eps {args.adam_eps}
 #
-# Found torch {torch.__version__}, recommend 1.12.1+cu116 or newer
-# Found deepspeed {deepspeed.__version__}, recommend 0.7.0 (faster than newer versions)
-# Found pytorch_lightning {pl.__version__}, recommend 1.7.4 or newer
+# Found torch {torch.__version__}, recommend 1.13.1+cu117 or newer
+# Found deepspeed {deepspeed.__version__ if importlib.util.find_spec('deepspeed') else 'None'}, recommend 0.7.0 (faster than newer versions)
+# Found pytorch_lightning {pl.__version__}, recommend 1.9.1 or newer
 #
 ############################################################################
 """
@@ -247,7 +248,8 @@ if __name__ == "__main__":
     assert args.precision in ["fp32", "tf32", "fp16", "bf16"]
     os.environ["RWKV_FLOAT_MODE"] = args.precision
     if args.precision == "fp32":
-        rank_zero_info("\n\nNote: you are using fp32 (very slow). Try bf16 / tf32 for faster training.\n\n")
+        for i in range(10):
+            rank_zero_info("\n\nNote: you are using fp32 (very slow). Try bf16 / tf32 for faster training.\n\n")
     if args.precision == "fp16":
         rank_zero_info("\n\nNote: you are using fp16 (might overflow). Try bf16 / tf32 for stable training.\n\n")
 
