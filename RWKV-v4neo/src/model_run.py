@@ -53,8 +53,8 @@ class RWKV_RNN(MyModule):
                     k: str
                     if k.endswith('.weight'):
                         prefix = k[:-len('.weight')]
-                        lora_A = prefix + '.lora_A.weight'
-                        lora_B = prefix + '.lora_B.weight'
+                        lora_A = prefix + '.lora_A'
+                        lora_B = prefix + '.lora_B'
                         if lora_A in keys:
                             assert lora_B in keys
                             print(f'merging {lora_A} and {lora_B} into {k}')
