@@ -152,7 +152,7 @@ For the old RWKV-2: see the release here for a 27M params model on enwik8 with 0
 
 I'd like to build an almost-INT8 version of RWKV. A simple method to quantize a matrix with outliers:
 ```python
-import numpy as npA
+import numpy as np
 
 # the original M, with outliers
 M = np.array([[1,   2,   1,  2],[2,  100,    2, 10],[1,   2,   1, 2],[2,   1, 20, 1]])
