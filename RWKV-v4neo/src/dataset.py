@@ -167,6 +167,8 @@ class MyDataset(Dataset):
                                 magic_prime = 162165671
                             elif args.ctx_len == 4096:
                                 magic_prime = 81082817
+                            elif args.ctx_len == 8192:
+                                magic_prime = 40541399
                             data = self.data_pile
                         else:
                             ii = ii // 2
