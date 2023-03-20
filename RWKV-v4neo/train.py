@@ -80,8 +80,9 @@ if __name__ == "__main__":
     parser.add_argument("--beta1", default=0.9, type=float)
     parser.add_argument("--beta2", default=0.99, type=float)  # use 0.999 when your model is close to convergence
     parser.add_argument("--adam_eps", default=1e-8, type=float)
-
     parser.add_argument("--grad_cp", default=0, type=int)  # gradient checkpt: saves VRAM, but slower
+
+    parser.add_argument("--my_pile_version", default=1, type=int)  # my special pile version
     parser.add_argument("--my_pile_stage", default=0, type=int)  # my special pile mode
     parser.add_argument("--my_pile_shift", default=-1, type=int)  # my special pile mode - text shift
     parser.add_argument("--my_pile_edecay", default=0, type=int)
@@ -157,18 +158,27 @@ if __name__ == "__main__":
 
     if args.my_pile_stage > 0:
         magic_prime_bak = args.magic_prime
-        if args.ctx_len == 1024:
-            args.magic_prime = 324331313
-            args.epoch_count = 8043
-        elif args.ctx_len == 2048:
-            args.magic_prime = 162165671
-            args.epoch_count = 4021
-        elif args.ctx_len == 4096:
-            args.magic_prime = 81082817
-            args.epoch_count = 2010
-        elif args.ctx_len == 8192:
-            args.magic_prime = 40541399
-            args.epoch_count = 1005
+
+        if args.my_pile_version == 1:
+            if args.ctx_len == 1024:
+                args.magic_prime = 324331313
+                args.epoch_count = 8043
+            elif args.ctx_len == 2048:
+                args.magic_prime = 162165671
+                args.epoch_count = 4021
+            elif args.ctx_len == 4096:
+                args.magic_prime = 81082817
+                args.epoch_count = 2010
+            elif args.ctx_len == 8192:
+                args.magic_prime = 40541399
+                args.epoch_count = 1005
+        else:
+            if args.ctx_len == 4096:
+                args.magic_prime = 423736637
+                args.epoch_count = 10508
+            elif args.ctx_len == 8192:
+                args.magic_prime = 211868309
+                args.epoch_count = 5253
         if args.my_pile_shift < 0:
             args.my_pile_shift = 0
 
