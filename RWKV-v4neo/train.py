@@ -177,7 +177,7 @@ if __name__ == "__main__":
                 args.magic_prime = 423736637
                 args.epoch_count = 10508
             elif args.ctx_len == 8192:
-                args.magic_prime = 211868309
+                args.magic_prime = 211868243
                 args.epoch_count = 5253
         if args.my_pile_shift < 0:
             args.my_pile_shift = 0
