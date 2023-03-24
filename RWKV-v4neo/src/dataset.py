@@ -189,6 +189,9 @@ class MyDataset(Dataset):
                         i = np.random.randint(0, self.data_size - req_len)
                     else:
                         i = np.random.randint(0, self.data_size)
+                else:
+                    # cheat: pick a random spot in dataset
+                    i = np.random.randint(0, self.data_size - req_len)
 
                 if args.data_type == "binidx":
                     if args.my_pile_version == 1:
