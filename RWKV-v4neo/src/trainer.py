@@ -4,14 +4,16 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning.utilities import rank_zero_info, rank_zero_only
 
+
 def my_save(dd, ff):
-    if '14b-run1' not in ff:
+    if "14b-run1" not in ff:
         torch.save(dd, ff)
     else:
-        fn = ff.split('/')[-1]
-        fff = '/dev/shm/' + fn
+        fn = ff.split("/")[-1]
+        fff = "/dev/shm/" + fn
         torch.save(dd, fff)
         subprocess.Popen(f" aws s3 mv {fff} s3://rwkv-14b-4k/{fn} --quiet", shell=True)
+
 
 class train_callback(pl.Callback):
     def __init__(self, args):
@@ -37,7 +39,9 @@ class train_callback(pl.Callback):
             if args.lr_final == 0 or args.lr_init == 0:  # linear decay
                 lr = args.lr_init + (args.lr_final - args.lr_init) * progress
             else:  # exp decay
-                lr = args.lr_init * math.exp(math.log(args.lr_final / args.lr_init) * pow(progress, 1))
+                lr = args.lr_init * math.exp(
+                    math.log(args.lr_final / args.lr_init) * pow(progress, 1)
+                )
 
             if trainer.global_step < w_step:
                 lr = lr * (0.2 + 0.8 * trainer.global_step / w_step)
@@ -59,7 +63,9 @@ class train_callback(pl.Callback):
                 trainer.my_loss_sum = 0
                 trainer.my_loss_count = 0
                 trainer.my_log = open(args.proj_dir + "/train_log.txt", "a")
-                trainer.my_log.write(f"NEW RUN {args.my_timestamp}\n{vars(self.args)}\n")
+                trainer.my_log.write(
+                    f"NEW RUN {args.my_timestamp}\n{vars(self.args)}\n"
+                )
                 try:
                     print(f"\n{trainer.strategy.config}\n")
                     trainer.my_log.write(f"{trainer.strategy.config}\n")
@@ -69,6 +75,7 @@ class train_callback(pl.Callback):
                 if len(args.wandb) > 0:
                     print("Login to wandb...")
                     import wandb
+
                     wandb.init(
                         project=args.wandb,
                         name=args.run_name + " " + args.my_timestamp,
@@ -101,19 +108,25 @@ class train_callback(pl.Callback):
             # self.log("s", real_step, prog_bar=True, on_step=True)
 
             if len(args.wandb) > 0:
-                lll = {"loss": trainer.my_loss, "lr": trainer.my_lr, "Gtokens": real_step * token_per_step / 1e9}
+                lll = {
+                    "loss": trainer.my_loss,
+                    "lr": trainer.my_lr,
+                    "Gtokens": real_step * token_per_step / 1e9,
+                }
                 if kt_s > 0:
                     lll["kt/s"] = kt_s
                 trainer.my_wandb.log(lll, step=int(real_step))
             if args.magic_prime > 0:
                 expand_factor = 2 if args.my_qa_mask > 0 else 1
-                if int(real_step) == int(args.magic_prime * expand_factor // args.real_bsz) - 1:
+                if (
+                    int(real_step)
+                    == int(args.magic_prime * expand_factor // args.real_bsz) - 1
+                ):
                     to_save_dict = pl_module.state_dict()
                     my_save(
                         to_save_dict,
                         f"{args.proj_dir}/rwkv-final.pth",
                     )
-                
 
     def on_train_epoch_start(self, trainer, pl_module):
         args = self.args
@@ -127,12 +140,14 @@ class train_callback(pl.Callback):
     def on_train_epoch_end(self, trainer, pl_module):
         args = self.args
         if trainer.is_global_zero:  # logging & save state_dict
-            if (args.epoch_save > 0 and trainer.current_epoch % args.epoch_save == 0) or trainer.current_epoch == args.epoch_count - 1:
-                if args.data_type == 'wds_img':
+            if (
+                args.epoch_save > 0 and trainer.current_epoch % args.epoch_save == 0
+            ) or trainer.current_epoch == args.epoch_count - 1:
+                if args.data_type == "wds_img":
                     raw_dict = pl_module.state_dict()
                     to_save_dict = {}
                     for k in raw_dict:
-                        if k.startswith('encoder.') or k.startswith('decoder.'):
+                        if k.startswith("encoder.") or k.startswith("decoder."):
                             to_save_dict[k] = raw_dict[k]
                 else:
                     to_save_dict = pl_module.state_dict()
@@ -142,8 +157,10 @@ class train_callback(pl.Callback):
                         f"{args.proj_dir}/rwkv-{args.epoch_begin + trainer.current_epoch}.pth",
                     )
                 except Exception as e:
-                    print('Error\n\n', e, '\n\n')
-            trainer.my_log.write(f"{args.epoch_begin + trainer.current_epoch} {trainer.my_epoch_loss:.6f} {math.exp(trainer.my_epoch_loss):.4f} {trainer.my_lr:.8f} {datetime.datetime.now()} {trainer.current_epoch}\n")
+                    print("Error\n\n", e, "\n\n")
+            trainer.my_log.write(
+                f"{args.epoch_begin + trainer.current_epoch} {trainer.my_epoch_loss:.6f} {math.exp(trainer.my_epoch_loss):.4f} {trainer.my_lr:.8f} {datetime.datetime.now()} {trainer.current_epoch}\n"
+            )
             trainer.my_log.flush()
 
             trainer.my_loss_sum = 0
@@ -165,22 +182,22 @@ def generate_init_weight(model, init_weight_name):
                     mm[k] = src.reshape(mm[k].shape)
                 except:
                     tmp = mm[k].squeeze().clone()
-                    print(k, src.shape, '-->', mm[k].shape)
+                    print(k, src.shape, "-->", mm[k].shape)
                     ss = src.shape[0]
                     dd = tmp.shape[0]
                     for i in range(dd):
                         pos = i / dd * ss
                         if pos >= ss - 1:
-                            tmp[i] = src[ss-1]
+                            tmp[i] = src[ss - 1]
                         else:
                             p0 = int(math.floor(pos))
                             ii = pos - p0
-                            tmp[i] = src[p0] * (1-ii) + src[p0+1] * (ii)
+                            tmp[i] = src[p0] * (1 - ii) + src[p0 + 1] * (ii)
                     mm[k] = tmp.reshape(mm[k].shape)
                     sss = src.squeeze().float().cpu().numpy()
-                    print(sss[:10], '...', sss[-10:])
+                    print(sss[:10], "...", sss[-10:])
                     mmm = mm[k].squeeze().float().cpu().numpy()
-                    print(mmm[:10], '...', mmm[-10:])
+                    print(mmm[:10], "...", mmm[-10:])
 
     print(f"Save to {init_weight_name}...")
     torch.save(mm, init_weight_name)

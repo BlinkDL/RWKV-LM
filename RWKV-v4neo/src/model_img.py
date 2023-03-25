@@ -13,16 +13,21 @@ from pytorch_lightning.utilities import rank_zero_info, rank_zero_only
 from pytorch_lightning.strategies import DeepSpeedStrategy
 import deepspeed
 from deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam
+
 # from pytorch_msssim import MS_SSIM
+
 
 def __nop(ob):
     return ob
+
+
 MyModule = torch.jit.ScriptModule
 # MyFunction = __nop
 MyFunction = torch.jit.script_method
 
 import clip
 from transformers import CLIPModel
+
 
 class L2pooling(nn.Module):
     def __init__(self, filter_size=5, stride=2, channels=None, pad_off=0):
@@ -149,55 +154,57 @@ class DISTS(torch.nn.Module):
 
     class ToBinary(torch.autograd.Function):
         @staticmethod
-        def forward(ctx, x):#, noise_scale):
+        def forward(ctx, x):  # , noise_scale):
             # if noise_scale > 0:
             #     noise_min = 0.5 - noise_scale / 2
             #     noise_max = 0.5 + noise_scale / 2
             #     return torch.floor(x + torch.empty_like(x).uniform_(noise_min, noise_max))
             # else:
-            return torch.floor(x + 0.5) # no need for noise when we have plenty of data
+            return torch.floor(x + 0.5)  # no need for noise when we have plenty of data
 
         @staticmethod
         def backward(ctx, grad_output):
-            return grad_output.clone()#, None
+            return grad_output.clone()  # , None
+
 
 ########################################################################################################
+
 
 class R_ENCODER(MyModule):
     def __init__(self, args):
         super().__init__()
         self.args = args
         dd = 8
-        self.Bxx = nn.BatchNorm2d(dd*64)
+        self.Bxx = nn.BatchNorm2d(dd * 64)
 
         self.CIN = nn.Conv2d(3, dd, kernel_size=3, padding=1)
         self.Cx0 = nn.Conv2d(dd, 32, kernel_size=3, padding=1)
         self.Cx1 = nn.Conv2d(32, dd, kernel_size=3, padding=1)
 
-        self.B00 = nn.BatchNorm2d(dd*4)
-        self.C00 = nn.Conv2d(dd*4, 256, kernel_size=3, padding=1)
-        self.C01 = nn.Conv2d(256, dd*4, kernel_size=3, padding=1)
-        self.C02 = nn.Conv2d(dd*4, 256, kernel_size=3, padding=1)
-        self.C03 = nn.Conv2d(256, dd*4, kernel_size=3, padding=1)
+        self.B00 = nn.BatchNorm2d(dd * 4)
+        self.C00 = nn.Conv2d(dd * 4, 256, kernel_size=3, padding=1)
+        self.C01 = nn.Conv2d(256, dd * 4, kernel_size=3, padding=1)
+        self.C02 = nn.Conv2d(dd * 4, 256, kernel_size=3, padding=1)
+        self.C03 = nn.Conv2d(256, dd * 4, kernel_size=3, padding=1)
 
-        self.B10 = nn.BatchNorm2d(dd*16)
-        self.C10 = nn.Conv2d(dd*16, 256, kernel_size=3, padding=1)
-        self.C11 = nn.Conv2d(256, dd*16, kernel_size=3, padding=1)
-        self.C12 = nn.Conv2d(dd*16, 256, kernel_size=3, padding=1)
-        self.C13 = nn.Conv2d(256, dd*16, kernel_size=3, padding=1)
+        self.B10 = nn.BatchNorm2d(dd * 16)
+        self.C10 = nn.Conv2d(dd * 16, 256, kernel_size=3, padding=1)
+        self.C11 = nn.Conv2d(256, dd * 16, kernel_size=3, padding=1)
+        self.C12 = nn.Conv2d(dd * 16, 256, kernel_size=3, padding=1)
+        self.C13 = nn.Conv2d(256, dd * 16, kernel_size=3, padding=1)
 
-        self.B20 = nn.BatchNorm2d(dd*64)
-        self.C20 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)
-        self.C21 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)
-        self.C22 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)
-        self.C23 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)
+        self.B20 = nn.BatchNorm2d(dd * 64)
+        self.C20 = nn.Conv2d(dd * 64, 256, kernel_size=3, padding=1)
+        self.C21 = nn.Conv2d(256, dd * 64, kernel_size=3, padding=1)
+        self.C22 = nn.Conv2d(dd * 64, 256, kernel_size=3, padding=1)
+        self.C23 = nn.Conv2d(256, dd * 64, kernel_size=3, padding=1)
         # self.B21 = nn.BatchNorm2d(dd*64)
         # self.C24 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)
         # self.C25 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)
         # self.C26 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)
         # self.C27 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)
 
-        self.COUT = nn.Conv2d(dd*64, args.my_img_bit, kernel_size=3, padding=1)
+        self.COUT = nn.Conv2d(dd * 64, args.my_img_bit, kernel_size=3, padding=1)
 
     @MyFunction
     def forward(self, img):
@@ -224,37 +231,39 @@ class R_ENCODER(MyModule):
         x = self.COUT(x + xx)
         return torch.sigmoid(x)
 
+
 ########################################################################################################
+
 
 class R_DECODER(MyModule):
     def __init__(self, args):
         super().__init__()
         self.args = args
         dd = 8
-        self.CIN = nn.Conv2d(args.my_img_bit, dd*64, kernel_size=3, padding=1)
+        self.CIN = nn.Conv2d(args.my_img_bit, dd * 64, kernel_size=3, padding=1)
 
-        self.B00 = nn.BatchNorm2d(dd*64)
-        self.C00 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)
-        self.C01 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)
-        self.C02 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)
-        self.C03 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)
+        self.B00 = nn.BatchNorm2d(dd * 64)
+        self.C00 = nn.Conv2d(dd * 64, 256, kernel_size=3, padding=1)
+        self.C01 = nn.Conv2d(256, dd * 64, kernel_size=3, padding=1)
+        self.C02 = nn.Conv2d(dd * 64, 256, kernel_size=3, padding=1)
+        self.C03 = nn.Conv2d(256, dd * 64, kernel_size=3, padding=1)
         # self.B01 = nn.BatchNorm2d(dd*64)
         # self.C04 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)
         # self.C05 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)
         # self.C06 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)
         # self.C07 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)
 
-        self.B10 = nn.BatchNorm2d(dd*16)
-        self.C10 = nn.Conv2d(dd*16, 256, kernel_size=3, padding=1)
-        self.C11 = nn.Conv2d(256, dd*16, kernel_size=3, padding=1)
-        self.C12 = nn.Conv2d(dd*16, 256, kernel_size=3, padding=1)
-        self.C13 = nn.Conv2d(256, dd*16, kernel_size=3, padding=1)
+        self.B10 = nn.BatchNorm2d(dd * 16)
+        self.C10 = nn.Conv2d(dd * 16, 256, kernel_size=3, padding=1)
+        self.C11 = nn.Conv2d(256, dd * 16, kernel_size=3, padding=1)
+        self.C12 = nn.Conv2d(dd * 16, 256, kernel_size=3, padding=1)
+        self.C13 = nn.Conv2d(256, dd * 16, kernel_size=3, padding=1)
 
-        self.B20 = nn.BatchNorm2d(dd*4)
-        self.C20 = nn.Conv2d(dd*4, 256, kernel_size=3, padding=1)
-        self.C21 = nn.Conv2d(256, dd*4, kernel_size=3, padding=1)
-        self.C22 = nn.Conv2d(dd*4, 256, kernel_size=3, padding=1)
-        self.C23 = nn.Conv2d(256, dd*4, kernel_size=3, padding=1)
+        self.B20 = nn.BatchNorm2d(dd * 4)
+        self.C20 = nn.Conv2d(dd * 4, 256, kernel_size=3, padding=1)
+        self.C21 = nn.Conv2d(256, dd * 4, kernel_size=3, padding=1)
+        self.C22 = nn.Conv2d(dd * 4, 256, kernel_size=3, padding=1)
+        self.C23 = nn.Conv2d(256, dd * 4, kernel_size=3, padding=1)
 
         self.Cx0 = nn.Conv2d(dd, 32, kernel_size=3, padding=1)
         self.Cx1 = nn.Conv2d(32, dd, kernel_size=3, padding=1)
@@ -281,47 +290,52 @@ class R_DECODER(MyModule):
 
         x = x + self.Cx1(ACT(self.Cx0(x)))
         x = self.COUT(x)
-        
+
         return torch.sigmoid(x)
 
+
 ########################################################################################################`
+
 
 def cosine_loss(x, y):
     x = F.normalize(x, dim=-1)
     y = F.normalize(y, dim=-1)
-    return 1 - torch.einsum('ij,ij->i',[x,y])
+    return 1 - torch.einsum("ij,ij->i", [x, y])
+
 
 class RWKV_IMG(pl.LightningModule):
     def __init__(self, args):
         super().__init__()
         self.args = args
-            
+
         self.encoder = R_ENCODER(args)
         self.decoder = R_DECODER(args)
 
         self.clip_model = None
         clip_name = args.my_img_clip
-        if clip_name == 'B32':
-            clip_name = 'ViT-B/32'
-        elif clip_name == 'B16':
-            clip_name = 'ViT-B/16'
-        elif clip_name == 'L14':
-            clip_name = 'ViT-L/14'
-        elif clip_name == 'OB32':
+        if clip_name == "B32":
+            clip_name = "ViT-B/32"
+        elif clip_name == "B16":
+            clip_name = "ViT-B/16"
+        elif clip_name == "L14":
+            clip_name = "ViT-L/14"
+        elif clip_name == "OB32":
             clip_name = "laion/CLIP-ViT-B-32-laion2B-s34B-b79K"
             self.clip_model = CLIPModel.from_pretrained(clip_name)
             self.clip_model.encode_image = self.clip_model.get_image_features
         if self.clip_model == None:
-            self.clip_model, _ = clip.load(clip_name, jit = True)
+            self.clip_model, _ = clip.load(clip_name, jit=True)
         self.register_buffer(
-            "clip_mean", torch.tensor([0.48145466, 0.4578275, 0.40821073]).view(1, 3, 1, 1)
+            "clip_mean",
+            torch.tensor([0.48145466, 0.4578275, 0.40821073]).view(1, 3, 1, 1),
         )
         self.register_buffer(
-            "clip_std", torch.tensor([0.26862954, 0.26130258, 0.27577711]).view(1, 3, 1, 1)
+            "clip_std",
+            torch.tensor([0.26862954, 0.26130258, 0.27577711]).view(1, 3, 1, 1),
         )
 
         for n, p in self.named_parameters():
-            if 'clip_model' in n:
+            if "clip_model" in n:
                 p.requires_grad = False
 
         self.loss_dists = DISTS()
@@ -365,7 +379,7 @@ class RWKV_IMG(pl.LightningModule):
 
     def forward(self, img):
         z = self.encoder(img)
-        z = ToBinary.apply(z)#, self.args.my_img_noise_scale)
+        z = ToBinary.apply(z)  # , self.args.my_img_noise_scale)
         out = self.decoder(z)
         return out
 
@@ -379,10 +393,12 @@ class RWKV_IMG(pl.LightningModule):
                 if not os.path.exists(img_dir):
                     os.makedirs(img_dir)
                 vision.utils.save_image(
-                    img[:4], f"{img_dir}/{self.trainer.global_step}-src.jpg"#, padding=0
+                    img[:4],
+                    f"{img_dir}/{self.trainer.global_step}-src.jpg",  # , padding=0
                 )
                 vision.utils.save_image(
-                    out[:4], f"{img_dir}/{self.trainer.global_step}-out.jpg"#, padding=0
+                    out[:4],
+                    f"{img_dir}/{self.trainer.global_step}-out.jpg",  # , padding=0
                 )
 
         # loss_ssim = 1 - self.loss_ssim(out, img)
@@ -394,7 +410,11 @@ class RWKV_IMG(pl.LightningModule):
 
         if args.my_img_l1_scale > 0:
             loss_l1 = F.l1_loss(out, img)
-            return loss_dists + loss_clip * args.my_img_clip_scale + loss_l1 * args.my_img_l1_scale
+            return (
+                loss_dists
+                + loss_clip * args.my_img_clip_scale
+                + loss_l1 * args.my_img_l1_scale
+            )
         else:
             return loss_dists + loss_clip * args.my_img_clip_scale
 
@@ -418,7 +438,7 @@ class RWKV_IMG(pl.LightningModule):
             scale = 1
             p = self.state_dict()[n]
             shape = p.shape
-            ss = n.split('.')
+            ss = n.split(".")
 
             # if ss[0] in ['encoder', 'decoder']:
             #     if ss[2] == 'bias':

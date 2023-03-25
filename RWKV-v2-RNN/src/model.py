@@ -9,18 +9,29 @@ import logging
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+
 logger = logging.getLogger(__name__)
 
 ########################################################################################################
 # CUDA Kernel
 ########################################################################################################
 
-T_MAX = 1024          # increase this if your ctx_len > 1024
-B_GROUP_FORWARD = 4   # set to 8 for best performance
+T_MAX = 1024  # increase this if your ctx_len > 1024
+B_GROUP_FORWARD = 4  # set to 8 for best performance
 B_GROUP_BACKWARD = 2  # set to 2 for best performance
 
-timex_cuda = load(name="timex", sources=["cuda/timex_op.cpp", "cuda/timex_cuda.cu"],
-                  verbose=True, extra_cuda_cflags=['--use_fast_math', '--extra-device-vectorization', f'-DTmax={T_MAX}', f'-DBF={B_GROUP_FORWARD}', f'-DBB={B_GROUP_BACKWARD}'])
+timex_cuda = load(
+    name="timex",
+    sources=["cuda/timex_op.cpp", "cuda/timex_cuda.cu"],
+    verbose=True,
+    extra_cuda_cflags=[
+        "--use_fast_math",
+        "--extra-device-vectorization",
+        f"-DTmax={T_MAX}",
+        f"-DBF={B_GROUP_FORWARD}",
+        f"-DBB={B_GROUP_BACKWARD}",
+    ],
+)
 
 
 class TimeX(torch.autograd.Function):
@@ -29,26 +40,39 @@ class TimeX(torch.autograd.Function):
         ctx.B = B
         ctx.C = C
         ctx.T = T
-        assert ctx.T % 4 == 0 and ctx.T <= T_MAX and ctx.B % B_GROUP_FORWARD == 0 and ctx.B % B_GROUP_BACKWARD == 0
+        assert (
+            ctx.T % 4 == 0
+            and ctx.T <= T_MAX
+            and ctx.B % B_GROUP_FORWARD == 0
+            and ctx.B % B_GROUP_BACKWARD == 0
+        )
         w = w.contiguous()
         k = k.contiguous()
         ctx.save_for_backward(w, k)
-        wk = torch.empty((B, C, T), device='cuda',
-                         memory_format=torch.contiguous_format)
+        wk = torch.empty(
+            (B, C, T), device="cuda", memory_format=torch.contiguous_format
+        )
         timex_cuda.forward(w, k, wk, eps, B, C, T)
         return wk
 
     @staticmethod
     def backward(ctx, gwk):
-        assert ctx.T % 4 == 0 and ctx.T <= T_MAX and ctx.B % B_GROUP_FORWARD == 0 and ctx.B % B_GROUP_BACKWARD == 0
+        assert (
+            ctx.T % 4 == 0
+            and ctx.T <= T_MAX
+            and ctx.B % B_GROUP_FORWARD == 0
+            and ctx.B % B_GROUP_BACKWARD == 0
+        )
         w, k = ctx.saved_tensors
-        gw = torch.empty((ctx.B, ctx.C, ctx.T), device='cuda',
-                         memory_format=torch.contiguous_format)
-        gk = torch.empty((ctx.B, ctx.C, ctx.T), device='cuda',
-                         memory_format=torch.contiguous_format)
-        timex_cuda.backward(w, k, gwk.contiguous(), gw,
-                            gk, ctx.B, ctx.C, ctx.T)
+        gw = torch.empty(
+            (ctx.B, ctx.C, ctx.T), device="cuda", memory_format=torch.contiguous_format
+        )
+        gk = torch.empty(
+            (ctx.B, ctx.C, ctx.T), device="cuda", memory_format=torch.contiguous_format
+        )
+        timex_cuda.backward(w, k, gwk.contiguous(), gw, gk, ctx.B, ctx.C, ctx.T)
         return (gw.sum(dim=0), gk, None, None, None, None)
+
 
 ########################################################################################################
 # RWKV: RWKV Time-mix + RWKV Channel-mix
@@ -60,13 +84,18 @@ RWKV_K_EPS = 1e-16
 RWKV_HEAD_QK_DIM = 256
 
 
-def RWKV_Init(module, config):  # fancy initialization of all lin & emb layer in the module
+def RWKV_Init(
+    module, config
+):  # fancy initialization of all lin & emb layer in the module
     for m in module.modules():
         if not isinstance(m, (nn.Linear, nn.Embedding)):
             continue
         with torch.no_grad():
-            name = '[unknown weight]'
-            for name, parameter in module.named_parameters():  # find the name of the weight
+            name = "[unknown weight]"
+            for (
+                name,
+                parameter,
+            ) in module.named_parameters():  # find the name of the weight
                 if id(m.weight) == id(parameter):
                     break
 
@@ -76,7 +105,9 @@ def RWKV_Init(module, config):  # fancy initialization of all lin & emb layer in
 
             if isinstance(m, nn.Embedding):
                 gain = math.sqrt(max(shape[0], shape[1]))
-                if shape[0] == config.vocab_size and shape[1] == config.n_embd:  # token emb?
+                if (
+                    shape[0] == config.vocab_size and shape[1] == config.n_embd
+                ):  # token emb?
                     scale = 1e-4
                 else:
                     scale = 0
@@ -86,10 +117,12 @@ def RWKV_Init(module, config):  # fancy initialization of all lin & emb layer in
                     m.bias.data.zero_()
                 if shape[0] > shape[1]:
                     gain = math.sqrt(shape[0] / shape[1])
-                if shape[0] == config.vocab_size and shape[1] == config.n_embd:  # final projection?
+                if (
+                    shape[0] == config.vocab_size and shape[1] == config.n_embd
+                ):  # final projection?
                     scale = 0.5
 
-            if hasattr(m, 'scale_init'):
+            if hasattr(m, "scale_init"):
                 scale = m.scale_init
 
             # print(str(shape[0]).ljust(5), str(shape[1]).ljust(5), f'{round(scale,2):g}'.ljust(4), name)
@@ -124,21 +157,26 @@ class RWKV_TimeMix(nn.Module):
             decay_speed = torch.ones(attn_sz, 1)
             first_sa_layer_id = 1
             for h in range(attn_sz):
-                f1 = f1_begin + (layer_id-first_sa_layer_id) / \
-                    (config.n_layer-1-first_sa_layer_id) * (f1_end - f1_begin)
-                f2 = f2_begin + (layer_id-first_sa_layer_id) / \
-                    (config.n_layer-1-first_sa_layer_id) * (f2_end - f2_begin)
+                f1 = f1_begin + (layer_id - first_sa_layer_id) / (
+                    config.n_layer - 1 - first_sa_layer_id
+                ) * (f1_end - f1_begin)
+                f2 = f2_begin + (layer_id - first_sa_layer_id) / (
+                    config.n_layer - 1 - first_sa_layer_id
+                ) * (f2_end - f2_begin)
                 if layer_id == first_sa_layer_id:
                     f1 += 0.5
-                if layer_id == config.n_layer-2:
+                if layer_id == config.n_layer - 2:
                     f2 = 0.4
-                if layer_id == config.n_layer-1:
+                if layer_id == config.n_layer - 1:
                     f2 = 0.37
-                decay_speed[h][0] = math.pow(f2, h / (attn_sz-1) * 7) * f1
-        self.time_decay = nn.Parameter(torch.log(decay_speed)) # will use exp(self.time_decay) to ensure time_decay > 0
+                decay_speed[h][0] = math.pow(f2, h / (attn_sz - 1) * 7) * f1
+        self.time_decay = nn.Parameter(
+            torch.log(decay_speed)
+        )  # will use exp(self.time_decay) to ensure time_decay > 0
         self.time_curve = torch.tensor(
-            [-(config.ctx_len - 2 - i) for i in range(config.ctx_len-1)]).unsqueeze(0)
-        self.time_curve = self.time_curve.to('cuda')
+            [-(config.ctx_len - 2 - i) for i in range(config.ctx_len - 1)]
+        ).unsqueeze(0)
+        self.time_curve = self.time_curve.to("cuda")
         self.time_first = nn.Parameter(torch.ones(attn_sz, 1) * math.log(0.3))
         #############################################################################
 
@@ -174,7 +212,8 @@ class RWKV_TimeMix(nn.Module):
         kv = k * v
 
         self.time_w = torch.cat(
-            [torch.exp(self.time_decay) * self.time_curve, self.time_first], dim=-1)
+            [torch.exp(self.time_decay) * self.time_curve, self.time_first], dim=-1
+        )
         w = torch.exp(self.time_w)
 
         wkv = TimeX.apply(w, kv, B, C, T, 0)
@@ -217,6 +256,7 @@ class RWKV_ChannelMix(nn.Module):
         rkv = torch.sigmoid(self.receptance(x)) * kv
         return rkv
 
+
 ########################################################################################################
 # The GPT Model with our blocks
 ########################################################################################################
@@ -239,8 +279,8 @@ class Block(nn.Module):
         self.ln1 = nn.LayerNorm(config.n_embd)
         self.ln2 = nn.LayerNorm(config.n_embd)
 
-        if self.layer_id == 0 and self.config.model_type == 'RWKV-ffnPre':
-            self.ffnPre = RWKV_ChannelMix(config, layer_id+1000)
+        if self.layer_id == 0 and self.config.model_type == "RWKV-ffnPre":
+            self.ffnPre = RWKV_ChannelMix(config, layer_id + 1000)
         else:
             self.att = RWKV_TimeMix(config, layer_id)
 
@@ -248,7 +288,7 @@ class Block(nn.Module):
 
     def forward(self, x):
         x = self.ln1(x)
-        if self.layer_id == 0 and self.config.model_type == 'RWKV-ffnPre':
+        if self.layer_id == 0 and self.config.model_type == "RWKV-ffnPre":
             x = x + self.ffnPre(x)  # better in some cases
         else:
             x = x + self.att(x)
@@ -265,8 +305,7 @@ class GPT(nn.Module):
 
         self.emb = nn.Embedding(config.vocab_size, config.n_embd)
 
-        self.blocks = nn.Sequential(*[Block(config, i)
-                                    for i in range(config.n_layer)])
+        self.blocks = nn.Sequential(*[Block(config, i) for i in range(config.n_layer)])
 
         self.ln_out = nn.LayerNorm(config.n_embd)
         self.head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
@@ -275,15 +314,17 @@ class GPT(nn.Module):
         self.head_q.scale_init = 0
         self.head_k = nn.Linear(config.n_embd, RWKV_HEAD_QK_DIM, bias=False)
         self.head_k.scale_init = 0.1
-        self.register_buffer("copy_mask", torch.tril(
-            torch.ones(config.ctx_len, config.ctx_len)))
+        self.register_buffer(
+            "copy_mask", torch.tril(torch.ones(config.ctx_len, config.ctx_len))
+        )
 
         self.ctx_len = config.ctx_len
 
         RWKV_Init(self, config)
 
-        logger.info("number of parameters: %e", sum(p.numel()
-                    for p in self.parameters()))
+        logger.info(
+            "number of parameters: %e", sum(p.numel() for p in self.parameters())
+        )
 
     def get_ctx_len(self):
         return self.ctx_len
@@ -303,24 +344,34 @@ class GPT(nn.Module):
 
         for mn, m in self.named_modules():  # here we disable weight_decay
             for pn, p in m.named_parameters():
-                fpn = '%s.%s' % (mn, pn) if mn else pn  # full param name
+                fpn = "%s.%s" % (mn, pn) if mn else pn  # full param name
                 no_decay.add(fpn)
 
         param_dict = {pn: p for pn, p in self.named_parameters()}
         inter_params = decay & no_decay
         union_params = decay | no_decay
-        assert len(
-            inter_params) == 0, "parameters %s made it into both decay/no_decay sets!" % (str(inter_params), )
-        assert len(param_dict.keys() - union_params) == 0, "parameters %s were not separated into either decay/no_decay set!" \
-            % (str(param_dict.keys() - union_params), )
+        assert (
+            len(inter_params) == 0
+        ), "parameters %s made it into both decay/no_decay sets!" % (str(inter_params),)
+        assert (
+            len(param_dict.keys() - union_params) == 0
+        ), "parameters %s were not separated into either decay/no_decay set!" % (
+            str(param_dict.keys() - union_params),
+        )
 
         optim_groups = [
-            {"params": [param_dict[pn]
-                        for pn in sorted(list(no_decay))], "weight_decay": 0.0},
+            {
+                "params": [param_dict[pn] for pn in sorted(list(no_decay))],
+                "weight_decay": 0.0,
+            },
         ]
 
         optimizer = torch.optim.Adam(
-            optim_groups, lr=train_config.learning_rate, betas=train_config.betas, eps=train_config.eps)
+            optim_groups,
+            lr=train_config.learning_rate,
+            betas=train_config.betas,
+            eps=train_config.eps,
+        )
 
         return optimizer
 

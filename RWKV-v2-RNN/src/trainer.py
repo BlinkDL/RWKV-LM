@@ -38,7 +38,7 @@ class TrainerConfig:
     warmup_tokens = 0
     final_tokens = 0
     epoch_save_frequency = 0
-    epoch_save_path = 'trained-'
+    epoch_save_path = "trained-"
     num_workers = 0  # for DataLoader
 
     def __init__(self, **kwargs):
@@ -47,7 +47,6 @@ class TrainerConfig:
 
 
 class Trainer:
-
     def __init__(self, model, train_dataset, test_dataset, config):
         self.model = model
         self.train_dataset = train_dataset
@@ -56,23 +55,37 @@ class Trainer:
         self.avg_loss = -1
         self.steps = 0
 
-        if 'wandb' in sys.modules:
+        if "wandb" in sys.modules:
             cfg = model.config
             for k in config.__dict__:
                 setattr(cfg, k, config.__dict__[k])  # combine cfg
-            wandb.init(project="RWKV-LM", name=self.get_run_name() + '-' +
-                       datetime.datetime.today().strftime('%Y-%m-%d-%H-%M-%S'), config=cfg, save_code=False)
+            wandb.init(
+                project="RWKV-LM",
+                name=self.get_run_name()
+                + "-"
+                + datetime.datetime.today().strftime("%Y-%m-%d-%H-%M-%S"),
+                config=cfg,
+                save_code=False,
+            )
 
-        self.device = 'cpu'
+        self.device = "cpu"
         if torch.cuda.is_available():  # take over whatever gpus are on the system
             self.device = torch.cuda.current_device()
 
     def get_run_name(self):
-        raw_model = self.model.module if hasattr(
-            self.model, "module") else self.model
+        raw_model = self.model.module if hasattr(self.model, "module") else self.model
         cfg = raw_model.config
-        run_name = str(cfg.vocab_size) + '-' + str(cfg.ctx_len) + '-' + \
-            cfg.model_type + '-' + str(cfg.n_layer) + '-' + str(cfg.n_embd)
+        run_name = (
+            str(cfg.vocab_size)
+            + "-"
+            + str(cfg.ctx_len)
+            + "-"
+            + cfg.model_type
+            + "-"
+            + str(cfg.n_layer)
+            + "-"
+            + str(cfg.n_embd)
+        )
         return run_name
 
     def train(self):
@@ -81,21 +94,35 @@ class Trainer:
         optimizer = raw_model.configure_optimizers(config)
 
         def run_epoch(split):
-            is_train = split == 'train'
+            is_train = split == "train"
             model.train(is_train)
             data = self.train_dataset if is_train else self.test_dataset
 
             if config.num_workers > 0:
-                loader = DataLoader(data, shuffle=False, pin_memory=True,
-                                    batch_size=config.batch_size,
-                                    num_workers=config.num_workers)
+                loader = DataLoader(
+                    data,
+                    shuffle=False,
+                    pin_memory=True,
+                    batch_size=config.batch_size,
+                    num_workers=config.num_workers,
+                )
             else:
-                loader = DataLoader(data, shuffle=False,
-                                    batch_size=config.batch_size,
-                                    num_workers=config.num_workers)
+                loader = DataLoader(
+                    data,
+                    shuffle=False,
+                    batch_size=config.batch_size,
+                    num_workers=config.num_workers,
+                )
 
-            pbar = tqdm(enumerate(loader), total=len(
-                loader), bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}') if is_train else enumerate(loader)
+            pbar = (
+                tqdm(
+                    enumerate(loader),
+                    total=len(loader),
+                    bar_format="{l_bar}{bar:10}{r_bar}{bar:-10b}",
+                )
+                if is_train
+                else enumerate(loader)
+            )
 
             for it, (x, y) in pbar:
                 x = x.to(self.device)  # place data on the correct device
@@ -110,7 +137,8 @@ class Trainer:
 
                     if config.grad_norm_clip > 0:
                         torch.nn.utils.clip_grad_norm_(
-                            model.parameters(), config.grad_norm_clip)
+                            model.parameters(), config.grad_norm_clip
+                        )
 
                     optimizer.step()
 
@@ -120,51 +148,67 @@ class Trainer:
                         lr_final_factor = config.lr_final / config.learning_rate
                         if self.tokens < config.warmup_tokens:
                             # linear warmup
-                            lr_mult = lr_final_factor + \
-                                (1 - lr_final_factor) * float(self.tokens) / \
-                                float(config.warmup_tokens)
+                            lr_mult = lr_final_factor + (1 - lr_final_factor) * float(
+                                self.tokens
+                            ) / float(config.warmup_tokens)
                             progress = 0
                         else:
                             # cosine learning rate decay
-                            progress = float(self.tokens - config.warmup_tokens) / float(
-                                max(1, config.final_tokens - config.warmup_tokens))
-                            lr_mult = (0.5 + lr_final_factor / 2) + (0.5 - lr_final_factor /
-                                                                     2) * math.cos(math.pi * progress)  # better 1.0 ~ 0.1
+                            progress = float(
+                                self.tokens - config.warmup_tokens
+                            ) / float(
+                                max(1, config.final_tokens - config.warmup_tokens)
+                            )
+                            lr_mult = (0.5 + lr_final_factor / 2) + (
+                                0.5 - lr_final_factor / 2
+                            ) * math.cos(
+                                math.pi * progress
+                            )  # better 1.0 ~ 0.1
                         lr = config.learning_rate * lr_mult
                         for param_group in optimizer.param_groups:
-                            param_group['lr'] = lr
+                            param_group["lr"] = lr
                     else:
                         lr = config.learning_rate
 
                     now_loss = loss.item()  # report progress
                     self.lr = lr
 
-                    if 'wandb' in sys.modules:
-                        wandb.log({"loss": now_loss},
-                                  step=self.steps * self.config.batch_size)
+                    if "wandb" in sys.modules:
+                        wandb.log(
+                            {"loss": now_loss}, step=self.steps * self.config.batch_size
+                        )
                     self.steps += 1
 
                     if self.avg_loss < 0:
                         self.avg_loss = now_loss
                     else:
                         factor = 1 / (it + 1)
-                        self.avg_loss = self.avg_loss * \
-                            (1.0 - factor) + now_loss * factor
+                        self.avg_loss = (
+                            self.avg_loss * (1.0 - factor) + now_loss * factor
+                        )
                     pbar.set_description(
-                        f"mini-epoch {epoch+1} prog {progress*100.0:.2f}% iter {it}: ppl {math.exp(self.avg_loss):.2f} loss {self.avg_loss:.4f} lr {lr:e}")
+                        f"mini-epoch {epoch+1} prog {progress*100.0:.2f}% iter {it}: ppl {math.exp(self.avg_loss):.2f} loss {self.avg_loss:.4f} lr {lr:e}"
+                    )
 
         self.tokens = 0  # counter used for learning rate decay
         for epoch in range(config.max_epochs):
 
-            run_epoch('train')
+            run_epoch("train")
 
             log_file.write(
-                f'{epoch+1} {self.avg_loss:.6f} {math.exp(self.avg_loss):.4f} {self.lr:.8f} {datetime.datetime.now()} \n')
+                f"{epoch+1} {self.avg_loss:.6f} {math.exp(self.avg_loss):.4f} {self.lr:.8f} {datetime.datetime.now()} \n"
+            )
             log_file.flush()
 
-            if (self.config.epoch_save_frequency > 0 and epoch % self.config.epoch_save_frequency == 0) or (epoch == config.max_epochs - 1):
+            if (
+                self.config.epoch_save_frequency > 0
+                and epoch % self.config.epoch_save_frequency == 0
+            ) or (epoch == config.max_epochs - 1):
                 # DataParallel wrappers keep raw model object in .module
-                raw_model = self.model.module if hasattr(
-                    self.model, "module") else self.model
-                torch.save(raw_model.state_dict(),
-                           self.config.epoch_save_path + str(epoch+1) + '.pth')
+                raw_model = (
+                    self.model.module if hasattr(self.model, "module") else self.model
+                )
+                torch.save(
+                    raw_model.state_dict(),
+                    self.config.epoch_save_path + str(epoch + 1) + ".pth",
+                )

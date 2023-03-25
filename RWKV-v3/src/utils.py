@@ -15,7 +15,7 @@ from torch.utils.data import Dataset
 
 class Dataset(Dataset):
     def __init__(self, data, ctx_len, epoch_length_fixed):
-        print('building token list...', end=' ')
+        print("building token list...", end=" ")
         unique = sorted(list(set(data)))
         # print()
         # for u in unique:
@@ -27,11 +27,11 @@ class Dataset(Dataset):
         for u in unique:
             xxObj[xx] = u
             xx += 1
-        with open('vocab.json', "w", encoding="utf-16") as vocab_file:
+        with open("vocab.json", "w", encoding="utf-16") as vocab_file:
             vocab_file.write(json.dumps(xxObj, ensure_ascii=False))
 
         data_size, vocab_size = len(data), len(unique)
-        print('data has %d tokens, %d unique.' % (data_size, vocab_size))
+        print("data has %d tokens, %d unique." % (data_size, vocab_size))
         self.stoi = {ch: i for i, ch in enumerate(unique)}
         self.itos = {i: ch for i, ch in enumerate(unique)}
         self.ctx_len = ctx_len
@@ -45,18 +45,16 @@ class Dataset(Dataset):
     def __getitem__(self, idx):
         # cheat: pick a random spot in dataset
         i = np.random.randint(0, len(self.data) - (self.ctx_len + 1))
-        chunk = self.data[i:i+self.ctx_len+1]
+        chunk = self.data[i : i + self.ctx_len + 1]
         dix = [self.stoi[s] for s in chunk]
-        x = torch.tensor(dix[:-1], dtype=torch.long,
-                         device=torch.device('cuda'))
-        y = torch.tensor(dix[1:], dtype=torch.long,
-                         device=torch.device('cuda'))
+        x = torch.tensor(dix[:-1], dtype=torch.long, device=torch.device("cuda"))
+        y = torch.tensor(dix[1:], dtype=torch.long, device=torch.device("cuda"))
         return x, y
 
 
-class TOKENIZER():
-    def __init__(self, WORD_NAME, UNKNOWN_CHAR='\ue083'):
-        with open(WORD_NAME + '.json', "r", encoding="utf-16") as result_file:
+class TOKENIZER:
+    def __init__(self, WORD_NAME, UNKNOWN_CHAR="\ue083"):
+        with open(WORD_NAME + ".json", "r", encoding="utf-16") as result_file:
             self.word_table = json.load(result_file)
 
         self.vocab_size = len(self.word_table)
@@ -67,24 +65,26 @@ class TOKENIZER():
         self.UNKNOWN_CHAR = self.stoi[UNKNOWN_CHAR]
 
     def refine_context(self, context):
-        context = context.strip().split('\n')
+        context = context.strip().split("\n")
         for c in range(len(context)):
-            context[c] = context[c].strip().strip('\u3000').strip('\r')
-        context = list(filter(lambda c: c != '', context))
-        context = '\n' + ('\n'.join(context)).strip()
-        if context == '':
-            context = '\n'
+            context[c] = context[c].strip().strip("\u3000").strip("\r")
+        context = list(filter(lambda c: c != "", context))
+        context = "\n" + ("\n".join(context)).strip()
+        if context == "":
+            context = "\n"
 
         return context
 
-    def sample_logits(self, out, x, ctx_len, temperature=1.0, top_p_usual=None, top_p_newline=None):
+    def sample_logits(
+        self, out, x, ctx_len, temperature=1.0, top_p_usual=None, top_p_newline=None
+    ):
         # out[self.UNKNOWN_CHAR] = -float('Inf')
 
         lastChar = int(x[-1])
 
         probs = F.softmax(torch.tensor(out), dim=-1)
 
-        if self.itos[lastChar] == '\n':
+        if self.itos[lastChar] == "\n":
             top_p = top_p_newline
         else:
             top_p = top_p_usual
