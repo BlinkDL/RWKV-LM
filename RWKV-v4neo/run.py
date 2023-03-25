@@ -6,6 +6,7 @@ import numpy as np
 import math, os, sys, types, time, gc
 import torch
 from src.utils import TOKENIZER
+
 try:
     os.environ["CUDA_VISIBLE_DEVICES"] = sys.argv[1]
 except:
@@ -20,12 +21,14 @@ args = types.SimpleNamespace()
 # Step 1: set model & config (use v4 to run your trained-from-scratch models. v4 and v4neo are compatible)
 ########################################################################################################
 
-args.RUN_DEVICE = "cuda" # 'cuda' // 'cpu' (already fast)
-args.FLOAT_MODE = "fp16" # fp16 (good for GPU, does not work for CPU) // fp32 (good for CPU) // bf16 (less accurate, but works for CPU)
+args.RUN_DEVICE = "cuda"  # 'cuda' // 'cpu' (already fast)
+args.FLOAT_MODE = "fp16"  # fp16 (good for GPU, does not work for CPU) // fp32 (good for CPU) // bf16 (less accurate, but works for CPU)
 
 # if args.RUN_DEVICE == "cuda":
 #     os.environ["RWKV_RUN_BACKEND"] = 'nvfuser' # !!!BUGGY!!! wrong output
-os.environ["RWKV_JIT_ON"] = '1' # '1' or '0'. very useful for GPU/CPU fp32, but might be harmful for GPU fp16. please benchmark !!!
+os.environ[
+    "RWKV_JIT_ON"
+] = "1"  # '1' or '0'. very useful for GPU/CPU fp32, but might be harmful for GPU fp16. please benchmark !!!
 
 TOKEN_MODE = "pile"
 WORD_NAME = [
@@ -58,7 +61,7 @@ vocab_size = 50277
 # n_embd = 2560
 # ctx_len = 1024
 
-MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-7b/RWKV-4-Pile-7B-20221115-8047'
+MODEL_NAME = "/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-7b/RWKV-4-Pile-7B-20221115-8047"
 n_layer = 32
 n_embd = 4096
 ctx_len = 1024
@@ -129,12 +132,12 @@ DEBUG_DEBUG = False  # True False --> show softmax output
 
 ########################################################################################################
 
-print(f'\nUsing {args.RUN_DEVICE.upper()}. Loading {MODEL_NAME}...')
+print(f"\nUsing {args.RUN_DEVICE.upper()}. Loading {MODEL_NAME}...")
 from src.model_run import RWKV_RNN
 
 model = RWKV_RNN(args)
 
-print(f'\nOptimizing speed...')
+print(f"\nOptimizing speed...")
 out, _ = model.forward([187], None)
 # print(out)
 gc.collect()
@@ -142,10 +145,10 @@ torch.cuda.empty_cache()
 
 # input(0)
 
-print(f'\nLoading tokenizer {WORD_NAME}...')
+print(f"\nLoading tokenizer {WORD_NAME}...")
 tokenizer = TOKENIZER(WORD_NAME, UNKNOWN_CHAR=UNKNOWN_CHAR)
 if TOKEN_MODE == "pile":
-    assert tokenizer.tokenizer.decode([187]) == '\n'
+    assert tokenizer.tokenizer.decode([187]) == "\n"
 
 ########################################################################################################
 
@@ -165,6 +168,7 @@ print(
 time_slot = {}
 time_ref = time.time_ns()
 
+
 def record_time(name):
     if name not in time_slot:
         time_slot[name] = 1e20
@@ -172,13 +176,14 @@ def record_time(name):
     if tt < time_slot[name]:
         time_slot[name] = tt
 
+
 init_state = None
 init_out = None
 state = None
 out = None
 
 for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
-    print(("-" * 50) + '\n' + context, end="")
+    print(("-" * 50) + "\n" + context, end="")
 
     time_ref = time.time_ns()
     ctx = src_ctx.copy()
@@ -193,7 +198,7 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
         gc.collect()
         torch.cuda.empty_cache()
 
-    record_time('preprocess')
+    record_time("preprocess")
     out_last = src_len
     for i in range(src_len, src_len + (1 if DEBUG_DEBUG else LENGTH_PER_TRIAL)):
         x = ctx[: i + 1]
@@ -205,7 +210,14 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
         else:
             out, state = model.forward(x, state)
         if DEBUG_DEBUG:
-            print("model", np.array(x), "==>", np.array(out), np.max(out.cpu().numpy()), np.min(out.cpu().numpy()))
+            print(
+                "model",
+                np.array(x),
+                "==>",
+                np.array(out),
+                np.max(out.cpu().numpy()),
+                np.min(out.cpu().numpy()),
+            )
         if TOKEN_MODE == "pile":
             out[0] = -999999999  # disable <|endoftext|>
 
@@ -224,14 +236,15 @@ for TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):
             print(char, end="", flush=True)
         else:
             char = tokenizer.tokenizer.decode(ctx[out_last:])
-            if '\ufffd' not in char: # is valid utf8 string?
+            if "\ufffd" not in char:  # is valid utf8 string?
                 print(char, end="", flush=True)
-                out_last = i+1
+                out_last = i + 1
 
-    record_time('total')
+    record_time("total")
     # print(f'\n\n{time_slot}\n\n')
     print(
-        f"\n\n--- preprocess {round(time_slot['preprocess'], 2)}s, generation {round(time_slot['total']-time_slot['preprocess'], 2)}s ", end = ''
+        f"\n\n--- preprocess {round(time_slot['preprocess'], 2)}s, generation {round(time_slot['total']-time_slot['preprocess'], 2)}s ",
+        end="",
     )
 
-print(("-" * 50) + '\n')
+print(("-" * 50) + "\n")
