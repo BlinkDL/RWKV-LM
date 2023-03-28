@@ -36,6 +36,8 @@ print(out.detach().cpu().numpy())                   # same result as above
 
 **RWKV in 150 lines** (model, inference, text generation): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_in_150_lines.py
 
+ChatRWKV with RWKV 14B ctx8192:
+
 ![RWKV-chat](RWKV-chat.png)
 
 You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to Stability and EleutherAI), so if you have interesting ideas I can run them.
