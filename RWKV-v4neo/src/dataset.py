@@ -37,7 +37,8 @@ class MyDataset(Dataset):
                 # rank_zero_info(self.data)
 
             if args.my_qa_mask > 0:
-                self.data_pile = MMapIndexedDataset('/fsx/BlinkDL/pile/pile_20B_tokenizer_text_document')
+                self.data_pile = MMapIndexedDataset('/fsx/pile/pile_20B_tokenizer_text_document')
+                # self.data_pile = MMapIndexedDataset('/fsx/pile_deduped/pile_0.87_deduped_text_document')
                 self.data_pile_size = len(self.data_pile._bin_buffer) // self.data._index._dtype_size
 
             if args.my_pile_stage > 0:
@@ -164,23 +165,16 @@ class MyDataset(Dataset):
                     if args.my_qa_mask > 0:
                         ii_orig = ii
                         if ii % 2 == 0:
-                            ii = (ii // 2) * args.magic_prime
-                            if args.ctx_len == 1024:
-                                magic_prime = 324331313
-                            elif args.ctx_len == 2048:
-                                magic_prime = 162165671
-                            elif args.ctx_len == 4096:
-                                magic_prime = 81082817
-                            elif args.ctx_len == 8192:
-                                magic_prime = 40541399
+                            ii = -1
                             data = self.data_pile
                         else:
                             ii = ii // 2
-
-                    factor = (math.sqrt(5) - 1) / 2
-                    factor = int(magic_prime * factor)
-                    i = ((factor * ii * ii * ii) % magic_prime) * ctx_len
-                    if (args.my_qa_mask == 0) or (data == self.data_pile):
+                    if ii < 0:
+                        i = np.random.randint(0, self.data_pile_size - req_len)
+                    else:
+                        factor = (math.sqrt(5) - 1) / 2
+                        factor = int(magic_prime * factor)
+                        i = ((factor * ii * ii * ii) % magic_prime) * ctx_len
                         i = i + args.my_pile_shift
                     # print(f"epoch {epoch} idx {idx} rank {rank}/{world_size} ii {ii} pos {round(i / self.data_size, 3)}")
                 elif args.my_pile_stage == 4:
