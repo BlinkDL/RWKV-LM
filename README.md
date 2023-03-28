@@ -10,7 +10,7 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 Raven (7B finetuned on Alpaca) Demo: https://huggingface.co/spaces/BlinkDL/Raven-RWKV-7B
 
-**ChatRWKV v2:** with "stream" and "split" strategies and INT8. **3G VRAM is enough to run RWKV 14B :)** https://github.com/BlinkDL/ChatRWKV/tree/main/v2
+**ChatRWKV:** with "stream" and "split" strategies and INT8. **3G VRAM is enough to run RWKV 14B :)** https://github.com/BlinkDL/ChatRWKV
 
 **RWKV pip package**: https://pypi.org/project/rwkv/
 
