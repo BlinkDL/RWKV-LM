@@ -10,6 +10,8 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 Raven (7B finetuned on Alpaca) Demo: https://huggingface.co/spaces/BlinkDL/Raven-RWKV-7B
 
+**ChatRWKV v2:** with "stream" and "split" strategies and INT8. **3G VRAM is enough to run RWKV 14B :)** https://github.com/BlinkDL/ChatRWKV/tree/main/v2
+
 **RWKV pip package**: https://pypi.org/project/rwkv/
 
 ```python
@@ -33,8 +35,6 @@ print(out.detach().cpu().numpy())                   # same result as above
 **Twitter**: https://twitter.com/BlinkDL_AI
 
 **RWKV in 150 lines** (model, inference, text generation): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_in_150_lines.py
-
-**ChatRWKV v2:** with "stream" and "split" strategies and INT8. **3G VRAM is enough to run RWKV 14B :)** https://github.com/BlinkDL/ChatRWKV/tree/main/v2
 
 ![RWKV-chat](RWKV-chat.png)
 
