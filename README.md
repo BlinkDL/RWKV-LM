@@ -6,6 +6,10 @@ RWKV is an RNN with Transformer-level LLM performance, which can also be directl
 
 So it's combining the best of RNN and transformer - **great performance, fast inference, saves VRAM, fast training, "infinite" ctx_len, and free sentence embedding** (using the final hidden state).
 
+**HuggingFace Gradio demo (14B ctx8192)**: https://huggingface.co/spaces/BlinkDL/ChatRWKV-gradio
+
+Raven (7B finetuned on Alpaca) Demo: https://huggingface.co/spaces/BlinkDL/Raven-RWKV-7B
+
 **RWKV pip package**: https://pypi.org/project/rwkv/
 
 ```python
@@ -33,8 +37,6 @@ print(out.detach().cpu().numpy())                   # same result as above
 **ChatRWKV v2:** with "stream" and "split" strategies and INT8. **3G VRAM is enough to run RWKV 14B :)** https://github.com/BlinkDL/ChatRWKV/tree/main/v2
 
 ![RWKV-chat](RWKV-chat.png)
-
-**Hugging Face space**: https://huggingface.co/spaces/BlinkDL/ChatRWKV-gradio
 
 You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to Stability and EleutherAI), so if you have interesting ideas I can run them.
 
