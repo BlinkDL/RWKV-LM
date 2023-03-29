@@ -32,6 +32,8 @@ print(out.detach().cpu().numpy())                   # same result as above
 
 **RWKV introduction, and in 100 lines of numpy**: https://johanwind.github.io/2023/03/23/rwkv_overview.html https://johanwind.github.io/2023/03/23/rwkv_details.html
 
+A cool paper (Spiking Neural Network) using RWKV: https://github.com/ridgerchu/SpikeGPT
+
 ## Join Our Discord: https://discord.gg/bDSBUMeFpc (lots of developers)
 
 **Twitter**: https://twitter.com/BlinkDL_AI
