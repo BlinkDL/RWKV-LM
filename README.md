@@ -30,6 +30,8 @@ print(out.detach().cpu().numpy())                   # same result as above
 
 **Download RWKV-4 0.1/0.4/1.5/3/7/14B weights**: https://huggingface.co/BlinkDL
 
+**RWKV introduction, and in 100 lines of numpy**: https://johanwind.github.io/2023/03/23/rwkv_overview.html https://johanwind.github.io/2023/03/23/rwkv_details.html
+
 ## Join Our Discord: https://discord.gg/bDSBUMeFpc (lots of developers)
 
 **Twitter**: https://twitter.com/BlinkDL_AI
