@@ -105,6 +105,7 @@ if __name__ == "__main__":
     parser.add_argument("--load_partial", default=0, type=int)
     parser.add_argument("--magic_prime", default=0, type=int)
     parser.add_argument("--my_qa_mask", default=0, type=int)
+    parser.add_argument("--my_random_steps", default=0, type=int)
     parser.add_argument("--my_testing", default='', type=str)
 
     parser = Trainer.add_argparse_args(parser)
@@ -174,20 +175,20 @@ if __name__ == "__main__":
                 args.epoch_count = 1005
         else:
             if args.ctx_len == 1024:
-                args.magic_prime = 1694947181
-                args.epoch_count = 42036
+                args.magic_prime = 1670239709
+                args.epoch_count = 41423
             elif args.ctx_len == 2048:
-                args.magic_prime = 847473509
-                args.epoch_count = 21017
+                args.magic_prime = 835119767
+                args.epoch_count = 20711
             elif args.ctx_len == 4096:
-                args.magic_prime = 423736637
-                args.epoch_count = 10508
+                args.magic_prime = 417559889
+                args.epoch_count = 10355
             elif args.ctx_len == 6144:
-                args.magic_prime = 282491051
-                args.epoch_count = 7005
+                args.magic_prime = 278373239
+                args.epoch_count = 6903
             elif args.ctx_len == 8192:
-                args.magic_prime = 211868243
-                args.epoch_count = 5253
+                args.magic_prime = 208779911
+                args.epoch_count = 5177
         if args.my_pile_shift < 0:
             args.my_pile_shift = 0
 

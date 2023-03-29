@@ -37,9 +37,12 @@ class MyDataset(Dataset):
                 # rank_zero_info(self.data)
 
             if args.my_qa_mask > 0:
-                self.data_pile = MMapIndexedDataset('/fsx/pile/pile_20B_tokenizer_text_document')
-                # self.data_pile = MMapIndexedDataset('/fsx/pile_deduped/pile_0.87_deduped_text_document')
+                # self.data_pile = MMapIndexedDataset('/fsx/pile/pile_20B_tokenizer_text_document')
+                self.data_pile = MMapIndexedDataset('/fsx/pile_deduped/pile_0.87_deduped_text_document')
                 self.data_pile_size = len(self.data_pile._bin_buffer) // self.data._index._dtype_size
+            else:
+                self.data_pile = None
+                self.data_pile_size = 0
 
             if args.my_pile_stage > 0:
                 # assert self.data_size == 332115325534 and self.vocab_size == 50277
@@ -169,13 +172,17 @@ class MyDataset(Dataset):
                             data = self.data_pile
                         else:
                             ii = ii // 2
-                    if ii < 0:
+                    if data == self.data_pile:
                         i = np.random.randint(0, self.data_pile_size - req_len)
                     else:
-                        factor = (math.sqrt(5) - 1) / 2
-                        factor = int(magic_prime * factor)
-                        i = ((factor * ii * ii * ii) % magic_prime) * ctx_len
-                        i = i + args.my_pile_shift
+                        if ii < args.my_random_steps:
+                            i = np.random.randint(0, self.data_size - req_len)
+                        else:
+                            ii = ii - args.my_random_steps
+                            factor = (math.sqrt(5) - 1) / 2
+                            factor = int(magic_prime * factor)
+                            i = ((factor * ii * ii * ii) % magic_prime) * ctx_len
+                            i = i + args.my_pile_shift
                     # print(f"epoch {epoch} idx {idx} rank {rank}/{world_size} ii {ii} pos {round(i / self.data_size, 3)}")
                 elif args.my_pile_stage == 4:
                     # cheat: pick a random spot in dataset
