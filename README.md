@@ -6,6 +6,12 @@ RWKV is an RNN with Transformer-level LLM performance, which can also be directl
 
 So it's combining the best of RNN and transformer - **great performance, fast inference, saves VRAM, fast training, "infinite" ctx_len, and free sentence embedding** (using the final hidden state).
 
+**HuggingFace Gradio demo (14B ctx8192)**: https://huggingface.co/spaces/BlinkDL/ChatRWKV-gradio
+
+Raven (7B finetuned on Alpaca) Demo: https://huggingface.co/spaces/BlinkDL/Raven-RWKV-7B
+
+**ChatRWKV:** with "stream" and "split" strategies and INT8. **3G VRAM is enough to run RWKV 14B :)** https://github.com/BlinkDL/ChatRWKV
+
 **RWKV pip package**: https://pypi.org/project/rwkv/
 
 ```python
@@ -24,17 +30,19 @@ print(out.detach().cpu().numpy())                   # same result as above
 
 **Download RWKV-4 0.1/0.4/1.5/3/7/14B weights**: https://huggingface.co/BlinkDL
 
+**RWKV introduction, and in 100 lines of numpy**: https://johanwind.github.io/2023/03/23/rwkv_overview.html https://johanwind.github.io/2023/03/23/rwkv_details.html
+
+A cool paper (Spiking Neural Network) using RWKV: https://github.com/ridgerchu/SpikeGPT
+
 ## Join Our Discord: https://discord.gg/bDSBUMeFpc (lots of developers)
 
 **Twitter**: https://twitter.com/BlinkDL_AI
 
 **RWKV in 150 lines** (model, inference, text generation): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_in_150_lines.py
 
-**ChatRWKV v2:** with "stream" and "split" strategies and INT8. **3G VRAM is enough to run RWKV 14B :)** https://github.com/BlinkDL/ChatRWKV/tree/main/v2
+ChatRWKV with RWKV 14B ctx8192:
 
 ![RWKV-chat](RWKV-chat.png)
-
-**Hugging Face space**: https://huggingface.co/spaces/BlinkDL/ChatRWKV-gradio
 
 You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to Stability and EleutherAI), so if you have interesting ideas I can run them.
 
@@ -149,28 +157,6 @@ Run RWKV-4 Pile models in your browser (and onnx version): see this issue https:
 RWKV-4 Web Demo: https://josephrocca.github.io/rwkv-v4-web/demo/ (note: only greedy sampling for now)
 
 For the old RWKV-2: see the release here for a 27M params model on enwik8 with 0.72 BPC(dev). Run run.py in https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v2-RNN. You can even run it in your browser: https://github.com/BlinkDL/AI-Writer/tree/main/docs/eng https://blinkdl.github.io/AI-Writer/eng/ (this is using tf.js WASM single-thread mode).
-
-I'd like to build an almost-INT8 version of RWKV. A simple method to quantize a matrix with outliers:
-```python
-import numpy as npA
-
-# the original M, with outliers
-M = np.array([[1,   2,   1,  2],[2,  100,    2, 10],[1,   2,   1, 2],[2,   1, 20, 1]])
-
-# the scaled M, without outliers
-Q = np.array([[1, 0.2, 0.1,  2],[0.4,  2, 0.04, 2], [1, 0.2, 0.1, 2],[2, 0.1,  2, 1]])
-# we can find optimal a & b to minimize inference error after quantization
-a = np.array([1, 10, 10, 1])
-b = np.array([1, 5, 1, 1])
-
-# test M.v with random v - the results will be the same
-v = np.array([1.23, 5.44, 9.75, 2.98])
-print(M.dot(v))
-print(Q.dot(v * a) * b)
-
-# even better: decompose M.dot(v) as Q.dot(v * a + aa) * b + bb where aa & bb are vectors too
-# and can apply more scaling to achieve W8A8 (example: https://arxiv.org/pdf/2211.10438.pdf)
-```
 
 ### Training / Fine-tuning
 
