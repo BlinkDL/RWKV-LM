@@ -3,7 +3,7 @@ FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
 ARG workdir=/workspace
 WORKDIR ${workdir}
 
-ENV TZ=Asia/Tokyo
+ENV TZ=GMT0
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
