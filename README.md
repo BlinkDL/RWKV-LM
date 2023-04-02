@@ -146,6 +146,8 @@ https://github.com/Pathos14489/RWKVDistributedInference RWKV Distributed Inferen
 
 https://github.com/AXKuhta/rwkv-onnx-dml RWKV ONNX
 
+https://github.com/saharNooby/rwkv.cpp FP32, FP16 and quantized INT4 inference for CPU using [ggml](https://github.com/ggerganov/ggml)
+
 ### Inference
 
 **Run RWKV-4 Pile models:** Download models from https://huggingface.co/BlinkDL. Set TOKEN_MODE = 'pile' in run.py and run it. It's fast even on CPU (the default mode).
