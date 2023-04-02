@@ -108,6 +108,8 @@ prompt = f'\nQ & A\n\nQuestion:\n{qq}\n\nDetailed Expert Answer:\n' # let the mo
 
 https://pypi.org/project/rwkvstic/ a pip package (with 8bit & offload for low VRAM GPUs)
 
+**https://github.com/saharNooby/rwkv.cpp rwkv.cpp for fast CPU reference**
+
 https://github.com/harrisonvanderbyl/rwkv_chatbot a chatbot
 
 https://github.com/hizkifw/WebChatRWKVstic WebUI (WIP)
