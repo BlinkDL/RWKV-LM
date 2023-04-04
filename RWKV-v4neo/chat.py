@@ -358,4 +358,4 @@ while True:
     if len(msg.strip()) > 0:
         on_message(msg)
     else:
-        print('Erorr: please say something')
+        print('Error: please say something')
