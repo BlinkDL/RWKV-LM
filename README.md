@@ -110,15 +110,15 @@ https://pypi.org/project/rwkvstic/ a pip package (with 8bit & offload for low VR
 
 **https://github.com/saharNooby/rwkv.cpp rwkv.cpp for fast CPU reference**
 
-https://github.com/harrisonvanderbyl/rwkv_chatbot a chatbot
+https://github.com/wfox4/WebChatRWKVv2 WebUI
 
-https://github.com/hizkifw/WebChatRWKVstic WebUI (WIP)
+https://github.com/Blealtan/RWKV-LM-LoRA LoRA fine-tuning
+
+https://github.com/harrisonvanderbyl/rwkv_chatbot a chatbot
 
 https://github.com/gururise/rwkv_gradio RWKV Gradio
 
 https://github.com/cryscan/eloise RWKV QQ bot
-
-https://github.com/Blealtan/RWKV-LM-LoRA LoRA fine-tuning
 
 https://github.com/mrsteyk/RWKV-LM-jax
 
