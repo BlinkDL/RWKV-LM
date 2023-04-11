@@ -162,7 +162,7 @@ class MyDataset(Dataset):
                 magic_prime = args.magic_prime
                 data = self.data
 
-                if args.my_pile_stage > 0 and args.my_pile_stage != 4:
+                if args.my_pile_stage > 0:
                     ii = 1 + epoch * self.samples_per_epoch + (idx * world_size) + rank
 
                     if args.my_qa_mask > 0:
@@ -175,8 +175,12 @@ class MyDataset(Dataset):
                     if data == self.data_pile:
                         i = np.random.randint(0, self.data_pile_size - req_len)
                     else:
-                        if ii < args.my_random_steps:
-                            i = np.random.randint(0, self.data_size - req_len)
+                        if args.my_pile_stage == 4 or ii < args.my_random_steps:
+                            # cheat: pick a random spot in dataset
+                            if args.my_pile_version == 1:
+                                i = np.random.randint(0, self.data_size - req_len)
+                            else:
+                                i = np.random.randint(0, self.data_size)
                         else:
                             ii = ii - args.my_random_steps
                             factor = (math.sqrt(5) - 1) / 2
@@ -184,12 +188,6 @@ class MyDataset(Dataset):
                             i = ((factor * ii * ii * ii) % magic_prime) * ctx_len
                             i = i + args.my_pile_shift
                     # print(f"epoch {epoch} idx {idx} rank {rank}/{world_size} ii {ii} pos {round(i / self.data_size, 3)}")
-                elif args.my_pile_stage == 4:
-                    # cheat: pick a random spot in dataset
-                    if args.my_pile_version == 1:
-                        i = np.random.randint(0, self.data_size - req_len)
-                    else:
-                        i = np.random.randint(0, self.data_size)
                 else:
                     # cheat: pick a random spot in dataset
                     i = np.random.randint(0, self.data_size - req_len)
