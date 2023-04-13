@@ -145,6 +145,7 @@ if EXPRESS_PILE_MODE:
 
 ### misc stuffs ########################################################################################
 
+NUM_GPUS = int(os.environ['RWKV_NUM_GPUS'])
 if LOAD_MODEL and EPOCH_BEGIN > 0: # we are not saving gradients, so let's have some warmup if we load a model
     warmup_tokens = 50 * ctx_len * batch_size // NUM_GPUS
 else:
@@ -155,7 +156,6 @@ eps = 1e-8
 
 num_workers = 1 # DataLoader worker. I only tested num_workers = 1
 
-NUM_GPUS = int(os.environ['RWKV_NUM_GPUS'])
 os.environ['RWKV_LOAD_MODEL'] = str(LOAD_MODEL)
 MODEL_NAME = epoch_save_path + str(EPOCH_BEGIN)
 
