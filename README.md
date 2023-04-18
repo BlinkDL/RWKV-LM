@@ -220,7 +220,7 @@ x = x + pos_emb_x + pos_emb_y
 
 ### Misc
 
-#### New Idea: Smart Embedding
+#### New Idea: Bytes-aware Embedding
 
 The idea is to make sure each token in vocab understand its length and raw UTF-8 bytes.
 
