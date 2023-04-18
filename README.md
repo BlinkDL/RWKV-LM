@@ -220,6 +220,23 @@ x = x + pos_emb_x + pos_emb_y
 
 ### Misc
 
+#### New Idea: Smart Embedding
+
+The idea is to make sure each token in vocab understand its length and raw UTF-8 bytes.
+
+Let a = max(len(token)) for all token in vocab. Define AA : float[a][d_emb]
+
+Let b = max(len_in_utf8_bytes(token)) for all token in vocab. Define BB : float[b][256][d_emb]
+
+For each token X in vocab, let [x0, x1, ..., xn] be its raw UTF-8 bytes. We will add some extra values to its embedding EMB(X):
+
+EMB(X) += AA[len(X)] + BB[0][x0] + BB[1][x1] + ... + BB[n][xn]
+
+* We can do this for the final Linear(d_emb, n_vocab) projection too.
+* We can use some small networks to generate AA and BB, for some extra regularization (for example, BB[m][xi] and BB[n][xi] should be related).
+
+#### Old Idea
+
 I have an idea to improve tokenization. We can hardcode some channels to have meanings. Example:
 
 Channel 0 = "space"
