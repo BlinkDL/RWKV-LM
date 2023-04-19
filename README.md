@@ -230,7 +230,7 @@ Let b = max(len_in_utf8_bytes(token)) for all token in vocab. Define BB : float[
 
 For each token X in vocab, let [x0, x1, ..., xn] be its raw UTF-8 bytes. We will add some extra values to its embedding EMB(X):
 
-EMB(X) += AA[len(X)] + BB[0][x0] + BB[1][x1] + ... + BB[n][xn]
+EMB(X) += AA[len(X)] + BB[0][x0] + BB[1][x1] + ... + BB[n][xn] (note: AA BB are learnable weights)
 
 * We can do this for the final Linear(d_emb, n_vocab) projection too.
 * We can use some small networks to generate AA and BB, for some extra regularization (for example, BB[m][xi] and BB[n][xi] should be related).
