@@ -190,6 +190,14 @@ ss = json.dumps({"meta": meta, "text": text}, ensure_ascii=False)
 out.write(ss + "\n")
 ```
 
+### How to use RWKV hidden state as text embedding
+
+Consider RWKV 14B. The state has 200 vectors, that is, 5 vectors for each block: fp16 (xx), fp32 (aa), fp32 (bb), fp32 (pp), fp16 (xx).
+
+Do not avg pool because different vectors (xx aa bb pp xx) in the state have very different meanings and ranges. You can probably remove pp.
+
+I suggest firstly collect the mean+stdev statistics of each channel of each vector, and normalize all of them (note: the normalization should be data-indepedent and collected from various texts). Then train a linear classifer.
+
 ## Towards RWKV-5 (just to record some new ideas)
 
 ### Some ideas
