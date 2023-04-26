@@ -106,49 +106,13 @@ prompt = f'\nQ & A\n\nQuestion:\n{qq}\n\nDetailed Expert Answer:\n' # let the mo
 
 **Cool Community RWKV Projects (check them!)**:
 
-https://pypi.org/project/rwkvstic/ a pip package (with 8bit & offload for low VRAM GPUs)
+https://github.com/saharNooby/rwkv.cpp FP32, FP16 and quantized INT4 inference for CPU using [ggml](https://github.com/ggerganov/ggml)
 
-**https://github.com/saharNooby/rwkv.cpp rwkv.cpp for fast CPU reference**
-
-https://github.com/wfox4/WebChatRWKVv2 WebUI
+https://github.com/harrisonvanderbyl/rwkv-cpp-cuda pure CUDA RWKV (no need for python & pytorch)
 
 https://github.com/Blealtan/RWKV-LM-LoRA LoRA fine-tuning
 
-https://github.com/harrisonvanderbyl/rwkv_chatbot a chatbot
-
-https://github.com/gururise/rwkv_gradio RWKV Gradio
-
-https://github.com/cryscan/eloise RWKV QQ bot
-
-https://github.com/mrsteyk/RWKV-LM-jax
-
-https://github.com/wozeparrot/tinyrwkv RWKV in tinygrad (nice simple DL framework)
-
-https://github.com/huggingface/transformers/issues/17230 RWKV HF package (WIP)
-
-https://github.com/ArEnSc/Production-RWKV RWKV HF package source
-
-https://github.com/nlpodyssey/verbaflow RWKV in Go
-
-https://github.com/nlpodyssey/rwkv RWKV in Go
-
-https://github.com/mrsteyk/rwkvk-rs RWKV in Rust
-
-https://github.com/josephrocca/rwkv-v4-web RWKV in browser
-
-https://github.com/imxcstar/CSharp-RWKV-V4 RWKV in C#
-
-https://github.com/mrsteyk/RWKV-LM-deepspeed Another training fork
-
-https://github.com/resloved/RWKV-notebooks RWKV colab notebooks
-
-https://colab.research.google.com/github/harrisonvanderbyl/rwkvstic/blob/master/notebooks/chatbot.ipynb RWKV chatbot colab notebook
-
-https://github.com/Pathos14489/RWKVDistributedInference RWKV Distributed Inference
-
-https://github.com/AXKuhta/rwkv-onnx-dml RWKV ONNX
-
-https://github.com/saharNooby/rwkv.cpp FP32, FP16 and quantized INT4 inference for CPU using [ggml](https://github.com/ggerganov/ggml)
+More RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
 
 ### Inference
 
