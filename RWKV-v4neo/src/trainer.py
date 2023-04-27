@@ -129,7 +129,7 @@ class train_callback(pl.Callback):
     def on_train_epoch_end(self, trainer, pl_module):
         args = self.args
         if trainer.is_global_zero:  # logging & save state_dict
-            if (args.epoch_save > 0 and trainer.current_epoch % args.epoch_save == 0) or trainer.current_epoch == args.epoch_count - 1:
+            if (args.epoch_save > 0 and trainer.current_epoch % args.epoch_save == 0) or (trainer.current_epoch == args.epoch_count - 1):
                 if args.data_type == 'wds_img':
                     raw_dict = pl_module.state_dict()
                     to_save_dict = {}
@@ -150,6 +150,8 @@ class train_callback(pl.Callback):
 
             trainer.my_loss_sum = 0
             trainer.my_loss_count = 0
+            if (args.epoch_begin + trainer.current_epoch) >= args.my_exit:
+                exit(0)
 
 
 @rank_zero_only

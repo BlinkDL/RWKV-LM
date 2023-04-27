@@ -107,6 +107,7 @@ if __name__ == "__main__":
     parser.add_argument("--my_qa_mask", default=0, type=int)
     parser.add_argument("--my_random_steps", default=0, type=int)
     parser.add_argument("--my_testing", default='', type=str)
+    parser.add_argument("--my_exit", default=99999999, type=int)
 
     parser = Trainer.add_argparse_args(parser)
     args = parser.parse_args()
@@ -204,11 +205,12 @@ if __name__ == "__main__":
             for p in os.listdir(args.proj_dir):
                 if p.startswith("rwkv") and p.endswith(".pth"):
                     p = ((p.split("-"))[1].split("."))[0]
-                    if p == "init":
-                        p = -1
-                    else:
-                        p = int(p)
-                    list_p += [p]
+                    if p != "final":
+                        if p == "init":
+                            p = -1
+                        else:
+                            p = int(p)
+                        list_p += [p]
             list_p.sort()
             max_p = list_p[-1]
             if len(list_p) > 1:
