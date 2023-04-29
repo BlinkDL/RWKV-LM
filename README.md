@@ -12,6 +12,8 @@ HuggingFace Gradio demo (14B ctx8192): https://huggingface.co/spaces/BlinkDL/Cha
 
 **ChatRWKV:** with "stream" and "split" strategies and INT8. **3G VRAM is enough to run RWKV 14B :)** https://github.com/BlinkDL/ChatRWKV
 
+**Download RWKV-4 0.1/0.4/1.5/3/7/14B weights**: https://huggingface.co/BlinkDL
+
 **RWKV pip package**: https://pypi.org/project/rwkv/
 
 ```python
@@ -27,19 +29,6 @@ out, state = model.forward([1563], state)           # RNN has state (use deepcop
 out, state = model.forward([310, 247], state)
 print(out.detach().cpu().numpy())                   # same result as above
 ```
-
-**Download RWKV-4 0.1/0.4/1.5/3/7/14B weights**: https://huggingface.co/BlinkDL
-
-**RWKV introduction, and in 100 lines of numpy**: https://johanwind.github.io/2023/03/23/rwkv_overview.html https://johanwind.github.io/2023/03/23/rwkv_details.html
-
-A cool paper (Spiking Neural Network) using RWKV: https://github.com/ridgerchu/SpikeGPT
-
-## Join Our Discord: https://discord.gg/bDSBUMeFpc (lots of developers)
-
-**Twitter**: https://twitter.com/BlinkDL_AI
-
-**RWKV in 150 lines** (model, inference, text generation): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_in_150_lines.py
-
 **Cool Community RWKV Projects (check them!)**:
 
 https://github.com/saharNooby/rwkv.cpp INT4 INT8 FP16 FP32 inference for CPU using [ggml](https://github.com/ggerganov/ggml)
@@ -49,6 +38,16 @@ https://github.com/harrisonvanderbyl/rwkv-cpp-cuda pure CUDA RWKV (no need for p
 https://github.com/Blealtan/RWKV-LM-LoRA LoRA fine-tuning
 
 More RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
+
+## Join Our Discord: https://discord.gg/bDSBUMeFpc (lots of developers)
+
+**Twitter**: https://twitter.com/BlinkDL_AI
+
+**RWKV in 150 lines** (model, inference, text generation): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_in_150_lines.py
+
+**RWKV introduction, and in 100 lines of numpy**: https://johanwind.github.io/2023/03/23/rwkv_overview.html https://johanwind.github.io/2023/03/23/rwkv_details.html
+
+A cool paper (Spiking Neural Network) using RWKV: https://github.com/ridgerchu/SpikeGPT
 
 ChatRWKV with RWKV 14B ctx8192:
 
