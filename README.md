@@ -40,6 +40,16 @@ A cool paper (Spiking Neural Network) using RWKV: https://github.com/ridgerchu/S
 
 **RWKV in 150 lines** (model, inference, text generation): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_in_150_lines.py
 
+**Cool Community RWKV Projects (check them!)**:
+
+https://github.com/saharNooby/rwkv.cpp INT4 INT8 FP16 FP32 inference for CPU using [ggml](https://github.com/ggerganov/ggml)
+
+https://github.com/harrisonvanderbyl/rwkv-cpp-cuda pure CUDA RWKV (no need for python & pytorch)
+
+https://github.com/Blealtan/RWKV-LM-LoRA LoRA fine-tuning
+
+More RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
+
 ChatRWKV with RWKV 14B ctx8192:
 
 ![RWKV-chat](RWKV-chat.png)
@@ -103,16 +113,6 @@ Here is a great prompt for testing Q&A of LLMs. Works for any model: (found by m
 ```python
 prompt = f'\nQ & A\n\nQuestion:\n{qq}\n\nDetailed Expert Answer:\n' # let the model generate after this
 ```
-
-**Cool Community RWKV Projects (check them!)**:
-
-https://github.com/saharNooby/rwkv.cpp FP32, FP16 and quantized INT4 inference for CPU using [ggml](https://github.com/ggerganov/ggml)
-
-https://github.com/harrisonvanderbyl/rwkv-cpp-cuda pure CUDA RWKV (no need for python & pytorch)
-
-https://github.com/Blealtan/RWKV-LM-LoRA LoRA fine-tuning
-
-More RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
 
 ### Inference
 
