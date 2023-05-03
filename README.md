@@ -37,6 +37,8 @@ https://github.com/harrisonvanderbyl/rwkv-cpp-cuda pure CUDA RWKV (no need for p
 
 https://github.com/Blealtan/RWKV-LM-LoRA LoRA fine-tuning
 
+https://github.com/go-skynet/LocalAI Runs RWKV with [rwkv.cpp](https://github.com/saharNooby/rwkv.cpp) as an OpenAI drop-in compatible REST API.
+
 More RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
 
 ## Join Our Discord: https://discord.gg/bDSBUMeFpc (lots of developers)
