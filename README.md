@@ -195,7 +195,7 @@ x = x + pos_emb_x + pos_emb_y
 
 ### Misc
 
-#### New Idea: Bytes-aware Embedding
+#### Idea: Bytes-aware Embedding
 
 The idea is to make sure each token in vocab understand its length and raw UTF-8 bytes.
 
@@ -241,6 +241,18 @@ Better: define emb_space emb_capitalize_first emb_capitalize_all to be a functio
 Maybe the Best: let 'abc' ' abc' etc. to share the last 90% of their embeddings.
 
 At this moment, all our tokenizers spend too many items to represent all variations of 'abc' ' abc' ' Abc' etc. Moreover the model cannot discover that these are actually similar if some of these variations are rare in the dataset. The method here can improve this. I plan to test this in a new version of RWKV.
+
+#### Idea: Better Initial States
+
+Example (single-round Q & A):
+
+1. Generate the final state of all wiki documents.
+
+2. For any user Q, find the best wiki document, and use its final state as the initial state.
+
+3. Train a model to directly generate the optimal initial state for any user Q.
+
+However this can be a bit more tricky for multi-round Q & A :)
 
 ## How it works
 
