@@ -49,10 +49,6 @@ More RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repos
 
 A cool paper (Spiking Neural Network) using RWKV: https://github.com/ridgerchu/SpikeGPT
 
-ChatRWKV with RWKV 14B ctx8192:
-
-![RWKV-chat](RWKV-chat.png)
-
 You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build upon it. We have plenty of potential compute (A100 40Gs) now (thanks to Stability and EleutherAI), so if you have interesting ideas I can run them.
 
 ![RWKV-eval2](RWKV-eval2.png)
@@ -60,6 +56,10 @@ You are welcome to join the RWKV discord https://discord.gg/bDSBUMeFpc to build 
 RWKV [loss vs token position] for 10000 ctx4k+ documents in Pile. RWKV 1B5-4k is mostly flat after ctx1500, but 3B-4k and 7B-4k and 14B-4k have some slopes, and they are getting better. This debunks the old view that RNNs cannot model long ctxlens. We can predict that RWKV 100B will be great, and RWKV 1T is probably all you need :)
 
 ![RWKV-ctxlen](RWKV-ctxlen.png)
+
+ChatRWKV with RWKV 14B ctx8192:
+
+![RWKV-chat](RWKV-chat.png)
 
 I believe RNN is a better candidate for fundamental models, because: (1) It's more friendly for ASICs (no kv cache). (2) It's more friendly for RL. (3) When we write, our brain is more similar to RNN. (4) The universe is like an RNN too (because of locality). Transformers are non-local models.
 
