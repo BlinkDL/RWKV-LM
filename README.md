@@ -145,6 +145,9 @@ Colab for fine-tuning RWKV-4 Pile models: https://colab.research.google.com/gith
 ```
 python tools/preprocess_data.py --input ./my_data.jsonl --output-prefix ./data/my_data --vocab ./20B_tokenizer.json --dataset-impl mmap --tokenizer-type HFTokenizer --append-eod
 ```
+
+**UPDATE:** now you can use https://github.com/Abel2076/json2binidx_tool (much easier to install)
+
 The jsonl format sample (one line for each document):
 ```
 {"text": "This is the first document."}
