@@ -184,6 +184,8 @@ I suggest firstly collect the mean+stdev statistics of each channel of each vect
 
 6. Trainable initial hidden state (xx aa bb pp xx).
 
+7. Layerwise (or even row/column-wise, elementwise) LR, and test Lion optimizer.
+
 ### Vision Tasks
 
 1. I find it's good to add a 2d pos encoding:
