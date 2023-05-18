@@ -200,6 +200,8 @@ x = x + pos_emb_x + pos_emb_y
 
 ### Misc
 
+Maybe we can improve memorization by simply repeating the context (I guess 2 times is enough). Example:  Reference -> Reference(again) -> Question -> Answer
+
 #### Idea: Bytes-aware Embedding
 
 The idea is to make sure each token in vocab understand its length and raw UTF-8 bytes.
