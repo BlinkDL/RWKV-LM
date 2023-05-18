@@ -91,7 +91,7 @@ Here are some of my TODOs. Let's work together :)
 
 * Test it on bidirectional & MLM tasks, and image & audio & video tokens. I think RWKV can support Encoder-Decoder via this: for each decoder token, use a learned mixture of [decoder previous hidden state] & [encoder final hidden state]. Hence all decoder tokens will have access to the encoder output.
 
-* Now training RWKV-4a with one single tiny extra attention (just a few extra lines comparing with RWKV-4) to further improve some difficult zeroshot tasks (such as LAMBADA) for smaller models. See https://github.com/BlinkDL/RWKV-LM/commit/a268cd2e40351ee31c30c5f8a5d1266d35b41829
+* Now training RWKV-4a with one single tiny extra attention (just a few extra lines comparing with RWKV-4) to further improve some difficult Zero-Shot tasks (such as LAMBADA) for smaller models. See https://github.com/BlinkDL/RWKV-LM/commit/a268cd2e40351ee31c30c5f8a5d1266d35b41829
 
 User feedback:
 > *I've so far toyed around the character-based model on our relatively small pre-training dataset (around 10GB of text), and the results are extremely good - similar ppl to models taking much, much longer to train.*
@@ -166,7 +166,7 @@ Consider RWKV 14B. The state has 200 vectors, that is, 5 vectors for each block:
 
 Do not avg pool because different vectors (xx aa bb pp xx) in the state have very different meanings and ranges. You can probably remove pp.
 
-I suggest firstly collect the mean+stdev statistics of each channel of each vector, and normalize all of them (note: the normalization should be data-indepedent and collected from various texts). Then train a linear classifer.
+I suggest firstly collect the mean+stdev statistics of each channel of each vector, and normalize all of them (note: the normalization should be data-independent and collected from various texts). Then train a linear classifier.
 
 ## Towards RWKV-5 (just to record some new ideas)
 
@@ -196,7 +196,7 @@ self.pos_emb_y = nn.Parameter(torch.zeros((args.my_pos_emb,1,args.n_embd)))
 x = x + pos_emb_x + pos_emb_y
 ```
 
-2. In a BPE langauge model, it's the best to use [tokenShift of 1 token] (you can mix more tokens in a char-level English model). However you can try [tokenShift of N (or N-1) (or N+1) tokens] if the image size is N x N, because that will be like mixing [the token above the current positon (or the token above the to-be-predicted positon)] with [current token]. You can use try different tokenShift styles for "ATT" & "FFN", or mixing different tokenShift styles - such as mixing [token A] with [token A-1] and [token A-(N-1)] etc.
+2. In a BPE language model, it's the best to use [tokenShift of 1 token] (you can mix more tokens in a char-level English model). However you can try [tokenShift of N (or N-1) (or N+1) tokens] if the image size is N x N, because that will be like mixing [the token above the current position (or the token above the to-be-predicted position)] with [current token]. You can use try different tokenShift styles for "ATT" & "FFN", or mixing different tokenShift styles - such as mixing [token A] with [token A-1] and [token A-(N-1)] etc.
 
 ### Misc
 
@@ -273,13 +273,13 @@ Moreover it's using a number of my tricks, such as:
 
 * Extra R-gate in the FFN (applicable to all transformers). I am also using reluSquared from Primer.
 
-* Better initilization: I init most of the matrices to ZERO (see RWKV_Init in https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model.py).
+* Better initialization: I init most of the matrices to ZERO (see RWKV_Init in https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v2-RNN/src/model.py).
 
 * You can transfer some parameters from a small model to a large model (note: I sort & smooth them too), for faster and better convergence (see https://www.reddit.com/r/MachineLearning/comments/umq908/r_rwkvv2rnn_a_parallelizable_rnn_with/).
 
 * My CUDA kernel: https://github.com/BlinkDL/RWKV-CUDA to speedup training.
 
-## The pseudocode (execution from top to bottom):
+## The Pseudo-code (execution from top to bottom):
 
 ![RWKV-v2-RNN](RWKV-v2-RNN.png)
 
@@ -501,9 +501,9 @@ it's like top-p, and the only difference is you also keep all tokens whose prob 
 
 Try x = 0.01 first.
 
-## Better Learning Rate Schedule via Variantional Method of Loss Curve
+## Better Learning Rate Schedule via Variational Method of Loss Curve
 
-I propose a simple new method to find better LR schedules. The method is cost-efficient and practical for large LMs. The takeaway is we can model the loss curve dynamics (phenomenology) w.r.t. the LR, and a nice closed-form LR curve can be directly computed from it using variantional method. Moreover we can predict the final loss with reasonable accuracy.
+I propose a simple new method to find better LR schedules. The method is cost-efficient and practical for large LMs. The takeaway is we can model the loss curve dynamics (phenomenology) w.r.t. the LR, and a nice closed-form LR curve can be directly computed from it using variational method. Moreover we can predict the final loss with reasonable accuracy.
 
 UPDATE: In "Conclusion 1.", use the best-fitting regime (ignore the initial steps where our approximations break down) to fit the parameters.
 
@@ -630,6 +630,8 @@ Green: MHA+Rotary+GeGLU+Token_shift. 17.2M params.
 
 Blue: MHA_pro (MHA with various tweaks & RWKV-type-FFN) - slow - needs more VRAM - good performance. 16.6M params.
 
+
+# Citation
 ```
 @software{peng_bo_2021_5196578,
   author       = {PENG Bo},
