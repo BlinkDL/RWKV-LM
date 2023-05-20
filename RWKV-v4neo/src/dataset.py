@@ -23,7 +23,7 @@ class MyDataset(Dataset):
                 self.data = MMapIndexedDataset(args.data_file)
                 self.data_size = len(self.data._bin_buffer) // self.data._index._dtype_size
                 rank_zero_info(f"Data has {self.data_size} tokens.")
-            else:
+            elif args.my_pile_version == 2:
                 data_list = open(args.data_file, "r", encoding='utf-8').read().strip().split('\n')
                 data_list = [i.strip().split(' ') for i in data_list]
                 self.data = []
