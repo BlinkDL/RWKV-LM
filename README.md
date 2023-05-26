@@ -31,11 +31,13 @@ print(out.detach().cpu().numpy())                   # same result as above
 ```
 **Cool Community RWKV Projects (check them!)**:
 
-https://github.com/saharNooby/rwkv.cpp INT4 INT8 FP16 FP32 inference for CPU using [ggml](https://github.com/ggerganov/ggml)
+https://github.com/saharNooby/rwkv.cpp fast i4 i8 fp16 fp32 CPU inference using [ggml](https://github.com/ggerganov/ggml)
 
-https://github.com/harrisonvanderbyl/rwkv-cpp-cuda pure CUDA RWKV (no need for python & pytorch)
+https://github.com/harrisonvanderbyl/rwkv-cpp-cuda fast windows/linux & cuda/rocm/vulkan GPU inference (no need for python & pytorch)
 
 https://github.com/Blealtan/RWKV-LM-LoRA LoRA fine-tuning
+
+https://github.com/josStorer/RWKV-Runner cool GUI
 
 More RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
 
