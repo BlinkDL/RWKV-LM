@@ -646,7 +646,7 @@ Some learned time_w examples:
 
 ![RWKV-time-w](RWKV-time-w.png)
 
-# Relevant papers 
+# Relevant publications 
 
 If you use RWKV in your research, please consider citing our paper.
 
