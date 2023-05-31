@@ -639,15 +639,11 @@ Green: MHA+Rotary+GeGLU+Token_shift. 17.2M params.
 Blue: MHA_pro (MHA with various tweaks & RWKV-type-FFN) - slow - needs more VRAM - good performance. 16.6M params.
 
 ```
-@software{peng_bo_2021_5196578,
-  author       = {PENG Bo},
-  title        = {BlinkDL/RWKV-LM: 0.01},
-  month        = aug,
-  year         = 2021,
-  publisher    = {Zenodo},
-  version      = {0.01},
-  doi          = {10.5281/zenodo.5196577},
-  url          = {https://doi.org/10.5281/zenodo.5196577}
+@article{peng2023rwkv,
+  title={RWKV: Reinventing RNNs for the Transformer Era},
+  author={Peng, Bo and Alcaide, Eric and Anthony, Quentin and Albalak, Alon and Arcadinho, Samuel and Cao, Huanqi and Cheng, Xin and Chung, Michael and Grella, Matteo and GV, Kranthi Kiran and others},
+  journal={arXiv preprint arXiv:2305.13048},
+  year={2023}
 }
 ```
 
