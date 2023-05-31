@@ -638,6 +638,22 @@ Green: MHA+Rotary+GeGLU+Token_shift. 17.2M params.
 
 Blue: MHA_pro (MHA with various tweaks & RWKV-type-FFN) - slow - needs more VRAM - good performance. 16.6M params.
 
+# Initialization
+
+We use careful initialization for RWKV to get fast convergence - orthogonal matrices with proper scaling, and special time_w curves. Check model.py for details.
+
+Some learned time_w examples:
+
+![RWKV-time-w](RWKV-time-w.png)
+
+# Relevant papers 
+
+If you use RWKV in your research, please consider citing our paper.
+
+Peng B, Alcaide E, Anthony Q, Albalak A, Arcadinho S, Cao H, Cheng X, Chung M, Grella M, GV KK, He X, et al. RWKV: Reinventing RNNs for the Transformer Era. arXiv preprint arXiv:2305.13048. 2023.
+
+[Link](https://arxiv.org/abs/2305.13048) to paper.
+
 ```
 @article{peng2023rwkv,
   title={RWKV: Reinventing RNNs for the Transformer Era},
@@ -646,11 +662,3 @@ Blue: MHA_pro (MHA with various tweaks & RWKV-type-FFN) - slow - needs more VRAM
   year={2023}
 }
 ```
-
-# Initialization
-
-We use careful initialization for RWKV to get fast convergence - orthogonal matrices with proper scaling, and special time_w curves. Check model.py for details.
-
-Some learned time_w examples:
-
-![RWKV-time-w](RWKV-time-w.png)
