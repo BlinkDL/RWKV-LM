@@ -14,6 +14,8 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 **Download RWKV-4 0.1/0.4/1.5/3/7/14B weights**: https://huggingface.co/BlinkDL
 
+RWKV-4-World is the best model: generation & chat & code in 100+ world languages, with the best English zero-shot & in-context learning ability too.
+
 **RWKV pip package**: https://pypi.org/project/rwkv/
 
 ```python
