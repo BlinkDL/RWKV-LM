@@ -81,6 +81,7 @@ if __name__ == "__main__":
     parser.add_argument("--beta2", default=0.99, type=float)  # use 0.999 when your model is close to convergence
     parser.add_argument("--adam_eps", default=1e-8, type=float)
     parser.add_argument("--grad_cp", default=0, type=int)  # gradient checkpt: saves VRAM, but slower
+    parser.add_argument("--dropout", default=0, type=float)
 
     parser.add_argument("--my_pile_version", default=1, type=int)  # my special pile version
     parser.add_argument("--my_pile_stage", default=0, type=int)  # my special pile mode
@@ -108,13 +109,14 @@ if __name__ == "__main__":
     parser.add_argument("--my_random_steps", default=0, type=int)
     parser.add_argument("--my_testing", default='', type=str)
     parser.add_argument("--my_exit", default=99999999, type=int)
+    parser.add_argument("--my_exit_tokens", default=-1, type=int)
 
     parser = Trainer.add_argparse_args(parser)
     args = parser.parse_args()
 
     ########################################################################################################
 
-    import os, warnings, math, datetime, sys, time, importlib
+    import os, warnings, math, datetime, sys, time
     import numpy as np
     import torch
     from torch.utils.data import DataLoader
@@ -186,12 +188,15 @@ if __name__ == "__main__":
 
         if magic_prime_bak > 0:
             args.magic_prime = magic_prime_bak
-        args.epoch_count = args.magic_prime // 40320
+        if args.my_qa_mask == 2:
+            args.epoch_count = 2 * args.magic_prime // 40320
+        else:
+            args.epoch_count = args.magic_prime // 40320
 
         args.epoch_steps = 40320 // args.real_bsz
         assert args.epoch_steps * args.real_bsz == 40320
-        if args.my_pile_stage == 2:
-            assert args.lr_final == args.lr_init
+        # if args.my_pile_stage == 2:
+        #     assert args.lr_final == args.lr_init
         if args.my_pile_stage >= 2:  # find latest saved model
             list_p = []
             for p in os.listdir(args.proj_dir):
@@ -220,6 +225,11 @@ if __name__ == "__main__":
 
     samples_per_epoch = args.epoch_steps * args.real_bsz
     tokens_per_epoch = samples_per_epoch * args.ctx_len
+    try:
+        deepspeed_version = deepspeed.__version__
+    except:
+        deepspeed_version = None
+        pass
     rank_zero_info(
         f"""
 ############################################################################
@@ -237,7 +247,7 @@ if __name__ == "__main__":
 # Adam = lr {args.lr_init} to {args.lr_final}, warmup {args.warmup_steps} steps, beta {args.betas}, eps {args.adam_eps}
 #
 # Found torch {torch.__version__}, recommend 1.13.1+cu117 or newer
-# Found deepspeed {deepspeed.__version__ if importlib.util.find_spec('deepspeed') else 'None'}, recommend 0.7.0 (faster than newer versions)
+# Found deepspeed {deepspeed_version}, recommend 0.7.0 (faster than newer versions)
 # Found pytorch_lightning {pl.__version__}, recommend 1.9.1 or newer
 #
 ############################################################################
@@ -290,8 +300,12 @@ if __name__ == "__main__":
         from src.model_img import RWKV_IMG
         model = RWKV_IMG(args)
     else:
-        from src.model import RWKV
-        model = RWKV(args)
+        if args.dropout > 0:
+            from src.model_drop2 import RWKV
+            model = RWKV(args)
+        else:
+            from src.model import RWKV
+            model = RWKV(args)
 
     if len(args.load_model) == 0 or args.my_pile_stage == 1:  # shall we build the initial weights?
         init_weight_name = f"{args.proj_dir}/rwkv-init.pth"

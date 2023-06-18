@@ -52,6 +52,24 @@ class train_callback(pl.Callback):
             # if trainer.is_global_zero:
             #     print(trainer.global_step, decay_step, decay_total, w_step, progress, lr)
 
+        if args.my_exit_tokens > 0: # cosine decay
+            if trainer.global_step < w_step:
+                lr = args.lr_init * (0.2 + 0.8 * trainer.global_step / w_step)
+            else:
+                real_tokens = real_step * args.ctx_len * args.real_bsz
+                warmup_tokens = w_step * args.ctx_len * args.real_bsz
+                progress = (real_tokens - warmup_tokens) / (args.my_exit_tokens - warmup_tokens)
+                progress = max(0, min(1, progress))
+                lr_final_factor = 0.1
+                lr_mult = (0.5 + lr_final_factor / 2) + (0.5 - lr_final_factor / 2) * math.cos(math.pi * progress)
+                lr = args.lr_init * lr_mult
+                if progress >= 1:
+                    my_save(
+                        pl_module.state_dict(),
+                        f"{args.proj_dir}/rwkv-final.pth",
+                    )
+                    exit(0)
+
         for param_group in trainer.optimizers[0].param_groups:
             if args.layerwise_lr > 0:
                 param_group["lr"] = lr * param_group["my_lr_scale"]
