@@ -8,7 +8,7 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 **Raven 14B** (finetuned on Alpaca+ShareGPT+...) Demo: https://huggingface.co/spaces/BlinkDL/ChatRWKV-gradio
 
-**Raven 7B** (finetuned on Alpaca+ShareGPT+...) Demo: https://huggingface.co/spaces/BlinkDL/Raven-RWKV-7B
+**World 7B** (supports 100+ world languages) Demo: https://huggingface.co/spaces/BlinkDL/RWKV-World-7B
 
 **ChatRWKV:** with "stream" and "split" strategies and INT8. **3G VRAM is enough to run RWKV 14B :)** https://github.com/BlinkDL/ChatRWKV
 
