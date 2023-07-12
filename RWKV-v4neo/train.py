@@ -82,6 +82,7 @@ if __name__ == "__main__":
     parser.add_argument("--adam_eps", default=1e-8, type=float)
     parser.add_argument("--grad_cp", default=0, type=int)  # gradient checkpt: saves VRAM, but slower
     parser.add_argument("--dropout", default=0, type=float)
+    parser.add_argument("--weight_decay", default=0, type=float) # try 0.1 / 0.01 / 0.001
 
     parser.add_argument("--my_pile_version", default=1, type=int)  # my special pile version
     parser.add_argument("--my_pile_stage", default=0, type=int)  # my special pile mode
