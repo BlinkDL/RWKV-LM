@@ -177,6 +177,48 @@ I suggest firstly collect the mean+stdev statistics of each channel of each vect
 
 ## Towards RWKV-5 (just to record some new ideas)
 
+### Lastest Design
+
+$`
+\begin{array}{|l|l|l|}
+\hline & {\text { RWKV-4 (pointwise multiplication) }} & \text { RWKV-5 with matrix-valued states } \\
+\hline \mathrm{y}_0 & \mathrm{r}_0 \frac{\mathrm{uk} \mathrm{v}_0}{\mathrm{uk_{0 }}} & \mathrm{r}_0\left(\mathrm{uk}_0^{\dagger} \mathrm{v}_0\right) \\
+\hline \mathrm{y}_1 & \mathrm{r}_1 \frac{\mathrm{uk}_1 \mathrm{v}_1+\mathrm{k}_0 \mathrm{v}_0}{\mathrm{uk}_1+\mathrm{k}_0} & \mathrm{r}_1\left(\mathrm{uk}_1^{\dagger} \mathrm{v}_1+\mathrm{k}_0^{\dagger} \mathrm{v}_0\right) \\
+\hline \mathrm{y}_2 & \mathrm{r}_2 \frac{\mathrm{uk}_2 \mathrm{v}_2+\mathrm{k}_1 \mathrm{v}_1+\mathrm{wk}_0 \mathrm{v}_0}{\mathrm{uk}_2+\mathrm{k}_1+\mathrm{wk}_0} & \mathrm{r}_2\left(\mathrm{uk}_2^{\dagger} \mathrm{v}_2+\mathrm{k}_1^{\dagger} \mathrm{v}_1+\mathrm{wk}_0^{\dagger} \mathrm{v}_0\right) \\
+\hline \mathrm{y}_3 & \mathrm{r}_3 \frac{\mathrm{uk}_3 \mathrm{v}_3+\mathrm{k}_2 \mathrm{v}_2+\mathrm{wk}_1 \mathrm{v}_1+\mathrm{w}^2 \mathrm{k}_0 \mathrm{v}_0}{\mathrm{uk} \mathrm{k}_3+\mathrm{k}_2+\mathrm{wk}_1+\mathrm{w}^2 \mathrm{k}_0} & \mathrm{r}_3\left(\mathrm{uk}_3^{\dagger} \mathrm{v}_3+\mathrm{k}_2^{\dagger} \mathrm{v}_2+\mathrm{wk}_1^{\dagger} \mathrm{v}_1+\mathrm{w}^2 \mathrm{k}_0^{\dagger} \mathrm{v}_0\right) \\
+\hline
+\end{array}`$
+
+$`\left[\mathrm{y}_{00} \ldots \mathrm{y}_{0 c}\right]=\left[\mathrm{r}_{00} \ldots \mathrm{r}_{0 c}\right]\left(\mathrm{u}\left[\begin{array}{ccc}
+\mathrm{k}_{00} \mathrm{v}_{00} & \cdots & \mathrm{k}_{00} \mathrm{v}_{0 \mathrm{c}} \\
+\vdots & \ddots & \vdots \\
+\mathrm{k}_{0 c} \mathrm{v}_{00} & \cdots & \mathrm{k}_{0 c} \mathrm{v}_{0 \mathrm{c}}
+\end{array}\right]\right)`$
+
+$`\left[\mathrm{y}_{10} \ldots \mathrm{y}_{1 \mathrm{c}}\right]=\left[\mathrm{r}_{10} \ldots \mathrm{r}_{1 \mathrm{c}}\right]\left(\mathrm{u}\left[\begin{array}{ccc}
+\mathrm{k}_{10} \mathrm{v}_{10} & \cdots & \mathrm{k}_{10} \mathrm{v}_{1 \mathrm{c}} \\
+\vdots & \ddots & \vdots \\
+\mathrm{k}_{1 \mathrm{c}} \mathrm{v}_{10} & \cdots & \mathrm{k}_{1 \mathrm{c}} \mathrm{v}_{1 \mathrm{c}}
+\end{array}\right]+\left[\begin{array}{ccc}
+\mathrm{k}_{00} \mathrm{v}_{00} & \cdots & \mathrm{k}_{00} \mathrm{v}_{0 \mathrm{c}} \\
+\vdots & \ddots & \vdots \\
+\mathrm{k}_{0 \mathrm{c}} \mathrm{v}_{00} & \cdots & \mathrm{k}_{0 \mathrm{c}} \mathrm{v}_{0 \mathrm{c}}
+\end{array}\right]\right)`$
+
+$`\left[\mathrm{y}_{20} \ldots \mathrm{y}_{2 \mathrm{c}}\right]=\left[\mathrm{r}_{20} \ldots \mathrm{r}_{2 \mathrm{c}}\right]\left(\mathrm{u}\left[\begin{array}{ccc}
+\mathrm{k}_{20} \mathrm{v}_{20} & \cdots & \mathrm{k}_{20} \mathrm{v}_{2 \mathrm{c}} \\
+\vdots & \ddots & \vdots \\
+\mathrm{k}_{2 \mathrm{c}} \mathrm{v}_{20} & \cdots & \mathrm{k}_{2 \mathrm{c}} \mathrm{v}_{2 \mathrm{c}}
+\end{array}\right]+\left[\begin{array}{ccc}
+\mathrm{k}_{10} \mathrm{v}_{10} & \cdots & \mathrm{k}_{10} \mathrm{v}_{1 \mathrm{c}} \\
+\vdots & \ddots & \vdots \\
+\mathrm{k}_{1 c} \mathrm{v}_{10} & \cdots & \mathrm{k}_{1 \mathrm{c}} \mathrm{v}_{1 \mathrm{c}}
+\end{array}\right]+\mathrm{w}\left[\begin{array}{ccc}
+\mathrm{k}_{00} \mathrm{v}_{00} & \cdots & \mathrm{k}_{00} \mathrm{v}_{0 \mathrm{c}} \\
+\vdots & \ddots & \vdots \\
+k_{0 c} v_{00} & \cdots & k_{0 c} v_{0 c}
+\end{array}\right]\right)`$
+
 ### Some ideas
 
 1. Now time decay is like 0.999^T (0.999 is learnable). Change it to something like (0.999^T + 0.1) where 0.1 is learnable too. The 0.1 part will be kept forever. Or, A^T + B^T + C = fast-decay + slow-decay + constant. Can even use different formulas (for example, K^2 instead of e^K for a decay component, or, without normalization).
