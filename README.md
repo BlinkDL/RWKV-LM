@@ -179,6 +179,8 @@ I suggest firstly collect the mean+stdev statistics of each channel of each vect
 
 ### Lastest Design
 
+RWKV-5 is multi-head and here shows one head. There is also a LayerNorm for each head (hence actually GroupNorm).
+
 $`
 \begin{array}{|l|l|l|}
 \hline & {\text { RWKV-4 (pointwise multiplication) }} & \text { RWKV-5 with matrix-valued states } \\
