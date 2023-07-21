@@ -221,7 +221,11 @@ $`\left[\mathrm{y}_{20} \ldots \mathrm{y}_{2 \mathrm{c}}\right]=\left[\mathrm{r}
 k_{0 c} v_{00} & \cdots & k_{0 c} v_{0 c}
 \end{array}\right]\right)`$
 
-### Some ideas
+### RWKV-6
+
+Use parallelized mode to quickly generate the state, then use a finetuned full RNN (the layers of token n can use outputs of all layer of token n-1) for sequential generation.
+
+### Some old ideas
 
 1. Now time decay is like 0.999^T (0.999 is learnable). Change it to something like (0.999^T + 0.1) where 0.1 is learnable too. The 0.1 part will be kept forever. Or, A^T + B^T + C = fast-decay + slow-decay + constant. Can even use different formulas (for example, K^2 instead of e^K for a decay component, or, without normalization).
 
