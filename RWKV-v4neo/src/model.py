@@ -136,7 +136,7 @@ def RUN_CUDA(B, T, C, w, u, k, v):
 
 ########################################################################################################
 
-class RWKV_TimeMix_RWKV5_Preview(nn.Module):
+class RWKV_TimeMix_RWKV5_Preview(MyModule):
     def __init__(self, args, layer_id):
         super().__init__()
         self.args = args
@@ -144,13 +144,12 @@ class RWKV_TimeMix_RWKV5_Preview(nn.Module):
         self.ctx_len = args.ctx_len
         self.n_embd = args.n_embd
 
-        try:
-            self.n_head = self.n_embd // 96
-            assert self.n_embd % self.n_head == 0
-        except:
-            self.n_head = self.n_embd // 128
-            assert self.n_embd % self.n_head == 0
-        self.head_size = self.n_embd // self.n_head
+        self.head_size = 64
+        self.n_head = self.n_embd // self.head_size
+        assert self.n_embd % self.n_head == 0
+
+        self.chunk_len = 512
+        assert self.ctx_len % self.chunk_len == 0
 
         with torch.no_grad():
             ratio_0_to_1 = layer_id / (args.n_layer - 1)  # 0 to 1
@@ -167,9 +166,11 @@ class RWKV_TimeMix_RWKV5_Preview(nn.Module):
             # fancy time_decay
             decay_speed = torch.ones(self.n_head)
             for h in range(self.n_head):
-                decay_speed[h] = -5 + 8 * (h / (self.n_head - 1)) ** (0.7 + 1.3 * ratio_0_to_1)
+                decay_speed[h] = -9 + 8 * (h / (self.n_head - 1)) ** (0.7 + 1.3 * ratio_0_to_1)
             self.time_decay = nn.Parameter(decay_speed)
             # print(layer_id, self.time_decay.flatten()[:3].cpu().numpy(), '...', self.time_decay.flatten()[-3:].cpu().numpy())
+
+            self.time_first = nn.Parameter(torch.ones(self.n_head) * math.log(0.3))
 
         self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
         self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)
@@ -179,72 +180,78 @@ class RWKV_TimeMix_RWKV5_Preview(nn.Module):
 
         self.ln_x = nn.GroupNorm(self.n_head, self.n_embd)
 
-    def forward(self, x):
-        B, TT, C = x.size()  # x = (Batch,Time,Channel)
-        H = self.n_head
-        S = self.head_size
+    @MyFunction
+    def jit_func(self, x):
+        B, TT, C = x.size()
 
         xx = self.time_shift(x) # Mix x with the previous timestep to produce xk, xv, xr
         xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)
         xv = x * self.time_mix_v + xx * (1 - self.time_mix_v)
         xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)
 
-        r = self.receptance(xr).view(B, TT, self.n_head, self.head_size).transpose(1, 2) # (B, T, C) -> (B, H, T, S)
-        k = self.key(xk).view(B, TT, self.n_head, self.head_size).transpose(1, 2)   # (B, T, C) -> (B, H, T, S)
-        v = self.value(xv).view(B, TT, self.n_head, self.head_size).transpose(1, 2) # (B, T, C) -> (B, H, T, S)
+        r = self.receptance(xr).view(B, TT, self.n_head, self.head_size).transpose(1, 2)            # BTC -> BHTS
+        k = self.key(xk).view(B, TT, self.n_head, self.head_size).transpose(1, 2).transpose(-2, -1) # BTC -> BHTS -> BHST
+        v = self.value(xv).view(B, TT, self.n_head, self.head_size).transpose(1, 2)                 # BTC -> BHTS
 
-        ########################################
+        return r, k, v
 
-        T = 512 # chunk length
-        assert TT % T == 0
+    @MyFunction
+    def jit_func_2(self, r, k, v, w, wk, wb, ws):
+        B, H, TT, S = r.size()
+        T = self.chunk_len
 
-        ww = torch.exp(-torch.exp(self.time_decay.float()))
+        s = torch.zeros(B, H, S, S, device=r.device, dtype=r.dtype)  # state
+        x = torch.zeros(B, H, TT, S, device=r.device, dtype=r.dtype) # output
 
-        att_mask = torch.zeros(H, T, T, device=r.device)
-        rows, cols = torch.tril_indices(T, T, device=r.device)
-        powers = rows - cols
-        for h in range(H):
-            att_mask[h][rows, cols] = ww[h] ** powers
-
-        ww = ww.unsqueeze(-1)
-        wo = ww.pow(T).reshape(1, H, 1,1)
-
-        ww = ww.repeat(1, T)
-
-        ind = torch.arange(T, device=r.device).flip(0).unsqueeze(0).repeat(H, 1)
-
-        wa = ww.pow(ind)
-        wa = F.pad(wa, (0, T))
-        wa = torch.tile(wa, [T])
-        wa = wa[:, :-T].reshape(-1, T, 2 * T - 1)
-        wa = wa[:, :, T-1:].unsqueeze(0)
-
-        wc = ww.pow(1 + ind).unsqueeze(-2).unsqueeze(0)
-
-        wa = wa.to(dtype=r.dtype)
-        wc = wc.to(dtype=r.dtype)
-        wo = wo.to(dtype=r.dtype)
-
-        ########################################
-
-        s = torch.zeros(B, H, S, S, device=r.device, dtype=r.dtype)
-        x = torch.zeros(B, H, TT, S, device=r.device, dtype=r.dtype)
+################################################################################
+########
         for i in range(TT // T):
-            rr = r[:,:,i*T:i*T+T,:]
-            kk = k[:,:,i*T:i*T+T,:].transpose(-2, -1)
-            vv = v[:,:,i*T:i*T+T,:]
+            rr = r[:, :, i*T:i*T+T, :]
+            kk = k[:, :, :, i*T:i*T+T]
+            vv = v[:, :, i*T:i*T+T, :]
 
-            y = ((rr @ kk) * wa) @ vv
-            y2 = (rr @ s) * wa[:,:,:,0:1]
-            y = y + y2
+            x[:, :, i*T:i*T+T, :] = ((rr @ kk) * w) @ vv  +  (rr @ s) * wb
 
-            x[:,:,i*T:i*T+T,:] = y
-            s = wo * s + (kk * wc) @ vv
-
-        x = x.transpose(1, 2).contiguous().view(B, TT, C)                          # (B, H, T, S) -> (B, T, H, S) -> (B, T, C)        
-        x = self.ln_x(x.transpose(-2, -1)).transpose(-2, -1)
+            s = ws * s + (kk * wk) @ vv
+########
+################################################################################
         
+        x = x.transpose(1, 2).contiguous().view(B, TT, H*S) # BHTS -> BTHS -> BTC
+        x = self.ln_x(x.transpose(-2, -1)).transpose(-2, -1)
         return self.output(x)
+    
+    def forward(self, x):
+        H = self.n_head
+        T = self.chunk_len
+
+        r, k, v = self.jit_func(x)
+
+        w = torch.exp(-torch.exp(self.time_decay.float())).unsqueeze(-1)
+        u = torch.exp(self.time_first.float()).unsqueeze(-1)
+
+################################################################################
+########
+        ws = w.pow(T).reshape(1, H, 1, 1)
+
+        ind = torch.arange(T-1, -1, -1, device=r.device).unsqueeze(0).repeat(H, 1)
+        w = w.repeat(1, T).pow(ind)
+
+        wk = w.reshape(1, H, 1, T)
+        wb = wk.transpose(-2, -1).flip(2)
+
+        w = torch.cat([w[:, 1:], u], dim=1)
+        w = F.pad(w, (0, T))
+        w = torch.tile(w, [T])
+        w = w[:, :-T].reshape(-1, T, 2 * T - 1)
+        w = w[:, :, T-1:].reshape(1, H, T, T)
+########
+################################################################################
+
+        w = w.to(dtype=r.dtype)
+        wk = wk.to(dtype=r.dtype)
+        wb = wb.to(dtype=r.dtype)
+        ws = ws.to(dtype=r.dtype)
+        return self.jit_func_2(r, k, v, w, wk, wb, ws)
 
 ########################################################################################################
 # RWKV: RWKV Time-mix + RWKV Channel-mix
