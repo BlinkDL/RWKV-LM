@@ -134,6 +134,117 @@ else:
 def RUN_CUDA(B, T, C, w, u, k, v):
     return WKV.apply(B, T, C, w, u, k, v)
 
+########################################################################################################
+
+class RWKV_TimeMix_RWKV5_Preview(nn.Module):
+    def __init__(self, args, layer_id):
+        super().__init__()
+        self.args = args
+        self.layer_id = layer_id
+        self.ctx_len = args.ctx_len
+        self.n_embd = args.n_embd
+
+        try:
+            self.n_head = self.n_embd // 96
+            assert self.n_embd % self.n_head == 0
+        except:
+            self.n_head = self.n_embd // 128
+            assert self.n_embd % self.n_head == 0
+        self.head_size = self.n_embd // self.n_head
+
+        with torch.no_grad():
+            ratio_0_to_1 = layer_id / (args.n_layer - 1)  # 0 to 1
+            ratio_1_to_almost0 = 1.0 - (layer_id / args.n_layer)  # 1 to ~0
+            ddd = torch.ones(1, 1, args.n_embd)
+            for i in range(args.n_embd):
+                ddd[0, 0, i] = i / args.n_embd
+
+            # fancy time_mix
+            self.time_mix_k = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))
+            self.time_mix_v = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0) + 0.3 * ratio_0_to_1)
+            self.time_mix_r = nn.Parameter(torch.pow(ddd, 0.5 * ratio_1_to_almost0))
+
+            # fancy time_decay
+            decay_speed = torch.ones(self.n_head)
+            for h in range(self.n_head):
+                decay_speed[h] = -5 + 8 * (h / (self.n_head - 1)) ** (0.7 + 1.3 * ratio_0_to_1)
+            self.time_decay = nn.Parameter(decay_speed)
+            # print(layer_id, self.time_decay.flatten()[:3].cpu().numpy(), '...', self.time_decay.flatten()[-3:].cpu().numpy())
+
+        self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
+        self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)
+        self.key = nn.Linear(args.n_embd, args.dim_att, bias=False)
+        self.value = nn.Linear(args.n_embd, args.dim_att, bias=False)
+        self.output = nn.Linear(args.dim_att, args.n_embd, bias=False)
+
+        self.ln_x = nn.GroupNorm(self.n_head, self.n_embd)
+
+    def forward(self, x):
+        B, TT, C = x.size()  # x = (Batch,Time,Channel)
+        H = self.n_head
+        S = self.head_size
+
+        xx = self.time_shift(x) # Mix x with the previous timestep to produce xk, xv, xr
+        xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)
+        xv = x * self.time_mix_v + xx * (1 - self.time_mix_v)
+        xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)
+
+        r = self.receptance(xr).view(B, TT, self.n_head, self.head_size).transpose(1, 2) # (B, T, C) -> (B, H, T, S)
+        k = self.key(xk).view(B, TT, self.n_head, self.head_size).transpose(1, 2)   # (B, T, C) -> (B, H, T, S)
+        v = self.value(xv).view(B, TT, self.n_head, self.head_size).transpose(1, 2) # (B, T, C) -> (B, H, T, S)
+
+        ########################################
+
+        T = 512 # chunk length
+        assert TT % T == 0
+
+        ww = torch.exp(-torch.exp(self.time_decay.float()))
+
+        att_mask = torch.zeros(H, T, T, device=r.device)
+        rows, cols = torch.tril_indices(T, T, device=r.device)
+        powers = rows - cols
+        for h in range(H):
+            att_mask[h][rows, cols] = ww[h] ** powers
+
+        ww = ww.unsqueeze(-1)
+        wo = ww.pow(T).reshape(1, H, 1,1)
+
+        ww = ww.repeat(1, T)
+
+        ind = torch.arange(T, device=r.device).flip(0).unsqueeze(0).repeat(H, 1)
+
+        wa = ww.pow(ind)
+        wa = F.pad(wa, (0, T))
+        wa = torch.tile(wa, [T])
+        wa = wa[:, :-T].reshape(-1, T, 2 * T - 1)
+        wa = wa[:, :, T-1:].unsqueeze(0)
+
+        wc = ww.pow(1 + ind).unsqueeze(-2).unsqueeze(0)
+
+        wa = wa.to(dtype=r.dtype)
+        wc = wc.to(dtype=r.dtype)
+        wo = wo.to(dtype=r.dtype)
+
+        ########################################
+
+        s = torch.zeros(B, H, S, S, device=r.device, dtype=r.dtype)
+        x = torch.zeros(B, H, TT, S, device=r.device, dtype=r.dtype)
+        for i in range(TT // T):
+            rr = r[:,:,i*T:i*T+T,:]
+            kk = k[:,:,i*T:i*T+T,:].transpose(-2, -1)
+            vv = v[:,:,i*T:i*T+T,:]
+
+            y = ((rr @ kk) * wa) @ vv
+            y2 = (rr @ s) * wa[:,:,:,0:1]
+            y = y + y2
+
+            x[:,:,i*T:i*T+T,:] = y
+            s = wo * s + (kk * wc) @ vv
+
+        x = x.transpose(1, 2).contiguous().view(B, TT, C)                          # (B, H, T, S) -> (B, T, H, S) -> (B, T, C)        
+        x = self.ln_x(x.transpose(-2, -1)).transpose(-2, -1)
+        
+        return self.output(x)
 
 ########################################################################################################
 # RWKV: RWKV Time-mix + RWKV Channel-mix
@@ -325,7 +436,10 @@ class Block(nn.Module):
         if self.layer_id == 0 and self.args.pre_ffn > 0:
             self.ffnPre = RWKV_ChannelMix(args, 0)
         else:
-            self.att = RWKV_TimeMix(args, layer_id)
+            if 'r' in os.environ["RWKV_MY_TESTING"]:
+                self.att = RWKV_TimeMix_RWKV5_Preview(args, layer_id)
+            else:
+                self.att = RWKV_TimeMix(args, layer_id)
 
         if 'g' in os.environ["RWKV_MY_TESTING"]:
             self.ffn = MishGLU(args, layer_id)
@@ -584,7 +698,11 @@ class RWKV(pl.LightningModule):
                 else:
                     if shape[0] > shape[1]:
                         gain = math.sqrt(shape[0] / shape[1])
-                    for kk in [".att.key.", ".att.receptance.", ".att.output.", ".att.key.", ".ffn.value.", ".ffn.receptance.", ".ffnPre.value.", ".ffnPre.receptance.", "head_q.", '.oo.', '.rr.']:
+                    if 'r' in os.environ["RWKV_MY_TESTING"]:
+                        zero = [".att.output.", ".ffn.value.", ".ffn.receptance.", ".ffnPre.value.", ".ffnPre.receptance.", "head_q.", '.oo.', '.rr.']
+                    else:
+                        zero = [".att.key.", ".att.receptance.", ".att.output.", ".ffn.value.", ".ffn.receptance.", ".ffnPre.value.", ".ffnPre.receptance.", "head_q.", '.oo.', '.rr.']
+                    for kk in zero:
                         if kk in n:
                             scale = 0
                     if n == "head.weight":
