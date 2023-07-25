@@ -166,11 +166,11 @@ class RWKV_TimeMix_RWKV5_Preview(MyModule):
             # fancy time_decay
             decay_speed = torch.ones(self.n_head)
             for h in range(self.n_head):
-                decay_speed[h] = -10 + 9 * (h / (self.n_head - 1)) ** (0.7 + 1.3 * ratio_0_to_1)
+                decay_speed[h] = -8 + 7 * (h / (self.n_head - 1)) ** (0.7 + 1.3 * ratio_0_to_1)
             self.time_decay = nn.Parameter(decay_speed)
             # print(layer_id, self.time_decay.flatten()[:3].cpu().numpy(), '...', self.time_decay.flatten()[-3:].cpu().numpy())
 
-            self.time_first = nn.Parameter(torch.ones(self.n_head) * (-2.0))
+            self.time_first = nn.Parameter(torch.ones(self.n_head) * (-3.0))
 
         self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
         self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)
@@ -645,6 +645,11 @@ class RWKV(pl.LightningModule):
             idx, targets = batch
             logits = self(idx)
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+            # if '0' in os.environ["RWKV_MY_TESTING"]:
+            #     print('logits', logits)
+            #     torch.set_printoptions(threshold=10000)
+            #     print('idx', idx)
+            #     exit(0)
         else:
             idx, targets, mask = batch
             mask = mask.view(-1)
