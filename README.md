@@ -10,7 +10,7 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 **World 7B** (supports 100+ world languages) Demo: https://huggingface.co/spaces/BlinkDL/RWKV-World-7B
 
-**ChatRWKV:** with "stream" and "split" strategies and INT8. **3G VRAM is enough to run RWKV 14B :)** https://github.com/BlinkDL/ChatRWKV
+**RWKV GUI** https://github.com/josStorer/RWKV-Runner with one-click install and API
 
 **Download RWKV-4 0.1/0.4/1.5/3/7/14B weights**: https://huggingface.co/BlinkDL
 
@@ -31,15 +31,17 @@ out, state = model.forward([1563], state)           # RNN has state (use deepcop
 out, state = model.forward([310, 247], state)
 print(out.detach().cpu().numpy())                   # same result as above
 ```
-**Cool Community RWKV Projects (check them!)**:
+**Cool Community RWKV Projects (check them!)**: https://www.rwkv.com/
 
-https://github.com/saharNooby/rwkv.cpp fast i4 i8 fp16 fp32 CPU inference using [ggml](https://github.com/ggerganov/ggml)
+https://github.com/saharNooby/rwkv.cpp Fast CPU/cuBLAS/CLBlast inference: int4/int8/fp16/fp32
 
-https://github.com/harrisonvanderbyl/rwkv-cpp-cuda fast windows/linux & cuda/rocm/vulkan GPU inference (no need for python & pytorch)
+https://github.com/cgisky1980/ai00_rwkv_server Fastest GPU inference API with vulkan (good for nvidia/amd/intel)
 
-https://github.com/Blealtan/RWKV-LM-LoRA LoRA fine-tuning
+https://github.com/harrisonvanderbyl/rwkv-cpp-cuda Fast GPU inference with cuda/amd/vulkan
 
-https://github.com/josStorer/RWKV-Runner cool GUI
+https://github.com/Blealtan/RWKV-LM-LoRA LoRA finetuning
+
+https://github.com/TheRamU/Fay/blob/main/README_EN.md Digital Assistant with RWKV
 
 More RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
 
