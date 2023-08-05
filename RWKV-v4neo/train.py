@@ -2,6 +2,9 @@
 # The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM
 ########################################################################################################
 
+import logging
+logging.basicConfig(level=logging.INFO)
+
 if __name__ == "__main__":
     from argparse import ArgumentParser
     from pytorch_lightning import Trainer
@@ -83,6 +86,7 @@ if __name__ == "__main__":
     parser.add_argument("--grad_cp", default=0, type=int)  # gradient checkpt: saves VRAM, but slower
     parser.add_argument("--dropout", default=0, type=float)
     parser.add_argument("--weight_decay", default=0, type=float) # try 0.1 / 0.01 / 0.001
+    parser.add_argument("--weight_decay_final", default=-1, type=float)
 
     parser.add_argument("--my_pile_version", default=1, type=int)  # my special pile version
     parser.add_argument("--my_pile_stage", default=0, type=int)  # my special pile mode
@@ -110,7 +114,7 @@ if __name__ == "__main__":
     parser.add_argument("--my_random_steps", default=0, type=int)
     parser.add_argument("--my_testing", default='', type=str)
     parser.add_argument("--my_exit", default=99999999, type=int)
-    parser.add_argument("--my_exit_tokens", default=-1, type=int)
+    parser.add_argument("--my_exit_tokens", default=0, type=int)
 
     parser = Trainer.add_argparse_args(parser)
     args = parser.parse_args()
@@ -301,12 +305,12 @@ if __name__ == "__main__":
         from src.model_img import RWKV_IMG
         model = RWKV_IMG(args)
     else:
-        if args.dropout > 0:
-            from src.model_drop2 import RWKV
-            model = RWKV(args)
-        else:
-            from src.model import RWKV
-            model = RWKV(args)
+        # if args.dropout > 0:
+        #     from src.model_drop2 import RWKV
+        #     model = RWKV(args)
+        # else:
+        from src.model import RWKV
+        model = RWKV(args)
 
     if len(args.load_model) == 0 or args.my_pile_stage == 1:  # shall we build the initial weights?
         init_weight_name = f"{args.proj_dir}/rwkv-init.pth"

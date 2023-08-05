@@ -170,7 +170,10 @@ class RWKV_TimeMix_RWKV5_Preview(MyModule):
             self.time_decay = nn.Parameter(decay_speed)
             # print(layer_id, self.time_decay.flatten()[:3].cpu().numpy(), '...', self.time_decay.flatten()[-3:].cpu().numpy())
 
-            self.time_first = nn.Parameter(torch.ones(self.n_head) * (-3.0))
+            if 'r2' in os.environ["RWKV_MY_TESTING"]:
+                self.time_faaaa = nn.Parameter(torch.ones(self.n_head) * 0.05)
+            else:
+                self.time_first = nn.Parameter(torch.ones(self.n_head) * (-3.0))
 
         self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
         self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)
@@ -227,7 +230,11 @@ class RWKV_TimeMix_RWKV5_Preview(MyModule):
         r, k, v = self.jit_func(x)
 
         w = torch.exp(-torch.exp(self.time_decay.float())).unsqueeze(-1)
-        u = torch.exp(self.time_first.float()).unsqueeze(-1)
+        
+        if 'r2' in os.environ["RWKV_MY_TESTING"]:
+            u = self.time_faaaa.float().unsqueeze(-1)
+        else:
+            u = torch.exp(self.time_first.float()).unsqueeze(-1)
 
 ################################################################################
 ########
@@ -541,6 +548,11 @@ class RWKV(pl.LightningModule):
                 else:
                     lr_1x.add(n)
             elif ("time_decay" in n) and (args.layerwise_lr > 0):
+                if args.my_pile_stage == 2:
+                    lr_3x.add(n)
+                else:
+                    lr_2x.add(n)
+            elif ("time_faaaa" in n) and (args.layerwise_lr > 0):
                 if args.my_pile_stage == 2:
                     lr_3x.add(n)
                 else:
