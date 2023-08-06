@@ -467,6 +467,10 @@ class Block(nn.Module):
             self.tiny_v = nn.Linear(args.n_embd, args.n_embd, bias=False)
             self.register_buffer("tiny_mask", torch.tril(torch.ones(args.ctx_len, args.ctx_len)))
 
+        if args.dropout > 0:
+            self.drop0 = nn.Dropout(p = args.dropout)
+            self.drop1 = nn.Dropout(p = args.dropout)
+        
     def forward(self, x, x_emb=None):
         args = self.args
         B, T, C = x.size()
@@ -476,11 +480,18 @@ class Block(nn.Module):
                 pos_emb = (self.pos_emb_x + self.pos_emb_y).reshape(T+1, -1)[:-1,:]
                 x = x + pos_emb
 
-        if self.layer_id == 0 and args.pre_ffn > 0:
-            x = x + self.ffnPre(self.ln1(x))
+        if self.args.dropout == 0:
+            if self.layer_id == 0 and args.pre_ffn > 0:
+                x = x + self.ffnPre(self.ln1(x))
+            else:
+                x = x + self.att(self.ln1(x))
+            x = x + self.ffn(self.ln2(x))
         else:
-            x = x + self.att(self.ln1(x))
-        x = x + self.ffn(self.ln2(x))
+            if self.layer_id == 0 and args.pre_ffn > 0:
+                x = self.drop0(x + self.ffnPre(self.ln1(x)))
+            else:
+                x = self.drop0(x + self.att(self.ln1(x)))
+            x = self.drop1(x + self.ffn(self.ln2(x)))
 
         if args.tiny_att_dim > 0 and self.layer_id == args.tiny_att_layer:
             xx = self.tiny_ln(x)
@@ -533,6 +544,8 @@ class RWKV(pl.LightningModule):
             self.head_q = nn.Linear(args.n_embd, args.head_qk, bias=False)
             self.head_k = nn.Linear(args.n_embd, args.head_qk, bias=False)
             self.register_buffer("copy_mask", torch.tril(torch.ones(args.ctx_len, args.ctx_len)))
+        if args.dropout > 0:
+            self.drop0 = nn.Dropout(p = args.dropout)
 
     def configure_optimizers(self):
         args = self.args
@@ -617,6 +630,8 @@ class RWKV(pl.LightningModule):
         x = self.emb(idx)
         x_emb = x
 
+        if args.dropout > 0:
+            x = self.drop0(x)
         if args.tiny_att_dim > 0:
             for block in self.blocks:
                 if args.grad_cp == 1:

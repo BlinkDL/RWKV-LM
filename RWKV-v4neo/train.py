@@ -84,7 +84,7 @@ if __name__ == "__main__":
     parser.add_argument("--beta2", default=0.99, type=float)  # use 0.999 when your model is close to convergence
     parser.add_argument("--adam_eps", default=1e-8, type=float)
     parser.add_argument("--grad_cp", default=0, type=int)  # gradient checkpt: saves VRAM, but slower
-    parser.add_argument("--dropout", default=0, type=float)
+    parser.add_argument("--dropout", default=0, type=float) # try 0.01 / 0.02 / 0.05 / 0.1
     parser.add_argument("--weight_decay", default=0, type=float) # try 0.1 / 0.01 / 0.001
     parser.add_argument("--weight_decay_final", default=-1, type=float)
 
@@ -305,10 +305,6 @@ if __name__ == "__main__":
         from src.model_img import RWKV_IMG
         model = RWKV_IMG(args)
     else:
-        # if args.dropout > 0:
-        #     from src.model_drop2 import RWKV
-        #     model = RWKV(args)
-        # else:
         from src.model import RWKV
         model = RWKV(args)
 
