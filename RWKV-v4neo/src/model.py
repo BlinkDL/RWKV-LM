@@ -220,7 +220,7 @@ class RWKV_TimeMix_RWKV5_Preview(MyModule):
 ################################################################################
         
         x = x.transpose(1, 2).contiguous().view(B * TT, H*S) # BHTS -> BTHS -> BTC
-        x = self.ln_x(x).view(B, TT, H*S)
+        x = self.ln_x(x / 8).view(B, TT, H*S) # normalization for head size 64
         return self.output(x)
     
     def forward(self, x):
