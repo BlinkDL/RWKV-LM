@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning.utilities import rank_zero_info, rank_zero_only
 
-def my_save(dd, ff):
+def my_save(args, trainer, dd, ff):
     if '14b-run1' in ff:
         fn = ff.split('/')[-1]
         fff = '/dev/shm/' + fn
@@ -17,7 +17,10 @@ def my_save(dd, ff):
         torch.save(dd, fff)
         subprocess.Popen(f" aws s3 mv {fff} s3://rwkv-world/{aa}-{fn} --quiet", shell=True)
     else:
-        torch.save(dd, ff)
+        if 'deepspeed_stage_3' in args.strategy:
+            trainer.save_checkpoint(ff, weights_only=True)
+        else:
+            torch.save(dd, ff)
 
 class train_callback(pl.Callback):
     def __init__(self, args):
@@ -67,11 +70,13 @@ class train_callback(pl.Callback):
                 else:
                     lr = (lr + args.lr_init * lr_mult) / 2
                 if progress >= 1:
-                    my_save(
-                        pl_module.state_dict(),
-                        f"{args.proj_dir}/rwkv-final.pth",
-                    )
-                    exit(0)
+                    if (trainer.is_global_zero) or ('deepspeed_stage_3' in args.strategy):
+                        my_save(
+                            args, trainer,
+                            pl_module.state_dict(),
+                            f"{args.proj_dir}/rwkv-final.pth",
+                        )
+                        exit(0)
 
         if args.weight_decay_final > 0:
             wd_now = args.weight_decay * math.exp(math.log(args.weight_decay_final / args.weight_decay) * progress)
@@ -116,10 +121,10 @@ class train_callback(pl.Callback):
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         args = self.args
+        token_per_step = args.ctx_len * args.real_bsz
+        real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
         if trainer.is_global_zero:  # logging
             t_now = time.time_ns()
-            token_per_step = args.ctx_len * args.real_bsz
-            real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
             kt_s = 0
             try:
                 t_cost = (t_now - trainer.my_time_ns) / 1e9
@@ -142,11 +147,13 @@ class train_callback(pl.Callback):
                 if kt_s > 0:
                     lll["kt/s"] = kt_s
                 trainer.my_wandb.log(lll, step=int(real_step))
+        if (trainer.is_global_zero) or ('deepspeed_stage_3' in args.strategy): # save pth
             if args.magic_prime > 0:
                 expand_factor = 2 if args.my_qa_mask > 0 else 1
                 if int(real_step) == int(args.magic_prime * expand_factor // args.real_bsz) - 1 + int(args.my_random_steps):
                     to_save_dict = pl_module.state_dict()
                     my_save(
+                        args, trainer,
                         to_save_dict,
                         f"{args.proj_dir}/rwkv-final.pth",
                     )
@@ -163,11 +170,11 @@ class train_callback(pl.Callback):
 
     def on_train_epoch_end(self, trainer, pl_module):
         args = self.args
-        if trainer.is_global_zero:  # logging & save state_dict
+        to_save_dict = {}
+        if (trainer.is_global_zero) or ('deepspeed_stage_3' in args.strategy):  # save pth
             if (args.epoch_save > 0 and trainer.current_epoch % args.epoch_save == 0) or (trainer.current_epoch == args.epoch_count - 1):
                 if args.data_type == 'wds_img':
                     raw_dict = pl_module.state_dict()
-                    to_save_dict = {}
                     for k in raw_dict:
                         if k.startswith('encoder.') or k.startswith('decoder.'):
                             to_save_dict[k] = raw_dict[k]
@@ -175,11 +182,14 @@ class train_callback(pl.Callback):
                     to_save_dict = pl_module.state_dict()
                 try:
                     my_save(
+                        args, trainer,
                         to_save_dict,
                         f"{args.proj_dir}/rwkv-{args.epoch_begin + trainer.current_epoch}.pth",
                     )
                 except Exception as e:
                     print('Error\n\n', e, '\n\n')
+
+        if trainer.is_global_zero:  # logging
             trainer.my_log.write(f"{args.epoch_begin + trainer.current_epoch} {trainer.my_epoch_loss:.6f} {math.exp(trainer.my_epoch_loss):.4f} {trainer.my_lr:.8f} {datetime.datetime.now()} {trainer.current_epoch}\n")
             trainer.my_log.flush()
 

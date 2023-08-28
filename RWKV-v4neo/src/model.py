@@ -141,15 +141,14 @@ class RWKV_TimeMix_RWKV5_Preview(MyModule):
         super().__init__()
         self.args = args
         self.layer_id = layer_id
-        self.ctx_len = args.ctx_len
-        self.n_embd = args.n_embd
 
         self.head_size = 64
-        self.n_head = self.n_embd // self.head_size
-        assert self.n_embd % self.n_head == 0
+        self.n_head = args.dim_att // self.head_size
+        assert args.dim_att % self.n_head == 0
+        self.head_size_divisor = 8
 
         self.chunk_len = 512
-        assert self.ctx_len % self.chunk_len == 0
+        assert args.ctx_len % self.chunk_len == 0
 
         with torch.no_grad():
             ratio_0_to_1 = layer_id / (args.n_layer - 1)  # 0 to 1
@@ -181,7 +180,7 @@ class RWKV_TimeMix_RWKV5_Preview(MyModule):
         self.value = nn.Linear(args.n_embd, args.dim_att, bias=False)
         self.output = nn.Linear(args.dim_att, args.n_embd, bias=False)
 
-        self.ln_x = nn.GroupNorm(self.n_head, self.n_embd)
+        self.ln_x = nn.GroupNorm(self.n_head, args.dim_att)
 
     @MyFunction
     def jit_func(self, x):
@@ -220,7 +219,7 @@ class RWKV_TimeMix_RWKV5_Preview(MyModule):
 ################################################################################
         
         x = x.transpose(1, 2).contiguous().view(B * TT, H*S) # BHTS -> BTHS -> BTC
-        x = self.ln_x(x / 8).view(B, TT, H*S) # normalization for head size 64
+        x = self.ln_x(x / self.head_size_divisor).view(B, TT, H*S)
         return self.output(x)
     
     def forward(self, x):
@@ -394,7 +393,7 @@ class RWKV_ChannelMix(MyModule):
         xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)
         xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)
         k = self.key(xk)
-        k = torch.square(torch.relu(k))
+        k = torch.relu(k) ** 2
         kv = self.value(k)
         return torch.sigmoid(self.receptance(xr)) * kv
 
@@ -532,6 +531,9 @@ class RWKV(pl.LightningModule):
             args.tiny_att_layer = -1
         if not hasattr(args, 'tiny_att_dim'):
             args.tiny_att_dim = -1
+        assert args.n_embd % 32 == 0
+        assert args.dim_att % 32 == 0
+        assert args.dim_ffn % 32 == 0
 
         self.emb = nn.Embedding(args.vocab_size, args.n_embd)
 
@@ -567,9 +569,9 @@ class RWKV(pl.LightningModule):
                     lr_2x.add(n)
             elif ("time_faaaa" in n) and (args.layerwise_lr > 0):
                 if args.my_pile_stage == 2:
-                    lr_3x.add(n)
-                else:
                     lr_2x.add(n)
+                else:
+                    lr_1x.add(n)
             elif ("time_first" in n) and (args.layerwise_lr > 0):
                 lr_3x.add(n)
             elif (len(p.squeeze().shape) >= 2) and (args.weight_decay > 0):
