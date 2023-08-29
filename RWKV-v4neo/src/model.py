@@ -734,7 +734,7 @@ class RWKV(pl.LightningModule):
             if "ln_" in n or ".ln" in n or "time_" in n or "_mask" in n or "pos_emb" in n or '.mask.' in n:
                 if 'ln_x.weight' in n:
                     layer_scale = (1+int(n.split('.')[1])) / self.args.n_layer
-                    m[n] = (p * 0.0) + (layer_scale ** 0.5)
+                    m[n] = (p * 0.0) + (layer_scale ** 0.7)
                 else:
                     m[n] = p
             else:
