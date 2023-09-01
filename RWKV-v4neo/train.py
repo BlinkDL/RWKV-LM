@@ -155,7 +155,10 @@ if __name__ == "__main__":
     if args.dim_att <= 0:
         args.dim_att = args.n_embd
     if args.dim_ffn <= 0:
-        args.dim_ffn = args.n_embd * 4
+        if 'r3' in args.my_testing:
+            args.dim_ffn = int((args.n_embd * 3.5) // 32 * 32)
+        else:
+            args.dim_ffn = args.n_embd * 4
 
     if args.data_type == "wds_img":
         args.run_name = f"v{args.my_img_version}-{args.my_img_size}-{args.my_img_bit}bit-{args.my_img_clip}x{args.my_img_clip_scale}"
