@@ -185,43 +185,41 @@ RWKV-5 is multi-head and here shows one head. There is also a LayerNorm for each
 
 $`
 \begin{array}{|l|l|l|}
-\hline & {\text { RWKV-4 (pointwise multiplication) }} & \text { RWKV-5 with matrix-valued states } \\
-\hline \mathrm{y}_0 & \mathrm{r}_0 \frac{\mathrm{uk} \mathrm{v}_0}{\mathrm{uk_{0 }}} & \mathrm{r}_0\left(\mathrm{uk}_0^{\dagger} \mathrm{v}_0\right) \\
+\hline & \text { RWKV-4 with real-valued } k \,\&\, v \,\&\, u \,\&\, w & \text { RWKV-5 with matrix-valued } \mathrm{k}^{\dagger} \mathrm{v} \,\&\, \mathrm{u} \,\&\, \mathrm{w} \\
+\hline \mathrm{y}_0 & \mathrm{r}_0 \frac{\mathrm{uk}_0 \mathrm{v}_0}{\mathrm{uk}_0} & \mathrm{r}_0\left(\mathrm{uk}_0^{\dagger} \mathrm{v}_0\right) \\
 \hline \mathrm{y}_1 & \mathrm{r}_1 \frac{\mathrm{uk}_1 \mathrm{v}_1+\mathrm{k}_0 \mathrm{v}_0}{\mathrm{uk}_1+\mathrm{k}_0} & \mathrm{r}_1\left(\mathrm{uk}_1^{\dagger} \mathrm{v}_1+\mathrm{k}_0^{\dagger} \mathrm{v}_0\right) \\
 \hline \mathrm{y}_2 & \mathrm{r}_2 \frac{\mathrm{uk}_2 \mathrm{v}_2+\mathrm{k}_1 \mathrm{v}_1+\mathrm{wk}_0 \mathrm{v}_0}{\mathrm{uk}_2+\mathrm{k}_1+\mathrm{wk}_0} & \mathrm{r}_2\left(\mathrm{uk}_2^{\dagger} \mathrm{v}_2+\mathrm{k}_1^{\dagger} \mathrm{v}_1+\mathrm{wk}_0^{\dagger} \mathrm{v}_0\right) \\
-\hline \mathrm{y}_3 & \mathrm{r}_3 \frac{\mathrm{uk}_3 \mathrm{v}_3+\mathrm{k}_2 \mathrm{v}_2+\mathrm{wk}_1 \mathrm{v}_1+\mathrm{w}^2 \mathrm{k}_0 \mathrm{v}_0}{\mathrm{uk} \mathrm{k}_3+\mathrm{k}_2+\mathrm{wk}_1+\mathrm{w}^2 \mathrm{k}_0} & \mathrm{r}_3\left(\mathrm{uk}_3^{\dagger} \mathrm{v}_3+\mathrm{k}_2^{\dagger} \mathrm{v}_2+\mathrm{wk}_1^{\dagger} \mathrm{v}_1+\mathrm{w}^2 \mathrm{k}_0^{\dagger} \mathrm{v}_0\right) \\
+\hline \mathrm{y}_3 & \mathrm{r}_3 \frac{\mathrm{uk}_3 \mathrm{v}_3+\mathrm{k}_2 \mathrm{v}_2+\mathrm{wk}_1 \mathrm{v}_1+\mathrm{w}^2 \mathrm{k}_0 \mathrm{v}_0}{\mathrm{uk}_3+\mathrm{k}_2+\mathrm{wk}_1+\mathrm{w}^2 \mathrm{k}_0} & \mathrm{r}_3\left(\mathrm{uk}_3^{\dagger} \mathrm{v}_3+\mathrm{k}_2^{\dagger} \mathrm{v}_2+\mathrm{wk}_1^{\dagger} \mathrm{v}_1+\mathrm{w}^2 \mathrm{k}_0^{\dagger} \mathrm{v}_0\right) \\
 \hline
 \end{array}`$
 
-$`\left[\mathrm{y}_{00} \ldots \mathrm{y}_{0 c}\right]=\left[\mathrm{r}_{00} \ldots \mathrm{r}_{0 c}\right]\left(\mathrm{u}\left[\begin{array}{ccc}
-\mathrm{k}_{00} \mathrm{v}_{00} & \cdots & \mathrm{k}_{00} \mathrm{v}_{0 \mathrm{c}} \\
+$`\left[\begin{array}{ll}
+\mathrm{y}_{20} & \cdots \mathrm{y}_{2 \mathrm{c}}
+\end{array}\right]=\left[\begin{array}{lll}
+\mathrm{r}_{20} & \cdots & \mathrm{r}_{2 \mathrm{c}}
+\end{array}\right]`$
+$`\left(\left[\begin{array}{ccc}
+\mathrm{u}_{00} & \cdots & \mathrm{u}_{0 \mathrm{c}} \\
 \vdots & \ddots & \vdots \\
-\mathrm{k}_{0 c} \mathrm{v}_{00} & \cdots & \mathrm{k}_{0 c} \mathrm{v}_{0 \mathrm{c}}
-\end{array}\right]\right)`$
-
-$`\left[\mathrm{y}_{10} \ldots \mathrm{y}_{1 \mathrm{c}}\right]=\left[\mathrm{r}_{10} \ldots \mathrm{r}_{1 \mathrm{c}}\right]\left(\mathrm{u}\left[\begin{array}{ccc}
-\mathrm{k}_{10} \mathrm{v}_{10} & \cdots & \mathrm{k}_{10} \mathrm{v}_{1 \mathrm{c}} \\
-\vdots & \ddots & \vdots \\
-\mathrm{k}_{1 \mathrm{c}} \mathrm{v}_{10} & \cdots & \mathrm{k}_{1 \mathrm{c}} \mathrm{v}_{1 \mathrm{c}}
-\end{array}\right]+\left[\begin{array}{ccc}
-\mathrm{k}_{00} \mathrm{v}_{00} & \cdots & \mathrm{k}_{00} \mathrm{v}_{0 \mathrm{c}} \\
-\vdots & \ddots & \vdots \\
-\mathrm{k}_{0 \mathrm{c}} \mathrm{v}_{00} & \cdots & \mathrm{k}_{0 \mathrm{c}} \mathrm{v}_{0 \mathrm{c}}
-\end{array}\right]\right)`$
-
-$`\left[\mathrm{y}_{20} \ldots \mathrm{y}_{2 \mathrm{c}}\right]=\left[\mathrm{r}_{20} \ldots \mathrm{r}_{2 \mathrm{c}}\right]\left(\mathrm{u}\left[\begin{array}{ccc}
+\mathrm{u}_{\mathrm{c} 0} & \cdots & \mathrm{u}_{\mathrm{cc}}
+\end{array}\right]\left[\begin{array}{ccc}
 \mathrm{k}_{20} \mathrm{v}_{20} & \cdots & \mathrm{k}_{20} \mathrm{v}_{2 \mathrm{c}} \\
 \vdots & \ddots & \vdots \\
 \mathrm{k}_{2 \mathrm{c}} \mathrm{v}_{20} & \cdots & \mathrm{k}_{2 \mathrm{c}} \mathrm{v}_{2 \mathrm{c}}
 \end{array}\right]+\left[\begin{array}{ccc}
 \mathrm{k}_{10} \mathrm{v}_{10} & \cdots & \mathrm{k}_{10} \mathrm{v}_{1 \mathrm{c}} \\
 \vdots & \ddots & \vdots \\
-\mathrm{k}_{1 c} \mathrm{v}_{10} & \cdots & \mathrm{k}_{1 \mathrm{c}} \mathrm{v}_{1 \mathrm{c}}
-\end{array}\right]+\mathrm{w}\left[\begin{array}{ccc}
-\mathrm{k}_{00} \mathrm{v}_{00} & \cdots & \mathrm{k}_{00} \mathrm{v}_{0 \mathrm{c}} \\
+\mathrm{k}_{1 \mathrm{c}} \mathrm{v}_{10} & \cdots & \mathrm{k}_{1 \mathrm{c}} \mathrm{v}_{1 \mathrm{c}}
+\end{array}\right]+\left[\begin{array}{ccc}
+\mathrm{w}_{00} & \cdots & \mathrm{w}_{0 \mathrm{c}} \\
 \vdots & \ddots & \vdots \\
-k_{0 c} v_{00} & \cdots & k_{0 c} v_{0 c}
-\end{array}\right]\right)`$
+\mathrm{w}_{\mathrm{c} 0} & \cdots & \mathrm{w}_{\mathrm{cc}}
+\end{array}\right]\left[\begin{array}{ccc}
+\mathrm{k}_{00} \mathrm{v}_{00} & \cdots & \mathrm{k}_{00} \mathrm{v}_{0 c} \\
+\vdots & \ddots & \vdots \\
+\mathrm{k}_{0 \mathrm{c}} \mathrm{v}_{00} & \cdots & \mathrm{k}_{0 \mathrm{c}} \mathrm{v}_{0 c}
+\end{array}\right]
+\right)`$
 
 ### RWKV-6
 
