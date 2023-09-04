@@ -94,7 +94,7 @@ class MyDataset(Dataset):
             for u in unique:
                 xxObj[xx] = u
                 xx += 1
-            with open(f"{args.proj_dir}/vocab.json", "w", encoding="utf-16le") as vocab_file:
+            with open(f"{args.proj_dir}/vocab.json", "w", encoding="utf-8") as vocab_file:
                 vocab_file.write(json.dumps(xxObj, ensure_ascii=False))
             self.data_size = len(self.data)
             rank_zero_info(f"Data has {self.data_size} tokens, {self.vocab_size} vocab size.")
