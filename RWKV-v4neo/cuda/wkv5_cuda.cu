@@ -26,7 +26,7 @@ __global__ void kernel_forward(const int B, const int T, const int C, const int 
         kk[i] = float(_k[_t]);
         __syncthreads();
 
-        const float vv = _v[_t];
+        const float vv = float(_v[_t]);
         float yy = 0;
 
         for (int j = 0; j < _N_; j++)
@@ -52,16 +52,13 @@ __global__ void kernel_backward(const int B, const int T, const int C, const int
     const int i = threadIdx.x;
     w += h*_N_;
     u += h*_N_;
-    gu += h*_N_;
-    gw += h*_N_;
     wwww += h*_N_;
 
     __shared__ float state[_N_ * _N_], vv[_N_], rr[_N_], kk[_N_], gyy[_N_];
 
     #pragma unroll
-    for (int j = 0; j < _N_; ++j){
+    for (int j = 0; j < _N_; ++j)
         state[j * _N_ + i] = 0;
-    }
     
     const float ww = w[i];
     const float uu = float(u[i]);
@@ -92,25 +89,28 @@ __global__ void kernel_backward(const int B, const int T, const int C, const int
         }
 
         gr[_t] = F(grr);
-        atomicAdd(gu + i, guu);
+        gu[_t] = F(guu);
 
-        if (_t < _tend - 2 * C){
-
+        float gww = 0;
+        if (_t < _tend - 2*C)
+        {
             __syncthreads();
-            gyy[i] = gy[_t+2*C];
+            gyy[i] = float(gy[_t + 2*C]);
             __syncthreads();
 
-            const float rr_value = r[_t+2*C];
+            const float rr = float(r[_t + 2*C]);
 
             #pragma unroll
-            for (int j = 0; j < _N_; j++){
+            for (int j = 0; j < _N_; j++)
+            {
                 float x = vv[j] * kk;
                 saaaa[j] = ww * (saaaa[j] + sbbbb[j] + x);
                 sbbbb[j] = ww * (sbbbb[j] + x);
                 
-                atomicAdd(gw+i, rr_value * wwwww * saaaa[j] * gyy[j]);
+                gww += rr * wwwww * saaaa[j] * gyy[j];
             }
         }
+        gw[_t] = gww;
     }
 
     #pragma unroll
@@ -120,11 +120,11 @@ __global__ void kernel_backward(const int B, const int T, const int C, const int
     for (int _t = (b+1)*T*C + h*_N_ + i - C, _tend = b*T*C + h*_N_ + i; _t >= _tend; _t -= C)
     {
         __syncthreads();
-        vv[i] = v[_t];
-        gyy[i] = gy[_t];
+        vv[i] = float(v[_t]);
+        gyy[i] = float(gy[_t]);
         __syncthreads();
 
-        const float rr = r[_t];
+        const float rr = float(r[_t]);
         float gkk = 0;
 
         #pragma unroll
@@ -146,17 +146,17 @@ __global__ void kernel_backward(const int B, const int T, const int C, const int
     for (int _t = (b+1)*T*C + h*_N_ + i - C, _tend = b*T*C + h*_N_ + i; _t >= _tend; _t -= C)
     {
         __syncthreads();
-        kk[i] = k[_t];
-        rr[i] = r[_t];
+        kk[i] = float(k[_t]);
+        rr[i] = float(r[_t]);
         __syncthreads();
 
-        const float gy_value = gy[_t];
+        const float gyy = float(gy[_t]);
         float gvv = 0;
 
         #pragma unroll
         for (int j = 0; j < _N_; j++)
         {
-            float x = gy_value * rr[j];
+            float x = gyy * rr[j];
             float s = state[j * _N_ + i];
             state[j * _N_ + i] = s * w[j] + x;
 

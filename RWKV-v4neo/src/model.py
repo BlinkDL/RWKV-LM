@@ -355,11 +355,13 @@ class WKV_5(torch.autograd.Function):
             gr = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format)
             gk = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format)
             gv = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format)
-            gw = torch.empty((H, C//H), device=gy.device, requires_grad=False, dtype=torch.float, memory_format=torch.contiguous_format)
-            gu = torch.empty((H, C//H), device=gy.device, requires_grad=False, dtype=torch.float, memory_format=torch.contiguous_format)
-            gw.zero_()
-            gu.zero_()
-        wkv5_cuda.backward(B, T, C, H, r, k, v, eew, ew, u, gy, gr, gk, gv, gw, gu)
+            gw = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.float, memory_format=torch.contiguous_format)
+            gu = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.float, memory_format=torch.contiguous_format)
+            
+            wkv5_cuda.backward(B, T, C, H, r, k, v, eew, ew, u, gy, gr, gk, gv, gw, gu)
+            
+            gw = torch.sum(gw.view(B*T, H, C//H), 0)
+            gu = torch.sum(gu.view(B*T, H, C//H), 0)
         return (None, None, None, None, gr, gk, gv, gw.bfloat16(), gu.bfloat16())
 
 def RUN_CUDA(B, T, C, H, r, k, v, w, u):
