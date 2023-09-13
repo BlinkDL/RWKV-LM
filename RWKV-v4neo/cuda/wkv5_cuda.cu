@@ -44,7 +44,7 @@ __global__ void kernel_forward(const int B, const int T, const int C, const int 
 template <typename F>
 __global__ void kernel_backward(const int B, const int T, const int C, const int H,
     const F *__restrict__ const _r, const F *__restrict__ const _k, const F *__restrict__ const _v, const float *__restrict__ _w, const float *__restrict__ __w, const F *__restrict__ _u, const F *__restrict__ const _gy,
-    F *__restrict__ const _gr, F *__restrict__ const _gk, F *__restrict__ const _gv, float *__restrict__ _gw, float *__restrict__ _gu)
+    F *__restrict__ const _gr, F *__restrict__ const _gk, F *__restrict__ const _gv, F *__restrict__ const _gw, F *__restrict__ const _gu)
 {
     const int b = blockIdx.x / H;
     const int h = blockIdx.x % H;
@@ -105,7 +105,7 @@ __global__ void kernel_backward(const int B, const int T, const int C, const int
                 gw += r * ww * saaaa[j] * gy[j];
             }
         }
-        _gw[_t] = gw;
+        _gw[_t] = F(gw);
     }
 
     #pragma unroll
@@ -167,7 +167,7 @@ void cuda_forward(int B, int T, int C, int H, bf16 *r, bf16 *k, bf16 *v, float *
     kernel_forward<<<dim3(B * H), dim3(_N_)>>>(B, T, C, H, r, k, v, w, u, y);
 }
 
-void cuda_backward(int B, int T, int C, int H, bf16 *r, bf16 *k, bf16 *v, float *w, float *ww, bf16 *u, bf16 *gy, bf16 *gr, bf16 *gk, bf16 *gv, float *gw, float *gu)
+void cuda_backward(int B, int T, int C, int H, bf16 *r, bf16 *k, bf16 *v, float *w, float *ww, bf16 *u, bf16 *gy, bf16 *gr, bf16 *gk, bf16 *gv, bf16 *gw, bf16 *gu)
 {
     assert(H*_N_ == C);
     kernel_backward<<<dim3(B * H), dim3(_N_)>>>(B, T, C, H, r, k, v, w, ww, u, gy, gr, gk, gv, gw, gu);
