@@ -134,7 +134,10 @@ class train_callback(pl.Callback):
             except:
                 pass
             trainer.my_time_ns = t_now
-            trainer.my_loss = trainer.my_loss_all.float().mean().item()
+            if pl.__version__[0]=='2':
+                trainer.my_loss = outputs["loss"]
+            else:
+                trainer.my_loss = trainer.my_loss_all.float().mean().item()
             trainer.my_loss_sum += trainer.my_loss
             trainer.my_loss_count += 1
             trainer.my_epoch_loss = trainer.my_loss_sum / trainer.my_loss_count
@@ -161,7 +164,10 @@ class train_callback(pl.Callback):
 
     def on_train_epoch_start(self, trainer, pl_module):
         args = self.args
-        dataset = trainer.train_dataloader.dataset.datasets
+        if pl.__version__[0]=='2':
+            dataset = trainer.train_dataloader.dataset
+        else:
+            dataset = trainer.train_dataloader.dataset.datasets
         assert "MyDataset" in str(dataset)
         dataset.global_rank = trainer.global_rank
         dataset.real_epoch = int(args.epoch_begin + trainer.current_epoch)
