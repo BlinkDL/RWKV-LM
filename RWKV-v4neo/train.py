@@ -107,6 +107,8 @@ if __name__ == "__main__":
     parser.add_argument("--my_sample_len", default=0, type=int)
     parser.add_argument("--my_ffn_shift", default=1, type=int)
     parser.add_argument("--my_att_shift", default=1, type=int)
+    parser.add_argument("--head_size_a", default=64, type=int)
+    parser.add_argument("--head_size_divisor", default=8, type=int)
     parser.add_argument("--my_pos_emb", default=0, type=int)
     parser.add_argument("--load_partial", default=0, type=int)
     parser.add_argument("--magic_prime", default=0, type=int)
