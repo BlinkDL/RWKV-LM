@@ -14,155 +14,150 @@ __global__ void kernel_forward(const int B, const int T, const int C, const int 
     _w += h*_N_;
     _u += h*_N_;
 
-    __shared__ float state[_N_ * _N_], rr[_N_], kk[_N_];
+    __shared__ float r[_N_], k[_N_];
 
-    for (int j = 0; j < _N_; ++j)
-        state[j * _N_ + i] = 0;
+    float state[_N_] = {0};
 
     for (int _t = b*T*C + h*_N_ + i; _t < (b+1)*T*C + h*_N_ + i; _t += C)
     {
         __syncthreads();
-        rr[i] = float(_r[_t]);
-        kk[i] = float(_k[_t]);
+        r[i] = float(_r[_t]);
+        k[i] = float(_k[_t]);
         __syncthreads();
 
-        const float vv = float(_v[_t]);
-        float yy = 0;
+        const float v = float(_v[_t]);
+        float y = 0;
 
         for (int j = 0; j < _N_; j++)
         {
-            float x = kk[j] * vv;
+            float x = k[j] * v;
 
-            float s = state[j * _N_ + i];
-            state[j * _N_ + i] = s * _w[j] + x;
+            float s = state[j];
+            state[j] = s * _w[j] + x;
 
-            yy += rr[j] * (float(_u[j]) * x + s);
+            y += r[j] * (float(_u[j]) * x + s);
         }
-        _y[_t] = F(yy);
+        _y[_t] = F(y);
     }
 }
 
 template <typename F>
 __global__ void kernel_backward(const int B, const int T, const int C, const int H,
-    const F *__restrict__ const r, const F *__restrict__ const k, const F *__restrict__ const v, const float *__restrict__ w, const float *__restrict__ wwww, const F *__restrict__ u, const F *__restrict__ const gy,
-    F *__restrict__ const gr, F *__restrict__ const gk, F *__restrict__ const gv, float *__restrict__ gw, float *__restrict__ gu)
+    const F *__restrict__ const _r, const F *__restrict__ const _k, const F *__restrict__ const _v, const float *__restrict__ _w, const float *__restrict__ __w, const F *__restrict__ _u, const F *__restrict__ const _gy,
+    F *__restrict__ const _gr, F *__restrict__ const _gk, F *__restrict__ const _gv, float *__restrict__ _gw, float *__restrict__ _gu)
 {
     const int b = blockIdx.x / H;
     const int h = blockIdx.x % H;
     const int i = threadIdx.x;
-    w += h*_N_;
-    u += h*_N_;
-    wwww += h*_N_;
+    _w += h*_N_;
+    _u += h*_N_;
+    __w += h*_N_;
 
-    __shared__ float state[_N_ * _N_], vv[_N_], rr[_N_], kk[_N_], gyy[_N_];
-
-    #pragma unroll
-    for (int j = 0; j < _N_; ++j)
-        state[j * _N_ + i] = 0;
+    __shared__ float v[_N_], r[_N_], k[_N_], gy[_N_];
     
-    const float ww = w[i];
-    const float uu = float(u[i]);
-    const float wwwww = wwww[i];
-    float saaaa[_N_] = {0.0f}, sbbbb[_N_] = {0.0f};
+    const float w = _w[i];
+    const float u = float(_u[i]);
+    const float ww = __w[i];
+    float state[_N_] = {0}, saaaa[_N_] = {0}, sbbbb[_N_] = {0};
 
     for (int _t = b*T*C + h*_N_ + i, _tend = (b+1)*T*C + h*_N_ + i; _t < _tend; _t += C)
     {
         __syncthreads();
-        vv[i] = float(v[_t]);
-        gyy[i] = float(gy[_t]);
+        v[i] = float(_v[_t]);
+        gy[i] = float(_gy[_t]);
         __syncthreads();
 
-        const float kk = float(k[_t]);
-        const float rr = float(r[_t]);
-        float grr = 0;
-        float guu = 0;
+        const float k = float(_k[_t]);
+        const float r = float(_r[_t]);
+        float gr = 0;
+        float gu = 0;
 
         #pragma unroll
         for (int j = 0; j < _N_; j++)
         {
-            float x = vv[j] * kk;
-            float s = state[j * _N_ + i];
-            state[j * _N_ + i] = s * ww + x;
+            float x = v[j] * k;
+            float s = state[j];
+            state[j] = s * w + x;
 
-            grr += gyy[j] * (uu * x + s);
-            guu += rr * x * gyy[j];
+            gr += gy[j] * (u * x + s);
+            gu += r * x * gy[j];
         }
 
-        gr[_t] = F(grr);
-        gu[_t] = F(guu);
-
-        float gww = 0;
+        _gr[_t] = F(gr);
+        _gu[_t] = F(gu);
+        
+        float gw = 0;
         if (_t < _tend - 2*C)
         {
             __syncthreads();
-            gyy[i] = float(gy[_t + 2*C]);
+            gy[i] = float(_gy[_t + 2*C]);
             __syncthreads();
 
-            const float rr = float(r[_t + 2*C]);
+            const float r = float(_r[_t + 2*C]);
 
             #pragma unroll
             for (int j = 0; j < _N_; j++)
             {
-                float x = vv[j] * kk;
-                saaaa[j] = ww * (saaaa[j] + sbbbb[j] + x);
-                sbbbb[j] = ww * (sbbbb[j] + x);
+                float x = v[j] * k;
+                saaaa[j] = w * (saaaa[j] + sbbbb[j] + x);
+                sbbbb[j] = w * (sbbbb[j] + x);
                 
-                gww += rr * wwwww * saaaa[j] * gyy[j];
+                gw += r * ww * saaaa[j] * gy[j];
             }
         }
-        gw[_t] = gww;
+        _gw[_t] = gw;
     }
 
     #pragma unroll
     for (int j = 0; j < _N_; ++j)
-        state[j * _N_ + i] = 0;
+        state[j] = 0;
     
     for (int _t = (b+1)*T*C + h*_N_ + i - C, _tend = b*T*C + h*_N_ + i; _t >= _tend; _t -= C)
     {
         __syncthreads();
-        vv[i] = float(v[_t]);
-        gyy[i] = float(gy[_t]);
+        v[i] = float(_v[_t]);
+        gy[i] = float(_gy[_t]);
         __syncthreads();
 
-        const float rr = float(r[_t]);
-        float gkk = 0;
+        const float r = float(_r[_t]);
+        float gk = 0;
 
         #pragma unroll
         for (int j = 0; j < _N_; j++)
         {
-            float x = gyy[j] * rr;
-            float s = state[j * _N_ + i];
-            state[j * _N_ + i] = s * ww + x;
+            float x = gy[j] * r;
+            float s = state[j];
+            state[j] = s * w + x;
 
-            gkk += vv[j] * (uu * x + s);
+            gk += v[j] * (u * x + s);
         }
-        gk[_t] = F(gkk);
+        _gk[_t] = F(gk);
     }
 
     #pragma unroll
     for (int j = 0; j < _N_; ++j)
-        state[j * _N_ + i] = 0;
+        state[j] = 0;
 
     for (int _t = (b+1)*T*C + h*_N_ + i - C, _tend = b*T*C + h*_N_ + i; _t >= _tend; _t -= C)
     {
         __syncthreads();
-        kk[i] = float(k[_t]);
-        rr[i] = float(r[_t]);
+        k[i] = float(_k[_t]);
+        r[i] = float(_r[_t]);
         __syncthreads();
 
-        const float gyy = float(gy[_t]);
-        float gvv = 0;
+        const float gy = float(_gy[_t]);
+        float gv = 0;
 
         #pragma unroll
         for (int j = 0; j < _N_; j++)
         {
-            float x = gyy * rr[j];
-            float s = state[j * _N_ + i];
-            state[j * _N_ + i] = s * w[j] + x;
+            float x = gy * r[j];
+            float s = state[j];
+            state[j] = s * float(_w[j]) + x;
 
-            gvv += kk[j] * (u[j] * x + s);
+            gv += k[j] * (float(_u[j]) * x + s);
         }
-        gv[_t] = F(gvv);
+        _gv[_t] = F(gv);
     }
 }
 
