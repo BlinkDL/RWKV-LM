@@ -427,7 +427,7 @@ class RWKV_TimeMix_RWKV5(MyModule):
 
         r = self.receptance(xr)
         k = self.key(xk)
-        v = self.value(xv)
+        v = F.silu(self.value(xv))
         g = F.silu(self.gate(xg))
 
         return r, k, v, g
