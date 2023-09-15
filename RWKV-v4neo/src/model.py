@@ -312,7 +312,7 @@ class RWKV_TimeMix_RWKV5_Preview(MyModule):
 # CUDA RWKV5 Kernel
 ########################################################################################################
 
-HEAD_SIZE = 64
+HEAD_SIZE = os.environ["RWKV_HEAD_SIZE_A"]
 wkv5_cuda = load(name="wkv5", sources=["cuda/wkv5_op.cpp", f"cuda/wkv5_cuda.cu"],
                 verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}"])
     
