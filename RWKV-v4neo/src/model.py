@@ -312,58 +312,59 @@ class RWKV_TimeMix_RWKV5_Preview(MyModule):
 # CUDA RWKV5 Kernel
 ########################################################################################################
 
-HEAD_SIZE = os.environ["RWKV_HEAD_SIZE_A"]
-wkv5_cuda = load(name="wkv5", sources=["cuda/wkv5_op.cpp", f"cuda/wkv5_cuda.cu"],
-                verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}"])
-    
-class WKV_5(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, B, T, C, H, r, k, v, w, u):
-        with torch.no_grad():
-            assert r.dtype == torch.bfloat16
-            assert k.dtype == torch.bfloat16
-            assert v.dtype == torch.bfloat16
-            assert w.dtype == torch.bfloat16
-            assert u.dtype == torch.bfloat16
-            assert HEAD_SIZE == C // H
-            ctx.B = B
-            ctx.T = T
-            ctx.C = C
-            ctx.H = H
-            assert r.is_contiguous()
-            assert k.is_contiguous()
-            assert v.is_contiguous()
-            assert w.is_contiguous()
-            assert u.is_contiguous()
-            ew = (-torch.exp(w.float())).contiguous()
-            eew = (torch.exp(ew)).contiguous()
-            ctx.save_for_backward(r, k, v, eew, ew, u)
-            y = torch.empty((B, T, C), device=r.device, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
-            wkv5_cuda.forward(B, T, C, H, r, k, v, eew, u, y)
-            return y
+if 'r4' in os.environ["RWKV_MY_TESTING"]:
+    HEAD_SIZE = str(os.environ["RWKV_HEAD_SIZE_A"])
+    wkv5_cuda = load(name="wkv5", sources=["cuda/wkv5_op.cpp", f"cuda/wkv5_cuda.cu"],
+                    verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}"])
+        
+    class WKV_5(torch.autograd.Function):
+        @staticmethod
+        def forward(ctx, B, T, C, H, r, k, v, w, u):
+            with torch.no_grad():
+                assert r.dtype == torch.bfloat16
+                assert k.dtype == torch.bfloat16
+                assert v.dtype == torch.bfloat16
+                assert w.dtype == torch.bfloat16
+                assert u.dtype == torch.bfloat16
+                assert HEAD_SIZE == C // H
+                ctx.B = B
+                ctx.T = T
+                ctx.C = C
+                ctx.H = H
+                assert r.is_contiguous()
+                assert k.is_contiguous()
+                assert v.is_contiguous()
+                assert w.is_contiguous()
+                assert u.is_contiguous()
+                ew = (-torch.exp(w.float())).contiguous()
+                eew = (torch.exp(ew)).contiguous()
+                ctx.save_for_backward(r, k, v, eew, ew, u)
+                y = torch.empty((B, T, C), device=r.device, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
+                wkv5_cuda.forward(B, T, C, H, r, k, v, eew, u, y)
+                return y
 
-    @staticmethod
-    def backward(ctx, gy):
-        with torch.no_grad():
-            assert gy.dtype == torch.bfloat16
-            B = ctx.B
-            T = ctx.T
-            C = ctx.C
-            H = ctx.H
-            assert gy.is_contiguous()
-            r, k, v, eew, ew, u = ctx.saved_tensors
-            gr = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
-            gk = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
-            gv = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
-            gw = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
-            gu = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
-            wkv5_cuda.backward(B, T, C, H, r, k, v, eew, ew, u, gy, gr, gk, gv, gw, gu)
-            gw = torch.sum(gw.view(B*T, H, C//H), 0)
-            gu = torch.sum(gu.view(B*T, H, C//H), 0)
-            return (None, None, None, None, gr, gk, gv, gw, gu)
+        @staticmethod
+        def backward(ctx, gy):
+            with torch.no_grad():
+                assert gy.dtype == torch.bfloat16
+                B = ctx.B
+                T = ctx.T
+                C = ctx.C
+                H = ctx.H
+                assert gy.is_contiguous()
+                r, k, v, eew, ew, u = ctx.saved_tensors
+                gr = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
+                gk = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
+                gv = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
+                gw = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
+                gu = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
+                wkv5_cuda.backward(B, T, C, H, r, k, v, eew, ew, u, gy, gr, gk, gv, gw, gu)
+                gw = torch.sum(gw.view(B*T, H, C//H), 0)
+                gu = torch.sum(gu.view(B*T, H, C//H), 0)
+                return (None, None, None, None, gr, gk, gv, gw, gu)
 
-def RUN_CUDA(B, T, C, H, r, k, v, w, u):
-    return WKV_5.apply(B, T, C, H, r, k, v, w, u)
+    def RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w, u):
+        return WKV_5.apply(B, T, C, H, r, k, v, w, u)
 
 ########################################################################################################
 
@@ -447,7 +448,7 @@ class RWKV_TimeMix_RWKV5(MyModule):
 
         r, k, v, g = self.jit_func(x)
 
-        x = RUN_CUDA(B, T, C, H, r, k, v, w=self.time_decay, u=self.time_faaaa)
+        x = RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w=self.time_decay, u=self.time_faaaa)
 
         return self.jit_func_2(x, g)
 
