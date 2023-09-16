@@ -313,7 +313,7 @@ class RWKV_TimeMix_RWKV5_Preview(MyModule):
 ########################################################################################################
 
 if 'r4' in os.environ["RWKV_MY_TESTING"]:
-    HEAD_SIZE = str(os.environ["RWKV_HEAD_SIZE_A"])
+    HEAD_SIZE = int(os.environ["RWKV_HEAD_SIZE_A"])
     wkv5_cuda = load(name="wkv5", sources=["cuda/wkv5_op.cpp", f"cuda/wkv5_cuda.cu"],
                     verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}"])
         
