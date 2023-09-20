@@ -59,6 +59,7 @@ __global__ void kernel_backward(const int B, const int T, const int C, const int
     const float u = float(_u[i]);
     const float ww = __w[i];
     float state[_N_] = {0}, saaaa[_N_] = {0}, sbbbb[_N_] = {0};
+    float gw = 0, gu = 0;
 
     for (int _t = b*T*C + h*_N_ + i, _tend = (b+1)*T*C + h*_N_ + i; _t < _tend; _t += C)
     {
@@ -70,7 +71,6 @@ __global__ void kernel_backward(const int B, const int T, const int C, const int
         const float k = float(_k[_t]);
         const float r = float(_r[_t]);
         float gr = 0;
-        float gu = 0;
 
         #pragma unroll
         for (int j = 0; j < _N_; j++)
@@ -84,9 +84,7 @@ __global__ void kernel_backward(const int B, const int T, const int C, const int
         }
 
         _gr[_t] = F(gr);
-        _gu[_t] = F(gu);
         
-        float gw = 0;
         if (_t < _tend - 2*C)
         {
             __syncthreads();
@@ -105,8 +103,9 @@ __global__ void kernel_backward(const int B, const int T, const int C, const int
                 gw += r * ww * saaaa[j] * gy[j];
             }
         }
-        _gw[_t] = F(gw);
     }
+    _gu[b*C + h*_N_ + i] = F(gu);
+    _gw[b*C + h*_N_ + i] = F(gw);
 
     #pragma unroll
     for (int j = 0; j < _N_; ++j)
