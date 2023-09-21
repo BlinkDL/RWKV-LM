@@ -52,24 +52,31 @@ __global__ void kernel_backward(const int B, const int T, const int C, const int
     _w += h*_N_;
     _u += h*_N_;
     __w += h*_N_;
-
-    __shared__ float v[_N_], r[_N_], k[_N_], gy[_N_];
-    
     const float w = _w[i];
     const float u = float(_u[i]);
     const float ww = __w[i];
-    float state[_N_] = {0}, saaaa[_N_] = {0}, sbbbb[_N_] = {0};
-    float gw = 0, gu = 0;
 
-    for (int _t = b*T*C + h*_N_ + i, _tend = (b+1)*T*C + h*_N_ + i; _t < _tend; _t += C)
+    __shared__ float v[_N_], r[_N_], k[_N_], gy[_N_], gy2[_N_], w_[_N_], u_[_N_];    
+    float state[_N_] = {0}, saaaa[_N_] = {0}, sbbbb[_N_] = {0};
+
+    float gw = 0, gu = 0;
+    const int t000 = b*T*C + h*_N_ + i;
+    const int t111 = (b+1)*T*C + h*_N_ + i;
+    const int t222 = t111 - 2*C;
+
+    for (int _t = t000; _t < t111; _t += C)
     {
         __syncthreads();
         v[i] = float(_v[_t]);
         gy[i] = float(_gy[_t]);
+        if (_t < t222)
+            gy2[i] = float(_gy[_t + 2*C]);
         __syncthreads();
 
         const float k = float(_k[_t]);
         const float r = float(_r[_t]);
+        const float r2 = (_t < t222) ? float(_r[_t + 2*C]) : 0;
+        
         float gr = 0;
 
         #pragma unroll
@@ -82,17 +89,10 @@ __global__ void kernel_backward(const int B, const int T, const int C, const int
             gr += gy[j] * (u * x + s);
             gu += r * x * gy[j];
         }
-
         _gr[_t] = F(gr);
         
-        if (_t < _tend - 2*C)
+        if (_t < t222)
         {
-            __syncthreads();
-            gy[i] = float(_gy[_t + 2*C]);
-            __syncthreads();
-
-            const float r = float(_r[_t + 2*C]);
-
             #pragma unroll
             for (int j = 0; j < _N_; j++)
             {
@@ -100,7 +100,7 @@ __global__ void kernel_backward(const int B, const int T, const int C, const int
                 saaaa[j] = w * (saaaa[j] + sbbbb[j] + x);
                 sbbbb[j] = w * (sbbbb[j] + x);
                 
-                gw += r * ww * saaaa[j] * gy[j];
+                gw += r2 * ww * saaaa[j] * gy2[j];
             }
         }
     }
@@ -108,54 +108,41 @@ __global__ void kernel_backward(const int B, const int T, const int C, const int
     _gw[b*C + h*_N_ + i] = F(gw);
 
     #pragma unroll
-    for (int j = 0; j < _N_; ++j)
-        state[j] = 0;
+    for (int j = 0; j < _N_; ++j) {
+        saaaa[j] = 0;
+        sbbbb[j] = 0;
+    }
+
+    __syncthreads();
+    w_[i] = float(_w[i]);
+    u_[i] = float(_u[i]);
+    __syncthreads();
     
-    for (int _t = (b+1)*T*C + h*_N_ + i - C, _tend = b*T*C + h*_N_ + i; _t >= _tend; _t -= C)
+    for (int _t = t111 - C; _t >= t000; _t -= C)
     {
         __syncthreads();
         v[i] = float(_v[_t]);
         gy[i] = float(_gy[_t]);
-        __syncthreads();
-
-        const float r = float(_r[_t]);
-        float gk = 0;
-
-        #pragma unroll
-        for (int j = 0; j < _N_; j++)
-        {
-            float x = gy[j] * r;
-            float s = state[j];
-            state[j] = s * w + x;
-
-            gk += v[j] * (u * x + s);
-        }
-        _gk[_t] = F(gk);
-    }
-
-    #pragma unroll
-    for (int j = 0; j < _N_; ++j)
-        state[j] = 0;
-
-    for (int _t = (b+1)*T*C + h*_N_ + i - C, _tend = b*T*C + h*_N_ + i; _t >= _tend; _t -= C)
-    {
-        __syncthreads();
         k[i] = float(_k[_t]);
         r[i] = float(_r[_t]);
         __syncthreads();
 
-        const float gy = float(_gy[_t]);
-        float gv = 0;
+        float gk = 0, gv = 0, x, s;
 
         #pragma unroll
         for (int j = 0; j < _N_; j++)
         {
-            float x = gy * r[j];
-            float s = state[j];
-            state[j] = s * float(_w[j]) + x;
+            x = gy[j] * r[i];
+            s = saaaa[j];
+            saaaa[j] = s * w + x;
+            gk += v[j] * (u * x + s);
 
-            gv += k[j] * (float(_u[j]) * x + s);
+            x = gy[i] * r[j];
+            s = sbbbb[j];
+            sbbbb[j] = s * w_[j] + x;
+            gv += k[j] * (u_[j] * x + s);
         }
+        _gk[_t] = F(gk);
         _gv[_t] = F(gv);
     }
 }
