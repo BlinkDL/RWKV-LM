@@ -14,11 +14,12 @@ __global__ void kernel_forward(const int B, const int T, const int C, const int 
     _w += h*_N_;
     _u += h*_N_;
 
-    __shared__ float r[_N_], k[_N_], u[_N_];
+    __shared__ float r[_N_], k[_N_], u[_N_], w[_N_];
     float state[_N_] = {0};
 
     __syncthreads();
     u[i] = float(_u[i]);
+    w[i] = float(_w[i]);
     __syncthreads();
 
     for (int t = b*T*C + h*_N_ + i; t < (b+1)*T*C + h*_N_ + i; t += C)
@@ -36,7 +37,7 @@ __global__ void kernel_forward(const int B, const int T, const int C, const int 
         {
             const float4& r_ = (float4&)(r[j]);
             const float4& k_ = (float4&)(k[j]);
-            const float4& w_ = (float4&)(_w[j]);
+            const float4& w_ = (float4&)(w[j]);
             const float4& u_ = (float4&)(u[j]);
             float4& s = (float4&)(state[j]);
             float4 x;
@@ -75,7 +76,7 @@ __global__ void kernel_backward(const int B, const int T, const int C, const int
     const float u = float(_u[i]);
     const float ww = __w[i];
 
-    __shared__ float v[_N_], r[_N_], k[_N_], gy[_N_], w_[_N_], u_[_N_];    
+    __shared__ float v[_N_], r[_N_], k[_N_], gy[_N_], w_[_N_], u_[_N_];
     float state[_N_] = {0}, saaaa[_N_] = {0}, sbbbb[_N_] = {0};
 
     float gw = 0, gu = 0;

@@ -359,8 +359,8 @@ if 'r4' in os.environ["RWKV_MY_TESTING"]:
                 gw = torch.empty((B, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
                 gu = torch.empty((B, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
                 wkv5_cuda.backward(B, T, C, H, r, k, v, eew, ew, u, gy, gr, gk, gv, gw, gu)
-                gw = torch.sum(gw.view(B, H, C//H), 0)
-                gu = torch.sum(gu.view(B, H, C//H), 0)
+                gw = torch.sum(gw, 0).view(H, C//H)
+                gu = torch.sum(gu, 0).view(H, C//H)
                 return (None, None, None, None, gr, gk, gv, gw, gu)
 
     def RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w, u):
