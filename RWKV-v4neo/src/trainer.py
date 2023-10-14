@@ -37,8 +37,6 @@ class train_callback(pl.Callback):
         w_step = args.warmup_steps
         if args.lr_final == args.lr_init or args.epoch_count == 0:
             lr = args.lr_init
-            if trainer.global_step < w_step:
-                lr = lr * (0.2 + 0.8 * trainer.global_step / w_step)
         else:
             decay_step = real_step - args.my_pile_edecay * args.epoch_steps
             decay_total = (args.epoch_count - args.my_pile_edecay) * args.epoch_steps
@@ -49,34 +47,30 @@ class train_callback(pl.Callback):
                 lr = args.lr_init + (args.lr_final - args.lr_init) * progress
             else:  # exp decay
                 lr = args.lr_init * math.exp(math.log(args.lr_final / args.lr_init) * pow(progress, 1))
-
-            if trainer.global_step < w_step:
-                lr = lr * (0.2 + 0.8 * trainer.global_step / w_step)
             # if trainer.is_global_zero:
             #     print(trainer.global_step, decay_step, decay_total, w_step, progress, lr)
 
         if args.my_exit_tokens != 0: # cosine decay
-            if trainer.global_step < w_step:
-                lr = args.lr_init * (0.2 + 0.8 * trainer.global_step / w_step)
+            real_tokens = real_step * args.ctx_len * args.real_bsz
+            warmup_tokens = w_step * args.ctx_len * args.real_bsz
+            progress = (real_tokens - warmup_tokens) / (abs(args.my_exit_tokens) - warmup_tokens)
+            progress = max(0, min(1, progress))
+            lr_final_factor = args.lr_final / args.lr_init                
+            lr_mult = (0.5 + lr_final_factor / 2) + (0.5 - lr_final_factor / 2) * math.cos(math.pi * progress)
+            if args.my_exit_tokens > 0:
+                lr = args.lr_init * lr_mult
             else:
-                real_tokens = real_step * args.ctx_len * args.real_bsz
-                warmup_tokens = w_step * args.ctx_len * args.real_bsz
-                progress = (real_tokens - warmup_tokens) / (abs(args.my_exit_tokens) - warmup_tokens)
-                progress = max(0, min(1, progress))
-                lr_final_factor = args.lr_final / args.lr_init                
-                lr_mult = (0.5 + lr_final_factor / 2) + (0.5 - lr_final_factor / 2) * math.cos(math.pi * progress)
-                if args.my_exit_tokens > 0:
-                    lr = args.lr_init * lr_mult
-                else:
-                    lr = (lr + args.lr_init * lr_mult) / 2
-                if progress >= 1:
-                    if (trainer.is_global_zero) or ('deepspeed_stage_3' in args.strategy):
-                        my_save(
-                            args, trainer,
-                            pl_module.state_dict(),
-                            f"{args.proj_dir}/rwkv-final.pth",
-                        )
-                        exit(0)
+                lr = (lr + args.lr_init * lr_mult) / 2
+            if progress >= 1:
+                if (trainer.is_global_zero) or ('deepspeed_stage_3' in args.strategy):
+                    my_save(
+                        args, trainer,
+                        pl_module.state_dict(),
+                        f"{args.proj_dir}/rwkv-final.pth",
+                    )
+                    exit(0)
+        if trainer.global_step < w_step:
+            lr = lr * (0.2 + 0.8 * trainer.global_step / w_step)
 
         if args.weight_decay_final > 0:
             wd_now = args.weight_decay * math.exp(math.log(args.weight_decay_final / args.weight_decay) * progress)
