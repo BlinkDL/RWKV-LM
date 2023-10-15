@@ -225,7 +225,7 @@ $`\left(\left[\begin{array}{ccc}
 
 ### RWKV-6
 
-Dynamic Mix & Dynamic Decay. Example:
+Dynamic Mix & Dynamic Decay. Example (do this for both TimeMix & ChannelMix):
 ```
 TIME_MIX_EXTRA_DIM = 32
 self.time_mix_k_w1 = nn.Parameter(torch.empty(args.n_embd, TIME_MIX_EXTRA_DIM).uniform_(-0.01, 0.01))
