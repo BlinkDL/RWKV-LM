@@ -249,6 +249,8 @@ xr = x * time_mix_r + xx * (1 - time_mix_r)
 xg = x * time_mix_g + xx * (1 - time_mix_g)
 ```
 
+![RWKV-v6](RWKV-v6.png)
+
 ### RWKV-7
 
 Use parallelized mode to quickly generate the state, then use a finetuned full RNN (the layers of token n can use outputs of all layer of token n-1) for sequential generation.
