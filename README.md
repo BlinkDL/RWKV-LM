@@ -1,6 +1,6 @@
 # The RWKV Language Model (and my LM tricks)
 
-> If you are new to RWKV, it would be better to find out more about us via our wiki first here: https://www.rwkv.com/ https://wiki.rwkv.com/
+> RWKV homepage: https://www.rwkv.com/ https://wiki.rwkv.com/
 
 ## RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv", from 4 major params: R W K V)
 
