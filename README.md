@@ -1,6 +1,6 @@
 # The RWKV Language Model (and my LM tricks)
 
-> If you are new to RWKV, it would be better to find out more about us via our wiki first here: https://wiki.rwkv.com/
+> If you are new to RWKV, it would be better to find out more about us via our wiki first here: https://www.rwkv.com/ https://wiki.rwkv.com/
 
 ## RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv", from 4 major params: R W K V)
 
@@ -8,15 +8,15 @@ RWKV is an RNN with Transformer-level LLM performance, which can also be directl
 
 So it's combining the best of RNN and transformer - **great performance, fast inference, saves VRAM, fast training, "infinite" ctx_len, and free sentence embedding** (using the final hidden state).
 
-**Raven 14B** (finetuned on Alpaca+ShareGPT+...) Demo: https://huggingface.co/spaces/BlinkDL/ChatRWKV-gradio
+**RWKV-5 World v2 1.5B** Demo: https://huggingface.co/spaces/BlinkDL/ChatRWKV-gradio
 
-**World 7B** (supports 100+ world languages) Demo: https://huggingface.co/spaces/BlinkDL/RWKV-World-7B
+![RWKV-v5-benchmark-1](RWKV-v5-benchmark-1.png)
+
+**RWKV-4 World v1 7B** Demo: https://huggingface.co/spaces/BlinkDL/RWKV-World-7B
 
 **RWKV GUI** https://github.com/josStorer/RWKV-Runner with one-click install and API
 
-**Download RWKV-4 0.1/0.4/1.5/3/7/14B weights**: https://huggingface.co/BlinkDL
-
-RWKV-4-World is the best model: generation & chat & code in 100+ world languages, with the best English zero-shot & in-context learning ability too.
+**Download all RWKV model weights**: https://huggingface.co/BlinkDL
 
 **RWKV pip package**: https://pypi.org/project/rwkv/
 
