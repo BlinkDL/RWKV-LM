@@ -45,6 +45,8 @@ https://github.com/Blealtan/RWKV-LM-LoRA LoRA finetuning
 
 https://github.com/TheRamU/Fay/blob/main/README_EN.md Digital Assistant with RWKV
 
+https://github.com/seasonjs/rwkv Pure golang binding without cgo
+
 More RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
 
 ## Join Our Discord: https://discord.gg/bDSBUMeFpc (lots of developers)
