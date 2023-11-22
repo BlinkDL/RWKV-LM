@@ -35,15 +35,23 @@ print(out.detach().cpu().numpy())                   # same result as above
 ```
 **Cool Community RWKV Projects (check them!)**: https://www.rwkv.com/
 
-https://github.com/saharNooby/rwkv.cpp Fast CPU/cuBLAS/CLBlast inference: int4/int8/fp16/fp32
+https://github.com/cgisky1980/ai00_rwkv_server Fastest GPU inference API with vulkan (good for nvidia/amd/intel), supports rwkv5
 
-https://github.com/cgisky1980/ai00_rwkv_server Fastest GPU inference API with vulkan (good for nvidia/amd/intel)
+https://github.com/cryscan/web-rwkv backend for ai00_rwkv_server, supports rwkv5
 
-https://github.com/harrisonvanderbyl/rwkv-cpp-cuda Fast GPU inference with cuda/amd/vulkan
+https://github.com/saharNooby/rwkv.cpp Fast CPU/cuBLAS/CLBlast inference: int4/int8/fp16/fp32, supports rwkv5
+
+https://github.com/daquexian/faster-rwkv supports rwkv5
+
+https://github.com/mlc-ai/mlc-llm/pull/1275 supports rwkv5
+
+https://github.com/RWKV/RWKV-infctx-trainer Infctx trainer
 
 https://github.com/Blealtan/RWKV-LM-LoRA LoRA finetuning
 
 https://github.com/TheRamU/Fay/blob/main/README_EN.md Digital Assistant with RWKV
+
+https://github.com/harrisonvanderbyl/rwkv-cpp-cuda Fast GPU inference with cuda/amd/vulkan
 
 More RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
 
