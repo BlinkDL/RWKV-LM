@@ -20,6 +20,8 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 **RWKV pip package**: https://pypi.org/project/rwkv/
 
+**nanoRWKV**: https://github.com/BlinkDL/nanoRWKV (does not require custom CUDA kernel, works for any GPU/CPU)
+
 ```python
 os.environ["RWKV_JIT_ON"] = '1'
 os.environ["RWKV_CUDA_ON"] = '0' # if '1' then use CUDA kernel for seq mode (much faster)
