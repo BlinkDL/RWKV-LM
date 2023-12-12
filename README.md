@@ -1,6 +1,8 @@
-# The RWKV Language Model (and my LM tricks)
+![image](https://github.com/BlinkDL/RWKV-LM/assets/33809201/769de6fd-6765-4b62-8380-1a673c71e9b7)# The RWKV Language Model (and my LM tricks)
 
 > RWKV homepage: https://www.rwkv.com/ https://wiki.rwkv.com/
+
+**IMPORTANT: Use deepspeed==0.7.0 pytorch-lightning==1.9.5 torch==1.13.1+cu117 and cuda 11.7.1 or 11.7 (note torch2 + deepspeed has weird bugs and hurts model performance)**
 
 ## RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv", from 4 major params: R W K V)
 
@@ -128,7 +130,7 @@ You can find me (BlinkDL) in the EleutherAI Discord too: https://www.eleuther.ai
 
 ## Quick start
 
-**IMPORTANT: Use deepspeed==0.7.0 pytorch-lightning==1.9.2 torch 1.13.1+cu117**
+**IMPORTANT: Use deepspeed==0.7.0 pytorch-lightning==1.9.5 torch==1.13.1+cu117 and cuda 11.7.1 or 11.7 (note torch2 + deepspeed has weird bugs and hurts model performance)**
 
 Use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4neo (latest code, compatible with v4).
 
