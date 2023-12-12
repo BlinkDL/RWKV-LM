@@ -1,4 +1,4 @@
-![image](https://github.com/BlinkDL/RWKV-LM/assets/33809201/769de6fd-6765-4b62-8380-1a673c71e9b7)# The RWKV Language Model (and my LM tricks)
+# The RWKV Language Model (and my LM tricks)
 
 > RWKV homepage: https://www.rwkv.com/ https://wiki.rwkv.com/
 
