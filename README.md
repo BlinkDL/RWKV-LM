@@ -10,6 +10,8 @@ RWKV is an RNN with Transformer-level LLM performance, which can also be directl
 
 So it's combining the best of RNN and transformer - **great performance, fast inference, saves VRAM, fast training, "infinite" ctx_len, and free sentence embedding** (using the final hidden state).
 
+Our latest version is **RWKV-6**, which is easily Mamba level, and simpler ;) https://twitter.com/BlinkDL_AI/status/1732791817073229881 https://twitter.com/BlinkDL_AI/status/1713967928209752128 Preview models: https://huggingface.co/BlinkDL/temp
+
 **RWKV-5 World v2 1.5B** Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 
 **RWKV-5 World v2 3B** Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
