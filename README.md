@@ -18,7 +18,9 @@ So it's combining the best of RNN and transformer - **great performance, fast in
 
 **RWKV GUI** https://github.com/josStorer/RWKV-Runner with one-click install and API
 
-**Download all RWKV model weights**: https://huggingface.co/BlinkDL
+**Download raw cutting-edge RWKV weights:** https://huggingface.co/BlinkDL
+
+**Download HF-compatible RWKV weights:** https://huggingface.co/RWKV
 
 **RWKV pip package**: https://pypi.org/project/rwkv/
 
