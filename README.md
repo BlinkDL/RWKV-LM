@@ -57,6 +57,8 @@ https://github.com/TheRamU/Fay/blob/main/README_EN.md Digital Assistant with RWK
 
 https://github.com/harrisonvanderbyl/rwkv-cpp-cuda Fast GPU inference with cuda/amd/vulkan
 
+https://github.com/go-skynet/LocalAI Runs RWKV with [rwkv.cpp](https://github.com/saharNooby/rwkv.cpp) as an OpenAI drop-in compatible REST API.
+
 More RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
 
 ## Join Our Discord: https://discord.gg/bDSBUMeFpc (lots of developers)
