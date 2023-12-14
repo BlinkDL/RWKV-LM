@@ -74,11 +74,15 @@ https://github.com/harrisonvanderbyl/rwkv-cpp-cuda Fast GPU inference with cuda/
 
 **🔥 RWKV v5 in 250 lines 🔥** (with tokenizer too): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v5_demo.py
 
-**RWKV preprint** https://arxiv.org/abs/2305.13048
+**RWKV v4 preprint** https://arxiv.org/abs/2305.13048
 
 ![RWKV-paper](RWKV-paper.png)
 
-**RWKV introduction, and in 100 lines of numpy**: https://johanwind.github.io/2023/03/23/rwkv_overview.html https://johanwind.github.io/2023/03/23/rwkv_details.html
+**RWKV v4 introduction, and in 100 lines of numpy**: https://johanwind.github.io/2023/03/23/rwkv_overview.html https://johanwind.github.io/2023/03/23/rwkv_details.html
+
+RWKV v6 illustrated:
+
+![RWKV-v6](rwkv-x060.png)
 
 A cool paper (Spiking Neural Network) using RWKV: https://github.com/ridgerchu/SpikeGPT
 
