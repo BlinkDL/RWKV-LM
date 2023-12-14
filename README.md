@@ -10,7 +10,7 @@ RWKV is an RNN with Transformer-level LLM performance, which can also be directl
 
 So it's combining the best of RNN and transformer - **great performance, fast inference, saves VRAM, fast training, "infinite" ctx_len, and free sentence embedding** (using the final hidden state).
 
-Our latest version is **RWKV-6**, which is easily Mamba level, and simpler ;) https://twitter.com/BlinkDL_AI/status/1732791817073229881 https://twitter.com/BlinkDL_AI/status/1713967928209752128 Preview models: https://huggingface.co/BlinkDL/temp
+Our latest version is **RWKV-6**, which is easily Mamba level, and simpler ;) https://twitter.com/BlinkDL_AI/status/1732791817073229881 https://twitter.com/BlinkDL_AI/status/1713967928209752128 (Preview models: https://huggingface.co/BlinkDL/temp )
 
 **RWKV-5 World v2 1.5B** Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 
@@ -70,7 +70,9 @@ https://github.com/TheRamU/Fay/blob/main/README_EN.md Digital Assistant with RWK
 
 https://github.com/harrisonvanderbyl/rwkv-cpp-cuda Fast GPU inference with cuda/amd/vulkan
 
-**RWKV in 150 lines** (model, inference, text generation): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_in_150_lines.py
+**RWKV v4 in 150 lines** (model, inference, text generation): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_in_150_lines.py
+
+**🔥 RWKV v5 in 250 lines 🔥** (with tokenizer too): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v5_demo.py
 
 **RWKV preprint** https://arxiv.org/abs/2305.13048
 
