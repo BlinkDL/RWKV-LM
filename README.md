@@ -2,12 +2,17 @@
 
 > RWKV homepage: https://www.rwkv.com/ https://wiki.rwkv.com/
 
-## HOW TO TEST TRAINING RWKV-5 ##
+## HOW TO TEST TRAINING RWKV-5 on MiniPile (1.5G tokens) ##
 
-Use deepspeed==0.7.0 pytorch-lightning==1.9.5 torch==1.13.1+cu117 and cuda 11.7.1 or 11.7 (note torch2 + deepspeed has weird bugs and hurts model performance)
-
-Run https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/demo-training-prepare.sh and https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/demo-training-run.sh
-
+Use cuda 11.7.1 or 11.7 (note torch2 + deepspeed has weird bugs and hurts model performance).
+```
+pip install torch==1.13.1+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
+pip install pytorch-lightning==1.9.5 deepspeed==0.7.0 wandb ninja
+cd RWKV-v5/
+./demo-training-prepare.sh
+./demo-training-run.sh
+(you may want to log in to wandb first)
+```
 ## RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv", from 4 major params: R W K V)
 
 RWKV is an RNN with Transformer-level LLM performance, which can also be directly trained like a GPT transformer (parallelizable). And it's 100% attention-free. You only need the hidden state at position t to compute the state at position t+1. You can use the "GPT" mode to quickly compute the hidden state for the "RNN" mode.
