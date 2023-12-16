@@ -13,6 +13,12 @@ cd RWKV-v5/
 ./demo-training-run.sh
 (you may want to log in to wandb first)
 ```
+Your loss curve should look almost exactly the same as this, with the same ups and downs (if you use the same bsz & config):
+
+![RWKV-v5-minipile](RWKV-v5-minipile.png)
+
+You can run your model using https://pypi.org/project/rwkv/ (use "rwkv_vocab_v20230424" instead of "20B_tokenizer.json")
+
 ## RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv", from 4 major params: R W K V)
 
 RWKV is an RNN with Transformer-level LLM performance, which can also be directly trained like a GPT transformer (parallelizable). And it's 100% attention-free. You only need the hidden state at position t to compute the state at position t+1. You can use the "GPT" mode to quickly compute the hidden state for the "RNN" mode.
