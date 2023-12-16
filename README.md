@@ -2,7 +2,11 @@
 
 > RWKV homepage: https://www.rwkv.com/ https://wiki.rwkv.com/
 
-IMPORTANT: Use deepspeed==0.7.0 pytorch-lightning==1.9.5 torch==1.13.1+cu117 and cuda 11.7.1 or 11.7 (note torch2 + deepspeed has weird bugs and hurts model performance)
+## HOW TO TEST TRAINING RWKV-5 ##
+
+Use deepspeed==0.7.0 pytorch-lightning==1.9.5 torch==1.13.1+cu117 and cuda 11.7.1 or 11.7 (note torch2 + deepspeed has weird bugs and hurts model performance)
+
+Run https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/demo-training-prepare.sh and https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/demo-training-run.sh
 
 ## RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv", from 4 major params: R W K V)
 
