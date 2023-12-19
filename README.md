@@ -2,7 +2,7 @@
 
 > RWKV homepage: https://www.rwkv.com/ https://wiki.rwkv.com/
 
-## HOW TO TEST TRAINING RWKV-5 on MiniPile (1.5G tokens) ##
+### HOW TO TEST TRAINING RWKV-5 on MiniPile (1.5G tokens) ##
 
 Use python 3.10 and cuda 11.7.1 / 11.7 (note torch2 + deepspeed has weird bugs and hurts model performance).
 ```
@@ -15,9 +15,15 @@ cd RWKV-v5/
 ```
 Your loss curve should look almost exactly the same as this, with the same ups and downs (if you use the same bsz & config):
 
-![RWKV-v5-minipile](RWKV-v5-minipile.png)
+<img src="RWKV-v5-minipile.png" width="500">
 
 You can run your model using https://pypi.org/project/rwkv/ (use "rwkv_vocab_v20230424" instead of "20B_tokenizer.json")
+
+### HOW TO FINETUNE RWKV-5 MODELS ##
+
+Use .jsonl format for your data (see https://huggingface.co/BlinkDL/rwkv-5-world for formats).
+
+Use https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/make_data.py to tokenizer it into binidx suitable for training.
 
 ## RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv", from 4 major params: R W K V)
 
