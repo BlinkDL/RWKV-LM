@@ -9,7 +9,7 @@ python make_data.py demo.jsonl 3 4096
 This will:
 ==> shuffle & duplicate demo.jsonl (for 3 epochs, good for finetuning) note: this will be very slow for large jsonl and we need more efficient code.
 ==> load jsonl and tokenize
-==> store as demo.bin & demo.idx
+==> save as demo.bin & demo.idx
 ==> compute "magic_prime" for ctxlen 4096
 
 Example:
@@ -20,7 +20,7 @@ Assume your source jsonl is:
 {"text":"cc"}
 {"text":"dd"}
 
-The final binidx will be:
+The final binidx will be like (here "/" means end_of_doc, which is actually token [0]):
 bb/aa/dd/cc/dd/aa/bb/cc/dd/bb/cc/aa/
 
 where the data is repeated 3 times (each time with different shuffle)
