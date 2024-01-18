@@ -2,21 +2,51 @@
 
 > RWKV homepage: https://www.rwkv.com/ https://wiki.rwkv.com/
 
+### HOW TO TEST TRAINING RWKV-5 on MiniPile (1.5G tokens) ##
+
+For reference, use python 3.10, torch==1.13.1+cu117, cuda 11.7.1
+
+For best performance, use python 3.10, torch 2.1.2+cu121 (or latest), cuda 12.3+, latest deepspeed, but keep pytorch-lightning==1.9.5
+
+```
+pip install torch==1.13.1+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
+pip install pytorch-lightning==1.9.5 deepspeed==0.7.0 wandb ninja
+cd RWKV-v5/
+./demo-training-prepare.sh
+./demo-training-run.sh
+(you may want to log in to wandb first)
+```
+Your loss curve should look almost exactly the same as this, with the same ups and downs (if you use the same bsz & config):
+
+<img src="RWKV-v5-minipile.png" width="500">
+
+You can run your model using https://pypi.org/project/rwkv/ (use "rwkv_vocab_v20230424" instead of "20B_tokenizer.json")
+
+### HOW TO FINETUNE RWKV-5 MODELS ##
+
+Use .jsonl format for your data (see https://huggingface.co/BlinkDL/rwkv-5-world for formats).
+
+Use https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/make_data.py to tokenizer it into binidx suitable for training.
+
 ## RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv", from 4 major params: R W K V)
 
 RWKV is an RNN with Transformer-level LLM performance, which can also be directly trained like a GPT (parallelizable). And it's 100% attention-free. You only need the hidden state at position t to compute the state at position t+1. You can use the "GPT" mode to quickly compute the hidden state for the "RNN" mode.
 
 So it's combining the best of RNN and transformer - **great performance, fast inference, saves VRAM, fast training, "infinite" ctx_len, and free sentence embedding** (using the final hidden state).
 
-**RWKV-5 World v2 1.5B** Demo: https://huggingface.co/spaces/BlinkDL/ChatRWKV-gradio
+Our latest version is **RWKV-6**, which is easily Mamba level, and simpler ;) https://twitter.com/BlinkDL_AI/status/1732791817073229881 https://twitter.com/BlinkDL_AI/status/1713967928209752128 (Preview models: https://huggingface.co/BlinkDL/temp )
+
+**RWKV-5 World v2 1.5B** Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
+
+**RWKV-5 World v2 3B** Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
 
 ![RWKV-v5-benchmark-1](RWKV-v5-benchmark-1.png)
 
-**RWKV-4 World v1 7B** Demo: https://huggingface.co/spaces/BlinkDL/RWKV-World-7B
+**RWKV Runner GUI** https://github.com/josStorer/RWKV-Runner with one-click install and API
 
-**RWKV GUI** https://github.com/josStorer/RWKV-Runner with one-click install and API
+**Raw cutting-edge RWKV weights:** https://huggingface.co/BlinkDL
 
-**Download all RWKV model weights**: https://huggingface.co/BlinkDL
+**HF-compatible RWKV weights:** https://huggingface.co/RWKV
 
 **RWKV pip package**: https://pypi.org/project/rwkv/
 
@@ -33,31 +63,50 @@ out, state = model.forward([1563], state)           # RNN has state (use deepcop
 out, state = model.forward([310, 247], state)
 print(out.detach().cpu().numpy())                   # same result as above
 ```
-**Cool Community RWKV Projects (check them!)**: https://www.rwkv.com/
 
-https://github.com/saharNooby/rwkv.cpp Fast CPU/cuBLAS/CLBlast inference: int4/int8/fp16/fp32
+**nanoRWKV**: https://github.com/BlinkDL/nanoRWKV (does not require custom CUDA kernel to train, works for any GPU/CPU)
 
-https://github.com/cgisky1980/ai00_rwkv_server Fastest GPU inference API with vulkan (good for nvidia/amd/intel)
+## RWKV Discord: https://discord.gg/bDSBUMeFpc (7k+ members)
 
-https://github.com/harrisonvanderbyl/rwkv-cpp-cuda Fast GPU inference with cuda/amd/vulkan
+**Twitter**: https://twitter.com/BlinkDL_AI
+
+**Homepage**: https://www.rwkv.com/
+
+**Cool Community RWKV Projects**:
+
+All (200+) RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
+
+https://github.com/cgisky1980/ai00_rwkv_server Fastest GPU inference API with vulkan (good for nvidia/amd/intel), supports rwkv5
+
+https://github.com/cryscan/web-rwkv backend for ai00_rwkv_server, supports rwkv5
+
+https://github.com/saharNooby/rwkv.cpp Fast CPU/cuBLAS/CLBlast inference: int4/int8/fp16/fp32, supports rwkv5
+
+https://github.com/daquexian/faster-rwkv supports rwkv5
+
+https://github.com/mlc-ai/mlc-llm/pull/1275 supports rwkv5
+
+https://github.com/RWKV/RWKV-infctx-trainer Infctx trainer
 
 https://github.com/Blealtan/RWKV-LM-LoRA LoRA finetuning
 
 https://github.com/TheRamU/Fay/blob/main/README_EN.md Digital Assistant with RWKV
 
-More RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
+https://github.com/harrisonvanderbyl/rwkv-cpp-cuda Fast GPU inference with cuda/amd/vulkan
 
-## Join Our Discord: https://discord.gg/bDSBUMeFpc (lots of developers)
+**RWKV v4 in 150 lines** (model, inference, text generation): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_in_150_lines.py
 
-**Twitter**: https://twitter.com/BlinkDL_AI
+**🔥 RWKV v5 in 250 lines 🔥** (with tokenizer too): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v5_demo.py
 
-**RWKV in 150 lines** (model, inference, text generation): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_in_150_lines.py
-
-**RWKV preprint** https://arxiv.org/abs/2305.13048
+**RWKV v4 preprint** https://arxiv.org/abs/2305.13048
 
 ![RWKV-paper](RWKV-paper.png)
 
-**RWKV introduction, and in 100 lines of numpy**: https://johanwind.github.io/2023/03/23/rwkv_overview.html https://johanwind.github.io/2023/03/23/rwkv_details.html
+**RWKV v4 introduction, and in 100 lines of numpy**: https://johanwind.github.io/2023/03/23/rwkv_overview.html https://johanwind.github.io/2023/03/23/rwkv_details.html
+
+RWKV v6 illustrated:
+
+![RWKV-v6](rwkv-x060.png)
 
 A cool paper (Spiking Neural Network) using RWKV: https://github.com/ridgerchu/SpikeGPT
 
@@ -118,7 +167,7 @@ You can find me (BlinkDL) in the EleutherAI Discord too: https://www.eleuther.ai
 
 ## Quick start
 
-**IMPORTANT: Use deepspeed==0.7.0 pytorch-lightning==1.9.2 torch 1.13.1+cu117**
+**IMPORTANT: Use deepspeed==0.7.0 pytorch-lightning==1.9.5 torch==1.13.1+cu117 and cuda 11.7.1 or 11.7 (note torch2 + deepspeed has weird bugs and hurts model performance)**
 
 Use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v4neo (latest code, compatible with v4).
 
