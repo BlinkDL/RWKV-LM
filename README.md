@@ -6,7 +6,7 @@
 
 For reference, use python 3.10, torch==1.13.1+cu117, cuda 11.7.1
 
-For best performance, use python 3.10, torch 2.1.1+cu121, cuda 12.3+, latest deepspeed, but keep pytorch-lightning==1.9.5
+For best performance, use python 3.10, torch 2.1.2+cu121 (or latest), cuda 12.3+, latest deepspeed, but keep pytorch-lightning==1.9.5
 
 ```
 pip install torch==1.13.1+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
