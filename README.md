@@ -4,7 +4,10 @@
 
 ### HOW TO TEST TRAINING RWKV-5 on MiniPile (1.5G tokens) ##
 
-Use python 3.10 and cuda 11.7.1 / 11.7 (note torch2 + cuda12 has weird bugs and hurts model performance).
+For reference, use python 3.10, torch==1.13.1+cu117, cuda 11.7.1
+
+For best performance, use python 3.10, torch 2.1.1+cu121, cuda 12.3+, latest deepspeed, but keep pytorch-lightning==1.9.5
+
 ```
 pip install torch==1.13.1+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
 pip install pytorch-lightning==1.9.5 deepspeed==0.7.0 wandb ninja
