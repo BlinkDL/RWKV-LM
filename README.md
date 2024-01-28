@@ -38,7 +38,7 @@ Our latest version is **RWKV-6**, which is easily Mamba level, and simpler ;) ht
 
 **RWKV-5 World v2 1.5B** Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 
-**RWKV-5 World v2 3B** Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
+**RWKV-5 World v2 7B** Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
 
 ![RWKV-v5-benchmark-1](RWKV-v5-benchmark-1.png)
 
