@@ -22,6 +22,8 @@ Your loss curve should look almost exactly the same as this, with the same ups a
 
 You can run your model using https://pypi.org/project/rwkv/ (use "rwkv_vocab_v20230424" instead of "20B_tokenizer.json")
 
+**Using RWKV-6**: use /RWKV-v5/ and add --my_testing "x060" to demo-training-prepare.sh and demo-training-run.sh
+
 ### HOW TO FINETUNE RWKV-5 MODELS ##
 
 Use .jsonl format for your data (see https://huggingface.co/BlinkDL/rwkv-5-world for formats).
