@@ -30,6 +30,8 @@ You can run your model using https://pypi.org/project/rwkv/ (use "rwkv_vocab_v20
 
 lm_eval: https://github.com/BlinkDL/ChatRWKV/blob/main/run_lm_eval.py
 
+chat demo for developers: https://github.com/BlinkDL/ChatRWKV/blob/main/API_DEMO_CHAT.py
+
 ### HOW TO FINETUNE RWKV-5 MODELS ##
 
 Use .jsonl format for your data (see https://huggingface.co/BlinkDL/rwkv-5-world for formats).
