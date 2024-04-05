@@ -256,8 +256,8 @@ class RWKV_Tmix_x060(MyModule):
             self.time_maa_g = nn.Parameter(1.0 - torch.pow(ddd, 0.5 * ratio_1_to_almost0))
 
             TIME_MIX_EXTRA_DIM = 32 # generate TIME_MIX for w,k,v,r,g
-            self.time_maa_w1 = nn.Parameter(torch.zeros(args.n_embd, TIME_MIX_EXTRA_DIM*5).uniform_(-1e-4, 1e-4))
-            self.time_maa_w2 = nn.Parameter(torch.zeros(5, TIME_MIX_EXTRA_DIM, args.n_embd).uniform_(-1e-4, 1e-4))
+            self.time_maa_w1 = nn.Parameter(torch.zeros(args.n_embd, TIME_MIX_EXTRA_DIM*5))
+            self.time_maa_w2 = nn.Parameter(torch.zeros(5, TIME_MIX_EXTRA_DIM, args.n_embd).uniform_(-0.01, 0.01))
 
             # fancy time_decay
             decay_speed = torch.ones(args.dim_att)
@@ -266,8 +266,8 @@ class RWKV_Tmix_x060(MyModule):
             self.time_decay = nn.Parameter(decay_speed.reshape(1,1,args.dim_att))
 
             TIME_DECAY_EXTRA_DIM = 64
-            self.time_decay_w1 = nn.Parameter(torch.zeros(args.n_embd, TIME_DECAY_EXTRA_DIM).uniform_(-1e-4, 1e-4))
-            self.time_decay_w2 = nn.Parameter(torch.zeros(TIME_DECAY_EXTRA_DIM, args.dim_att).uniform_(-1e-4, 1e-4))
+            self.time_decay_w1 = nn.Parameter(torch.zeros(args.n_embd, TIME_DECAY_EXTRA_DIM))
+            self.time_decay_w2 = nn.Parameter(torch.zeros(TIME_DECAY_EXTRA_DIM, args.dim_att).uniform_(-0.01, 0.01))
 
             tmp = torch.zeros(args.dim_att)
             for n in range(args.dim_att):
@@ -525,7 +525,7 @@ class RWKV(pl.LightningModule):
         if not hasattr(args, 'dim_att'):
             args.dim_att = args.n_embd
         if not hasattr(args, 'dim_ffn'):
-            args.dim_ffn = args.n_embd * 4
+            args.dim_ffn = int((args.n_embd * 3.5) // 32 * 32) # default = 3.5x emb size
         if not hasattr(args, 'tiny_att_layer'):
             args.tiny_att_layer = -1
         if not hasattr(args, 'tiny_att_dim'):
