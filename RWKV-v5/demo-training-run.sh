@@ -24,6 +24,7 @@ PROJ_DIR="out/L"$N_LAYER"-D"$N_EMBD"-"$MODEL_TYPE # set output folder
 # Small data => use smaller bsz & slightly smaller LR
 # Large data => use larger bsz & slightly larger LR
 # Larger model => use smaller LR
+# Finetuning => use very small LR, such as 1e-5
 #
 M_BSZ="16" # takes ~9G VRAM here => reduce this to save VRAM, increase for faster speed
 LR_INIT="6e-4"
