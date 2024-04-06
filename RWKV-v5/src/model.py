@@ -91,7 +91,8 @@ if 'x060' in os.environ["RWKV_MY_TESTING"]:
 
     def RUN_CUDA_RWKV6(B, T, C, H, r, k, v, w, u):
         return WKV_6.apply(B, T, C, H, r, k, v, w, u)
-else:
+
+elif 'x052' in os.environ["RWKV_MY_TESTING"]:
     wkv5_cuda = load(name="wkv5", sources=["cuda/wkv5_op.cpp", f"cuda/wkv5_cuda.cu"],
                     verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}"])
         
@@ -146,7 +147,7 @@ else:
 
 ########################################################################################################
 
-class RWKV_TimeMix_RWKV5(MyModule):
+class RWKV_Tmix_x052(MyModule):
     def __init__(self, args, layer_id):
         super().__init__()
         self.args = args
@@ -332,7 +333,7 @@ class RWKV_Tmix_x060(MyModule):
 
 ########################################################################################################
 
-class RWKV_ChannelMix(MyModule):
+class RWKV_CMix_x052(MyModule):
     def __init__(self, args, layer_id):
         super().__init__()
         self.args = args
@@ -447,16 +448,16 @@ class Block(nn.Module):
         else:
             if 'x060' in os.environ["RWKV_MY_TESTING"]:
                 self.att = RWKV_Tmix_x060(args, layer_id)
-            else:
-                self.att = RWKV_TimeMix_RWKV5(args, layer_id)
+            elif 'x052' in os.environ["RWKV_MY_TESTING"]:
+                self.att = RWKV_Tmix_x052(args, layer_id)
 
         if 'g' in os.environ["RWKV_MY_TESTING"]:
             self.ffn = MishGLU(args, layer_id)
         else:
             if 'x060' in os.environ["RWKV_MY_TESTING"]:
                 self.ffn = RWKV_CMix_x060(args, layer_id)
-            else:
-                self.ffn = RWKV_ChannelMix(args, layer_id)
+            elif 'x052' in os.environ["RWKV_MY_TESTING"]:
+                self.ffn = RWKV_CMix_x052(args, layer_id)
         
         if args.tiny_att_dim > 0 and self.layer_id == args.tiny_att_layer:
             self.tiny_ln = nn.LayerNorm(args.n_embd)
