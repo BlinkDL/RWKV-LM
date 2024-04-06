@@ -2,6 +2,10 @@
 #######################################################################################################################
 #
 # Run demo-training-prepare.sh with the same MODEL_TYPE & N_LAYER & N_EMBD first
+# Or, rename your base model to rwkv-init.pth and put it in the output folder
+#
+# The trainer will load the last rwkv-*.pth in the folder, such that it can continue from a stopped run
+# Therefore check the log (### Loading rwkv-xxx.pth... ###), and make sure you don't have extra rwkv-*.pth there
 #
 #######################################################################################################################
 #
@@ -16,11 +20,16 @@ PROJ_DIR="out/L"$N_LAYER"-D"$N_EMBD"-"$MODEL_TYPE # set output folder
 #
 #######################################################################################################################
 #
-M_BSZ="16" # takes ~9G VRAM (reduce this to save VRAM)
+# Note bsz & lr affects model & training performance
+# Small data => use smaller bsz & slightly smaller LR
+# Large data => use larger bsz & slightly larger LR
+# Larger model => use smaller LR
+#
+M_BSZ="16" # takes ~9G VRAM here => reduce this to save VRAM, increase for faster speed
 LR_INIT="6e-4"
 LR_FINAL="6e-5"
 GRAD_CP=1 # 1 => slower, save VRAM; 0 => faster, more VRAM
-EPOCH_SAVE=10 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens)
+EPOCH_SAVE=10 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens) => increase if your GPU is weak
 #
 #######################################################################################################################
 #
