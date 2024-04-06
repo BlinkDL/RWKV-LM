@@ -14,6 +14,7 @@
 #
 # MODEL_TYPE="x052" # x052 => rwkv-5.2 (rwkv-5 final)
 MODEL_TYPE="x060" # x060 => rwkv-6.0
+# MODEL_TYPE="mamba" # pip install mamba_ssm --upgrade
 #
 N_LAYER="12"
 N_EMBD="768"

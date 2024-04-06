@@ -145,6 +145,9 @@ elif 'x052' in os.environ["RWKV_MY_TESTING"]:
     def RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w, u):
         return WKV_5.apply(B, T, C, H, r, k, v, w, u)
 
+elif 'mamba' in os.environ["RWKV_MY_TESTING"]:
+    from mamba_ssm import Mamba
+
 ########################################################################################################
 
 class RWKV_Tmix_x052(MyModule):
@@ -450,14 +453,17 @@ class Block(nn.Module):
                 self.att = RWKV_Tmix_x060(args, layer_id)
             elif 'x052' in os.environ["RWKV_MY_TESTING"]:
                 self.att = RWKV_Tmix_x052(args, layer_id)
+            elif 'mamba' in os.environ["RWKV_MY_TESTING"]:
+                self.att = Mamba(d_model=args.n_embd, d_state=16, d_conv=4, expand=2.125) # match rwkv6 #params
 
         if 'g' in os.environ["RWKV_MY_TESTING"]:
             self.ffn = MishGLU(args, layer_id)
-        else:
-            if 'x060' in os.environ["RWKV_MY_TESTING"]:
-                self.ffn = RWKV_CMix_x060(args, layer_id)
-            elif 'x052' in os.environ["RWKV_MY_TESTING"]:
-                self.ffn = RWKV_CMix_x052(args, layer_id)
+        elif 'x060' in os.environ["RWKV_MY_TESTING"]:
+            self.ffn = RWKV_CMix_x060(args, layer_id)
+        elif 'x052' in os.environ["RWKV_MY_TESTING"]:
+            self.ffn = RWKV_CMix_x052(args, layer_id)
+        elif 'mamba' in os.environ["RWKV_MY_TESTING"]:
+            self.ffn = Mamba(d_model=args.n_embd, d_state=16, d_conv=4, expand=2.125) # match rwkv6 #params
         
         if args.tiny_att_dim > 0 and self.layer_id == args.tiny_att_layer:
             self.tiny_ln = nn.LayerNorm(args.n_embd)
@@ -728,9 +734,15 @@ class RWKV(pl.LightningModule):
 """
         )
         m = {}
+        n_params = 0
         for n in self.state_dict():
             p = self.state_dict()[n]
             shape = p.shape
+
+            s0 = str(shape[0]) if len(shape) > 0 else ""
+            s1 = str(shape[1]) if len(shape) > 1 else ""
+            s2 = str(shape[2]) if len(shape) > 2 else ""
+            print(f"{s0.ljust(5)} {s1.ljust(5)} {s2.ljust(5)} {n}", end="")
 
             gain = 1.0
             scale = 1.0
@@ -740,48 +752,74 @@ class RWKV(pl.LightningModule):
                     m[n] = (p * 0.0) + (layer_scale ** 0.7)
                 else:
                     m[n] = p
+                print()
             else:
-                if n == "emb.weight":
-                    scale = -1 * self.args.lr_init
-                else:
-                    if shape[0] > shape[1]:
-                        gain = math.sqrt(shape[0] / shape[1])
-
-                    zero = [".att.output.", ".ffn.value.", ".ffn.receptance.", ".ffnPre.value.", ".ffnPre.receptance.", "head_q.", '.oo.', '.rr.']
-
-                    for kk in zero:
-                        if kk in n:
-                            scale = 0
-                    if n == "head.weight":
+                if 'mamba' in os.environ["RWKV_MY_TESTING"]:
+                    m[n] = p
+                    if n == "emb.weight":
+                        scale = -1e-4
+                        nn.init.uniform_(m[n], a=scale, b=-scale)
+                        print(f" [scale {scale}]")
+                    elif n == "head.weight":
+                        if shape[0] > shape[1]:
+                            gain = math.sqrt(shape[0] / shape[1])
                         scale = 0.5
-                    if "head_k." in n:
-                        scale = 0.1
-                    if "head_q." in n:
+                        nn.init.orthogonal_(m[n], gain=gain * scale)
+                        print(f" [scale {scale}]")
+                    elif '.out_proj.weight' in n:
                         scale = 0
-
-                print(f"{str(shape[0]).ljust(5)} {str(shape[1]).ljust(5)} {str(scale).ljust(4)} {n}")
-
-                if self.args.accelerator.upper() == "GPU":
-                    m[n] = torch.empty((shape[0], shape[1]), device="cuda")
+                        nn.init.zeros_(m[n])
+                        print(f" [scale {scale}]")
+                    elif '.bias' in n:
+                        scale = 0
+                        nn.init.zeros_(m[n])
+                        print(f" [scale {scale}]")
+                    else:
+                        print()
                 else:
-                    m[n] = torch.empty((shape[0], shape[1]))
+                    if n == "emb.weight":
+                        scale = -1e-4
+                    else:
+                        if shape[0] > shape[1]:
+                            gain = math.sqrt(shape[0] / shape[1])
 
-                if scale == 0:
-                    nn.init.zeros_(m[n])
-                elif scale < 0:
-                    nn.init.uniform_(m[n], a=scale, b=-scale)
-                else:
-                    nn.init.orthogonal_(m[n], gain=gain * scale)
+                        zero = [".att.output.", ".ffn.value.", ".ffn.receptance.", ".ffnPre.value.", ".ffnPre.receptance.", "head_q.", '.oo.', '.rr.']
+
+                        for kk in zero:
+                            if kk in n:
+                                scale = 0
+                        if n == "head.weight":
+                            scale = 0.5
+                        if "head_k." in n:
+                            scale = 0.1
+                        if "head_q." in n:
+                            scale = 0
+
+                    print(f" [scale {scale}]")
+
+                    if self.args.accelerator.upper() == "GPU":
+                        m[n] = torch.empty((shape[0], shape[1]), device="cuda")
+                    else:
+                        m[n] = torch.empty((shape[0], shape[1]))
+
+                    if scale == 0:
+                        nn.init.zeros_(m[n])
+                    elif scale < 0:
+                        nn.init.uniform_(m[n], a=scale, b=-scale)
+                    else:
+                        nn.init.orthogonal_(m[n], gain=gain * scale)
 
             m[n] = m[n].cpu()
             if os.environ["RWKV_FLOAT_MODE"] == "fp16":
                 m[n] = m[n].half()
             elif os.environ["RWKV_FLOAT_MODE"] == "bf16":
                 m[n] = m[n].bfloat16()
+            n_params += m[n].numel()
 
             # if n == "emb.weight":
             #     print(m[n])
 
+        print('model params', n_params)
         gc.collect()
         torch.cuda.empty_cache()
         return m
