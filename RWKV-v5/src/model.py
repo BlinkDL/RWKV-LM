@@ -795,6 +795,16 @@ class RWKV(pl.LightningModule):
                         if "head_q." in n:
                             scale = 0
 
+                        for kk in [".att.key."]:
+                            if kk in n:
+                                scale = 0.1
+                        for kk in [".ffn.key."]:
+                            if kk in n:
+                                scale = 0.5
+                        for kk in [".att.gate."]:
+                            if kk in n:
+                                scale = 0.1
+
                     print(f" [scale {scale}]")
 
                     if self.args.accelerator.upper() == "GPU":
