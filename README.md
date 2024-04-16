@@ -104,7 +104,7 @@ print(out.detach().cpu().numpy())                   # same result as above
 
 **Twitter**: https://twitter.com/BlinkDL_AI
 
-**Homepage**: https://www.rwkv.com/
+**Homepage**: https://www.rwkv.com
 
 **Cool Community RWKV Projects**:
 
@@ -132,9 +132,11 @@ https://github.com/TheRamU/Fay/blob/main/README_EN.md Digital Assistant with RWK
 
 https://github.com/harrisonvanderbyl/rwkv-cpp-cuda Fast GPU inference with cuda/amd/vulkan
 
-**RWKV v4 in 150 lines** (model, inference, text generation): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_in_150_lines.py
+**RWKV v6 in 250 lines** (with tokenizer too): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
 
-**🔥 RWKV v5 in 250 lines 🔥** (with tokenizer too): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v5_demo.py
+**RWKV v5 in 250 lines** (with tokenizer too): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v5_demo.py
+
+**RWKV v4 in 150 lines** (model, inference, text generation): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_in_150_lines.py
 
 **RWKV v4 preprint** https://arxiv.org/abs/2305.13048
 
