@@ -1,6 +1,10 @@
 # The RWKV Language Model (and my LM tricks)
 
-> RWKV homepage: https://www.rwkv.com/ https://wiki.rwkv.com/
+RWKV homepage: https://www.rwkv.com
+
+RWKV-5/6 Eagle/Finch paper: https://arxiv.org/abs/2404.05892
+
+![MQAR](Research/RWKV-6-MQAR.png)
 
 ### HOW TO TEST TRAINING RWKV-5 on MiniPile (1.5G tokens) ##
 
@@ -66,8 +70,6 @@ RWKV is an RNN with Transformer-level LLM performance, which can also be directl
 
 So it's combining the best of RNN and transformer - **great performance, fast inference, saves VRAM, fast training, "infinite" ctx_len, and free sentence embedding** (using the final hidden state).
 
-Our latest version is **RWKV-6**, which is easily Mamba level, and simpler ;) https://twitter.com/BlinkDL_AI/status/1732791817073229881 https://twitter.com/BlinkDL_AI/status/1713967928209752128 (Preview models: https://huggingface.co/BlinkDL/temp )
-
 **RWKV-6 World v2 1.6B** Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 
 **RWKV-5 World v2 7B** Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
@@ -76,7 +78,7 @@ Our latest version is **RWKV-6**, which is easily Mamba level, and simpler ;) ht
 
 **RWKV Runner GUI** https://github.com/josStorer/RWKV-Runner with one-click install and API
 
-**Raw cutting-edge RWKV weights:** https://huggingface.co/BlinkDL
+**All latest RWKV weights:** https://huggingface.co/BlinkDL
 
 **HF-compatible RWKV weights:** https://huggingface.co/RWKV
 
@@ -106,11 +108,15 @@ print(out.detach().cpu().numpy())                   # same result as above
 
 **Cool Community RWKV Projects**:
 
-All (200+) RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
+All (300+) RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
 
-https://github.com/cgisky1980/ai00_rwkv_server Fastest GPU inference API with vulkan (good for nvidia/amd/intel), supports rwkv5
+https://github.com/OpenGVLab/Vision-RWKV Vision RWKV
 
-https://github.com/cryscan/web-rwkv backend for ai00_rwkv_server, supports rwkv5
+https://github.com/feizc/Diffusion-RWKV Diffusion RWKV
+
+https://github.com/cgisky1980/ai00_rwkv_server Fastest WebGPU inference (nVidia/AMD/Intel), supports rwkv5 & rwkv6
+
+https://github.com/cryscan/web-rwkv backend for ai00_rwkv_server
 
 https://github.com/saharNooby/rwkv.cpp Fast CPU/cuBLAS/CLBlast inference: int4/int8/fp16/fp32, supports rwkv5
 
