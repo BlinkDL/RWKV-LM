@@ -761,9 +761,8 @@ class RWKV(pl.LightningModule):
                         nn.init.uniform_(m[n], a=scale, b=-scale)
                         print(f" [scale {scale}]")
                     elif n == "head.weight":
-                        if shape[0] > shape[1]:
-                            gain = math.sqrt(shape[0] / shape[1])
-                        scale = 0.5
+                        if shape[1] > shape[0]: # !!! only for pytorch where linear layer weight is transposed !!!
+                            gain = math.sqrt(shape[1] / shape[0])
                         nn.init.orthogonal_(m[n], gain=gain * scale)
                         print(f" [scale {scale}]")
                     elif '.out_proj.weight' in n:
@@ -780,16 +779,15 @@ class RWKV(pl.LightningModule):
                     if n == "emb.weight":
                         scale = -1e-4
                     else:
-                        if shape[0] > shape[1]:
-                            gain = math.sqrt(shape[0] / shape[1])
+                        assert n.endswith('.weight')
+                        if shape[1] > shape[0]: # !!! only for pytorch where linear layer weight is transposed !!!
+                            gain = math.sqrt(shape[1] / shape[0])
 
                         zero = [".att.output.", ".ffn.value.", ".ffn.receptance.", ".ffnPre.value.", ".ffnPre.receptance.", "head_q.", '.oo.', '.rr.']
 
                         for kk in zero:
                             if kk in n:
                                 scale = 0
-                        if n == "head.weight":
-                            scale = 0.5
                         if "head_k." in n:
                             scale = 0.1
                         if "head_q." in n:
@@ -798,9 +796,6 @@ class RWKV(pl.LightningModule):
                         for kk in [".att.key."]:
                             if kk in n:
                                 scale = 0.1
-                        for kk in [".ffn.key."]:
-                            if kk in n:
-                                scale = 0.5
                         for kk in [".att.gate."]:
                             if kk in n:
                                 scale = 0.1
