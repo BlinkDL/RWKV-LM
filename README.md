@@ -6,7 +6,7 @@ RWKV-5/6 Eagle/Finch paper: https://arxiv.org/abs/2404.05892
 
 ![MQAR](Research/RWKV-6-MQAR.png)
 
-### HOW TO TEST TRAINING RWKV-5 on MiniPile (1.5G tokens) ##
+### HOW TO TEST TRAINING RWKV-5 on MiniPile (1.5G tokens) ###
 
 For reference, use python 3.10, torch==1.13.1+cu117, cuda 11.7.1
 
@@ -54,7 +54,7 @@ chat demo for developers: https://github.com/BlinkDL/ChatRWKV/blob/main/API_DEMO
 
 **Tips for small model / small data**: When I train RWKV music models, I use deep & narrow (such as L29-D512) dimensions, and apply wd and dropout (such as wd=2 dropout=0.02). Note RWKV-LM dropout is very effective - use 1/4 of your usual value.
 
-### HOW TO FINETUNE RWKV-5 MODELS ##
+### HOW TO FINETUNE RWKV-5 MODELS ###
 
 Use .jsonl format for your data (see https://huggingface.co/BlinkDL/rwkv-5-world for formats).
 
@@ -63,6 +63,26 @@ Use https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/make_data.py to tokeniz
 Rename the base checkpoint in your model folder to rwkv-init.pth, and change the training commands to use --n_layer 32 --n_embd 4096 --vocab_size 65536 --lr_init 1e-5 --lr_final 1e-5 for 7B.
 
 0.1B = --n_layer 12 --n_embd 768 // 0.4B = --n_layer 24 --n_embd 1024 // 1.5B = --n_layer 24 --n_embd 2048 // 3B = --n_layer 32 --n_embd 2560 // 7B = --n_layer 32 --n_embd 4096
+
+### Initializing RWKV Models ###
+
+Check generate_init_weight() of src/model.py:
+```
+emb.weight => nn.init.uniform_(a=-1e-4, b=1e-4)
+(Note ln0 of block0 is the layernorm for emb.weight)
+
+att.receptance.weight => nn.init.orthogonal_(gain=1)
+att.key.weight => nn.init.orthogonal_(gain=0.1)
+att.value.weight => nn.init.orthogonal_(gain=1)
+att.gate.weight => nn.init.orthogonal_(gain=0.1)
+att.output.weight => zero
+
+att.ln_x.weight (groupnorm) => ((1 + layer_id) / total_layers) ** 0.7
+
+ffn.key.weight => nn.init.orthogonal_(gain=1)
+ffn.value.weight => zero
+ffn.receptance.weight => zero
+```
 
 ## RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv" (rʌkuv in IPA), from 4 major params: R W K V)
 
