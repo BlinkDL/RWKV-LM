@@ -853,7 +853,6 @@ class RWKV(pl.LightningModule):
             s2 = str(shape[2]) if len(shape) > 2 else ""
             print(f"{s0.ljust(5)} {s1.ljust(5)} {s2.ljust(5)} {n}", end="")
 
-            gain = 1.0
             scale = 1.0
             if "ln_" in n or ".ln" in n or "time_" in n or "_mask" in n or "pos_emb" in n or '.mask.' in n or n.endswith('_w') or n.endswith('_w1') or n.endswith('_w2') or n.endswith('_bias'):
                 if 'ln_x.weight' in n:
@@ -862,19 +861,23 @@ class RWKV(pl.LightningModule):
                 else:
                     m[n] = p
                 print()
+            elif n == "emb.weight":
+                m[n] = p
+                scale = -1e-4
+                nn.init.uniform_(m[n], a=scale, b=-scale)
+                print(f" [scale {scale}]")
+            elif n == "head.weight":
+                m[n] = p
+                if self.args.vocab_size > self.args.n_embd:
+                    scale = 0.5 * math.sqrt(self.args.vocab_size / self.args.n_embd)
+                else:
+                    scale = 0.5
+                nn.init.orthogonal_(m[n], gain=scale)
+                print(f" [scale {scale}]")
             else:
                 if 'mamba' in os.environ["RWKV_MY_TESTING"]:
                     m[n] = p
-                    if n == "emb.weight":
-                        scale = -1e-4
-                        nn.init.uniform_(m[n], a=scale, b=-scale)
-                        print(f" [scale {scale}]")
-                    elif n == "head.weight":
-                        if shape[1] > shape[0]: # !!! only for pytorch where linear layer weight is transposed !!!
-                            gain = math.sqrt(shape[1] / shape[0])
-                        nn.init.orthogonal_(m[n], gain=gain * scale)
-                        print(f" [scale {scale}]")
-                    elif '.out_proj.weight' in n:
+                    if '.out_proj.weight' in n:
                         scale = 0
                         nn.init.zeros_(m[n])
                         print(f" [scale {scale}]")
@@ -885,29 +888,24 @@ class RWKV(pl.LightningModule):
                     else:
                         print()
                 else:
-                    if n == "emb.weight":
-                        scale = -1e-4
-                    else:
-                        assert n.endswith('.weight')
-                        if shape[1] > shape[0]: # !!! only for pytorch where linear layer weight is transposed !!!
-                            gain = math.sqrt(shape[1] / shape[0])
+                    assert n.endswith('.weight') # should always be true
 
-                        zero = [".att.output.", ".ffn.value.", ".ffn.receptance.", ".ffnPre.value.", ".ffnPre.receptance.", "head_q.", '.oo.', '.rr.']
+                    zero = [".att.output.", ".ffn.value.", ".ffn.receptance.", ".ffnPre.value.", ".ffnPre.receptance.", "head_q.", '.oo.', '.rr.']
 
-                        for kk in zero:
-                            if kk in n:
-                                scale = 0
-                        if "head_k." in n:
-                            scale = 0.1
-                        if "head_q." in n:
+                    for kk in zero:
+                        if kk in n:
                             scale = 0
+                    if "head_k." in n:
+                        scale = 0.1
+                    if "head_q." in n:
+                        scale = 0
 
-                        for kk in [".att.key."]:
-                            if kk in n:
-                                scale = 0.1
-                        for kk in [".att.gate."]:
-                            if kk in n:
-                                scale = 0.1
+                    for kk in [".att.key."]:
+                        if kk in n:
+                            scale = 0.1
+                    for kk in [".att.gate."]:
+                        if kk in n:
+                            scale = 0.1
 
                     print(f" [scale {scale}]")
 
@@ -921,7 +919,7 @@ class RWKV(pl.LightningModule):
                     elif scale < 0:
                         nn.init.uniform_(m[n], a=scale, b=-scale)
                     else:
-                        nn.init.orthogonal_(m[n], gain=gain * scale)
+                        nn.init.orthogonal_(m[n], gain=scale)
 
             m[n] = m[n].cpu()
             if os.environ["RWKV_FLOAT_MODE"] == "fp16":
