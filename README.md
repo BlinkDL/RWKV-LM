@@ -70,6 +70,7 @@ Check generate_init_weight() of src/model.py:
 ```
 emb.weight => nn.init.uniform_(a=-1e-4, b=1e-4)
 (Note ln0 of block0 is the layernorm for emb.weight)
+head.weight => nn.init.orthogonal_(gain=0.5*sqrt(n_vocab / n_embd))
 
 att.receptance.weight => nn.init.orthogonal_(gain=1)
 att.key.weight => nn.init.orthogonal_(gain=0.1)
