@@ -4,6 +4,10 @@ RWKV homepage: https://www.rwkv.com
 
 RWKV-5/6 Eagle/Finch paper: https://arxiv.org/abs/2404.05892
 
+RWKV-6 GPT-mode demo: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/rwkv_v6_demo.py
+
+RWKV-6 RNN-mode demo: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
+
 ![MQAR](Research/RWKV-6-MQAR.png)
 
 ### HOW TO TEST TRAINING RWKV-5 on MiniPile (1.5G tokens) ###
