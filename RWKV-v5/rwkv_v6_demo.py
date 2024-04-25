@@ -54,11 +54,6 @@ args.ctx_len = 4096
 args.head_size_a = 64 # don't change
 args.head_size_divisor = 8 # don't change
 
-MyModule = nn.Module
-def __nop(ob):
-    return ob
-MyFunction = __nop
-
 from torch.utils.cpp_extension import load
 
 wkv6_cuda = load(name="wkv6", sources=["cuda/wkv6_op.cpp", f"cuda/wkv6_cuda.cu"],
@@ -114,7 +109,7 @@ def RUN_CUDA_RWKV6(B, T, C, H, r, k, v, w, u):
 # RWKV TimeMix
 ########################################################################################################
 
-class RWKV_Tmix_x060(MyModule):
+class RWKV_Tmix_x060(nn.Module):
     def __init__(self, args, layer_id):
         super().__init__()
         self.args = args
@@ -167,7 +162,6 @@ class RWKV_Tmix_x060(MyModule):
         self.gate = nn.Linear(args.n_embd, args.dim_att, bias=False)
         self.ln_x = nn.GroupNorm(self.n_head, args.dim_att, eps=(1e-5)*(args.head_size_divisor**2))
 
-    @MyFunction
     def jit_func(self, x):
         B, T, C = x.size()
 
@@ -194,7 +188,6 @@ class RWKV_Tmix_x060(MyModule):
 
         return r, k, v, g, w
 
-    @MyFunction
     def jit_func_2(self, x, g):
         B, T, C = x.size()
         x = x.view(B * T, C)
@@ -216,7 +209,7 @@ class RWKV_Tmix_x060(MyModule):
 # RWKV ChannelMix
 ########################################################################################################
 
-class RWKV_CMix_x060(MyModule):
+class RWKV_CMix_x060(nn.Module):
     def __init__(self, args, layer_id):
         super().__init__()
         self.args = args
@@ -235,7 +228,6 @@ class RWKV_CMix_x060(MyModule):
         self.receptance = nn.Linear(args.n_embd, args.n_embd, bias=False)
         self.value = nn.Linear(args.dim_ffn, args.n_embd, bias=False)
 
-    @MyFunction
     def forward(self, x):
         xx = self.time_shift(x) - x
         xk = x + xx * self.time_maa_k
