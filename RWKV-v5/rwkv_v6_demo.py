@@ -8,7 +8,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 '''
-This will load rwkv-6 1.6b (L24-D2048) and inference in GPT-mode (slower than RNN-mode for autoregressive generation)
+This will load RWKV-6 1.6B (L24-D2048) and inference in GPT-mode (slower than RNN-mode for autoregressive generation)
 
 Code output:
 
@@ -37,6 +37,218 @@ The Eiffel tower is in the city of
  Tro [probability 0.13%]
  Tours [probability 0.12%]
  Mont [probability 0.11%]
+
+########################################################################################################
+
+How RWKV-6 works (paper: https://arxiv.org/abs/2404.05892)
+
+RWKV-6 GPT mode (good for training & prefilling): https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/rwkv_v6_demo.py
+
+RWKV-6 RNN mode (good for autoregressive generation): https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
+
+###############################################################################
+
+The RWKV model:
+
+def forward(self, idx):
+    x = self.emb(idx) ######## embedding
+
+    for block in self.blocks:
+        x = block(x)
+
+    x = self.ln_out(x) ######## layernorm for output
+    x = self.head(x) ######## output projection
+    return x
+
+The RWKV block:
+
+def forward(self, x):
+
+    if self.layer_id == 0:
+        x = self.ln0(x) ######## extra layernorm after embedding
+
+    x = x + self.att(self.ln1(x)) ######## "att" = RWKV_Tmix_x060
+    x = x + self.ffn(self.ln2(x)) ######## "ffn" = RWKV_CMix_x060
+
+    return x
+
+So it's like:
+
+x => emb => block.0.ln0 => +att(block.0.ln1(x)) => +ffn(block.0.ln2(x)) => ... => ln_out => head => logits
+
+###############################################################################
+
+THE RWKV_CMix_x060 BLOCK (replace transformer FFN)
+
+def forward(self, x):
+    xx = self.time_shift(x) - x ######## self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
+    xk = x + xx * self.time_maa_k
+    xr = x + xx * self.time_maa_r
+
+    k = self.key(xk)
+    k = torch.relu(k) ** 2
+    kv = self.value(k)
+    return torch.sigmoid(self.receptance(xr)) * kv
+
+#### Here xx is like "previous token" (timeshift(x)) minus "this token" (x)
+
+#### We mix x with xx using coefficients time_maa_k & time_maa_r to get xk & xr
+
+so xk & xr are like x, but with "some information of previous token" mixed in them
+
+#### We use reluSq and an extra sigmoid(r) gate
+
+###############################################################################
+
+THE RWKV_TMix_x060 BLOCK (replace transformer MHA)
+
+def jit_func(self, x):
+    B, T, C = x.size()
+
+    xx = self.time_shift(x) - x
+    xxx = x + xx * self.time_maa_x ######## xxx = mix of x & xx
+
+    xxx = torch.tanh(xxx @ self.time_maa_w1).view(B*T, 5, -1).transpose(0, 1)
+    xxx = torch.bmm(xxx, self.time_maa_w2).view(5, B, T, -1)
+
+    mw, mk, mv, mr, mg = xxx.unbind(dim=0) ######## xxx => LoRA => mw, mk, mv, mr, mg
+
+    ######## time_maa_* are static mixing coefficients, and m* are dynamic mixing coefficients
+    xw = x + xx * (self.time_maa_w + mw)
+    xk = x + xx * (self.time_maa_k + mk)
+    xv = x + xx * (self.time_maa_v + mv)
+    xr = x + xx * (self.time_maa_r + mr)
+    xg = x + xx * (self.time_maa_g + mg)
+
+    r = self.receptance(xr) ######## r of RWKV5/6 is similar to transformer q
+    k = self.key(xk) ######## k is similar to transformer k
+    v = self.value(xv) ######## v is similar to transformer v
+    g = F.silu(self.gate(xg)) ######## g is an extra gate
+
+    ww = torch.tanh(xw @ self.time_decay_w1) @ self.time_decay_w2 ######### xw => LoRA => ww, which is the dynamic part of w
+    w = self.time_decay + ww ######### w is the "decay coefficient" for each channel. time_decay is the static part of w
+
+    return r, k, v, g, w
+
+def jit_func_2(self, x, g):
+    B, T, C = x.size()
+    x = x.view(B * T, C)
+    
+    x = self.ln_x(x).view(B, T, C) ######### ln_x is GroupNorm = individual LayerNorm for each head
+    x = self.output(x * g)
+    return x
+
+def forward(self, x):
+    B, T, C = x.size()
+    H = self.n_head
+
+    r, k, v, g, w = self.jit_func(x)
+    x = RUN_CUDA_RWKV6(B, T, C, H, r, k, v, w, u=self.time_faaaa) # The RWKV operator
+
+    return self.jit_func_2(x, g)
+
+Explaining the RWKV operator:
+
+#### C is splitted into multiple heads, with head_sz = 64
+
+#### For each head, compute the outer product of k & v, which will be a 64x64 matrix. Let's call it A
+
+#### A will accumulate to build the state S. And S will decay over time (decay speed controlled by w).
+
+S_t = u A_t + A_{t-1} + w_{t-1} A_{t-2} + w_{t-1} w_{t-2} A_{t-3} + ...
+
+#### Multiply r (vector) with S (matrix) to get output
+
+###############################################################################
+
+RWKV can be rewritten as an RNN. Check the code in https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
+
+def time_mixing(self, x, state, i:int, x_maa, w_maa, k_maa, v_maa, r_maa, g_maa, tm_w1, tm_w2, td_w1, td_w2, time_first, time_decay, kw, vw, rw, gw, ow, ln_w, ln_b):
+    H = self.n_head
+    S = self.head_size
+
+    i1 = (2+S)*i+1
+    sx = state[i1] - x
+    state[i1] = x
+    xxx = x + sx * x_maa
+    xxx = torch.tanh(xxx @ tm_w1).view(5, 1, -1)
+    xxx = torch.bmm(xxx, tm_w2).view(5, -1)
+    mw, mk, mv, mr, mg = xxx.unbind(dim=0)
+
+    xw = x + sx * (w_maa + mw)
+    xk = x + sx * (k_maa + mk)
+    xv = x + sx * (v_maa + mv)
+    xr = x + sx * (r_maa + mr)
+    xg = x + sx * (g_maa + mg)
+
+    w = (time_decay + (torch.tanh(xw @ td_w1) @ td_w2).float()).view(H, S, 1)
+    w = torch.exp(-torch.exp(w.float())) ######### we are actually using exp(-exo(w)) as decay coefficient, which is always within (0,1)
+
+    r = (rw @ xr).view(H, 1, S)
+    k = (kw @ xk).view(H, S, 1)
+    v = (vw @ xv).view(H, 1, S)
+    g = F.silu(gw @ xg)
+
+    s = state[(2+S)*i+2:(2+S)*(i+1), :].reshape(H, S, S) ######### Because state[] contains states of all blocks, this is fetching the correct state for this block. Note S=64 is head_size
+
+    x = torch.zeros(H, S)
+    a = k @ v ######### outer product of k and v (check the shape of k and v)
+    x = r @ (time_first * a + s) ######### "time_first" = u
+    s = a + w * s
+
+    state[(2+S)*i+2:(2+S)*(i+1), :] = s.reshape(S, -1) ######### Update state
+    x = x.flatten()
+
+    x = F.group_norm(x.unsqueeze(0), num_groups=H, weight=ln_w, bias=ln_b, eps = 64e-5).squeeze(0) * g ######### note we are using eps=64e-5 for GroupNorm
+    return ow @ x
+
+Let's verify:
+
+s = 0
+a = k0@v0
+x0 = r0 @ (u a + s) = r0 @ (u k0@v0 + 0)
+s = k0@v0
+a = k1@v1
+x1 = r1 @ (u a + s) = r1 @ (u k1@v1 + k0@v0)
+s = k1@v1 + w1 k0@v0
+a = k2@v2
+x2 = r2 @ (u a + s) = r2 @ (u k2@v2 + k1@v1 + w1 k0@v0)
+...
+
+and this agrees with our previous formula:
+
+x_t = r_t @ S_t = r_t @ (u A_t + A_{t-1} + w_{t-1} A_{t-2} + w_{t-1} w_{t-2} A_{t-3} + ...)
+
+###############################################################################
+#
+# In RWKV v6.0b, we find it's possible to replace GroupNorm by LayerNorm, and remove gate, to save some params and make it faster.
+#
+# Check https://github.com/BlinkDL/LinearAttentionArena
+#
+# Finally, if you are training RWKV from scratch, it's VERY IMPORTANT to try my initialization for all parameters.
+#
+# The self.time_xxx initializations can be seen here.
+#
+# And we have more initializations in init_params() here, which is actually:
+#
+# emb.weight => nn.init.uniform_(a=-1e-4, b=1e-4)
+# head.weight => nn.init.orthogonal_(gain=0.5*sqrt(n_vocab / n_embd))
+#
+# att.receptance.weight => nn.init.orthogonal_(gain=1)
+# att.key.weight => nn.init.orthogonal_(gain=0.1)
+# att.value.weight => nn.init.orthogonal_(gain=1)
+# att.gate.weight => nn.init.orthogonal_(gain=0.1)
+# att.output.weight => zero
+#
+# att.ln_x.weight (groupnorm) => ((1 + layer_id) / total_layers) ** 0.7
+#
+# ffn.key.weight => nn.init.orthogonal_(gain=1)
+# ffn.value.weight => zero
+# ffn.receptance.weight => zero
+#
+# !!! If you are using positional embedding, maybe it's better to remove block.0.ln0, and use default initialization for emb.weight instead of my uniform_(a=-1e-4, b=1e-4) !!!
+#
+########################################################################################################
 '''
 
 args = types.SimpleNamespace()
@@ -289,7 +501,7 @@ class RWKV(nn.Module):
         self.ln_out = nn.LayerNorm(args.n_embd)
         self.head = nn.Linear(args.n_embd, args.vocab_size, bias=False)
 
-        # self.init_params() # !!! when you train RWKV models, remember to initialize it for best performance !!!
+        # self.init_params() # !!! When you train RWKV from scratch, try my initialization for best performance !!!
 
     def forward(self, idx):
 
@@ -327,7 +539,7 @@ class RWKV(nn.Module):
             elif n == "emb.weight":
                 m[n] = p
                 scale = -1e-4
-                nn.init.uniform_(m[n], a=scale, b=-scale)
+                nn.init.uniform_(m[n], a=scale, b=-scale) # !!! If you are using positional embedding, maybe it's better to remove block.0.ln0, and use default initialization for emb.weight instead of my uniform_(a=-1e-4, b=1e-4) !!!
                 print(f" [scale {scale}]")
             elif n == "head.weight":
                 m[n] = p
