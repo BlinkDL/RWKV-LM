@@ -921,8 +921,13 @@ class RWKV(pl.LightningModule):
         lr_2x = set()
         lr_3x = set()
         for n, p in self.named_parameters():
-            if not p.requires_grad:
-                continue
+
+            # if not p.requires_grad:
+            #     continue
+            if args.train_type == 'states':
+                if 'time_state' not in n:
+                    continue
+
             if (("_w1" in n) or ("_w2" in n)) and (args.layerwise_lr > 0):
                 lr_1x.add(n)
             elif (("time_mix" in n) or ("time_maa" in n)) and (args.layerwise_lr > 0):
