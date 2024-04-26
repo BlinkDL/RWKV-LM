@@ -19,6 +19,7 @@ if __name__ == "__main__":
     parser.add_argument("--wandb", default="", type=str)  # wandb project name. if "" then don't use wandb
     parser.add_argument("--proj_dir", default="out", type=str)
     parser.add_argument("--random_seed", default="-1", type=int)
+    parser.add_argument("--train_type", default="", type=str) # ""/"states"
 
     parser.add_argument("--data_file", default="", type=str)
     parser.add_argument("--data_type", default="utf-8", type=str)
@@ -117,6 +118,7 @@ if __name__ == "__main__":
     os.environ["RWKV_MY_TESTING"] = args.my_testing
     os.environ["RWKV_CTXLEN"] = str(args.ctx_len)
     os.environ["RWKV_HEAD_SIZE_A"] = str(args.head_size_a)
+    os.environ["RWKV_TRAIN_TYPE"] = args.train_type
     if args.dim_att <= 0:
         args.dim_att = args.n_embd
     if args.dim_ffn <= 0:
@@ -309,5 +311,8 @@ if __name__ == "__main__":
 
     # must set shuffle=False, persistent_workers=False (because worker is in another thread)
     data_loader = DataLoader(train_data, shuffle=False, pin_memory=True, batch_size=args.micro_bsz, num_workers=1, persistent_workers=False, drop_last=True)
+
+    if args.train_type == 'states':
+        model.requires_grad_(False)
 
     trainer.fit(model, data_loader)
