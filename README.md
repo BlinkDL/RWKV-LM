@@ -2,9 +2,9 @@
 
 RWKV homepage: https://www.rwkv.com
 
-RWKV-5/6 Eagle/Finch paper: https://arxiv.org/abs/2404.05892
+**RWKV-5/6 Eagle/Finch paper**: https://arxiv.org/abs/2404.05892
 
-RWKV-6 GPT-mode demo: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/rwkv_v6_demo.py
+**RWKV-6 GPT-mode demo (with comments and explanations)**: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/rwkv_v6_demo.py
 
 RWKV-6 RNN-mode demo: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
 
@@ -70,7 +70,7 @@ Rename the base checkpoint in your model folder to rwkv-init.pth, and change the
 
 ### Initializing RWKV 5/6 Models ###
 
-Check generate_init_weight() of src/model.py:
+When you train RWKV from scratch, try my initialization for best performance. Check generate_init_weight() of src/model.py:
 ```
 emb.weight => nn.init.uniform_(a=-1e-4, b=1e-4)
 (Note ln0 of block0 is the layernorm for emb.weight)
@@ -88,6 +88,7 @@ ffn.key.weight => nn.init.orthogonal_(gain=1)
 ffn.value.weight => zero
 ffn.receptance.weight => zero
 ```
+!!! If you are using positional embedding, maybe it's better to remove block.0.ln0 and use default initialization for emb.weight instead of my uniform_(a=-1e-4, b=1e-4) !!!
 
 ## Introducing RWKV
 
