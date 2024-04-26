@@ -300,10 +300,12 @@ if __name__ == "__main__":
         for n in model.state_dict():
             shape = model.state_dict()[n].shape
             shape = [i for i in shape if i != 1]
+            if len(shape) > 2:
+                print(f"{str(shape[0]).ljust(5)} {str(shape[1]).ljust(5)} {str(shape[2]).ljust(5)} {n}")
             if len(shape) > 1:
-                print(f"{str(shape[0]).ljust(5)} {str(shape[1]).ljust(5)} {n}")
+                print(f"{str(shape[0]).ljust(5)} {str(shape[1]).ljust(5)}       {n}")
             else:
-                print(f"{str(shape[0]).ljust(5)}       {n}")
+                print(f"{str(shape[0]).ljust(5)}             {n}")
 
     if "deepspeed" in args.strategy:
         trainer.strategy.config["zero_optimization"]["allgather_bucket_size"] = args.ds_bucket_mb * 1000 * 1000
@@ -314,5 +316,11 @@ if __name__ == "__main__":
 
     if args.train_type == 'states':
         model.requires_grad_(False)
+
+        for name, module in model.named_modules():
+            for pname, param in module.named_parameters():
+                if pname.endswith('.time_state') and pname.startswith('blocks.'):
+                    print(pname)
+                    param.requires_grad = True
 
     trainer.fit(model, data_loader)

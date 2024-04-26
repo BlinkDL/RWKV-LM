@@ -21,7 +21,7 @@ __global__ void kernel_forward(const int B, const int T, const int C, const int 
     u[i] = float(_u[i]);
     __syncthreads();
     for (int j = 0; j < _N_; j++) {
-        state[j] = _s[j];
+        state[j] = float(_s[j]);
     }
 
     for (int t = b*T*C + h*_N_ + i; t < (b+1)*T*C + h*_N_ + i; t += C)
@@ -85,7 +85,7 @@ __global__ void kernel_backward_111(const int B, const int T, const int C, const
 
     float state[_N_], scccc[_N_] = {0}, sdddd[_N_] = {0}, sssss[_N_] = {0}, swwww[_N_];
     for (int j = 0; j < _N_; j++) {
-        state[j] = _s[j*_N_];
+        state[j] = float(_s[j*_N_]);
         swwww[j] = 1.0;
     }
 
@@ -184,7 +184,7 @@ __global__ void kernel_backward_111(const int B, const int T, const int C, const
         }
     }
     for (int j = 0; j < _N_; j++)
-        _gs[b*H*_N_*_N_ + h*_N_*_N_ + i*_N_ + j] = sssss[j];
+        _gs[b*H*_N_*_N_ + h*_N_*_N_ + i*_N_ + j] = F(sssss[j]);
 }
 
 template <typename F>
@@ -198,7 +198,10 @@ __global__ void kernel_backward_222(const int B, const int T, const int C, const
     _s += h*_N_*_N_ + i;
 
     __shared__ float v[_N_], gy[_N_];
-    float saaaa[_N_] = {0}, sbbbb[_T_-1] = {0}, scccc[_N_] = {0};
+    float state[_N_], saaaa[_N_] = {0}, sbbbb[_T_-1] = {0}, scccc[_N_] = {0};
+    for (int j = 0; j < _N_; j++) {
+        state[j] = float(_s[j*_N_]);
+    }
 
     const int t_0 = b*T*C + h*_N_ + i;
     const int t_1 = t_0 + C;
@@ -239,7 +242,7 @@ __global__ void kernel_backward_222(const int B, const int T, const int C, const
         {
             float& s = saaaa[j];
             s = (s + r * gy[j]) * w;
-            sum += s * _s[j*_N_];
+            sum += s * state[j];
         }
         sbbbb[0] = sum;
     }
@@ -259,7 +262,7 @@ __global__ void kernel_backward_222(const int B, const int T, const int C, const
         for (int j = 0; j < _N_; j++)
         {
             float& s = scccc[j];
-            s = (s + _s[j*_N_]) * w;
+            s = (s + state[j]) * w;
             sum += s * gy[j];
         }
         sss += sbbbb[1] - (sum * float(_r[t_1]));
