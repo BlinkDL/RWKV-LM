@@ -68,7 +68,7 @@ Rename the base checkpoint in your model folder to rwkv-init.pth, and change the
 
 0.1B = --n_layer 12 --n_embd 768 // 0.4B = --n_layer 24 --n_embd 1024 // 1.5B = --n_layer 24 --n_embd 2048 // 3B = --n_layer 32 --n_embd 2560 // 7B = --n_layer 32 --n_embd 4096
 
-### State-tuning
+### State-tuning (tuning the initial state. zero inference overhead)
 
 Currently unoptimized implementation, takes same vram as full SFT
 
