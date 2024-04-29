@@ -68,6 +68,14 @@ Rename the base checkpoint in your model folder to rwkv-init.pth, and change the
 
 0.1B = --n_layer 12 --n_embd 768 // 0.4B = --n_layer 24 --n_embd 1024 // 1.5B = --n_layer 24 --n_embd 2048 // 3B = --n_layer 32 --n_embd 2560 // 7B = --n_layer 32 --n_embd 4096
 
+### State-tuning
+
+Currently unoptimized implementation, takes same vram as full SFT
+
+```--train_type "states" --load_partial 1 --lr_init 1 --lr_final 0.01 --warmup_steps 10 (yes, use very high LR)```
+
+use rwkv 0.8.26+ to auto-load the trained "time_state" 
+
 ### Initializing RWKV 5/6 Models ###
 
 When you train RWKV from scratch, try my initialization for best performance. Check generate_init_weight() of src/model.py:
