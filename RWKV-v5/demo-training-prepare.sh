@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# xzl: the purpose of this script? "dry run??" create init model file etc?
+
 # Create data directory
 
 mkdir -p data
@@ -17,6 +19,7 @@ N_EMBD="768"
 
 # magic_prime = the largest 3n+2 prime smaller than datalen/ctxlen-1 (= 1498226207/512-1 = 2926222.06 in this case)
 # use https://www.dcode.fr/prime-numbers-search
+# xzl: ??? why magic_prime
 
 python train.py --wandb "" --proj_dir $BASE_NAME \
  --data_file "data/minipile" --data_type "binidx" --vocab_size 65536 \

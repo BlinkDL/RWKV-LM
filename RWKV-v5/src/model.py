@@ -173,9 +173,9 @@ class RWKV_TimeMix_RWKV5(MyModule):
 
             # fancy time_decay
             decay_speed = torch.ones(args.dim_att)
-            for n in range(args.dim_att):
+            for n in range(args.dim_att):       # xzl: assign diff decay speeds ... each head, each dim?? (for init
                 decay_speed[n] = -6 + 5 * (n / (args.dim_att - 1)) ** (0.7 + 1.3 * ratio_0_to_1)
-            self.time_decay = nn.Parameter(decay_speed.reshape(self.n_head, self.head_size))
+            self.time_decay = nn.Parameter(decay_speed.reshape(self.n_head, self.head_size))  
             # print(layer_id, self.time_decay.flatten()[:3].cpu().numpy(), '...', self.time_decay.flatten()[-3:].cpu().numpy())
 
             tmp = torch.zeros(args.dim_att)
@@ -194,6 +194,7 @@ class RWKV_TimeMix_RWKV5(MyModule):
         self.gate = nn.Linear(args.n_embd, args.dim_att, bias=False)
         self.ln_x = nn.GroupNorm(self.n_head, args.dim_att)
 
+    # xzl: x->r/k/v/g see below   MyFunction -> torch script jit. default on??
     @MyFunction
     def jit_func(self, x):
         B, T, C = x.size()
@@ -204,6 +205,7 @@ class RWKV_TimeMix_RWKV5(MyModule):
         xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)
         xg = x * self.time_mix_g + xx * (1 - self.time_mix_g)
 
+        # xzl: after mix, project 
         r = self.receptance(xr)
         k = self.key(xk)
         v = self.value(xv)
@@ -211,6 +213,7 @@ class RWKV_TimeMix_RWKV5(MyModule):
 
         return r, k, v, g
 
+    # xzl: x/g->x see below
     @MyFunction
     def jit_func_2(self, x, g):
         B, T, C = x.size()
@@ -226,10 +229,14 @@ class RWKV_TimeMix_RWKV5(MyModule):
 
         r, k, v, g = self.jit_func(x)
 
+        # xzl: cf above. (from paper) B batchsz T maxseqlen C channels H heads?; r,k,v are vectors (?)
+        #       how about s? (from prev timestep <<<<< biggest question so far
+        #           no weights so no training needed???
         x = RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w=self.time_decay, u=self.time_faaaa)
 
         return self.jit_func_2(x, g)
 
+# xzl: v6 time mixing.... to understand lter
 class RWKV_Tmix_x060(MyModule):
     def __init__(self, args, layer_id):
         super().__init__()
@@ -426,7 +433,7 @@ class MishGLU(MyModule):
 # The RWKV Model with our blocks
 ########################################################################################################
 
-
+# xzl: a layer
 class Block(nn.Module):
     def __init__(self, args, layer_id):
         super().__init__()
@@ -442,7 +449,8 @@ class Block(nn.Module):
                 self.pos_emb_x = nn.Parameter(torch.zeros((1,args.my_pos_emb,args.n_embd)))
                 self.pos_emb_y = nn.Parameter(torch.zeros((args.my_pos_emb,1,args.n_embd)))
 
-        if self.layer_id == 0 and self.args.pre_ffn > 0:
+        # xzl: attn, shop around ....
+        if self.layer_id == 0 and self.args.pre_ffn > 0:        # xzl: replace layer0 attn with ffn.. trick
             self.ffnPre = RWKV_ChannelMix(args, 0)
         else:
             if 'x060' in os.environ["RWKV_MY_TESTING"]:
@@ -450,6 +458,7 @@ class Block(nn.Module):
             else:
                 self.att = RWKV_TimeMix_RWKV5(args, layer_id)
 
+        # xzl: ffn, shop around ....
         if 'g' in os.environ["RWKV_MY_TESTING"]:
             self.ffn = MishGLU(args, layer_id)
         else:
@@ -458,12 +467,12 @@ class Block(nn.Module):
             else:
                 self.ffn = RWKV_ChannelMix(args, layer_id)
         
-        if args.tiny_att_dim > 0 and self.layer_id == args.tiny_att_layer:
+        if args.tiny_att_dim > 0 and self.layer_id == args.tiny_att_layer:      # xzl can "shink" att dim at specified layers...
             self.tiny_ln = nn.LayerNorm(args.n_embd)
             self.tiny_q = nn.Linear(args.n_embd, args.tiny_att_dim, bias=False)
             self.tiny_k = nn.Linear(args.n_embd, args.tiny_att_dim, bias=False)
             self.tiny_v = nn.Linear(args.n_embd, args.n_embd, bias=False)
-            self.register_buffer("tiny_mask", torch.tril(torch.ones(args.ctx_len, args.ctx_len)))
+            self.register_buffer("tiny_mask", torch.tril(torch.ones(args.ctx_len, args.ctx_len))) # xzl: understadn this btter
 
         if args.dropout > 0:
             self.drop0 = nn.Dropout(p = args.dropout)
@@ -500,7 +509,7 @@ class Block(nn.Module):
             x = x + c @ self.tiny_v(x_emb)
         return x
 
-
+# xzl: whats this for
 class L2Wrap(torch.autograd.Function):
     @staticmethod
     def forward(ctx, loss, y):
@@ -539,10 +548,10 @@ class RWKV(pl.LightningModule):
         self.blocks = nn.ModuleList([Block(args, i) for i in range(args.n_layer)])
 
         self.ln_out = nn.LayerNorm(args.n_embd)
-        self.head = nn.Linear(args.n_embd, args.vocab_size, bias=False)
+        self.head = nn.Linear(args.n_embd, args.vocab_size, bias=False)   # xzl:classification head?
 
-        if args.head_qk > 0:
-            self.head_q = nn.Linear(args.n_embd, args.head_qk, bias=False)
+        if args.head_qk > 0:        # xzl: headqk trick??? disabled in training script.
+            self.head_q = nn.Linear(args.n_embd, args.head_qk, bias=False)  # xzl: additional projection??
             self.head_k = nn.Linear(args.n_embd, args.head_qk, bias=False)
             self.register_buffer("copy_mask", torch.tril(torch.ones(args.ctx_len, args.ctx_len)))
         if args.dropout > 0:
@@ -650,7 +659,7 @@ class RWKV(pl.LightningModule):
 
         x = self.ln_out(x)
 
-        if args.head_qk > 0:
+        if args.head_qk > 0:            # xzl: "head_qk" trick....?? to udnerstand better? 
             q = self.head_q(x)[:, :T, :]
             k = self.head_k(x)[:, :T, :]
             c = (q @ k.transpose(-2, -1)) * (1.0 / args.head_qk)

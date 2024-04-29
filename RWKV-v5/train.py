@@ -35,10 +35,11 @@ if __name__ == "__main__":
     parser.add_argument("--n_embd", default=512, type=int)
     parser.add_argument("--dim_att", default=0, type=int)
     parser.add_argument("--dim_ffn", default=0, type=int)
-    parser.add_argument("--pre_ffn", default=0, type=int)  # replace first att layer by ffn (sometimes better)
-    parser.add_argument("--head_qk", default=0, type=int)  # my headQK trick
+    parser.add_argument("--pre_ffn", default=0, type=int)  # replace first att layer by ffn (sometimes better)      xzl: dark trick...
+    parser.add_argument("--head_qk", default=0, type=int)  # my headQK trick        xzl:????
     parser.add_argument("--tiny_att_dim", default=0, type=int)  # tiny attention dim
-    parser.add_argument("--tiny_att_layer", default=-999, type=int)  # tiny attention @ which layer
+    # xzl: can "shink" att dim at specified layers... (cf model.py) not used in train script
+    parser.add_argument("--tiny_att_layer", default=-999, type=int)  # tiny attention @ which layer         
 
     parser.add_argument("--lr_init", default=6e-4, type=float)  # 6e-4 for L12-D768, 4e-4 for L24-D1024, 3e-4 for L24-D2048
     parser.add_argument("--lr_final", default=1e-5, type=float)
@@ -51,6 +52,8 @@ if __name__ == "__main__":
     parser.add_argument("--weight_decay", default=0, type=float) # try 0.1 / 0.01 / 0.001
     parser.add_argument("--weight_decay_final", default=-1, type=float)
 
+    # xzl: means what
+    # pile mode -- stages of training? 1-init? >2 find saved model?
     parser.add_argument("--my_pile_version", default=1, type=int)  # my special pile version
     parser.add_argument("--my_pile_stage", default=0, type=int)  # my special pile mode
     parser.add_argument("--my_pile_shift", default=-1, type=int)  # my special pile mode - text shift
@@ -69,7 +72,7 @@ if __name__ == "__main__":
     parser.add_argument("--magic_prime", default=0, type=int)
     parser.add_argument("--my_qa_mask", default=0, type=int)
     parser.add_argument("--my_random_steps", default=0, type=int)
-    parser.add_argument("--my_testing", default='', type=str)
+    parser.add_argument("--my_testing", default='', type=str)   # xzl:???  can be wahat "x060?" "g?"
     parser.add_argument("--my_exit", default=99999999, type=int)
     parser.add_argument("--my_exit_tokens", default=0, type=int)
 
@@ -118,7 +121,7 @@ if __name__ == "__main__":
     os.environ["RWKV_CTXLEN"] = str(args.ctx_len)
     os.environ["RWKV_HEAD_SIZE_A"] = str(args.head_size_a)
     if args.dim_att <= 0:
-        args.dim_att = args.n_embd
+        args.dim_att = args.n_embd      # xzl: default attn dim ... same as embedding 
     if args.dim_ffn <= 0:
         args.dim_ffn = int((args.n_embd * 3.5) // 32 * 32) # default = 3.5x emb size
 
@@ -162,7 +165,7 @@ if __name__ == "__main__":
             max_p = list_p[-1]
             if len(list_p) > 1:
                 args.my_pile_prev_p = list_p[-2]  # in case max_p is corrupted
-            if max_p == -1:
+            if max_p == -1: # xzl: -init is init model file?
                 args.load_model = f"{args.proj_dir}/rwkv-init.pth"
             else:
                 args.load_model = f"{args.proj_dir}/rwkv-{max_p}.pth"
@@ -247,8 +250,9 @@ if __name__ == "__main__":
     args.vocab_size = train_data.vocab_size
 
     from src.model import RWKV
-    model = RWKV(args)
+    model = RWKV(args)      # construct the model...
 
+    #xzl: here init the model...
     if len(args.load_model) == 0 or args.my_pile_stage == 1:  # shall we build the initial weights?
         init_weight_name = f"{args.proj_dir}/rwkv-init.pth"
         generate_init_weight(model, init_weight_name)  # save initial weights
