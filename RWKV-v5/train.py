@@ -19,6 +19,7 @@ if __name__ == "__main__":
     parser.add_argument("--wandb", default="", type=str)  # wandb project name. if "" then don't use wandb
     parser.add_argument("--proj_dir", default="out", type=str)
     parser.add_argument("--random_seed", default="-1", type=int)
+    parser.add_argument("--train_type", default="", type=str) # ""/"states"
 
     parser.add_argument("--data_file", default="", type=str)
     parser.add_argument("--data_type", default="utf-8", type=str)
@@ -72,7 +73,7 @@ if __name__ == "__main__":
     parser.add_argument("--magic_prime", default=0, type=int)
     parser.add_argument("--my_qa_mask", default=0, type=int)
     parser.add_argument("--my_random_steps", default=0, type=int)
-    parser.add_argument("--my_testing", default='', type=str)   # xzl:???  can be wahat "x060?" "g?"
+    parser.add_argument("--my_testing", default='x052', type=str) # xzl:???  also  "x060" "g"?
     parser.add_argument("--my_exit", default=99999999, type=int)
     parser.add_argument("--my_exit_tokens", default=0, type=int)
 
@@ -120,10 +121,14 @@ if __name__ == "__main__":
     os.environ["RWKV_MY_TESTING"] = args.my_testing
     os.environ["RWKV_CTXLEN"] = str(args.ctx_len)
     os.environ["RWKV_HEAD_SIZE_A"] = str(args.head_size_a)
+    os.environ["RWKV_TRAIN_TYPE"] = args.train_type
     if args.dim_att <= 0:
         args.dim_att = args.n_embd      # xzl: default attn dim ... same as embedding 
     if args.dim_ffn <= 0:
-        args.dim_ffn = int((args.n_embd * 3.5) // 32 * 32) # default = 3.5x emb size
+        if '-f4' in os.environ["RWKV_MY_TESTING"]:
+            args.dim_ffn = int((args.n_embd * 4) // 32 * 32)
+        else:
+            args.dim_ffn = int((args.n_embd * 3.5) // 32 * 32) # default = 3.5x emb size
 
     if args.data_type == "wds_img":
         args.run_name = f"v{args.my_img_version}-{args.my_img_size}-{args.my_img_bit}bit-{args.my_img_clip}x{args.my_img_clip_scale}"
@@ -199,8 +204,8 @@ if __name__ == "__main__":
 #
 # Adam = lr {args.lr_init} to {args.lr_final}, warmup {args.warmup_steps} steps, beta {args.betas}, eps {args.adam_eps}
 #
-# Found torch {torch.__version__}, recommend 1.13.1+cu117 or newer
-# Found deepspeed {deepspeed_version}, recommend 0.7.0 (faster than newer versions)
+# Found torch {torch.__version__}, recommend latest torch
+# Found deepspeed {deepspeed_version}, recommend latest deepspeed
 # Found pytorch_lightning {pl.__version__}, recommend 1.9.5
 #
 ############################################################################
@@ -299,10 +304,12 @@ if __name__ == "__main__":
         for n in model.state_dict():
             shape = model.state_dict()[n].shape
             shape = [i for i in shape if i != 1]
-            if len(shape) > 1:
-                print(f"{str(shape[0]).ljust(5)} {str(shape[1]).ljust(5)} {n}")
+            if len(shape) > 2:
+                print(f"{str(shape[0]).ljust(5)} {str(shape[1]).ljust(5)} {str(shape[2]).ljust(5)} {n}")
+            elif len(shape) > 1:
+                print(f"{str(shape[0]).ljust(5)} {str(shape[1]).ljust(5)}       {n}")
             else:
-                print(f"{str(shape[0]).ljust(5)}       {n}")
+                print(f"{str(shape[0]).ljust(5)}             {n}")
 
     if "deepspeed" in args.strategy:
         trainer.strategy.config["zero_optimization"]["allgather_bucket_size"] = args.ds_bucket_mb * 1000 * 1000
@@ -310,5 +317,13 @@ if __name__ == "__main__":
 
     # must set shuffle=False, persistent_workers=False (because worker is in another thread)
     data_loader = DataLoader(train_data, shuffle=False, pin_memory=True, batch_size=args.micro_bsz, num_workers=1, persistent_workers=False, drop_last=True)
+
+    # if args.train_type == 'states':
+    #     model.requires_grad_(False)
+    #     for name, module in model.named_modules():
+    #         for pname, param in module.named_parameters():
+    #             if pname.endswith('.time_state') and pname.startswith('blocks.'):
+    #                 print(pname)
+    #                 param.requires_grad = True
 
     trainer.fit(model, data_loader)

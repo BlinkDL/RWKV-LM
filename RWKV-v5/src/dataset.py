@@ -53,7 +53,7 @@ class MyDataset(Dataset):
                 if args.my_pile_stage != 4:
                     assert MaybeIsPrime(args.magic_prime)
                     assert args.magic_prime % 3 == 2
-                    assert args.magic_prime / dataset_slot > 0.99 and args.magic_prime / dataset_slot <= 1
+                    assert args.magic_prime / dataset_slot > 0.9 and args.magic_prime / dataset_slot <= 1
         elif args.data_type == "numpy":
             self.data = np.load(args.data_file).astype("int")
             self.vocab_size = args.vocab_size
