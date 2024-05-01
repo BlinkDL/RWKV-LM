@@ -4,6 +4,8 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning.utilities import rank_zero_info, rank_zero_only
 
+# xzl: seesm callbacks supplied to Trainer class
+
 def my_save(args, trainer, dd, ff):
     if '14b-run1' in ff:
         fn = ff.split('/')[-1]
@@ -132,7 +134,7 @@ class train_callback(pl.Callback):
                 trainer.my_loss = outputs["loss"]
             else:
                 trainer.my_loss = trainer.my_loss_all.float().mean().item()
-            trainer.my_loss_sum += trainer.my_loss
+            trainer.my_loss_sum += trainer.my_loss          # xzl: trainer will cal loss already?
             trainer.my_loss_count += 1
             trainer.my_epoch_loss = trainer.my_loss_sum / trainer.my_loss_count
             self.log("lr", trainer.my_lr, prog_bar=True, on_step=True)

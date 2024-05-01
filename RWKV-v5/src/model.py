@@ -145,7 +145,7 @@ if 'x060' in os.environ["RWKV_MY_TESTING"]:
         def RUN_CUDA_RWKV6(B, T, C, H, r, k, v, w, u):
             return WKV_6.apply(B, T, C, H, r, k, v, w, u)
 
-elif 'x052' in os.environ["RWKV_MY_TESTING"]:
+elif 'x052' in os.environ["RWKV_MY_TESTING"]:            # xzl: wkv5....  
     wkv5_cuda = load(name="wkv5", sources=["cuda/wkv5_op.cpp", f"cuda/wkv5_cuda.cu"],
                     verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}"])
         
@@ -196,7 +196,7 @@ elif 'x052' in os.environ["RWKV_MY_TESTING"]:
                 return (None, None, None, None, gr, gk, gv, gw, gu)
 
     def RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w, u):
-        return WKV_5.apply(B, T, C, H, r, k, v, w, u)
+        return WKV_5.apply(B, T, C, H, r, k, v, w, u)   #xzl: goes to where???
 
 elif 'mamba' in os.environ["RWKV_MY_TESTING"]:
     from mamba_ssm import Mamba
@@ -254,8 +254,9 @@ class RWKV_Tmix_x052(MyModule):
     # xzl: x->r/k/v/g see below   MyFunction -> torch script jit. default on??
     @MyFunction
     def jit_func(self, x):
-        B, T, C = x.size()
+        B, T, C = x.size()      # xzl: NB the size
 
+        # xzl: NB only mix with prev ts. (not all the way to the beginning. cf time_shift()
         xx = self.time_shift(x) # Mix x with the previous timestep to produce xk, xv, xr
         xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)
         xv = x * self.time_mix_v + xx * (1 - self.time_mix_v)
@@ -712,7 +713,7 @@ class RWKV_CMix_x052(MyModule):
 
     @MyFunction
     def forward(self, x):
-        xx = self.time_shift(x)
+        xx = self.time_shift(x) # xzl: also, mix with prev timestep (not all the way to the beginning
         xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)
         xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)
         k = self.key(xk)
@@ -842,7 +843,7 @@ class Block(nn.Module):
         
     def forward(self, x, x_emb=None):
         args = self.args
-        B, T, C = x.size()
+        B, T, C = x.size()          # xzl: NB  shape of x
         if self.layer_id == 0:
             x = self.ln0(x)
             if args.my_pos_emb > 0:
@@ -961,6 +962,7 @@ class RWKV(pl.LightningModule):
             else:
                 lr_1x.add(n)
 
+        # xzl: learning rate schedule??/
         lr_decay = sorted(list(lr_decay))
         lr_1x = sorted(list(lr_1x))
         lr_2x = sorted(list(lr_2x))
@@ -1009,12 +1011,13 @@ class RWKV(pl.LightningModule):
             return cfg.get("offload_optimizer") or cfg.get("offload_param")
         return False
 
-    def forward(self, idx):
+    def forward(self, idx):     
+        # xzl: idx: token idx, in (B,T). takes all of them for one pass
         args = self.args
         B, T = idx.size()
         assert T <= args.ctx_len, "Cannot forward, model ctx_len is exhausted."
 
-        x = self.emb(idx)
+        x = self.emb(idx)       # xzl: lookup token embddings
         x_emb = x
 
         if args.dropout > 0:
@@ -1025,16 +1028,16 @@ class RWKV(pl.LightningModule):
                     x = deepspeed.checkpointing.checkpoint(block, x, x_emb)
                 else:
                     x = block(x, x_emb)
-        else:
+        else:  # xzl: go through all layers
             for block in self.blocks:
                 if args.grad_cp == 1:
                     x = deepspeed.checkpointing.checkpoint(block, x)
                 else:
                     x = block(x)
 
-        x = self.ln_out(x)
+        x = self.ln_out(x)      # xzl layernorm
 
-        if args.head_qk > 0:            # xzl: "head_qk" trick....?? to udnerstand better? 
+        if args.head_qk > 0:            # xzl: "head_qk" trick...applied to outout.?? to udnerstand better? 
             q = self.head_q(x)[:, :T, :]
             k = self.head_k(x)[:, :T, :]
             c = (q @ k.transpose(-2, -1)) * (1.0 / args.head_qk)
@@ -1048,16 +1051,18 @@ class RWKV(pl.LightningModule):
                 c = c @ F.one_hot(idx, num_classes=args.vocab_size).bfloat16()
 
             x = self.head(x) + c
-        else:
+        else:   # xzl: classifiction head
             x = self.head(x)
 
         return x
 
     def training_step(self, batch, batch_idx):
+        # xzl: a traing step ... a batch??  a called back from torch lightning
+        #   ... the "batch" formed by TL. each item  is supplied by DataLoader.__getitem__
         args = self.args
-        if args.my_qa_mask != 1:
-            idx, targets = batch
-            logits = self(idx)
+        if args.my_qa_mask != 1:        # xzl: batch has no qa masking
+            idx, targets = batch   # xzl: idx: token idx, BxT (cf forward above), targets=?? parallel train?
+            logits = self(idx)          # xzl: a fwd pass...
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
             # if '0' in os.environ["RWKV_MY_TESTING"]:
             #     print('logits', logits)
@@ -1065,7 +1070,7 @@ class RWKV(pl.LightningModule):
             #     print('idx', idx)
             #     exit(0)
         else:
-            idx, targets, mask = batch
+            idx, targets, mask = batch      # xzl: batch has qa masking (... kinda dirty hacks
             mask = mask.view(-1)
             sum_mask = torch.sum(mask).item()
             # if sum_mask == 0:

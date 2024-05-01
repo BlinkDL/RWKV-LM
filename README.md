@@ -36,6 +36,8 @@ Your loss curve should look almost exactly the same as this, with the same ups a
 
 You can run your model using https://pypi.org/project/rwkv/ (use "rwkv_vocab_v20230424" instead of "20B_tokenizer.json")
 
+**(xzl: below is actually finetuning ... on personal dataset)**
+
 Use https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/make_data.py to prepare binidx data from jsonl, and compute "--my_exit_tokens" and "--magic_prime".
 
 The "epoch" in train.py is "mini-epoch" (not real epoch. only for convenience), and 1 mini-epoch = 40320 * ctx_len tokens.
@@ -43,6 +45,7 @@ The "epoch" in train.py is "mini-epoch" (not real epoch. only for convenience), 
 For example, if your binidx has 1498226207 tokens and ctxlen=4096, set "--my_exit_tokens 1498226207" (this will override epoch_count), and it will be 1498226207/(40320 * 4096) = 9.07 miniepochs. The trainer will auto-exit after "--my_exit_tokens" tokens. Set "--magic_prime" to the largest 3n+2 prime smaller than datalen/ctxlen-1 (= 1498226207/4096-1 = 365776), which is "--magic_prime 365759" in this case.
 
 simple: prepare SFT jsonl => repeat your SFT data 3 or 4 times in make_data.py. more repetition leads to overfitting.
+(xzl: make_data.py will do this) 
 
 advanced: repeat your SFT data 3 or 4 times in your jsonl (note make_data.py will shuffle all jsonl items) => add some base data (such as slimpajama) to your jsonl => and only repeat 1 times in make_data.py.
 
@@ -60,8 +63,11 @@ chat demo for developers: https://github.com/BlinkDL/ChatRWKV/blob/main/API_DEMO
 
 ### HOW TO FINETUNE RWKV-5 MODELS ###
 
+**xzl: this complements above**
+
 Use .jsonl format for your data (see https://huggingface.co/BlinkDL/rwkv-5-world for formats).
 
+**xzl: finetune commands below**
 Use https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/make_data.py to tokenizer it using World tokenizer into binidx, suitable for finetuning World models.
 
 Rename the base checkpoint in your model folder to rwkv-init.pth, and change the training commands to use --n_layer 32 --n_embd 4096 --vocab_size 65536 --lr_init 1e-5 --lr_final 1e-5 for 7B.

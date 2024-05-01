@@ -12,16 +12,17 @@ __global__ void kernel_forward(const int B, const int T, const int C, const int 
     const int h = blockIdx.x % H;
     const int i = threadIdx.x;
     _w += h*_N_;
-    _u += h*_N_;
+    _u += h*_N_;        // xzl: _N_ headsize (64), passed as compiler opt
 
     __shared__ float r[_N_], k[_N_], u[_N_], w[_N_];
-    float state[_N_] = {0};
+    float state[_N_] = {0};         // xzl: state pased across timesteps
 
     __syncthreads();
     w[i] = _w[i];
     u[i] = float(_u[i]);
     __syncthreads();
 
+    // xzl: serial scan across timesteps?? (t)
     for (int t = b*T*C + h*_N_ + i; t < (b+1)*T*C + h*_N_ + i; t += C)
     {
         __syncthreads();

@@ -1,3 +1,5 @@
+*.log
+*.err
 *.txt
 *.csv
 *.pth

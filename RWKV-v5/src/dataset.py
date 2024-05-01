@@ -15,15 +15,16 @@ class MyDataset(Dataset):
     def __init__(self, args):
         self.args = args
 
-        if args.data_type == "binidx":
+        # xzl: can handle various data types, including dummy (just dry run??
+        if args.data_type == "binidx":      # xzl: default
             self.vocab_size = args.vocab_size
             rank_zero_info(f"Current vocab size = {self.vocab_size} (make sure it's correct)")
 
-            if args.my_pile_version == 1:
+            if args.my_pile_version == 1:       # xzl default, binary format/?
                 self.data = MMapIndexedDataset(args.data_file)
                 self.data_size = len(self.data._bin_buffer) // self.data._index._dtype_size
                 rank_zero_info(f"Data has {self.data_size} tokens.")
-            elif args.my_pile_version == 2:
+            elif args.my_pile_version == 2:     # xzl: convert txt->binary 
                 data_list = open(args.data_file, "r", encoding='utf-8').read().strip().split('\n')
                 data_list = [i.strip().split(' ') for i in data_list]
                 self.data = []
@@ -99,6 +100,8 @@ class MyDataset(Dataset):
     def __len__(self):
         return self.args.epoch_steps * self.args.micro_bsz
 
+    # xzl: supply one training ex. x->y
+    #           given a seq dix x=[:-1] all tokens but the last; y=[1:] all tokens but the first
     def __getitem__(self, idx):
         args = self.args
         rank = self.global_rank
@@ -106,9 +109,9 @@ class MyDataset(Dataset):
         world_size = self.world_size
         # print(f"epoch {epoch} idx {idx} rank {rank}/{world_size}")
 
-        if args.data_type == "uint16":
+        if args.data_type == "uint16":      # xzl: shortcut??? whats special take a random datapoint? 
             i = np.random.randint(0, self.data_size-1)
-            dix = self.data[i]
+            dix = self.data[i]      # xzl: a random data point...
             x = torch.tensor(dix[:-1], dtype=torch.long)
             y = torch.tensor(dix[1:], dtype=torch.long)
         else:
@@ -120,6 +123,7 @@ class MyDataset(Dataset):
             if args.my_pile_stage > 0:
                 ii = 1 + epoch * self.samples_per_epoch + (idx * world_size) + rank
 
+                # xzl: apply qa mask here... (whats qa mask anyway
                 if args.my_qa_mask > 0:
                     ii_orig = ii
                     if ii % 2 == 0:
@@ -164,7 +168,7 @@ class MyDataset(Dataset):
             else:
                 dix = [self.stoi[s] for s in data[i : i + req_len]]
 
-            if args.my_qa_mask == 1:
+            if args.my_qa_mask == 1:        # xzl: bunch of dirty hacks....
                 if data == self.data_pile:
                     z = [1] * ctx_len
                 else:

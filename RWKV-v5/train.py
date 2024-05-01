@@ -22,7 +22,7 @@ if __name__ == "__main__":
     parser.add_argument("--train_type", default="", type=str) # ""/"states"
 
     parser.add_argument("--data_file", default="", type=str)
-    parser.add_argument("--data_type", default="utf-8", type=str)
+    parser.add_argument("--data_type", default="utf-8", type=str)   # xzl: binidx by default. "uint16" why special
     parser.add_argument("--vocab_size", default=0, type=int)  # vocab_size = 0 means auto (for char-level LM and .txt data)
 
     parser.add_argument("--ctx_len", default=1024, type=int)
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     parser.add_argument("--pre_ffn", default=0, type=int)  # replace first att layer by ffn (sometimes better)      xzl: dark trick...
     parser.add_argument("--head_qk", default=0, type=int)  # my headQK trick        xzl:????
     parser.add_argument("--tiny_att_dim", default=0, type=int)  # tiny attention dim
-    # xzl: can "shink" att dim at specified layers... (cf model.py) not used in train script
+    # xzl: can "shrink" att dim at specified layers... (cf model.py) not used in train script
     parser.add_argument("--tiny_att_layer", default=-999, type=int)  # tiny attention @ which layer         
 
     parser.add_argument("--lr_init", default=6e-4, type=float)  # 6e-4 for L12-D768, 4e-4 for L24-D1024, 3e-4 for L24-D2048
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     parser.add_argument("--my_pos_emb", default=0, type=int)
     parser.add_argument("--load_partial", default=0, type=int)
     parser.add_argument("--magic_prime", default=0, type=int)
-    parser.add_argument("--my_qa_mask", default=0, type=int)
+    parser.add_argument("--my_qa_mask", default=0, type=int)    # xzl: qa task only??
     parser.add_argument("--my_random_steps", default=0, type=int)
     parser.add_argument("--my_testing", default='x052', type=str) # xzl:???  also  "x060" "g"?
     parser.add_argument("--my_exit", default=99999999, type=int)
@@ -167,7 +167,10 @@ if __name__ == "__main__":
                             p = int(p)
                         list_p += [p]
             list_p.sort()
-            max_p = list_p[-1]
+            if len(list_p) > 0:   # xzl
+                max_p = list_p[-1]
+            else:
+                max_p = -1 # xzl
             if len(list_p) > 1:
                 args.my_pile_prev_p = list_p[-2]  # in case max_p is corrupted
             if max_p == -1: # xzl: -init is init model file?
@@ -257,7 +260,7 @@ if __name__ == "__main__":
     from src.model import RWKV
     model = RWKV(args)      # construct the model...
 
-    #xzl: here init the model...
+    #xzl: here init the model...        args.load_model: textual path to the model chkpt
     if len(args.load_model) == 0 or args.my_pile_stage == 1:  # shall we build the initial weights?
         init_weight_name = f"{args.proj_dir}/rwkv-init.pth"
         generate_init_weight(model, init_weight_name)  # save initial weights
@@ -300,8 +303,9 @@ if __name__ == "__main__":
             callbacks=[train_callback(args)],
         )
 
+    # xzl after loading model, print out info:  layers, params shapes, etc. 
     if trainer.global_rank == 0:
-        for n in model.state_dict():
+        for n in model.state_dict():            # xzl: n: para name, can be used as key        cf https://pytorch.org/tutorials/recipes/recipes/what_is_state_dict.html
             shape = model.state_dict()[n].shape
             shape = [i for i in shape if i != 1]
             if len(shape) > 2:
@@ -317,6 +321,7 @@ if __name__ == "__main__":
 
     # must set shuffle=False, persistent_workers=False (because worker is in another thread)
     data_loader = DataLoader(train_data, shuffle=False, pin_memory=True, batch_size=args.micro_bsz, num_workers=1, persistent_workers=False, drop_last=True)
+    # xzl: above: DataLoader decides how data is fed into trainer, which goes to callbacks in model.py
 
     # if args.train_type == 'states':
     #     model.requires_grad_(False)

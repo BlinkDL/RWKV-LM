@@ -1,0 +1,13 @@
+{  
+    "editor.rulers": [
+          80,  // 2nd ruler with no color option        
+     ],     
+     // https://stackoverflow.com/questions/42307949/color-theme-for-vs-code-integrated-terminal
+     // (more colors)
+     "workbench.colorCustomizations" : {
+        "terminal.foreground" : "#dddad6",
+        "terminal.background" : "#000000"   // 383737
+    },
+    // more terminal appearance https://code.visualstudio.com/docs/terminal/appearance
+    "terminal.integrated.fontFamily" : "'Consolas', monospace",
+}
