@@ -24,11 +24,50 @@ def my_save(args, trainer, dd, ff):
         else:
             torch.save(dd, ff)
 
+import deepspeed  # xzl
+
 class train_callback(pl.Callback):
     def __init__(self, args):
         super().__init__()
         self.args = args
 
+    def on_after_backward(self, trainer, pl_module):     #xzl add
+        args = self.args
+        real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
+        
+        # xzl -- note deepspeed api
+        # If all processes don’t participate these utilities will hang waiting for all processes to send their contribution
+                
+        # breakpoint()
+        nlayers=len(pl_module.blocks)
+        layers=[nlayers//5, nlayers//2, 4*nlayers//5]
+        lll = {}
+        logstr = ""
+        for ly in layers:
+            param = pl_module.blocks[ly].att.receptance.weight
+            nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+            lll[f"GRAD: layer {ly} receptance"] = nm.item()
+            logstr += f"layer {ly} receptance.grad {nm.item()}\n"
+
+            param = pl_module.blocks[ly].att.key.weight
+            nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+            lll[f"GRAD: layer {ly} key"] = nm.item()
+            logstr += f"layer {ly} key.grad {nm.item()}\n"
+
+            param = pl_module.blocks[ly].att.value.weight
+            nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+            lll[f"GRAD: layer {ly} value"] = nm.item()
+            logstr += f"layer {ly} value.grad {nm.item()}\n"
+
+        if trainer.is_global_zero:
+            # textual...
+            if trainer.my_log:
+                # trainer.my_log.write(f"step: {int(real_step)} grad {nm.item()}\n")
+                trainer.my_log.write(logstr)
+                trainer.my_log.flush()
+            if len(args.wandb) > 0 and hasattr(trainer, 'my_wandb'):
+                trainer.my_wandb.log(lll, step=int(real_step)) 
+                    
     def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):
         args = self.args
         # if args.cuda_cleanup > 0:
@@ -110,7 +149,6 @@ class train_callback(pl.Callback):
                     wandb.init(
                         project=args.wandb,
                         name=args.run_name + " " + args.my_timestamp,
-                        # name=args.run_name + " FAC " + f"{FAC}" + args.my_timestamp, # xzl
                         config=args,
                         save_code=False,
                     )
@@ -120,7 +158,12 @@ class train_callback(pl.Callback):
         args = self.args
         token_per_step = args.ctx_len * args.real_bsz
         real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
+
         if trainer.is_global_zero:  # logging
+            # xzl:
+            # if pl_module.blocks[1].att.receptance.weight.grad:
+            # if batch_idx == 5:
+                # breakpoint()
             t_now = time.time_ns()
             kt_s = 0
             try:

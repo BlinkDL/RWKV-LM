@@ -203,8 +203,6 @@ elif 'mamba' in os.environ["RWKV_MY_TESTING"]:
 
 ########################################################################################################
 
-FAC=4   # xzl
-
 class RWKV_Tmix_x052(MyModule):
     def __init__(self, args, layer_id):
         super().__init__()
@@ -245,26 +243,12 @@ class RWKV_Tmix_x052(MyModule):
             self.time_faaaa = nn.Parameter(tmp.reshape(self.n_head, self.head_size))
 
         self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
-        # self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)  # xzl
-        self.receptance1 = nn.Linear(args.n_embd, args.n_embd//FAC, bias=False)
-        self.receptance2 = nn.Linear(args.n_embd//FAC, args.dim_att, bias=False)
-        
-        # self.key = nn.Linear(args.n_embd, args.dim_att, bias=False)   # xzl
-        self.key1 = nn.Linear(args.n_embd, args.n_embd//FAC, bias=False)
-        self.key2 = nn.Linear(args.n_embd//FAC, args.dim_att, bias=False)
+        self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)
+        self.key = nn.Linear(args.n_embd, args.dim_att, bias=False)
 
-        # self.value = nn.Linear(args.n_embd, args.dim_att, bias=False)
-        self.value1 = nn.Linear(args.n_embd, args.n_embd//FAC, bias=False)
-        self.value2 = nn.Linear(args.n_embd//FAC, args.dim_att, bias=False)
-
-        # self.output = nn.Linear(args.dim_att, args.n_embd, bias=False)
-        self.output1 = nn.Linear(args.dim_att, args.dim_att//FAC, bias=False)
-        self.output2 = nn.Linear(args.dim_att//FAC, args.n_embd, bias=False)
-
-        # self.gate = nn.Linear(args.n_embd, args.dim_att, bias=False)
-        self.gate1 = nn.Linear(args.n_embd, args.n_embd//FAC, bias=False)
-        self.gate2 = nn.Linear(args.n_embd//FAC, args.dim_att, bias=False)
-
+        self.value = nn.Linear(args.n_embd, args.dim_att, bias=False)
+        self.output = nn.Linear(args.dim_att, args.n_embd, bias=False)
+        self.gate = nn.Linear(args.n_embd, args.dim_att, bias=False)
         self.ln_x = nn.GroupNorm(self.n_head, args.dim_att)
 
     # xzl: x->r/k/v/g see below   MyFunction -> torch script jit. default on??
@@ -280,23 +264,10 @@ class RWKV_Tmix_x052(MyModule):
         xg = x * self.time_mix_g + xx * (1 - self.time_mix_g)
 
         # xzl: after mix, project 
-        # r = self.receptance(xr) # xzl
-        r = self.receptance1(xr)  
-        r = torch.relu(r) ** 2   # sqr relu
-        r = self.receptance2(r)        
-        # k = self.key(xk)  # xzl
-        k = self.key1(xk)
-        k = torch.relu(k) ** 2 
-        k = self.key2(k)
-        # v = self.value(xv)
-        v = self.value1(xv)
-        v = torch.relu(v) ** 2 
-        v = self.value2(v)
-
-        # g = F.silu(self.gate(xg))
-        g = self.gate1(xg)
-        g  =torch.relu(g) ** 2
-        g = F.silu(self.gate2(g))
+        r = self.receptance(xr)
+        k = self.key(xk)
+        v = self.value(xv)
+        g = F.silu(self.gate(xg))
 
         return r, k, v, g
 
@@ -307,11 +278,7 @@ class RWKV_Tmix_x052(MyModule):
         x = x.view(B * T, C)
         
         x = self.ln_x(x / self.head_size_divisor).view(B, T, C)
-        # x = self.output(x * g)
-        x = self.output1(x * g)
-        x = torch.relu(x) ** 2
-        x = self.output2(x)
-
+        x = self.output(x * g)
         return x
 
     def forward(self, x):
@@ -322,7 +289,7 @@ class RWKV_Tmix_x052(MyModule):
 
         # xzl: cf above. (from paper) B batchsz T maxseqlen C channels H heads?; r,k,v are vectors (?)
         #       how about s? (from prev timestep <<<<< biggest question so far
-        #       (A: inside the cuda kernel, serial scan
+        #           no weights so no training needed???
         x = RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w=self.time_decay, u=self.time_faaaa)
 
         return self.jit_func_2(x, g)
@@ -750,7 +717,7 @@ class RWKV_CMix_x052(MyModule):
         xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)
         xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)
         k = self.key(xk)
-        k = torch.relu(k) ** 2  #xzl: sqr relu
+        k = torch.relu(k) ** 2
         kv = self.value(k)
         return torch.sigmoid(self.receptance(xr)) * kv
 
@@ -959,13 +926,11 @@ class RWKV(pl.LightningModule):
     def configure_optimizers(self):
         args = self.args
         
-        # xzl: gropu params .... rlues below 
-        #   then assign diff LR, weight decay, scale ... to gropus
         lr_decay = set()
         lr_1x = set()
         lr_2x = set()
         lr_3x = set()
-        for n, p in self.named_parameters():  
+        for n, p in self.named_parameters():
 
             # if not p.requires_grad:
             #     continue
@@ -997,6 +962,7 @@ class RWKV(pl.LightningModule):
             else:
                 lr_1x.add(n)
 
+        # xzl: learning rate schedule??/
         lr_decay = sorted(list(lr_decay))
         lr_1x = sorted(list(lr_1x))
         lr_2x = sorted(list(lr_2x))
@@ -1064,7 +1030,8 @@ class RWKV(pl.LightningModule):
                     x = block(x, x_emb)
         else:  # xzl: go through all layers
             for block in self.blocks:
-                if args.grad_cp == 1:
+                #if args.grad_cp == 1:
+                if args.grad_cp == 1 and "deepspeed" in args.strategy: # xzl
                     x = deepspeed.checkpointing.checkpoint(block, x)
                 else:
                     x = block(x)
@@ -1092,11 +1059,13 @@ class RWKV(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         # xzl: a traing step ... a batch??  a called back from torch lightning
+        #    only has fwd, bakcprop automatically done by pl??
         #   ... the "batch" formed by TL. each item  is supplied by DataLoader.__getitem__
         args = self.args
         if args.my_qa_mask != 1:        # xzl: batch has no qa masking
-            idx, targets = batch   # xzl: idx: token idx, BxT (cf forward above), targets=?? parallel train?
+            idx, targets = batch   # xzl: idx: input token idx, BxT (cf forward above), targets=GT output idx parallel train?
             logits = self(idx)          # xzl: a fwd pass...
+            # breakpoint()
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
             # if '0' in os.environ["RWKV_MY_TESTING"]:
             #     print('logits', logits)
@@ -1134,6 +1103,7 @@ class RWKV(pl.LightningModule):
         return L2Wrap.apply(loss, logits)
 
     def training_step_end(self, batch_parts):
+        # breakpoint()
         if pl.__version__[0]!='2':
             all = self.all_gather(batch_parts)
             if self.trainer.is_global_zero:
@@ -1149,7 +1119,7 @@ class RWKV(pl.LightningModule):
 ############################################################################
 """
         )
-        m = {}      # xzl: return init weights. name->tensor
+        m = {}
         n_params = 0
         for n in self.state_dict():
             p = self.state_dict()[n]
@@ -1161,20 +1131,19 @@ class RWKV(pl.LightningModule):
             print(f"{s0.ljust(5)} {s1.ljust(5)} {s2.ljust(5)} {n}", end="")
 
             scale = 1.0
-            # xzl: init weights w different strategy..... n: weight name
             if "ln_" in n or ".ln" in n or "time_" in n or "_mask" in n or "pos_emb" in n or '.mask.' in n or n.endswith('_w') or n.endswith('_w1') or n.endswith('_w2') or n.endswith('_bias'):
                 if 'ln_x.weight' in n:
-                    layer_scale = (1+int(n.split('.')[1])) / self.args.n_layer      # xzl: =layerNum/Nlayer?
-                    m[n] = (p * 0.0) + (layer_scale ** 0.7)     # xzl: scale by layer?
+                    layer_scale = (1+int(n.split('.')[1])) / self.args.n_layer
+                    m[n] = (p * 0.0) + (layer_scale ** 0.7)
                 else:
-                    m[n] = p       # xzl: as is, just 0s?
+                    m[n] = p
                 print()
             elif n == "emb.weight":
                 m[n] = p
                 scale = -1e-4
                 nn.init.uniform_(m[n], a=scale, b=-scale)
                 print(f" [scale {scale}]")
-            elif n == "head.weight":        # xzl: cls head (final
+            elif n == "head.weight":
                 m[n] = p
                 if self.args.vocab_size > self.args.n_embd:
                     scale = 0.5 * math.sqrt(self.args.vocab_size / self.args.n_embd)
@@ -1196,11 +1165,9 @@ class RWKV(pl.LightningModule):
                     else:
                         print()
                 else:
-                    assert n.endswith('.weight') # should always be true    xzl: means all other params should be named witih "XXX.weight"
+                    assert n.endswith('.weight') # should always be true
 
-                    # zero = [".att.output.", ".ffn.value.", ".ffn.receptance.", ".ffnPre.value.", ".ffnPre.receptance.", "head_q.", '.oo.', '.rr.']
-                    # xzl: to include .att.output{1|2} .ffn.value{1|2}. .ffn.receptance{1|2}
-                    zero = [".att.output", ".ffn.value", ".ffn.receptance", ".ffnPre.value.", ".ffnPre.receptance.", "head_q.", '.oo.', '.rr.']
+                    zero = [".att.output.", ".ffn.value.", ".ffn.receptance.", ".ffnPre.value.", ".ffnPre.receptance.", "head_q.", '.oo.', '.rr.']
 
                     for kk in zero:
                         if kk in n:
@@ -1210,22 +1177,12 @@ class RWKV(pl.LightningModule):
                     if "head_q." in n:
                         scale = 0
 
-                    # xzl
-                    for kk in [".att.receptance", ".att.value"]:
-                        if kk in n: 
-                            scale = 1.414
-
-                    # for kk in [".att.key."]:
-                    for kk in [".att.key"]:
+                    for kk in [".att.key."]:
                         if kk in n:
-                            # scale = 0.1
-                            scale = 0.32
-
-                    # for kk in [".att.gate."]:
-                    for kk in [".att.gate"]:
+                            scale = 0.1
+                    for kk in [".att.gate."]:
                         if kk in n:
-                            # scale = 0.1
-                            scale = 0.32
+                            scale = 0.1
 
                     print(f" [scale {scale}]")
 
