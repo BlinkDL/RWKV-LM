@@ -203,8 +203,6 @@ elif 'mamba' in os.environ["RWKV_MY_TESTING"]:
 
 ########################################################################################################
 
-FAC=4   # xzl
-
 class RWKV_Tmix_x052(MyModule):
     def __init__(self, args, layer_id):
         super().__init__()
@@ -246,24 +244,24 @@ class RWKV_Tmix_x052(MyModule):
 
         self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
         # self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)  # xzl
-        self.receptance1 = nn.Linear(args.n_embd, args.n_embd//FAC, bias=False)
-        self.receptance2 = nn.Linear(args.n_embd//FAC, args.dim_att, bias=False)
+        self.receptance1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
+        self.receptance2 = nn.Linear(args.n_embd//args.svdfac, args.dim_att, bias=False)
         
         # self.key = nn.Linear(args.n_embd, args.dim_att, bias=False)   # xzl
-        self.key1 = nn.Linear(args.n_embd, args.n_embd//FAC, bias=False)
-        self.key2 = nn.Linear(args.n_embd//FAC, args.dim_att, bias=False)
+        self.key1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
+        self.key2 = nn.Linear(args.n_embd//args.svdfac, args.dim_att, bias=False)
 
         # self.value = nn.Linear(args.n_embd, args.dim_att, bias=False)
-        self.value1 = nn.Linear(args.n_embd, args.n_embd//FAC, bias=False)
-        self.value2 = nn.Linear(args.n_embd//FAC, args.dim_att, bias=False)
+        self.value1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
+        self.value2 = nn.Linear(args.n_embd//args.svdfac, args.dim_att, bias=False)
 
-        # self.output = nn.Linear(args.dim_att, args.n_embd, bias=False)
-        self.output1 = nn.Linear(args.dim_att, args.dim_att//FAC, bias=False)
-        self.output2 = nn.Linear(args.dim_att//FAC, args.n_embd, bias=False)
+        self.output = nn.Linear(args.dim_att, args.n_embd, bias=False)
+        # self.output1 = nn.Linear(args.dim_att, args.dim_att//FAC, bias=False)
+        # self.output2 = nn.Linear(args.dim_att//FAC, args.n_embd, bias=False)
 
         # self.gate = nn.Linear(args.n_embd, args.dim_att, bias=False)
-        self.gate1 = nn.Linear(args.n_embd, args.n_embd//FAC, bias=False)
-        self.gate2 = nn.Linear(args.n_embd//FAC, args.dim_att, bias=False)
+        self.gate1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
+        self.gate2 = nn.Linear(args.n_embd//args.svdfac, args.dim_att, bias=False)
 
         self.ln_x = nn.GroupNorm(self.n_head, args.dim_att)
 
@@ -307,10 +305,10 @@ class RWKV_Tmix_x052(MyModule):
         x = x.view(B * T, C)
         
         x = self.ln_x(x / self.head_size_divisor).view(B, T, C)
-        # x = self.output(x * g)
-        x = self.output1(x * g)
-        x = torch.relu(x) ** 2
-        x = self.output2(x)
+        x = self.output(x * g)
+        # x = self.output1(x * g)
+        # x = torch.relu(x) ** 2
+        # x = self.output2(x)
 
         return x
 

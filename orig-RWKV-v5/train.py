@@ -173,7 +173,7 @@ if __name__ == "__main__":
                 max_p = -1 # xzl
             if len(list_p) > 1:
                 args.my_pile_prev_p = list_p[-2]  # in case max_p is corrupted
-            if max_p == -1: # xzl: -init is init model file?
+            if max_p == -1: # xzl: -init init model file
                 args.load_model = f"{args.proj_dir}/rwkv-init.pth"
             else:
                 args.load_model = f"{args.proj_dir}/rwkv-{max_p}.pth"
@@ -260,6 +260,8 @@ if __name__ == "__main__":
     from src.model import RWKV
     model = RWKV(args)      # construct the model...
 
+    # breakpoint()
+
     #xzl: here init the model...        args.load_model: textual path to the model chkpt
     if len(args.load_model) == 0 or args.my_pile_stage == 1:  # shall we build the initial weights?
         init_weight_name = f"{args.proj_dir}/rwkv-init.pth"
@@ -268,7 +270,7 @@ if __name__ == "__main__":
 
     rank_zero_info(f"########## Loading {args.load_model}... ##########")
     try:
-        load_dict = torch.load(args.load_model, map_location="cpu")
+        load_dict = torch.load(args.load_model, map_location="cpu")  # xzl: load from file to dict
         load_keys = list(load_dict.keys())
         for k in load_keys:
             if k.startswith('_forward_module.'):
@@ -291,7 +293,7 @@ if __name__ == "__main__":
         for k in model.state_dict():
             if k not in load_keys:
                 load_dict[k] = model.state_dict()[k]
-    model.load_state_dict(load_dict)
+    model.load_state_dict(load_dict)    # xzl copy from dict to model...
 
     # breakpoint()
     if pl.__version__[0]=='2':

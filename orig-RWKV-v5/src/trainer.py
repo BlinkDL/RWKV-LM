@@ -110,7 +110,7 @@ class train_callback(pl.Callback):
                         f"{args.proj_dir}/rwkv-final.pth",
                     )
                     exit(0)
-        if trainer.global_step < w_step:
+        if trainer.global_step < w_step:    #xzl: LR slowly reaches lr
             lr = lr * (0.2 + 0.8 * trainer.global_step / w_step)
 
         if args.weight_decay_final > 0:

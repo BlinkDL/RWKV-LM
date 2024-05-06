@@ -3,6 +3,7 @@ import torch
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning.utilities import rank_zero_info, rank_zero_only
+import deepspeed
 
 # xzl: seesm callbacks supplied to Trainer class
 
@@ -28,6 +29,58 @@ class train_callback(pl.Callback):
     def __init__(self, args):
         super().__init__()
         self.args = args
+
+    def on_after_backward(self, trainer, pl_module):     #xzl add
+        args = self.args
+        real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
+        
+        # xzl -- note deepspeed api
+        # If all processes don’t participate these utilities will hang waiting for all processes to send their contribution
+                
+        nlayers=len(pl_module.blocks)
+        layers=[nlayers//5, nlayers//2, 4*nlayers//5]
+        lll = {}
+        logstr = ""
+        for ly in layers:
+            # breakpoint()
+            param = pl_module.blocks[ly].att.receptance1.weight
+            nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+            lll[f"GRAD: layer {ly} receptance1"] = nm.item()
+            logstr += f"layer {ly} receptance.grad {nm.item()}\n"
+
+            param = pl_module.blocks[ly].att.receptance2.weight
+            nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+            lll[f"GRAD: layer {ly} receptance2"] = nm.item()
+            logstr += f"layer {ly} receptance.grad {nm.item()}\n"            
+
+            param = pl_module.blocks[ly].att.key1.weight
+            nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+            lll[f"GRAD: layer {ly} key1"] = nm.item()
+            logstr += f"layer {ly} key.grad {nm.item()}\n"
+
+            param = pl_module.blocks[ly].att.key2.weight
+            nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+            lll[f"GRAD: layer {ly} key2"] = nm.item()
+            logstr += f"layer {ly} key.grad {nm.item()}\n"
+
+            param = pl_module.blocks[ly].att.value1.weight
+            nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+            lll[f"GRAD: layer {ly} value1"] = nm.item()
+            logstr += f"layer {ly} value.grad {nm.item()}\n"
+
+            param = pl_module.blocks[ly].att.value2.weight
+            nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+            lll[f"GRAD: layer {ly} value2"] = nm.item()
+            logstr += f"layer {ly} value.grad {nm.item()}\n"            
+
+        if trainer.is_global_zero:
+            # textual... (too much info)
+            # if trainer.my_log:
+            #     # trainer.my_log.write(f"step: {int(real_step)} grad {nm.item()}\n")
+            #     trainer.my_log.write(logstr)
+            #     trainer.my_log.flush()
+            if len(args.wandb) > 0 and hasattr(trainer, 'my_wandb'):
+                trainer.my_wandb.log(lll, step=int(real_step)) 
 
     def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):
         args = self.args

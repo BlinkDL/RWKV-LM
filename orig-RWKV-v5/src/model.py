@@ -1036,6 +1036,7 @@ class RWKV(pl.LightningModule):
                 else:
                     x = block(x)
 
+        # breakpoint()
         x = self.ln_out(x)      # xzl layernorm
 
         if args.head_qk > 0:            # xzl: "head_qk" trick...applied to outout.?? to udnerstand better? 
@@ -1143,6 +1144,7 @@ class RWKV(pl.LightningModule):
                 scale = -1e-4
                 nn.init.uniform_(m[n], a=scale, b=-scale)
                 print(f" [scale {scale}]")
+                # breakpoint()          # xzl weights seem fine 
             elif n == "head.weight":
                 m[n] = p
                 if self.args.vocab_size > self.args.n_embd:
