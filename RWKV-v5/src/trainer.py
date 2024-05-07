@@ -198,7 +198,7 @@ class train_callback(pl.Callback):
             if len(args.wandb) > 0:
                 lll = {"loss": trainer.my_loss, "lr": trainer.my_lr, "wd": trainer.my_wd, "Gtokens": real_step * token_per_step / 1e9}
                 if kt_s > 0:
-                    lll["kt/s"] = kt_s
+                    lll["kt/s"] = kt_s  # xzl: k tokens per sec??
                 trainer.my_wandb.log(lll, step=int(real_step))
         if (trainer.is_global_zero) or ('deepspeed_stage_3' in args.strategy): # save pth
             if args.magic_prime > 0:

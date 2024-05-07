@@ -136,7 +136,8 @@ if __name__ == "__main__":
         args.run_name = f"v{args.my_img_version}-{args.my_img_size}-{args.my_img_bit}bit-{args.my_img_clip}x{args.my_img_clip_scale}"
         args.proj_dir = f"{args.proj_dir}-{args.run_name}"
     else:
-        args.run_name = f"{args.vocab_size} ctx{args.ctx_len} L{args.n_layer} D{args.n_embd} F{args.svdfac}"
+        # args.run_name = f"{args.vocab_size} ctx{args.ctx_len} L{args.n_layer} D{args.n_embd} F{args.svdfac}"
+        args.run_name = f"L{args.n_layer} D{args.n_embd} F{args.svdfac}"  # xzl add
     if not os.path.exists(args.proj_dir):
         os.makedirs(args.proj_dir)
 
