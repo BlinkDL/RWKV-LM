@@ -43,35 +43,73 @@ class train_callback(pl.Callback):
         logstr = ""
         for ly in layers:
             # breakpoint()
-            param = pl_module.blocks[ly].att.receptance1.weight
-            nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
-            lll[f"GRAD: layer {ly} receptance1"] = nm.item()
-            logstr += f"layer {ly} receptance.grad {nm.item()}\n"
+            if 'x052att' in os.environ["RWKV_MY_TESTING"] or 'x052xzl' in os.environ["RWKV_MY_TESTING"]:
+                param = pl_module.blocks[ly].att.receptance1.weight
+                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: layer {ly} receptance1"] = nm.item()
+                logstr += f"layer {ly} receptance.grad {nm.item()}\n"
 
-            param = pl_module.blocks[ly].att.receptance2.weight
-            nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
-            lll[f"GRAD: layer {ly} receptance2"] = nm.item()
-            logstr += f"layer {ly} receptance.grad {nm.item()}\n"            
+                param = pl_module.blocks[ly].att.receptance2.weight
+                nm = torch.linalg.vector_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: layer {ly} receptance2"] = nm.item()
+                logstr += f"layer {ly} receptance.grad {nm.item()}\n"            
 
-            param = pl_module.blocks[ly].att.key1.weight
-            nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
-            lll[f"GRAD: layer {ly} key1"] = nm.item()
-            logstr += f"layer {ly} key.grad {nm.item()}\n"
+                param = pl_module.blocks[ly].att.key1.weight
+                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: layer {ly} key1"] = nm.item()
+                logstr += f"layer {ly} key.grad {nm.item()}\n"
 
-            param = pl_module.blocks[ly].att.key2.weight
-            nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
-            lll[f"GRAD: layer {ly} key2"] = nm.item()
-            logstr += f"layer {ly} key.grad {nm.item()}\n"
+                param = pl_module.blocks[ly].att.key2.weight
+                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: layer {ly} key2"] = nm.item()
+                logstr += f"layer {ly} key.grad {nm.item()}\n"
 
-            param = pl_module.blocks[ly].att.value1.weight
-            nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
-            lll[f"GRAD: layer {ly} value1"] = nm.item()
-            logstr += f"layer {ly} value.grad {nm.item()}\n"
+                param = pl_module.blocks[ly].att.value1.weight
+                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: layer {ly} value1"] = nm.item()
+                logstr += f"layer {ly} value.grad {nm.item()}\n"
 
-            param = pl_module.blocks[ly].att.value2.weight
-            nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
-            lll[f"GRAD: layer {ly} value2"] = nm.item()
-            logstr += f"layer {ly} value.grad {nm.item()}\n"            
+                param = pl_module.blocks[ly].att.value2.weight
+                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: layer {ly} value2"] = nm.item()
+                logstr += f"layer {ly} value.grad {nm.item()}\n"
+
+            if 'Diag' in os.environ["RWKV_MY_TESTING"]:
+                param = pl_module.blocks[ly].att.receptance_diag
+                nm = torch.linalg.vector_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: layer {ly} receptance_diag"] = nm.item()
+                logstr += f"layer {ly} receptance.grad {nm.item()}\n"
+
+            if 'x052ffn' in os.environ["RWKV_MY_TESTING"] or 'x052xzl' in os.environ["RWKV_MY_TESTING"]:
+                param = pl_module.blocks[ly].ffn.key1.weight
+                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: layer {ly} ffn key1"] = nm.item()
+                # logstr += f"layer {ly} key.grad {nm.item()}\n"
+
+                param = pl_module.blocks[ly].ffn.key2.weight
+                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: layer {ly} ffn key2"] = nm.item()
+                # logstr += f"layer {ly} key.grad {nm.item()}\n"
+
+                '''
+                param = pl_module.blocks[ly].ffn.receptance1.weight
+                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: layer {ly} ffn receptance1"] = nm.item()
+                # logstr += f"layer {ly} key.grad {nm.item()}\n"
+
+                param = pl_module.blocks[ly].ffn.receptance2.weight
+                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: layer {ly} ffn receptance2"] = nm.item()
+
+                param = pl_module.blocks[ly].ffn.value1.weight
+                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: layer {ly} ffn value1"] = nm.item()
+                # logstr += f"layer {ly} key.grad {nm.item()}\n"
+
+                param = pl_module.blocks[ly].ffn.value2.weight
+                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: layer {ly} ffn value2"] = nm.item()
+                '''
 
         if trainer.is_global_zero:
             # textual... (too much info)
