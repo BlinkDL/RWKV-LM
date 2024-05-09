@@ -10,10 +10,10 @@
 #######################################################################################################################
 #
 # MODEL_TYPE="x052" # x052 => rwkv-5.2 (rwkv-5 final)
-# MODEL_TYPE="x052xzl" # my mods, both att and ffn
+MODEL_TYPE="x052xzl" # my mods, both att and ffn
 # MODEL_TYPE="x052xzlFFNk" # my mods, both att and ffn, ffn only has key decomposed
 # MODEL_TYPE="x052att" # my mods, att only
-MODEL_TYPE="x052attDiag" # my mods, att only + diag
+# MODEL_TYPE="x052attDiag" # my mods, att only + diag
 # MODEL_TYPE="x052ffn" # my mods, ffn only
 
 # MODEL_TYPE="x060" # x060 => rwkv-6.0
@@ -49,11 +49,11 @@ EPOCH_SAVE=10 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens
 # use https://www.dcode.fr/prime-numbers-search
 #
 N_NODE=1 # number of nodes
-GPU_PER_NODE=4 # number of GPUs per node   xzl this
+GPU_PER_NODE=3 # number of GPUs per node   xzl this
 #
 DS_BUCKET_MB=2 # set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects speed & vram usage)
 #
-python3 train.py --load_model "0" --wandb "rwkv-diag" --proj_dir $PROJ_DIR --my_testing $MODEL_TYPE \
+python3 train.py --load_model "0" --wandb "rwkv-dbg" --proj_dir $PROJ_DIR --my_testing $MODEL_TYPE \
  --ctx_len $CTX_LEN --my_pile_stage 3 --epoch_count 999999 --epoch_begin 0 \
  --data_file "data/minipile" --my_exit_tokens 1498226207 --magic_prime 2926181 \
  --num_nodes $N_NODE --micro_bsz $M_BSZ --n_layer $N_LAYER --n_embd $N_EMBD --pre_ffn 0 --head_qk 0 \

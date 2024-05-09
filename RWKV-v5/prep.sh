@@ -13,9 +13,9 @@
 #######################################################################################################################
 #
 # MODEL_TYPE="x052" # x052 => rwkv-5.2 (rwkv-5 final)
-# MODEL_TYPE="x052xzl" # my mods, both att and ffn
+MODEL_TYPE="x052xzl" # my mods, both att and ffn
 # MODEL_TYPE="x052xzlFFNk" # my mods, both att and ffn, ffn only has key decomposed
-MODEL_TYPE="x052attDiag" # my mods, att only
+# MODEL_TYPE="x052attDiag" # my mods, att only
 # MODEL_TYPE="x052ffn" # my mods, ffn only
 
 # MODEL_TYPE="x060" # x060 => rwkv-6.0
