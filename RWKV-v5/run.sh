@@ -8,26 +8,9 @@
 # Therefore check the log (### Loading rwkv-xxx.pth... ###), and make sure you don't have extra rwkv-*.pth there
 #
 #######################################################################################################################
-#
-# MODEL_TYPE="x052" # x052 => rwkv-5.2 (rwkv-5 final)
-MODEL_TYPE="x052xzl" # my mods, both att and ffn
-# MODEL_TYPE="x052xzlFFNk" # my mods, both att and ffn, ffn only has key decomposed
-# MODEL_TYPE="x052att" # my mods, att only
-# MODEL_TYPE="x052attDiag" # my mods, att only + diag
-# MODEL_TYPE="x052ffn" # my mods, ffn only
 
-# MODEL_TYPE="x060" # x060 => rwkv-6.0
-# MODEL_TYPE="mamba" # pip install mamba_ssm --upgrade
-#
-# N_LAYER="12"
-# N_EMBD="768"
-N_LAYER="16"
-N_EMBD="1024"
-SVDFAC="8"
-#
-CTX_LEN="512" # !!! change magic_prime if you change ctx_len !!!
-PROJ_DIR="out/L"$N_LAYER"-D"$N_EMBD"-F"$SVDFAC"-"$MODEL_TYPE # set output folder
-#
+source model-config.sh
+
 #######################################################################################################################
 #
 # Note bsz & lr affects model & training performance
@@ -49,7 +32,7 @@ EPOCH_SAVE=10 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens
 # use https://www.dcode.fr/prime-numbers-search
 #
 N_NODE=1 # number of nodes
-GPU_PER_NODE=3 # number of GPUs per node   xzl this
+GPU_PER_NODE=4 # number of GPUs per node   xzl this
 #
 DS_BUCKET_MB=2 # set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects speed & vram usage)
 #
@@ -60,4 +43,4 @@ python3 train.py --load_model "0" --wandb "rwkv-dbg" --proj_dir $PROJ_DIR --my_t
  --lr_init $LR_INIT --lr_final $LR_FINAL --warmup_steps 10 --beta1 0.9 --beta2 0.99 --adam_eps 1e-8 --my_pile_edecay 0 --data_type "binidx" --vocab_size 65536 \
  --weight_decay 0.001 --epoch_save $EPOCH_SAVE --head_size_a 64 \
  --accelerator gpu --devices $GPU_PER_NODE --precision bf16 --strategy deepspeed_stage_2 --grad_cp $GRAD_CP --enable_progress_bar True --ds_bucket_mb $DS_BUCKET_MB \
- --svdfac $SVDFAC 
+ --svdfac $SVDFAC

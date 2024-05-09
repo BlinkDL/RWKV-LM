@@ -22,7 +22,7 @@ def my_save(args, trainer, dd, ff):
     else:
         if 'deepspeed_stage_3' in args.strategy:
             trainer.save_checkpoint(ff, weights_only=True)
-        else:
+        else:  # xzl: looks like we hit this line... dd: state_dict
             torch.save(dd, ff)
 
 class train_callback(pl.Callback):

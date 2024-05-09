@@ -11,25 +11,9 @@
 # wget --continue -O data/minipile.bin https://huggingface.co/datasets/BlinkDL/minipile-tokenized/resolve/main/rwkv_vocab_v20230424/minipile.bin
 #
 #######################################################################################################################
-#
-# MODEL_TYPE="x052" # x052 => rwkv-5.2 (rwkv-5 final)
-MODEL_TYPE="x052xzl" # my mods, both att and ffn
-# MODEL_TYPE="x052xzlFFNk" # my mods, both att and ffn, ffn only has key decomposed
-# MODEL_TYPE="x052attDiag" # my mods, att only
-# MODEL_TYPE="x052ffn" # my mods, ffn only
 
-# MODEL_TYPE="x060" # x060 => rwkv-6.0
-# MODEL_TYPE="mamba" # pip install mamba_ssm --upgrade
-#
-# N_LAYER="12"
-# N_EMBD="768"
-N_LAYER="16"
-N_EMBD="1024"
-SVDFAC="8"
-#
-CTX_LEN="512" # !!! change magic_prime if you change ctx_len !!!
-PROJ_DIR="out/L"$N_LAYER"-D"$N_EMBD"-F"$SVDFAC"-"$MODEL_TYPE # set output folder
-#
+source model-config.sh
+
 #######################################################################################################################
 #
 # magic_prime = the largest 3n+2 prime smaller than datalen/ctxlen-1 (= 1498226207/512-1 = 2926222.06 in this case) = 2926181 in this case
