@@ -154,5 +154,6 @@ if data_size >= CTX_LEN * 3:
     for i in range(n_chunk, 0, -1):
         if i % 3 == 2:
             if is_prime(i):
-                print(f"\n### magic_prime = {i} (for ctxlen {CTX_LEN})\n")
+                print(f"\n### magic_prime = {i} (for ctxlen {CTX_LEN})")
+                print(f'\n--my_exit_tokens {data_size} --magic_prime {i} --ctx_len {CTX_LEN}\n')
                 exit(0)

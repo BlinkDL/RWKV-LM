@@ -279,6 +279,13 @@ if __name__ == "__main__":
             rank_zero_info(f"Trying {args.load_model}")
             load_dict = torch.load(args.load_model, map_location="cpu")
 
+    state_file = f"{args.proj_dir}/rwkv-init-state.pth"
+    if os.path.isfile(state_file):
+        rank_zero_info(f"########## Loading State {state_file}... ##########")
+        state_dict = torch.load(state_file, map_location="cpu")
+        for k in state_dict:
+            load_dict[k] = state_dict[k]
+
     if args.load_partial == 1:
         load_keys = load_dict.keys()
         for k in model.state_dict():

@@ -925,11 +925,13 @@ class RWKV(pl.LightningModule):
             # if not p.requires_grad:
             #     continue
             if args.train_type == 'states':
-                if 'time_state' not in n:
+                if 'time_sta' not in n:
                     continue
 
             if (("_w1" in n) or ("_w2" in n)) and (args.layerwise_lr > 0):
                 lr_1x.add(n)
+            elif (("time_sta" in n) and (args.weight_decay > 0)):
+                lr_decay.add(n)
             elif (("time_mix" in n) or ("time_maa" in n)) and (args.layerwise_lr > 0):
                 if args.my_pile_stage == 2:
                     lr_2x.add(n)
