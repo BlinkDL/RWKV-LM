@@ -32,7 +32,10 @@ EPOCH_SAVE=10 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens
 # use https://www.dcode.fr/prime-numbers-search
 #
 N_NODE=1 # number of nodes
-GPU_PER_NODE=4 # number of GPUs per node   xzl this
+
+export CUDA_VISIBLE_DEVICES=1,2,3
+GPU_PER_NODE=3 # number of GPUs per node   xzl this
+
 #
 DS_BUCKET_MB=2 # set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects speed & vram usage)
 #

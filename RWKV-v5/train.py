@@ -77,7 +77,9 @@ if __name__ == "__main__":
     parser.add_argument("--my_exit", default=99999999, type=int)
     parser.add_argument("--my_exit_tokens", default=0, type=int)
 
-    parser.add_argument("--svdfac", default=1, type=int) # xzl add 
+    # xzl add 
+    parser.add_argument("--svdfac", default=1, type=int) 
+    parser.add_argument("--finetune", default=0, type=int)  # only finetune specific paras, freezing others
 
     if pl.__version__[0]=='2':
         parser.add_argument("--accelerator", default="gpu", type=str)
@@ -307,7 +309,7 @@ if __name__ == "__main__":
 
     # xzl after loading model, print out info:  layers, params shapes, etc. 
     if trainer.global_rank == 0:
-        for n in model.state_dict():            # xzl: n: para name, can be used as key        cf https://pytorch.org/tutorials/recipes/recipes/what_is_state_dict.html
+        for n in model.state_dict():            # xzl: n: para name, can be used as key        cf https://pytorch.org/tutorials/recipes/recipes/what_is_state_dict.html             
             shape = model.state_dict()[n].shape
             shape = [i for i in shape if i != 1]
             if len(shape) > 2:
@@ -324,6 +326,28 @@ if __name__ == "__main__":
     # must set shuffle=False, persistent_workers=False (because worker is in another thread)
     data_loader = DataLoader(train_data, shuffle=False, pin_memory=True, batch_size=args.micro_bsz, num_workers=1, persistent_workers=False, drop_last=True)
     # xzl: above: DataLoader decides how data is fed into trainer, which goes to callbacks in model.py
+
+    '''
+        xzl: below will throw ane rorr... TBD fix it
+        (...) 
+    File "/u/xl6yq/.local/lib/python3.10/site-packages/torch/_tensor.py", line 487, in backward
+        torch.autograd.backward(
+    File "/u/xl6yq/.local/lib/python3.10/site-packages/torch/autograd/__init__.py", line 201, in backward
+        Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+    RuntimeError: element 0 of tensors does not require grad and does not have a grad_fn
+    '''
+    if args.finetune: 
+        # tunepara = [".att.receptance1.", ".att.key1.", ".att.value1.", ".att.gate1.","blocks.12"]
+        tunepara = [".att.receptance1.", ".att.key1.", ".att.value1.", ".att.gate1."]
+        model.requires_grad_(False)
+        # for name, module in model.named_modules():
+        for pname, param in model.named_parameters():
+            for tp in tunepara:
+                if tp in pname:
+                    param.requires_grad = True
+                    print(f"will train: {pname}")
+                # else:
+                #     param.requires_grad = False
 
     # if args.train_type == 'states':
     #     model.requires_grad_(False)

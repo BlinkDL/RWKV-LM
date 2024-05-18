@@ -22,5 +22,8 @@ x2 = mod.named_parameters()
 for name,param in x2:
     print(name)
     # breakpoint()    
+mod.save("/tmp/mymod.pth")
+
+
 
 # breakpoint()

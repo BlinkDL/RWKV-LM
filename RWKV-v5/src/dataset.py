@@ -189,6 +189,7 @@ class MyDataset(Dataset):
                         dix = self.data_pile.get(idx=0, offset=i, length=req_len).astype(int)
                 z = torch.tensor(z, dtype=torch.bfloat16)
 
+            # xzl: note this training data... x and y offset by 1
             x = torch.tensor(dix[:-1], dtype=torch.long)
             y = torch.tensor(dix[1:], dtype=torch.long)
 

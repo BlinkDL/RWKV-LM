@@ -168,15 +168,16 @@ elif 'x052' in os.environ["RWKV_MY_TESTING"]:            # xzl: wkv5....
                 assert v.is_contiguous()
                 assert w.is_contiguous()
                 assert u.is_contiguous()
-                ew = (-torch.exp(w.float())).contiguous()
-                eew = (torch.exp(ew)).contiguous()
-                ctx.save_for_backward(r, k, v, eew, ew, u)
+                ew = (-torch.exp(w.float())).contiguous()       # xzl e^w
+                eew = (torch.exp(ew)).contiguous()          # xzl e^ew ... passed to cuda kern
+                ctx.save_for_backward(r, k, v, eew, ew, u)  # xzl: means what
+                # xzl: y: output
                 y = torch.empty((B, T, C), device=r.device, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
                 wkv5_cuda.forward(B, T, C, H, r, k, v, eew, u, y)
                 return y
 
         @staticmethod
-        def backward(ctx, gy):
+        def backward(ctx, gy):  # xzl: gy gradient of y
             with torch.no_grad():
                 assert gy.dtype == torch.bfloat16
                 B = ctx.B
@@ -184,7 +185,7 @@ elif 'x052' in os.environ["RWKV_MY_TESTING"]:            # xzl: wkv5....
                 C = ctx.C
                 H = ctx.H
                 assert gy.is_contiguous()
-                r, k, v, eew, ew, u = ctx.saved_tensors
+                r, k, v, eew, ew, u = ctx.saved_tensors # xzl: saved in fwd pass
                 gr = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
                 gk = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
                 gv = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
@@ -192,11 +193,11 @@ elif 'x052' in os.environ["RWKV_MY_TESTING"]:            # xzl: wkv5....
                 gu = torch.empty((B, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
                 wkv5_cuda.backward(B, T, C, H, r, k, v, eew, ew, u, gy, gr, gk, gv, gw, gu)
                 gw = torch.sum(gw, 0).view(H, C//H)
-                gu = torch.sum(gu, 0).view(H, C//H)
+                gu = torch.sum(gu, 0).view(H, C//H)  # xzl view by head?
                 return (None, None, None, None, gr, gk, gv, gw, gu)
 
     def RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w, u):
-        return WKV_5.apply(B, T, C, H, r, k, v, w, u)   #xzl: goes to where???
+        return WKV_5.apply(B, T, C, H, r, k, v, w, u)   #xzl: goes to forward above??
 
 elif 'mamba' in os.environ["RWKV_MY_TESTING"]:
     from mamba_ssm import Mamba
@@ -389,7 +390,7 @@ class RWKV_Tmix_x052_xzl(MyModule):
 
         return r, k, v, g
 
-    # xzl: x/g->x see below
+    # xzl: x,g->x see below
     @MyFunction
     def jit_func_2(self, x, g):
         B, T, C = x.size()
@@ -409,9 +410,11 @@ class RWKV_Tmix_x052_xzl(MyModule):
 
         r, k, v, g = self.jit_func(x)
 
-        # xzl: cf above. (from paper) B batchsz T maxseqlen C channels H heads?; r,k,v are vectors (?)
-        #       how about s? (from prev timestep <<<<< biggest question so far
+        # xzl: cf above. (from paper) B batchsz T maxseqlen C channels H #of heads
+        #       r,k,v are vectors (?)
+        #       s: state
         #       (A: inside the cuda kernel, serial scan
+        #       w & u are paras
         x = RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w=self.time_decay, u=self.time_faaaa)
 
         return self.jit_func_2(x, g)
@@ -1140,9 +1143,10 @@ class Block(nn.Module):
                 self.att = Mamba(d_model=args.n_embd, d_state=16, d_conv=4, expand=2.125) # match rwkv6 #params
 
         # xzl: ffn, shop around ....
-        if 'g' in os.environ["RWKV_MY_TESTING"]:
-            self.ffn = MishGLU(args, layer_id)
-        elif 'x060' in os.environ["RWKV_MY_TESTING"]:
+        # if 'g' in os.environ["RWKV_MY_TESTING"]:
+        #     self.ffn = MishGLU(args, layer_id)
+        # elif 'x060' in os.environ["RWKV_MY_TESTING"]:
+        if 'x060' in os.environ["RWKV_MY_TESTING"]:
             self.ffn = RWKV_CMix_x060(args, layer_id)
         elif 'x052xzl' in os.environ["RWKV_MY_TESTING"]:
             self.ffn = RWKV_CMix_x052_xzl(args, layer_id)
@@ -1257,8 +1261,9 @@ class RWKV(pl.LightningModule):
         lr_3x = set()
         for n, p in self.named_parameters():  
 
-            # if not p.requires_grad:
-            #     continue
+            if not p.requires_grad:     # xzl, for finetune
+                continue
+
             if args.train_type == 'states':
                 if 'time_state' not in n:
                     continue
@@ -1454,14 +1459,19 @@ class RWKV(pl.LightningModule):
             # xzl: init weights w different strategy..... n: weight name
             if "ln_" in n or ".ln" in n or "time_" in n or "_mask" in n or "pos_emb" in n \
                 or '.mask.' in n or n.endswith('_w') or n.endswith('_w1') \
-                or n.endswith('_w2') or n.endswith('_bias') \
-                or n.endswith('_diag'):
+                or n.endswith('_w2') or n.endswith('_bias'):
                 if 'ln_x.weight' in n:
                     layer_scale = (1+int(n.split('.')[1])) / self.args.n_layer      # xzl: =layerNum/Nlayer?
                     m[n] = (p * 0.0) + (layer_scale ** 0.7)     # xzl: scale by layer?
                 else:
                     m[n] = p       # xzl: as is, just 0s?
                 print()
+            elif "_diag" in n and "att." in n:  
+                # xzl: e.g. "att.gate_diag". init with small scale...
+                m[n] = p
+                scale = -1e-4
+                nn.init.uniform_(m[n], a=scale, b=-scale)
+                print(f" [scale {scale}]")
             elif n == "emb.weight":
                 m[n] = p
                 scale = -1e-4
