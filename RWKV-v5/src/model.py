@@ -37,6 +37,8 @@ if os.environ["RWKV_JIT_ON"] == "1":
 # CUDA Kernel
 ########################################################################################################
 
+mydumpcnt = -1;     # xzl, for dumping gpu kernel input/output, set to -1 to disable
+    
 from torch.utils.cpp_extension import load
 
 HEAD_SIZE = int(os.environ["RWKV_HEAD_SIZE_A"])
@@ -170,7 +172,7 @@ elif 'x052' in os.environ["RWKV_MY_TESTING"]:            # xzl: wkv5....
                 assert u.is_contiguous()
                 ew = (-torch.exp(w.float())).contiguous()       # xzl e^w
                 eew = (torch.exp(ew)).contiguous()          # xzl e^ew ... passed to cuda kern
-                ctx.save_for_backward(r, k, v, eew, ew, u)  # xzl: means what
+                ctx.save_for_backward(r, k, v, eew, ew, u) 
                 # xzl: y: output
                 y = torch.empty((B, T, C), device=r.device, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
                 wkv5_cuda.forward(B, T, C, H, r, k, v, eew, u, y)
@@ -192,12 +194,22 @@ elif 'x052' in os.environ["RWKV_MY_TESTING"]:            # xzl: wkv5....
                 gw = torch.empty((B, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
                 gu = torch.empty((B, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
                 wkv5_cuda.backward(B, T, C, H, r, k, v, eew, ew, u, gy, gr, gk, gv, gw, gu)
+
+                global mydumpcnt
+                if mydumpcnt >=0 and mydumpcnt <100:
+                    # eew/ew float, all others bfloat
+                    breakpoint()
+                    mydict = {'r':r,'k':k,'v':v,'eew':eew,'ew':ew,'u':u.data,\
+                              'gy':gy,'gr':gr,'gk':gk,'gv':gv,'gw':gw,'gu':gu}
+                    torch.save(mydict, f"/tmp/wkv-backward-{B}-{T}-{C}-{mydumpcnt}.pth")
+                    mydumpcnt+=1
+
                 gw = torch.sum(gw, 0).view(H, C//H)
                 gu = torch.sum(gu, 0).view(H, C//H)  # xzl view by head?
                 return (None, None, None, None, gr, gk, gv, gw, gu)
 
     def RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w, u):
-        return WKV_5.apply(B, T, C, H, r, k, v, w, u)   #xzl: goes to forward above??
+        return WKV_5.apply(B, T, C, H, r, k, v, w, u)   #xzl: goes to forward/backward above??
 
 elif 'mamba' in os.environ["RWKV_MY_TESTING"]:
     from mamba_ssm import Mamba
@@ -416,6 +428,12 @@ class RWKV_Tmix_x052_xzl(MyModule):
         #       (A: inside the cuda kernel, serial scan
         #       w & u are paras
         x = RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w=self.time_decay, u=self.time_faaaa)
+
+        global mydumpcnt
+        if mydumpcnt >=0 and mydumpcnt <100:
+            mydict = {'r':r,'k':k,'v':v,'w':self.time_decay.data,'u':self.time_faaaa.data,'y':x}
+            torch.save(mydict, f"/tmp/wkv-forwrad-{B}-{T}-{C}-{mydumpcnt}.pth")
+            mydumpcnt+=1
 
         return self.jit_func_2(x, g)
 

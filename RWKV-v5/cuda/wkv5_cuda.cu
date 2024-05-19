@@ -88,9 +88,9 @@ __global__ void kernel_forward(const int B, const int T, const int C, const int 
     }
 }
 
-// xzl: gr/gk/gv grad on activations size (B,T,C)      
-// gw,gu grad on weights size (B,C), will be aggregated in python
-//  ALL BLANK
+// xzl: gr/gk/gv grad on activations size (B,T,C)       ALL BLANK
+// gw,gu grad on weights size (B,C), will be aggregated in python   ALL BLANK
+// gy size (B,T,C)
 template <typename F>
 __global__ void kernel_backward(const int B, const int T, const int C, const int H,
     const F *__restrict__ const _r, const F *__restrict__ const _k, const F *__restrict__ const _v, const float *__restrict__ _w, const float *__restrict__ __w, const F *__restrict__ _u, const F *__restrict__ const _gy,
