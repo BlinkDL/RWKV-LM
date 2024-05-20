@@ -160,6 +160,13 @@ elif 'x052' in os.environ["RWKV_MY_TESTING"]:
         @staticmethod
         def forward(ctx, B, T, C, H, r, k, v, w, u):
             with torch.no_grad():
+                if platform.system() == 'Darwin':   
+                    # xzl can only do fp32 training... the cast below slow(?
+                    r=r.to(dtype=torch.bfloat16)
+                    k=k.to(dtype=torch.bfloat16)
+                    v=v.to(dtype=torch.bfloat16)
+                    w=w.to(dtype=torch.bfloat16)
+                    u=u.to(dtype=torch.bfloat16)
                 assert r.dtype == torch.bfloat16
                 assert k.dtype == torch.bfloat16
                 assert v.dtype == torch.bfloat16
@@ -1344,11 +1351,19 @@ class RWKV(pl.LightningModule):
         else:
             optim_groups = [{"params": [param_dict[n] for n in lr_1x], "weight_decay": 0.0, "my_lr_scale": 1.0}]
 
+        # xzl FusedAdam(): fused gpu kernels in adam optimizer, cuda only 
+        #       it seems to have (almost) identical interfacea s torch.optim.AdamW
         if args.weight_decay > 0:
             optim_groups += [{"params": [param_dict[n] for n in lr_decay], "weight_decay": args.weight_decay, "my_lr_scale": 1.0}]
-            if self.deepspeed_offload:
-                return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adamw_mode=True, amsgrad=False)
-            return FusedAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adam_w_mode=True, amsgrad=False)
+            if platform.system() == 'Darwin': 
+                return torch.optim.AdamW(optim_groups, 
+                                         lr=self.args.lr_init, 
+                                         betas=self.args.betas, 
+                                         eps=self.args.adam_eps, amsgrad=False)
+            else: # Linux, cuda
+                if self.deepspeed_offload:
+                    return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adamw_mode=True, amsgrad=False)
+                return FusedAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adam_w_mode=True, amsgrad=False)
         else:
             if self.deepspeed_offload:
                 return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adamw_mode=False, weight_decay=0, amsgrad=False)

@@ -306,6 +306,7 @@ if __name__ == "__main__":
             args,
             callbacks=[train_callback(args)],
         )
+        # ^^ trainer.strategy also constructed
 
     # xzl after loading model, print out info:  layers, params shapes, etc. 
     if trainer.global_rank == 0:
@@ -323,8 +324,14 @@ if __name__ == "__main__":
         trainer.strategy.config["zero_optimization"]["allgather_bucket_size"] = args.ds_bucket_mb * 1000 * 1000
         trainer.strategy.config["zero_optimization"]["reduce_bucket_size"] = args.ds_bucket_mb * 1000 * 1000
 
+    # xzl: NB config strategy here.....
+    breakpoint()    
+
     # must set shuffle=False, persistent_workers=False (because worker is in another thread)
-    data_loader = DataLoader(train_data, shuffle=False, pin_memory=True, batch_size=args.micro_bsz, num_workers=1, persistent_workers=False, drop_last=True)
+    data_loader = DataLoader(train_data, shuffle=False, pin_memory=True, 
+                                batch_size=args.micro_bsz, 
+                                num_workers=0,      # =0 for debugging, =1 normal
+                                persistent_workers=False, drop_last=True)
     # xzl: above: DataLoader decides how data is fed into trainer, which goes to callbacks in model.py
 
     '''

@@ -29,7 +29,7 @@ void forward(
     torch::Tensor& u, 
     torch::Tensor& y) {
     @autoreleasepool {
-        NSString * sourcePath = @"wkv5_metal.metal";
+        NSString * sourcePath = @"metal/wkv5_metal.metal";
 
         id<MTLDevice> device = MTLCreateSystemDefaultDevice();
         NSError *error = nil;
@@ -118,7 +118,7 @@ void metal_backward(
     torch::Tensor& gu
     ) {
     @autoreleasepool {
-        NSString * sourcePath = @"wkv5_metal.metal";
+        NSString * sourcePath = @"metal/wkv5_metal.metal";
 
         id<MTLDevice> device = MTLCreateSystemDefaultDevice();
         NSError *error = nil;

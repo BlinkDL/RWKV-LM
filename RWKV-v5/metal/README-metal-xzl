@@ -2,25 +2,39 @@
 
 must have torch>=2.4.0 for mps backend to support bfloat 
 
-/opt/homebrew/bin/python3.12 -m venv venv
+NB: python3.12 too new. older numpy incompatible 
+
+/opt/homebrew/bin/python3.10 -m venv venv
 source venv/bin/activate
 
 # make sure pip calls venv/bin/....
+
+
+# install 
 pip install setuptools \
-    pytorch-lightning==1.9.5
-    deepspeed
+pytorch-lightning==1.9.5 \
+numpy==1.24.4   \
+deepspeed
+
+
 
 # install pytorch nightly w/ mps backend
 # cf: https://developer.apple.com/metal/pytorch/
 pip install --pre torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/nightly/cpu
 
 # check pytorch version
-(venv) xl6yq@felixmacstudio:~/workspace-rwkv/RWKV-LM/RWKV-v5/metal$ pip show torch
+pip show torch
 Name: torch
 Version: 2.4.0.dev20240519
 
+# make sure to use venv python 
+whereis python
+python: /Users/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/venv-py310/bin/python
+
 # check mps support (cf link above)
-test-mps.py
+python test-mps.py
+
+
 
 .... 
 Valid Types: [torch.float32, torch.float32, torch.float16, torch.float16, torch.bfloat16, torch.complex64, torch.uint8, torch.int8, torch.int16, torch.int16, torch.int32, torch.int32, torch.int64, torch.int64, torch.bool]
@@ -30,7 +44,7 @@ Valid Types: [torch.float32, torch.float32, torch.float16, torch.float16, torch.
 
 ------------ foreward: <0.1% mismatch
 
-(venv) xl6yq@:~/mps/rwkv$ python test-wkv.py 
+(venv) xl6yq@:~/mps/rwkv$ python test-metal-wkv.py 
 load /tmp/wkv-forwrad-8-512-768-10.pth...
 Tensor-likes are not close!
 
