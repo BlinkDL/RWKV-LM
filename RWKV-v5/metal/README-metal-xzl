@@ -1,0 +1,83 @@
+----------- backward test... all match
+
+must have torch>=2.4.0 for mps backend to support bfloat 
+
+/opt/homebrew/bin/python3.12 -m venv venv
+source venv/bin/activate
+
+# make sure pip calls venv/bin/....
+pip install setuptools \
+    pytorch-lightning==1.9.5
+    deepspeed
+
+# install pytorch nightly w/ mps backend
+# cf: https://developer.apple.com/metal/pytorch/
+pip install --pre torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/nightly/cpu
+
+# check pytorch version
+(venv) xl6yq@felixmacstudio:~/workspace-rwkv/RWKV-LM/RWKV-v5/metal$ pip show torch
+Name: torch
+Version: 2.4.0.dev20240519
+
+# check mps support (cf link above)
+test-mps.py
+
+.... 
+Valid Types: [torch.float32, torch.float32, torch.float16, torch.float16, torch.bfloat16, torch.complex64, torch.uint8, torch.int8, torch.int16, torch.int16, torch.int32, torch.int32, torch.int64, torch.int64, torch.bool]
+....
+(^^ note torch.bfloat16
+
+
+------------ foreward: <0.1% mismatch
+
+(venv) xl6yq@:~/mps/rwkv$ python test-wkv.py 
+load /tmp/wkv-forwrad-8-512-768-10.pth...
+Tensor-likes are not close!
+
+Mismatched elements: 33 / 3145728 (0.0%)
+Greatest absolute difference: 0.0003662109375 at index (3, 482, 3) (up to 1e-05 allowed)
+Greatest relative difference: 1.171875 at index (2, 430, 18) (up to 0.016 allowed)
+load /tmp/wkv-forwrad-8-512-768-11.pth...
+Tensor-likes are not close!
+
+Mismatched elements: 1 / 3145728 (0.0%)
+Greatest absolute difference: 1.430511474609375e-05 at index (4, 399, 35) (up to 1e-05 allowed)
+Greatest relative difference: 0.08740234375 at index (4, 399, 35) (up to 0.016 allowed)
+load /tmp/wkv-forwrad-8-512-768-12.pth...
+Tensor-likes are not close!
+
+Mismatched elements: 19 / 3145728 (0.0%)
+Greatest absolute difference: 0.0001220703125 at index (6, 429, 50) (up to 1e-05 allowed)
+Greatest relative difference: 0.625 at index (2, 422, 341) (up to 0.016 allowed)
+load /tmp/wkv-forwrad-8-512-768-13.pth...
+load /tmp/wkv-forwrad-8-512-768-14.pth...
+Tensor-likes are not close!
+
+Mismatched elements: 29 / 3145728 (0.0%)
+Greatest absolute difference: 0.0001163482666015625 at index (5, 407, 20) (up to 1e-05 allowed)
+Greatest relative difference: 20.25 at index (7, 219, 380) (up to 0.016 allowed)
+load /tmp/wkv-forwrad-8-512-768-15.pth...
+Tensor-likes are not close!
+
+Mismatched elements: 2 / 3145728 (0.0%)
+Greatest absolute difference: 3.0517578125e-05 at index (3, 467, 35) (up to 1e-05 allowed)
+Greatest relative difference: 0.08203125 at index (7, 393, 58) (up to 0.016 allowed)
+load /tmp/wkv-forwrad-8-512-768-16.pth...
+Tensor-likes are not close!
+
+Mismatched elements: 6 / 3145728 (0.0%)
+Greatest absolute difference: 9.1552734375e-05 at index (7, 258, 395) (up to 1e-05 allowed)
+Greatest relative difference: 0.27734375 at index (3, 423, 68) (up to 0.016 allowed)
+load /tmp/wkv-forwrad-8-512-768-17.pth...
+Tensor-likes are not close!
+
+Mismatched elements: 1 / 3145728 (0.0%)
+Greatest absolute difference: 1.2874603271484375e-05 at index (3, 501, 59) (up to 1e-05 allowed)
+Greatest relative difference: 0.203125 at index (3, 501, 59) (up to 0.016 allowed)
+load /tmp/wkv-forwrad-8-512-768-18.pth...
+Tensor-likes are not close!
+
+Mismatched elements: 11 / 3145728 (0.0%)
+Greatest absolute difference: 0.0001239776611328125 at index (3, 299, 404) (up to 1e-05 allowed)
+Greatest relative difference: 0.423828125 at index (3, 358, 339) (up to 0.016 allowed)
+load /tmp/wkv-forwrad-8-512-768-19.pth...
