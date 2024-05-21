@@ -325,12 +325,12 @@ if __name__ == "__main__":
         trainer.strategy.config["zero_optimization"]["reduce_bucket_size"] = args.ds_bucket_mb * 1000 * 1000
 
     # xzl: NB config strategy here.....
-    breakpoint()    
+    # breakpoint()    
 
     # must set shuffle=False, persistent_workers=False (because worker is in another thread)
     data_loader = DataLoader(train_data, shuffle=False, pin_memory=True, 
                                 batch_size=args.micro_bsz, 
-                                num_workers=0,      # =0 for debugging, =1 normal
+                                num_workers=0,      # =0 for debugging, =1 normal (=1 failed on mps, why??
                                 persistent_workers=False, drop_last=True)
     # xzl: above: DataLoader decides how data is fed into trainer, which goes to callbacks in model.py
 
