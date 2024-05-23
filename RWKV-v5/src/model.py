@@ -37,7 +37,7 @@ if os.environ["RWKV_JIT_ON"] == "1":
 # CUDA Kernel
 ########################################################################################################
 
-mydumpcnt = -1;     # xzl, for dumping gpu kernel input/output, set to -1 to disable
+mydumpcnt = -1;     # xzl, for dumping wkv kernel input/output, set to -1 to disable
     
 from torch.utils.cpp_extension import load
 
@@ -147,14 +147,26 @@ if 'x060' in os.environ["RWKV_MY_TESTING"]:
         def RUN_CUDA_RWKV6(B, T, C, H, r, k, v, w, u):
             return WKV_6.apply(B, T, C, H, r, k, v, w, u)
 
-elif 'x052' in os.environ["RWKV_MY_TESTING"]:            # xzl: wkv5....  
-    wkv5_cuda = load(name="wkv5", sources=["cuda/wkv5_op.cpp", f"cuda/wkv5_cuda.cu"],
+elif 'x052' in os.environ["RWKV_MY_TESTING"]:
+    import platform
+    if platform.system() == 'Darwin':
+        wkv5_gpu = load(name='wkv5', sources=['metal/wkv5_op.mm'], 
+                        verbose=True, extra_cflags=['-std=c++17', f"-D_N_={HEAD_SIZE}"])
+    else: 
+        wkv5_gpu = load(name="wkv5", sources=["cuda/wkv5_op.cpp", f"cuda/wkv5_cuda.cu"],
                     verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}"])
         
     class WKV_5(torch.autograd.Function):
         @staticmethod
         def forward(ctx, B, T, C, H, r, k, v, w, u):
             with torch.no_grad():
+                if platform.system() == 'Darwin':   
+                    # xzl can only do fp32 training... the cast below slow(?
+                    r=r.to(dtype=torch.bfloat16)
+                    k=k.to(dtype=torch.bfloat16)
+                    v=v.to(dtype=torch.bfloat16)
+                    w=w.to(dtype=torch.bfloat16)
+                    u=u.to(dtype=torch.bfloat16)
                 assert r.dtype == torch.bfloat16
                 assert k.dtype == torch.bfloat16
                 assert v.dtype == torch.bfloat16
@@ -175,7 +187,7 @@ elif 'x052' in os.environ["RWKV_MY_TESTING"]:            # xzl: wkv5....
                 ctx.save_for_backward(r, k, v, eew, ew, u) 
                 # xzl: y: output
                 y = torch.empty((B, T, C), device=r.device, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
-                wkv5_cuda.forward(B, T, C, H, r, k, v, eew, u, y)
+                wkv5_gpu.forward(B, T, C, H, r, k, v, eew, u, y)
                 return y
 
         @staticmethod
@@ -193,7 +205,7 @@ elif 'x052' in os.environ["RWKV_MY_TESTING"]:            # xzl: wkv5....
                 gv = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
                 gw = torch.empty((B, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
                 gu = torch.empty((B, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)
-                wkv5_cuda.backward(B, T, C, H, r, k, v, eew, ew, u, gy, gr, gk, gv, gw, gu)
+                wkv5_gpu.backward(B, T, C, H, r, k, v, eew, ew, u, gy, gr, gk, gv, gw, gu)
 
                 global mydumpcnt
                 if mydumpcnt >=0 and mydumpcnt <100:
@@ -209,7 +221,7 @@ elif 'x052' in os.environ["RWKV_MY_TESTING"]:            # xzl: wkv5....
                 return (None, None, None, None, gr, gk, gv, gw, gu)
 
     def RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w, u):
-        return WKV_5.apply(B, T, C, H, r, k, v, w, u)   #xzl: goes to forward/backward above??
+        return WKV_5.apply(B, T, C, H, r, k, v, w, u)   #xzl: goes to forward/backward above
 
 elif 'mamba' in os.environ["RWKV_MY_TESTING"]:
     from mamba_ssm import Mamba
@@ -1360,11 +1372,19 @@ class RWKV(pl.LightningModule):
         else:
             optim_groups = [{"params": [param_dict[n] for n in lr_1x], "weight_decay": 0.0, "my_lr_scale": 1.0}]
 
+        # xzl FusedAdam(): fused gpu kernels in adam optimizer, cuda only 
+        #       it seems to have (almost) identical interfacea s torch.optim.AdamW
         if args.weight_decay > 0:
             optim_groups += [{"params": [param_dict[n] for n in lr_decay], "weight_decay": args.weight_decay, "my_lr_scale": 1.0}]
-            if self.deepspeed_offload:
-                return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adamw_mode=True, amsgrad=False)
-            return FusedAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adam_w_mode=True, amsgrad=False)
+            if platform.system() == 'Darwin': 
+                return torch.optim.AdamW(optim_groups, 
+                                         lr=self.args.lr_init, 
+                                         betas=self.args.betas, 
+                                         eps=self.args.adam_eps, amsgrad=False)
+            else: # Linux, cuda
+                if self.deepspeed_offload:
+                    return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adamw_mode=True, amsgrad=False)
+                return FusedAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adam_w_mode=True, amsgrad=False)
         else:
             if self.deepspeed_offload:
                 return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adamw_mode=False, weight_decay=0, amsgrad=False)

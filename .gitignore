@@ -9,7 +9,6 @@
 wandb/
 data/
 vocab.json
-*.sh
 *log/
 test/
 tools/
@@ -122,6 +121,7 @@ celerybeat.pid
 .venv
 env/
 venv/
+venv-*/
 ENV/
 env.bak/
 venv.bak/
