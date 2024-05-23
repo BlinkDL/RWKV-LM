@@ -319,6 +319,10 @@ class RWKV_Tmix_x052_xzl(MyModule):
         assert args.dim_att % self.n_head == 0
         self.head_size_divisor = args.head_size_divisor
 
+        self.hasrelu = True
+        if self.args.NoReLu:
+            self.hasrelu = False
+                
         with torch.no_grad():
             ratio_0_to_1 = layer_id / (args.n_layer - 1)  # 0 to 1
             ratio_1_to_almost0 = 1.0 - (layer_id / args.n_layer)  # 1 to ~0
@@ -373,7 +377,7 @@ class RWKV_Tmix_x052_xzl(MyModule):
     @MyFunction
     def jit_func(self, x):
         B, T, C = x.size()      # xzl: NB the size
-
+        
         # xzl: NB only mix with prev ts. (not all the way to the beginning. cf time_shift()
         xx = self.time_shift(x) # Mix x with the previous timestep to produce xk, xv, xr
         xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)
@@ -384,20 +388,24 @@ class RWKV_Tmix_x052_xzl(MyModule):
         # xzl: after mix, project 
         # r = self.receptance(xr) # xzl
         r = self.receptance1(xr)  
-        r = torch.relu(r) ** 2   # sqr relu
+        if self.hasrelu:
+            r = torch.relu(r) ** 2   # sqr relu
         r = self.receptance2(r)        
         # k = self.key(xk)  # xzl
         k = self.key1(xk)
-        k = torch.relu(k) ** 2 
+        if self.hasrelu:
+            k = torch.relu(k) ** 2 
         k = self.key2(k)
         # v = self.value(xv)
         v = self.value1(xv)
-        v = torch.relu(v) ** 2 
+        if self.hasrelu:
+            v = torch.relu(v) ** 2 
         v = self.value2(v)
 
         # g = F.silu(self.gate(xg))
         g = self.gate1(xg)
-        g  =torch.relu(g) ** 2
+        if self.hasrelu:
+            g  =torch.relu(g) ** 2
         g = F.silu(self.gate2(g))
 
         return r, k, v, g
@@ -1009,6 +1017,10 @@ class RWKV_CMix_x052_xzl(MyModule):
         self.layer_id = layer_id
         self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
 
+        self.hasrelu = True
+        if self.args.NoReLu:
+            self.hasrelu = False
+
         with torch.no_grad():  # fancy init of time_mix
             ratio_1_to_almost0 = 1.0 - (layer_id / args.n_layer)  # 1 to ~0
             ddd = torch.ones(1, 1, args.n_embd)
@@ -1039,8 +1051,11 @@ class RWKV_CMix_x052_xzl(MyModule):
         xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)
         
         k = self.key1(xk)
+        if self.hasrelu:
+            k = torch.relu(k) ** 2
         k = self.key2(k)
-        k = torch.relu(k) ** 2  #xzl: sqr relu
+
+        k = torch.relu(k) ** 2  #xzl: sqr relu, exists in original design 
 
         # kv = self.value1(k)
         # kv = self.value2(kv)
@@ -1149,6 +1164,9 @@ class Block(nn.Module):
                 else:
                     self.att = RWKV_Tmix_x060(args, layer_id)
             # NOTICE THE ORDER ..... 
+            elif 'x052xzlNoReLu' in os.environ["RWKV_MY_TESTING"]:
+                args.NoReLu=True
+                self.att = RWKV_Tmix_x052_xzl(args, layer_id)                   
             elif 'x052xzl' in os.environ["RWKV_MY_TESTING"]:
                 self.att = RWKV_Tmix_x052_xzl(args, layer_id)
             elif 'x052attDiag' in os.environ["RWKV_MY_TESTING"]:
@@ -1166,10 +1184,11 @@ class Block(nn.Module):
         # elif 'x060' in os.environ["RWKV_MY_TESTING"]:
         if 'x060' in os.environ["RWKV_MY_TESTING"]:
             self.ffn = RWKV_CMix_x060(args, layer_id)
+        elif 'x052xzlNoReLu' in os.environ["RWKV_MY_TESTING"]:
+            args.NoReLu=True
+            self.ffn = RWKV_CMix_x052_xzl(args, layer_id)            
         elif 'x052xzl' in os.environ["RWKV_MY_TESTING"]:
             self.ffn = RWKV_CMix_x052_xzl(args, layer_id)
-        elif 'x052ffn' in os.environ["RWKV_MY_TESTING"]:
-            self.ffn = RWKV_CMix_x052_xzl(args, layer_id)            
         elif 'x052' in os.environ["RWKV_MY_TESTING"]:
             self.ffn = RWKV_CMix_x052(args, layer_id)
         elif 'mamba' in os.environ["RWKV_MY_TESTING"]:
@@ -1279,7 +1298,9 @@ class RWKV(pl.LightningModule):
         lr_3x = set()
         for n, p in self.named_parameters():  
 
-            if not p.requires_grad:     # xzl, for finetune
+            if not p.requires_grad:     
+                p.requires_grad=True  # xzl: dirty hack. still compute grads, but keep out of optimizer....
+                # cf train.py "args.finetune"
                 continue
 
             if args.train_type == 'states':

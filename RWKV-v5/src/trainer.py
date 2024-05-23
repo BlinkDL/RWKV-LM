@@ -38,7 +38,7 @@ class train_callback(pl.Callback):
         # If all processes don’t participate these utilities will hang waiting for all processes to send their contribution
                 
         nlayers=len(pl_module.blocks)
-        layers=[nlayers//5, nlayers//2, 4*nlayers//5]
+        layers=[nlayers//5, nlayers//2, nlayers-1]
         lll = {}
         logstr = ""
         for ly in layers:
@@ -73,7 +73,7 @@ class train_callback(pl.Callback):
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
                 lll[f"GRAD: layer {ly} value2"] = nm.item()
                 logstr += f"layer {ly} value.grad {nm.item()}\n"
-
+                
             if 'Diag' in os.environ["RWKV_MY_TESTING"]:
                 param = pl_module.blocks[ly].att.receptance_diag
                 nm = torch.linalg.vector_norm(deepspeed.utils.safe_get_full_grad(param)) 

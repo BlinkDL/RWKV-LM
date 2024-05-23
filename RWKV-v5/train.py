@@ -80,7 +80,8 @@ if __name__ == "__main__":
     # xzl add 
     parser.add_argument("--svdfac", default=1, type=int) 
     parser.add_argument("--finetune", default=0, type=int)  # only finetune specific paras, freezing others
-
+    parser.add_argument("--NoReLu", default=0, type=int) # use relu between decomposed weights?
+                        
     if pl.__version__[0]=='2':
         parser.add_argument("--accelerator", default="gpu", type=str)
         parser.add_argument("--strategy", default="auto", type=str)
@@ -327,20 +328,22 @@ if __name__ == "__main__":
     data_loader = DataLoader(train_data, shuffle=False, pin_memory=True, batch_size=args.micro_bsz, num_workers=1, persistent_workers=False, drop_last=True)
     # xzl: above: DataLoader decides how data is fed into trainer, which goes to callbacks in model.py
 
-    '''
-        xzl: below will throw ane rorr... TBD fix it
-        (...) 
-    File "/u/xl6yq/.local/lib/python3.10/site-packages/torch/_tensor.py", line 487, in backward
-        torch.autograd.backward(
-    File "/u/xl6yq/.local/lib/python3.10/site-packages/torch/autograd/__init__.py", line 201, in backward
-        Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
-    RuntimeError: element 0 of tensors does not require grad and does not have a grad_fn
-    '''
+
     if args.finetune: 
-        # tunepara = [".att.receptance1.", ".att.key1.", ".att.value1.", ".att.gate1.","blocks.12"]
-        tunepara = [".att.receptance1.", ".att.key1.", ".att.value1.", ".att.gate1."]
-        model.requires_grad_(False)
-        # for name, module in model.named_modules():
+        tunepara = [".att.receptance1.", ".att.key1.", ".att.value1.", ".att.gate1.", 
+                    ".att.receptance2.", ".att.key2.", ".att.value2.", ".att.gate2.", 
+                    # "blocks.23.",
+                    # ".att.output.",
+                    # "head.weight",
+                    # "ln_x", "ln1", "ln2", 
+                    "ln_out",   # must include this otherwise loss has no grad_fn (below).... 
+                    ]
+        '''
+        couldn't get this to work... (above). grads will be zero no matter what. 
+        suspect: freezing some paras may block grad???
+        instead, cf model.py "dirty hack" as a workaround.... 
+        '''
+        model.requires_grad_(False)    #xzl this seems a must
         for pname, param in model.named_parameters():
             for tp in tunepara:
                 if tp in pname:

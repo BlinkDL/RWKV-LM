@@ -181,7 +181,7 @@ class MMapIndexedDataset(torch.utils.data.Dataset):
     def __getstate__(self):
         return self._path
 
-    def __setstate__(self, state):
+    def __setstate__(self, state):      # xzl ... not called... why        
         self._do_init(state)
 
     def _do_init(self, path, skip_warmup):

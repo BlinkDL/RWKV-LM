@@ -10,4 +10,12 @@
     },
     // more terminal appearance https://code.visualstudio.com/docs/terminal/appearance
     "terminal.integrated.fontFamily" : "'Consolas', monospace",
+
+    "search.exclude": {
+        "RWKV-v1/**": true,
+        "RWKV-v2*/**": true,
+        "RWKV-v3*/**": true,        
+        "RWKV-v4*/**": true,
+        "**/venv**/**": true,
+    },
 }

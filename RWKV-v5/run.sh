@@ -33,13 +33,16 @@ EPOCH_SAVE=10 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens
 #
 N_NODE=1 # number of nodes
 
-export CUDA_VISIBLE_DEVICES=1,2,3
-GPU_PER_NODE=1 # number of GPUs per node   xzl this
+# export CUDA_VISIBLE_DEVICES=1,2,3
+GPU_PER_NODE=4 # number of GPUs per node   xzl this
+
+WANDB=rwkv-dbg
+# WANDB=
 
 #
 DS_BUCKET_MB=2 # set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects speed & vram usage)
-#
-python3 train.py --load_model "0" --wandb "" --proj_dir $PROJ_DIR --my_testing $MODEL_TYPE \
+
+python3 train.py --load_model "0" --wandb "$WANDB" --proj_dir $PROJ_DIR --my_testing $MODEL_TYPE \
  --ctx_len $CTX_LEN --my_pile_stage 3 --epoch_count 999999 --epoch_begin 0 \
  --data_file "data/minipile" --my_exit_tokens 1498226207 --magic_prime 2926181 \
  --num_nodes $N_NODE --micro_bsz $M_BSZ --n_layer $N_LAYER --n_embd $N_EMBD --pre_ffn 0 --head_qk 0 \
