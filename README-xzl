@@ -1,11 +1,30 @@
+#deploy to lambda VM
+# from local machine
+rsync.sh
+
+# on VM: 
+pip install pytorch-lightning==1.9.5 deepspeed wandb ninja --upgrade 
+
+# install pybind pybind? 
+#   local python installation
+# pip install pybind11
+#  global python?? via apt get
+sudo apt -y install python3-pybind11
+
+getdata.sh
+
+# or create a pyenv
+
+---------------------------------------------------------------
+
 #expected by deepspeed installation 
 export CUDA_HOME=/sw/ubuntu-22.04/cuda/12.4.0/
 pip3 install deepspeed wandb ninja
 
 # to train .... 
 source env-xzl.sh
-./demo-training-prepare.sh
-./demo-training-run.sh 
+./prep.sh
+./run.sh 
 
 command output 
 

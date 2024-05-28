@@ -81,6 +81,7 @@ class train_callback(pl.Callback):
                 logstr += f"layer {ly} receptance.grad {nm.item()}\n"
 
             if 'x052ffn' in os.environ["RWKV_MY_TESTING"] or 'x052xzl' in os.environ["RWKV_MY_TESTING"]:
+                '''
                 param = pl_module.blocks[ly].ffn.key1.weight
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
                 lll[f"GRAD: layer {ly} ffn key1"] = nm.item()
@@ -90,8 +91,8 @@ class train_callback(pl.Callback):
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
                 lll[f"GRAD: layer {ly} ffn key2"] = nm.item()
                 # logstr += f"layer {ly} key.grad {nm.item()}\n"
-
                 '''
+                
                 param = pl_module.blocks[ly].ffn.receptance1.weight
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
                 lll[f"GRAD: layer {ly} ffn receptance1"] = nm.item()
@@ -101,6 +102,7 @@ class train_callback(pl.Callback):
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
                 lll[f"GRAD: layer {ly} ffn receptance2"] = nm.item()
 
+                '''
                 param = pl_module.blocks[ly].ffn.value1.weight
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
                 lll[f"GRAD: layer {ly} ffn value1"] = nm.item()

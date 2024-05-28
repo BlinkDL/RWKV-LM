@@ -1041,16 +1041,27 @@ class RWKV_CMix_x052_xzl(MyModule):
             self.time_mix_k = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))
             self.time_mix_r = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))
         
+        # xzl: May 2024 below upper projection n_embd->(3.5x)n_embed is different than 
+        # others, i.e. n_embd->n_embd projection
+        # 1. if we follow the theory of svd for finetuning, it's gonna be         
+        # n_embd -> n_embd//svdfac ->dim_ffn (b/c the svd rank) which creates a very narrow 
+        # bottleneck. this seems to be at odds with the rationale of upper projection
+        #
+        # 2. if we do n_embd -> dim_ffn//svdfac ->dim_ffn, it seems not warranted
+        # by svd theory (i.e. the left/right matrix rank must < n_embd). this 
+        # may be ok for pretraining (tested to work), but not finetuning?
+
         # orig scale 1.0
-        # self.key = nn.Linear(args.n_embd, args.dim_ffn, bias=False)
-        self.key1 = nn.Linear(args.n_embd, args.dim_ffn//args.svdfac, bias=False)
-        self.key2 = nn.Linear(args.dim_ffn//args.svdfac, args.dim_ffn, bias=False)
+        self.key = nn.Linear(args.n_embd, args.dim_ffn, bias=False)
+        # self.key1 = nn.Linear(args.n_embd, args.dim_ffn//args.svdfac, bias=False)
+        # self.key2 = nn.Linear(args.dim_ffn//args.svdfac, args.dim_ffn, bias=False)
 
         # orig scale 0
-        self.receptance = nn.Linear(args.n_embd, args.n_embd, bias=False)
-        # self.receptance1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
-        # self.receptance2 = nn.Linear(args.n_embd//args.svdfac, args.n_embd, bias=False)
+        # self.receptance = nn.Linear(args.n_embd, args.n_embd, bias=False)
+        self.receptance1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
+        self.receptance2 = nn.Linear(args.n_embd//args.svdfac, args.n_embd, bias=False)
 
+        # cf self.key above, maybe ok for pretraining (to be tested again)
         # orig scale 0
         self.value = nn.Linear(args.dim_ffn, args.n_embd, bias=False)
         # self.value1 = nn.Linear(args.dim_ffn, args.dim_ffn//args.svdfac, bias=False)
@@ -1062,23 +1073,28 @@ class RWKV_CMix_x052_xzl(MyModule):
         xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)
         xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)
         
-        k = self.key1(xk)
-        if self.hasrelu:
-            k = torch.relu(k) ** 2
-        k = self.key2(k)
+        k = self.key(xk)
+        # k = self.key1(xk)
+        # if self.hasrelu:
+        #     k = torch.relu(k) ** 2
+        # k = self.key2(k)
 
-        k = torch.relu(k) ** 2  #xzl: sqr relu, exists in original design 
+        k = torch.relu(k) ** 2  #xzl: sqr relu, in original design 
 
-        # kv = self.value1(k)
-        # kv = self.value2(kv)
         kv = self.value(k)
+        # kv = self.value1(k)
+        # if self.hasrelu:
+        #     kv = torch.relu(kv) ** 2        
+        # kv = self.value2(kv)
 
-        # Wr - SVD
-        # r = self.receptance1(xr)
-        # r = self.receptance2(r)
-        # return torch.sigmoid(r) * kv
+        # Wr mod
+        r = self.receptance1(xr)
+        if self.hasrelu:
+            r = torch.relu(r) ** 2
+        r = self.receptance2(r)
+        return torch.sigmoid(r) * kv
         # Wr - orig
-        return torch.sigmoid(self.receptance(xr)) * kv
+        # return torch.sigmoid(self.receptance(xr)) * kv
     
 class RWKV_CMix_x060(MyModule):
     def __init__(self, args, layer_id):

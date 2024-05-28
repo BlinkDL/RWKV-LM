@@ -339,6 +339,7 @@ if __name__ == "__main__":
     if args.finetune: 
         tunepara = [".att.receptance1.", ".att.key1.", ".att.value1.", ".att.gate1.", 
                     ".att.receptance2.", ".att.key2.", ".att.value2.", ".att.gate2.", 
+                    ".att.receptance1.", ".att.receptance2.", 
                     # "blocks.23.",
                     # ".att.output.",
                     # "head.weight",

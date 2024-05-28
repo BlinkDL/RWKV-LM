@@ -12,8 +12,9 @@
 #
 # MODEL_TYPE="x052" # x052 => rwkv-5.2 (rwkv-5 final)
 # MODEL_TYPE="x052xzl" # my mods, both att and ffn
-# MODEL_TYPE="x052xzlFFNk" # my mods, both att and ffn, ffn only has key decomposed
-MODEL_TYPE="x052attTune" # my mods, att only + finetune
+MODEL_TYPE="x052xzlTune" # save as above, finetune
+
+# MODEL_TYPE="x052attTune" # my mods, att only + finetune
 # MODEL_TYPE="x052att" # my mods, att only
 
 # MODEL_TYPE="x060" # x060 => rwkv-6.0
@@ -23,7 +24,7 @@ MODEL_TYPE="x052attTune" # my mods, att only + finetune
 # N_EMBD="768"
 N_LAYER="24"
 N_EMBD="1024"
-SVDFAC="4"
+SVDFAC="16"
 #
 CTX_LEN="512" # !!! change magic_prime if you change ctx_len !!!
 PROJ_DIR="out/L"$N_LAYER"-D"$N_EMBD"-F"$SVDFAC"-"$MODEL_TYPE # set output folder
@@ -42,7 +43,7 @@ M_BSZ="8" # xzl
 LR_INIT="6e-4"
 LR_FINAL="6e-5"
 GRAD_CP=1 # 1 => slower, save VRAM; 0 => faster, more VRAM
-EPOCH_SAVE=10 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens) => decrease if your GPU is weak
+EPOCH_SAVE=5 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens) => decrease if your GPU is weak
 #
 #######################################################################################################################
 #
@@ -51,8 +52,10 @@ EPOCH_SAVE=10 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens
 #
 N_NODE=1 # number of nodes
 
-export CUDA_VISIBLE_DEVICES=1,2,3
-GPU_PER_NODE=3 # number of GPUs per node   3 gpus --> Nan loss, why? 
+# export CUDA_VISIBLE_DEVICES=1,2,3
+# GPU_PER_NODE=1 
+
+GPU_PER_NODE=4
 
 # WANDB=rwkv-dbg
 WANDB=rwkv-tune
@@ -68,4 +71,5 @@ python3 train.py --load_model "0" --wandb "$WANDB"  --proj_dir $PROJ_DIR --my_te
  --weight_decay 0.001 --epoch_save $EPOCH_SAVE --head_size_a 64 \
  --accelerator gpu --devices $GPU_PER_NODE --precision bf16 --strategy deepspeed_stage_2 --grad_cp $GRAD_CP --enable_progress_bar True --ds_bucket_mb $DS_BUCKET_MB \
  --svdfac $SVDFAC   \
+ --NoReLu   1       \
  --finetune 1     # cf train.py "args.finetune"

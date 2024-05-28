@@ -7,9 +7,16 @@
 
 # Ex
 
-# python3 svd.py --svdfac 8 --decompose 1
-# python3 svd.py --decompose 0 
+'''
+# decompse
+python3 svd.py --svdfac 8 --decompose 1
 
+# decompse emb
+python3 svd.py --decompose 2
+
+# recover 
+python3 svd.py --decompose 0 
+'''
 
 # orig name: RWKV_v5_demo.py, inference code
 ########################################################################################################
@@ -44,8 +51,20 @@ def build_ranks(sigma):
         if s >= threshold:
             return i
 
-def full_to_svd(w):
+def decompose_emb(args):
+    print(f"to load orig model {args.MODEL_NAME}.pth...")
+    w = torch.load(args.MODEL_NAME + '.pth', map_location='cpu') # xzl: load model...    
+    print("model loaded")
+
+    emb = w['emb.weight'].float()
+    U,S,V=torch.pca_lowrank(emb) 
+    breakpoint()
+
+def full_to_svd(w,args):
     selfkeys = [".att.receptance.", ".att.key.", ".att.value.", ".att.gate."]
+    if args.decompose_ffn: 
+        selfkeys += [".ffn.receptance."]
+
     # xzl: all params saved in bfloat16 in model file
     for k in w.keys():
         # print(k)  #  also print para names on the way...
@@ -58,7 +77,7 @@ def full_to_svd(w):
 
     self_n_head = w['blocks.0.att.time_decay'].shape[0]
     self_head_size = w['blocks.0.ln1.weight'].shape[0] // self_n_head
-    self_rank = args.n_embd // args.svdfac 
+    # self_rank = args.n_embd // args.svdfac 
 
     neweight = w.copy()
 
@@ -68,13 +87,11 @@ def full_to_svd(w):
             if kk in k:                     
                 # SVD https://youtu.be/H7qMMudo3e8?si=-LfBKhF0SXZdALrv
                 U, S, VT = np.linalg.svd(w[k], full_matrices=False)
-                # print(f"U {U.shape}")
-                # print(f"S {S.shape}")
-                # print(f"VT {VT.shape}")
+                if args.verbose: 
+                    print(kk, f"U {U.shape} S {S.shape} VT {VT.shape}")
                 # r = build_ranks(S)      # dynamic rank 
-                r = self_rank   # fixed rank 
+                r = S.shape[0] // args.svdfac
                 S = np.diag(S)
-                # print(f"{k} rank={r}")
                 total.append(r)
                 w_approx = U[:, :r] @ S[0:r, :r] @ VT[:r, :]
                 # print(f"U {U[:,:r].shape}")
@@ -91,7 +108,8 @@ def full_to_svd(w):
 
                 nn = torch.linalg.matrix_norm(torch.tensor(w_approx)-w[k])
                 nn2 = torch.linalg.matrix_norm(w_app2-w[k])
-                print(f"norm(diff) is {nn.item()} {nn2.item()}")
+                if args.verbose:
+                    print(f"norm(diff) is {nn.item()} {nn2.item()}")
 
                 # save decomposed .... 
                 del neweight[k]
@@ -99,7 +117,8 @@ def full_to_svd(w):
                 k2 = k.replace(".weight", "2.weight")
                 neweight[k1] = U1.to(torch.float32)
                 neweight[k2] = U2.to(torch.float32)
-                print(f"{k}->{k1},{k2}")
+                if 'blocks.1.' in k1 or args.verbose:
+                    print(f"{k}->{k1},{k2}")
                 # breakpoint() 
                 continue
     print(f"avg rank = {sum(total)/len(total)}")
@@ -125,7 +144,7 @@ def full_to_svd(w):
 
 # load svd and recover full matrices
 # return the model as dict
-def svd_recover_to_full(w):
+def svd_recover_to_full(w, args):
     for k in w.keys():
         # print(k)  #  also print para names on the way...
         w[k] = w[k].float() # convert to f32 type for compute
@@ -137,6 +156,12 @@ def svd_recover_to_full(w):
     shortkeys = ["receptance", "key", "value", "gate"]
     for i in range(args.n_layer):
         for kk in shortkeys:        
+            if i ==0: #info onlyl
+                n0 = f"att.{kk}"
+                n1 = f"att.{kk}1"
+                n2 = f"att.{kk}2"
+                print(f"{n1},{n2} -> {n0}")
+
             n0 = f"blocks.{i}.att.{kk}.weight"
             n1 = f"blocks.{i}.att.{kk}1.weight"
             n2 = f"blocks.{i}.att.{kk}2.weight"
@@ -146,23 +171,39 @@ def svd_recover_to_full(w):
             del w[n1]
             del w[n2]
             w[n0] = w0
-            print(f"{n1},{n2} -> {n0}")
-
-    #  if ffn decomposed, recover 
-    if 'blocks.0.ffn.key1.weight' in w:
-        shortkeys = ["key"]
-        for i in range(args.n_layer):
-            for kk in shortkeys:                
-                n0 = f"blocks.{i}.ffn.{kk}.weight"
-                n1 = f"blocks.{i}.ffn.{kk}1.weight"
-                n2 = f"blocks.{i}.ffn.{kk}2.weight"
-                w1 = w[n1]
-                w2 = w[n2]
-                w0 = w2 @ w1
-                del w[n1]
-                del w[n2]
-                w[n0] = w0 
+            if args.verbose:
                 print(f"{n1},{n2} -> {n0}")
+
+    #  if ffn.xx found decomposed, recover as well
+    shortkeys = []
+    if 'blocks.0.ffn.key1.weight' in w:
+        shortkeys += ["key"]
+    if 'blocks.0.ffn.value1.weight' in w:
+        shortkeys += ["value"]        
+    if 'blocks.0.ffn.receptance1.weight' in w:
+        shortkeys += ["receptance"]
+
+    for i in range(args.n_layer):
+        for kk in shortkeys:     
+            if i ==0: #info onlyl
+                n0 = f"ffn.{kk}"
+                n1 = f"ffn.{kk}1"
+                n2 = f"ffn.{kk}2"
+                print(f"{n1},{n2} -> {n0}")
+
+            n0 = f"blocks.{i}.ffn.{kk}.weight"
+            n1 = f"blocks.{i}.ffn.{kk}1.weight"
+            n2 = f"blocks.{i}.ffn.{kk}2.weight"
+            w1 = w[n1]
+            w2 = w[n2]
+            w0 = w2 @ w1
+            del w[n1]
+            del w[n2]
+            w[n0] = w0 
+            if args.verbose:
+                print(f"{n1},{n2} -> {n0}")
+    
+    print(f"total {args.n_layer} layers")
     return w
 
 def compare(w0, w1): 
@@ -173,13 +214,13 @@ def compare(w0, w1):
         nn = torch.norm(v0-v1)
         print(f"{k0} norm(diff) {nn.item()}")
 
-def decompose_orig():
+def decompose_orig(args):
     print(f"to load orig model {args.MODEL_NAME}.pth...")
     w0 = torch.load(args.MODEL_NAME + '.pth', map_location='cpu') # xzl: load model...    
     print("model loaded")
 
     print("decompose to svd model...")
-    w1 = full_to_svd(w0)
+    w1 = full_to_svd(w0, args)
     for k in w1.keys():
         w1[k]=w1[k].to(dtype=torch.bfloat16) # still save as bfloat
     torch.save(w1,f"{args.MODEL_NAME}-svd-F{args.svdfac}.pth")
@@ -194,19 +235,19 @@ def decompose_orig():
     print("model loaded")
 
     print("recover full model & cmp...")
-    w00 = svd_recover_to_full(w2) 
+    w00 = svd_recover_to_full(w2,args) 
     compare(w0, w00)
 
     print(f"saved to {args.MODEL_NAME}-svd-F{args.svdfac}.pth")
 
 # load a trained (or finetuned) custom model, recover to the orig format, 
 #       so it can be exec with unmodified infer engine
-def recover():
+def recover(args):
     print(f"to load custom model {args.MODEL_NAME}.pth...")
     w0 = torch.load(args.MODEL_NAME + '.pth', map_location='cpu') # xzl: load model...
     print("model loaded")
 
-    w00 = svd_recover_to_full(w0) 
+    w00 = svd_recover_to_full(w0,args) 
     for k in w00.keys():
         w00[k]=w00[k].to(dtype=torch.bfloat16) # still save as bfloat
 
@@ -215,7 +256,9 @@ def recover():
 
 
 DEFAULT_ORIG = '/bigtemp/xl6yq/RWKV-5-World-0.4B-v2-20231113-ctx4096'
-DEFAULT_MY = '/u/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D1024-F4-x052attTune/rwkv-0'
+# DEFAULT_MY = '/u/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D1024-F4-x052attTune/rwkv-0'
+# DEFAULT_MY = '/u/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D1024-F4-x052xzlTune/rwkv-10'
+DEFAULT_MY = '/bigtemp/rwkv-3b-0'
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
@@ -223,23 +266,39 @@ if __name__ == '__main__':
 
     parser.add_argument("--orig_model", default=DEFAULT_ORIG, type=str)
     parser.add_argument("--my_model", default=DEFAULT_MY, type=str)
-    parser.add_argument("-s", "--svdfac", default=4, type=int)
+    
     parser.add_argument("-d", "--decompose", default=1, type=int)
+    parser.add_argument("-s", "--svdfac", default=4, type=int)
+    # decompose (some) ffn weights in ffn as well 
+    parser.add_argument("--decompose_ffn", default=0, type=int)
+        
+    parser.add_argument("--verbose", default=0, type=int)
+
     args = parser.parse_args()
 
-    # defaults ... 
-    args.n_layer = 24   # xzl: so we cannot figure out automatically???
-    args.n_embd = 1024
-
+    
+    # .1B
     # args.n_layer = 12   
     # args.n_embd = 768
+
+    # .3B
+    # args.n_layer = 24   # xzl: so we cannot figure out automatically???
+    # args.n_embd = 1024
+
+    # 3B
+    args.n_layer = 32   # xzl: so we cannot figure out automatically???
+    args.n_embd = 2560
+
     args.vocab_size = 65536
 
     args.convert = 1
 
-    if args.decompose: 
+    if args.decompose == 1: 
         args.MODEL_NAME = args.orig_model
-        decompose_orig()
-    else: 
+        decompose_orig(args)
+    elif args.decompose == 0:
         args.MODEL_NAME = args.my_model
-        recover()
+        recover(args)
+    elif args.decompose == 2:
+        args.MODEL_NAME = args.orig_model
+        decompose_emb(args)

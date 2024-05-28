@@ -12,6 +12,7 @@
     "terminal.integrated.fontFamily" : "'Consolas', monospace",
 
     "search.exclude": {
+        "staged/**": true,
         "RWKV-v1/**": true,
         "RWKV-v2*/**": true,
         "RWKV-v3*/**": true,        

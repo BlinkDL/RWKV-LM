@@ -19,18 +19,22 @@ source model-config.sh
 # Larger model => use smaller LR
 # Finetuning => use very small LR, such as 1e-5
 #
+M_BSZ="16" # takes ~9G VRAM here => reduce this to save VRAM, increase this for faster speed
 LR_INIT="6e-4"
 LR_FINAL="6e-5"
-EPOCH_SAVE=10 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens) => decrease if your GPU is weak
+GRAD_CP=1 # 1 => slower, save VRAM; 0 => faster, more VRAM
+EPOCH_SAVE=5 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens) => decrease if your GPU is weak
 #
 #######################################################################################################################
 #
 # magic_prime = the largest 3n+2 prime smaller than datalen/ctxlen-1 (= 1498226207/512-1 = 2926222.06 in this case) = 2926181 in this case
 # use https://www.dcode.fr/prime-numbers-search
 #
+N_NODE=1 # number of nodes
 
-export CUDA_VISIBLE_DEVICES=1,2,3
-GPU_PER_NODE=4 # number of GPUs per node  
+# export CUDA_VISIBLE_DEVICES=1,2,3
+# GPU_PER_NODE=4 # number of GPUs per node  
+GPU_PER_NODE=8 # number of GPUs per node  
 
 WANDB=rwkv-dbg
 # WANDB=
