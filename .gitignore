@@ -6,6 +6,7 @@
 *.xlsb
 *.xlsx
 *.xls
+*.npy
 wandb/
 data/
 vocab.json

@@ -37,7 +37,8 @@ if __name__ == "__main__":
     parser.add_argument("--dim_att", default=0, type=int)
     parser.add_argument("--dim_ffn", default=0, type=int)
     parser.add_argument("--pre_ffn", default=0, type=int)  # replace first att layer by ffn (sometimes better)      xzl: dark trick...
-    parser.add_argument("--head_qk", default=0, type=int)  # my headQK trick        xzl:????
+    parser.add_argument("--head_qk", default=0, type=int)  # my headQK trick        xzl:cf REAMDE
+    parser.add_argument("--head_K", default=0, type=int)  # xzl: compress cls head as K clusters
     parser.add_argument("--tiny_att_dim", default=0, type=int)  # tiny attention dim
     # xzl: can "shrink" att dim at specified layers... (cf model.py) not used in train script
     parser.add_argument("--tiny_att_layer", default=-999, type=int)  # tiny attention @ which layer         

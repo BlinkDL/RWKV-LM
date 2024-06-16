@@ -2,6 +2,8 @@ import json, math, random, sys, time, shutil, os, string, re, fileinput
 import numpy as np
 
 """
+xzl: this for finetuning on own (small) dataset...
+
 How to use:
 
 python make_data.py demo.jsonl 3 4096

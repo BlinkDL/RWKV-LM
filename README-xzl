@@ -1,3 +1,15 @@
+notes on tokenzier and vocab
+
+cf RWKV_v5_demo-svd.py
+
+vocab.txt
+each line: idx, token, len_of_token
+
+although # of distinct tokens <65536, vocab_size is set to 65536
+for ease (?)
+
+---------------------------------------------------------------
+
 #deploy to lambda VM
 # from local machine
 rsync.sh

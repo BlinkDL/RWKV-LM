@@ -15,6 +15,8 @@ if importlib.util.find_spec('deepspeed'):
     import deepspeed
     from deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam
 
+import numpy as np      # xzl
+
 # from deepspeed.runtime.fp16.onebit.zoadam import ZeroOneAdam
 
 try:
@@ -1306,9 +1308,31 @@ class RWKV(pl.LightningModule):
         self.blocks = nn.ModuleList([Block(args, i) for i in range(args.n_layer)])
 
         self.ln_out = nn.LayerNorm(args.n_embd)
-        self.head = nn.Linear(args.n_embd, args.vocab_size, bias=False)   # xzl:classification head?
+        self.head = nn.Linear(args.n_embd, args.vocab_size, bias=False)   # xzl:classification head
 
-        if args.head_qk > 0:        # xzl: headqk trick??? disabled in training script.
+        # xzl: compress cls head as two layers....
+        if args.head_K > 1:                        
+            K = args.head_K
+            labels = np.load('out/RWKV-5-World-0.4B-v2-20231113-ctx4096-emb-cluster-labels.npy')
+            clusters = []
+            
+            # self.token2cls = {}
+            self.token2cls = []
+            self.head_l1 = nn.Linear(args.n_embd, K, bias=False) 
+            # self.head_l2 = []
+            self.head_l2 = nn.ParameterList()
+
+            for i in range(K):
+                clusters.append([])
+            for i in range(len(labels)):
+                c = labels[i]
+                # self.token2cls[i] = (c,len(clusters[c]))
+                self.token2cls.append((c,len(clusters[c])))
+                clusters[c].append(i)            
+            for c in range(K):
+                self.head_l2.append(nn.Linear(args.n_embd, len(clusters[c]), bias=False))
+            # breakpoint()
+        if args.head_qk > 0:        # xzl: (cf README) disabled in training script.
             self.head_q = nn.Linear(args.n_embd, args.head_qk, bias=False)  # xzl: additional projection??
             self.head_k = nn.Linear(args.n_embd, args.head_qk, bias=False)
             self.register_buffer("copy_mask", torch.tril(torch.ones(args.ctx_len, args.ctx_len)))
@@ -1415,7 +1439,7 @@ class RWKV(pl.LightningModule):
             return cfg.get("offload_optimizer") or cfg.get("offload_param")
         return False
 
-    def forward(self, idx):     
+    def forward(self, idx, target_cls=None):
         # xzl: idx: token idx, in (B,T). takes all of them for one pass
         args = self.args
         B, T = idx.size()
@@ -1455,21 +1479,63 @@ class RWKV(pl.LightningModule):
                 c = c @ F.one_hot(idx, num_classes=args.vocab_size).bfloat16()
 
             x = self.head(x) + c
+            return x
+        elif args.head_K > 1:             
+            # x1 = self.head_l1(x).numpy() 
+            # c = np.argmax(x1,dim=1) # xzl: graident shouldn't flow here?
+            x1 = self.head_l1(x)
+            # c = torch.argmax(x1.detach(),dim=2)  # xzl: graident shouldn't flow here
+
+            # force using target clusters ... 
+            # breakpoint()
+            res=[]
+            B,L = target_cls.shape
+            for b in range(B):
+                res0=[]
+                for l in range(L):
+                    # xzl: XXX slow...                    
+                    c=target_cls[b][l]      
+                    res1=self.head_l2[c](x[b][l])
+                    res1=torch.nn.functional.pad(res1, 
+                        (0,self.args.vocab_size-res1.shape[0]), 'constant', float('-inf'))
+                    res0.append(res1)                
+                res.append(torch.stack(res0))
+            x2=torch.stack(res)
+            return x1, x2
         else:   # xzl: classifiction head
             x = self.head(x)
-
-        return x
-
+            return x
+        
+        # return x
+                        
     def training_step(self, batch, batch_idx):
         # xzl: a traing step ... a batch??  a called back from torch lightning
         #   ... the "batch" formed by TL. each item  is supplied by DataLoader.__getitem__
         args = self.args
         if args.my_qa_mask != 1:        # xzl: batch has no qa masking
-            idx, targets = batch   # xzl: idx: token idx, BxT (cf forward above), targets=?? parallel train?
-            logits = self(idx)          # xzl: a fwd pass...
-            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+            idx, targets = batch   # xzl: idx: input token idx, size(B,T) (cf forward above), targets=true output idx            
+            if args.head_K > 1:
+                # token2cls = np.array(self.token2cls)
+                # tt = token2cls[targets.cpu().numpy()]
+                # target_clusters = torch.from_numpy(tt[:,:,0])
+                # target_idx_in_cluster = torch.from_numpy(tt[:,:,1])
+
+                token2cls = torch.tensor(self.token2cls, device='cuda')
+                tt = token2cls[targets]
+                target_clusters = tt[:,:,0]
+                target_idx_in_cluster = tt[:,:,1]
+
+                logits1, logits2 = self(idx,target_clusters) # xzl: logits for l1, l2...                
+                breakpoint()
+                loss1 = F.cross_entropy(logits1.view(-1, logits1.size(-1)), target_clusters.view(-1))
+                loss2 = F.cross_entropy(logits2.view(-1, logits2.size(-1)), target_idx_in_cluster.view(-1))
+                loss = loss1 * loss2
+            else: 
+                logits = self(idx)          # xzl: a fwd pass...
+                loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+
             # if '0' in os.environ["RWKV_MY_TESTING"]:
-            #     print('logits', logits)
+            #     print('logits', logits)   
             #     torch.set_printoptions(threshold=10000)
             #     print('idx', idx)
             #     exit(0)
@@ -1552,7 +1618,7 @@ class RWKV(pl.LightningModule):
                 scale = -1e-4
                 nn.init.uniform_(m[n], a=scale, b=-scale)
                 print(f" [scale {scale}]")
-            elif n == "head.weight":        # xzl: cls head (final
+            elif n == "head.weight" or "head_l1" in n or "head_l2" in n:        # xzl: cls head (final
                 m[n] = p
                 if self.args.vocab_size > self.args.n_embd:
                     scale = 0.5 * math.sqrt(self.args.vocab_size / self.args.n_embd)
