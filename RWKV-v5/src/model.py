@@ -1025,11 +1025,15 @@ class RWKV_CMix_x052(MyModule):
         return torch.sigmoid(self.receptance(xr)) * kv
 
 class RWKV_CMix_x052_xzl(MyModule):
-    def __init__(self, args, layer_id):
+    # SVD + finetune: decomposed='r'
+    # pretrain: decomposed='rkv'
+    # (cf comments below
+    def __init__(self, args, layer_id, decomposed='r'):
         super().__init__()
         self.args = args
         self.layer_id = layer_id
         self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
+        self.decomposed = decomposed
 
         self.hasrelu = True
         if self.args.NoReLu:
@@ -1054,20 +1058,26 @@ class RWKV_CMix_x052_xzl(MyModule):
         # may be ok for pretraining (tested to work), but not finetuning?
 
         # orig scale 1.0
-        self.key = nn.Linear(args.n_embd, args.dim_ffn, bias=False)
-        # self.key1 = nn.Linear(args.n_embd, args.dim_ffn//args.svdfac, bias=False)
-        # self.key2 = nn.Linear(args.dim_ffn//args.svdfac, args.dim_ffn, bias=False)
+        if 'k' in self.decomposed:
+            self.key1 = nn.Linear(args.n_embd, args.dim_ffn//args.svdfac, bias=False)
+            self.key2 = nn.Linear(args.dim_ffn//args.svdfac, args.dim_ffn, bias=False)
+        else:
+            self.key = nn.Linear(args.n_embd, args.dim_ffn, bias=False)
 
         # orig scale 0
-        # self.receptance = nn.Linear(args.n_embd, args.n_embd, bias=False)
-        self.receptance1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
-        self.receptance2 = nn.Linear(args.n_embd//args.svdfac, args.n_embd, bias=False)
+        if 'r' in self.decomposed:
+            self.receptance1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
+            self.receptance2 = nn.Linear(args.n_embd//args.svdfac, args.n_embd, bias=False)
+        else:
+            self.receptance = nn.Linear(args.n_embd, args.n_embd, bias=False)
 
         # cf self.key above, maybe ok for pretraining (to be tested again)
         # orig scale 0
-        self.value = nn.Linear(args.dim_ffn, args.n_embd, bias=False)
-        # self.value1 = nn.Linear(args.dim_ffn, args.dim_ffn//args.svdfac, bias=False)
-        # self.value2 = nn.Linear(args.dim_ffn//args.svdfac, args.n_embd, bias=False)
+        if 'v' in self.decomposed:        
+            self.value1 = nn.Linear(args.dim_ffn, args.dim_ffn//args.svdfac, bias=False)
+            self.value2 = nn.Linear(args.dim_ffn//args.svdfac, args.n_embd, bias=False)
+        else:
+            self.value = nn.Linear(args.dim_ffn, args.n_embd, bias=False)
 
     @MyFunction
     def forward(self, x):
@@ -1075,29 +1085,35 @@ class RWKV_CMix_x052_xzl(MyModule):
         xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)
         xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)
         
-        k = self.key(xk)
-        # k = self.key1(xk)
-        # if self.hasrelu:
-        #     k = torch.relu(k) ** 2
-        # k = self.key2(k)
+        if not 'k' in self.decomposed:
+            k = self.key(xk)
+        else: 
+            k = self.key1(xk)
+            if self.hasrelu:
+                k = torch.relu(k) ** 2
+            k = self.key2(k)
 
         k = torch.relu(k) ** 2  #xzl: sqr relu, in original design 
 
-        kv = self.value(k)
-        # kv = self.value1(k)
-        # if self.hasrelu:
-        #     kv = torch.relu(kv) ** 2        
-        # kv = self.value2(kv)
+        if not 'v' in self.decomposed:
+            kv = self.value(k)
+        else: 
+            kv = self.value1(k)
+            if self.hasrelu:
+                kv = torch.relu(kv) ** 2        
+            kv = self.value2(kv)
 
         # Wr mod
-        r = self.receptance1(xr)
-        if self.hasrelu:
-            r = torch.relu(r) ** 2
-        r = self.receptance2(r)
-        return torch.sigmoid(r) * kv
-        # Wr - orig
-        # return torch.sigmoid(self.receptance(xr)) * kv
-    
+        if not 'r' in self.decomposed:
+            # Wr - orig
+            return torch.sigmoid(self.receptance(xr)) * kv
+        else: 
+            r = self.receptance1(xr)
+            if self.hasrelu:
+                r = torch.relu(r) ** 2
+            r = self.receptance2(r)
+            return torch.sigmoid(r) * kv
+            
 class RWKV_CMix_x060(MyModule):
     def __init__(self, args, layer_id):
         super().__init__()
