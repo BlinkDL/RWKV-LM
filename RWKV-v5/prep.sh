@@ -26,4 +26,5 @@ python3 train.py --wandb "" --proj_dir $PROJ_DIR \
  --num_nodes 1 --micro_bsz 1 --n_layer $N_LAYER --n_embd $N_EMBD --pre_ffn 0 --head_qk 0 --my_exit_tokens 1498226207 --magic_prime 2926181 \
  --lr_init 1e-5 --lr_final 1e-5 --warmup_steps 10 --beta1 0.9 --beta2 0.99 --adam_eps 1e-8 --my_pile_edecay 0 \
  --accelerator cpu --devices 1 --precision bf16 --strategy deepspeed_stage_2 --grad_cp 1 \
- --svdfac $SVDFAC
+ --svdfac $SVDFAC   \
+ --head_K 200

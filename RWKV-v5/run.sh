@@ -33,11 +33,12 @@ EPOCH_SAVE=5 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens)
 N_NODE=1 # number of nodes
 
 # export CUDA_VISIBLE_DEVICES=1,2,3
+GPU_PER_NODE=1
 # GPU_PER_NODE=4 # number of GPUs per node  
-GPU_PER_NODE=8 # number of GPUs per node  
+# GPU_PER_NODE=8 # number of GPUs per node  
 
-WANDB=rwkv-dbg
-# WANDB=
+# WANDB=rwkv-dbg
+WANDB=
 
 #
 DS_BUCKET_MB=2 # set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects speed & vram usage)
@@ -49,4 +50,5 @@ python3 train.py --load_model "0" --wandb "$WANDB" --proj_dir $PROJ_DIR --my_tes
  --lr_init $LR_INIT --lr_final $LR_FINAL --warmup_steps 10 --beta1 0.9 --beta2 0.99 --adam_eps 1e-8 --my_pile_edecay 0 --data_type "binidx" --vocab_size 65536 \
  --weight_decay 0.001 --epoch_save $EPOCH_SAVE --head_size_a 64 \
  --accelerator gpu --devices $GPU_PER_NODE --precision bf16 --strategy deepspeed_stage_2 --grad_cp $GRAD_CP --enable_progress_bar True --ds_bucket_mb $DS_BUCKET_MB \
- --svdfac $SVDFAC
+ --svdfac $SVDFAC   \
+ --head_K 200

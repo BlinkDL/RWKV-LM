@@ -18,6 +18,11 @@ python3 svd.py --decompose 2
 python3 svd.py --decompose 0 
 '''
 
+DEFAULT_ORIG = '/p/cam-diva/RWKV-5-World-0.4B-v2-20231113-ctx4096'
+# DEFAULT_MY = '/u/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D1024-F4-x052attTune/rwkv-0'
+# DEFAULT_MY = '/u/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D1024-F4-x052xzlTune/rwkv-10'
+DEFAULT_MY = '/u/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D2048-F4-x052xzlNoReLu/rwkv-11'
+
 # orig name: RWKV_v5_demo.py, inference code
 ########################################################################################################
 # The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM
@@ -56,10 +61,43 @@ def decompose_emb(args):
     w = torch.load(args.MODEL_NAME + '.pth', map_location='cpu') # xzl: load model...    
     print("model loaded")
 
-    emb = w['emb.weight'].float()
-    U,S,V=torch.pca_lowrank(emb) 
-    breakpoint()
+    K = 200
 
+    # emb = w['emb.weight'].float().to('cuda')
+    emb = w['emb.weight'].float()
+    U,S,V=torch.pca_lowrank(emb, q=256, center=True)
+    pc = torch.matmul(emb, V[:, :K])
+    
+    # https://pypi.org/project/torch-kmeans/
+    # from torch_kmeans import KMeans
+    # km = KMeans(n_clusters=K)
+    # r = km(pc.unsqueeze(0))  # r (BS=1, N, D)
+    # breakpoint()
+    
+    from sklearn.cluster import KMeans
+
+    if False:   # do kmeans & save results. slow 
+        pc1 = pc.numpy()
+        kmeans = KMeans(n_clusters=K, random_state=0).fit(pc1)
+        labels = kmeans.labels_
+        # breakpoint()
+        np.save('out/RWKV-5-World-0.4B-v2-20231113-ctx4096-emb-cluster-labels.npy', labels)
+    else:       # load a saved file 
+        labels = np.load('out/RWKV-5-World-0.4B-v2-20231113-ctx4096-emb-cluster-labels.npy')
+
+    breakpoint()
+    clusters = []
+    for i in range(K):
+        clusters.append([])
+    for i in range(len(labels)):
+        c = labels[i]
+        clusters[c].append(i)
+
+    breakpoint()
+    # to count cluster sizes
+    # counts = np.bincount(labels[labels>=0])
+    # print(counts)
+    
 def full_to_svd(w,args):
     selfkeys = [".att.receptance.", ".att.key.", ".att.value.", ".att.gate."]
     if args.decompose_ffn: 
@@ -253,13 +291,7 @@ def recover(args):
 
     torch.save(w00,f"{args.MODEL_NAME}-recover.pth")
     print(f">>> saved to {args.MODEL_NAME}-recover.pth")
-
-
-DEFAULT_ORIG = '/bigtemp/xl6yq/RWKV-5-World-0.4B-v2-20231113-ctx4096'
-# DEFAULT_MY = '/u/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D1024-F4-x052attTune/rwkv-0'
-# DEFAULT_MY = '/u/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D1024-F4-x052xzlTune/rwkv-10'
-DEFAULT_MY = '/bigtemp/rwkv-3b-0'
-
+    
 if __name__ == '__main__':
     from argparse import ArgumentParser
     parser = ArgumentParser()
@@ -285,9 +317,13 @@ if __name__ == '__main__':
     # args.n_layer = 24   # xzl: so we cannot figure out automatically???
     # args.n_embd = 1024
 
+    # 1.5B
+    args.n_layer = 24   # xzl: so we cannot figure out automatically???
+    args.n_embd = 2048
+
     # 3B
-    args.n_layer = 32   # xzl: so we cannot figure out automatically???
-    args.n_embd = 2560
+    # args.n_layer = 32   # xzl: so we cannot figure out automatically???
+    # args.n_embd = 2560
 
     args.vocab_size = 65536
 
