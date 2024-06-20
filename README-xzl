@@ -1,3 +1,30 @@
+---------------------------------------------------------------
+
+experiment log: clustserd cls head
+
+first pretrain out/L12-D768-F4-x052xzlNoReLu with run.sh, which trains
+    both the original emb and original cls head
+
+----> out/L12-D768-F4-x052xzlNoReLu/rwkv-60.pth 
+
+run svd.py to cluster tokens, based on the trained emb, i.e. 
+python3 svd.py --decompose 2 --orig_model out/L12-D768-F4-x052xzlNoReLu/rwkv-60
+
+----> rwkv-60-cls.npy
+
+then, run run-cls.sh
+  which specifies load_partial, load_token_cls, and HEAD_K (# of clusters)==200
+  it's very slow. b/c my unopt code for training individual cls clusters...
+  after one night of training (9 epochs on 4090), loss drops from 1000 to 3.17 
+  which matches the orignal cls head
+
+ 233/2520 [06:49<1:07:02,  1.76s/it, loss=3.170, lr=6.16e-5, REAL it/s=0.569, Kt/s=4.660]
+
+results: 
+out/L12-D768-F4-x052xzlNoReLu-cls
+---->  rwkv-66.pth
+  
+---------------------------------------------------------------
 notes on tokenzier and vocab
 
 cf RWKV_v5_demo-svd.py

@@ -1057,18 +1057,25 @@ class RWKV_CMix_x052_xzl(MyModule):
         # by svd theory (i.e. the left/right matrix rank must < n_embd). this 
         # may be ok for pretraining (tested to work), but not finetuning?
 
+        breakpoint()
+        
         # orig scale 1.0
         if 'k' in self.decomposed:
             self.key1 = nn.Linear(args.n_embd, args.dim_ffn//args.svdfac, bias=False)
-            self.key2 = nn.Linear(args.dim_ffn//args.svdfac, args.dim_ffn, bias=False)
+            self.key2 = nn.Linear(args.dim_ffn//args.svdfac, args.dim_ffn, bias=False)            
         else:
+            self.key1 = nn.Linear(1,1)  # appease forward() (torchscript)
+            self.key2 = nn.Linear(1,1)  # appease forward() (torchscript)
             self.key = nn.Linear(args.n_embd, args.dim_ffn, bias=False)
 
         # orig scale 0
         if 'r' in self.decomposed:
+            self.receptance = nn.Linear(1,1)  # appease forward() (torchscript)
             self.receptance1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
             self.receptance2 = nn.Linear(args.n_embd//args.svdfac, args.n_embd, bias=False)
         else:
+            self.receptance1 = nn.Linear(1,1)  # appease forward() (torchscript)
+            self.receptance2 = nn.Linear(1,1)  # appease forward() (torchscript)
             self.receptance = nn.Linear(args.n_embd, args.n_embd, bias=False)
 
         # cf self.key above, maybe ok for pretraining (to be tested again)
@@ -1077,6 +1084,8 @@ class RWKV_CMix_x052_xzl(MyModule):
             self.value1 = nn.Linear(args.dim_ffn, args.dim_ffn//args.svdfac, bias=False)
             self.value2 = nn.Linear(args.dim_ffn//args.svdfac, args.n_embd, bias=False)
         else:
+            self.value1 = nn.Linear(1,1)  # appease forward() (torchscript)
+            self.value2 = nn.Linear(1,1)  # appease forward() (torchscript)
             self.value = nn.Linear(args.dim_ffn, args.n_embd, bias=False)
 
     @MyFunction
@@ -1282,12 +1291,15 @@ class Block(nn.Module):
             x = x + c @ self.tiny_v(x_emb)
         return x
 
-# xzl: whats this for
+# xzl: whats this for 
 class L2Wrap(torch.autograd.Function):
     @staticmethod
     def forward(ctx, loss, y):
         ctx.save_for_backward(y)
         return loss
+
+    # xzl: backward ... return grad and grad on logits???
+    # (to understand better....
 
     @staticmethod
     def backward(ctx, grad_output):
@@ -1329,20 +1341,18 @@ class RWKV(pl.LightningModule):
         # xzl: compress cls head as two layers....
         if args.head_K > 1:                        
             K = args.head_K
-            labels = np.load('out/RWKV-5-World-0.4B-v2-20231113-ctx4096-emb-cluster-labels.npy')
+            # labels = np.load('out/RWKV-5-World-0.4B-v2-20231113-ctx4096-emb-cluster-labels.npy')
+            labels = np.load(args.load_token_cls)
             clusters = []
             
-            # self.token2cls = {}
             self.token2cls = []
             self.head_l1 = nn.Linear(args.n_embd, K, bias=False) 
-            # self.head_l2 = []
             self.head_l2 = nn.ParameterList()
 
             for i in range(K):
                 clusters.append([])
             for i in range(len(labels)):
                 c = labels[i]
-                # self.token2cls[i] = (c,len(clusters[c]))
                 self.token2cls.append((c,len(clusters[c])))
                 clusters[c].append(i)            
             for c in range(K):
@@ -1497,21 +1507,26 @@ class RWKV(pl.LightningModule):
             x = self.head(x) + c
             return x
         elif args.head_K > 1:             
+            # l1 projection: x->cluster
             # x1 = self.head_l1(x).numpy() 
             # c = np.argmax(x1,dim=1) # xzl: graident shouldn't flow here?
-            x1 = self.head_l1(x)
             # c = torch.argmax(x1.detach(),dim=2)  # xzl: graident shouldn't flow here
+            x1 = self.head_l1(x)
 
-            # force using target clusters ... 
+            # force using the GT cluster IDs, do l2 projection: 
+            #       within the cluster, x->token_id
             # breakpoint()
+            # xzl: below loop slow... XXX opt??
             res=[]
             B,L = target_cls.shape
             for b in range(B):
                 res0=[]
-                for l in range(L):
-                    # xzl: XXX slow...                    
-                    c=target_cls[b][l]      
-                    res1=self.head_l2[c](x[b][l])
+                for l in range(L):                                      
+                    c=target_cls[b][l]      # c: GT cluster id
+                    res1=self.head_l2[c](x[b][l]) # res1: logits for the token at (b,l)
+                    # pad the logits (over all tokens in the GT cluster) to same size
+                    #       (max=vocabsize)
+                    # so logits for diff tokens can be packed in a tensor
                     res1=torch.nn.functional.pad(res1, 
                         (0,self.args.vocab_size-res1.shape[0]), 'constant', float('-inf'))
                     res0.append(res1)                
@@ -1542,10 +1557,11 @@ class RWKV(pl.LightningModule):
                 target_idx_in_cluster = tt[:,:,1]
 
                 logits1, logits2 = self(idx,target_clusters) # xzl: logits for l1, l2...                
-                breakpoint()
+                # breakpoint()
                 loss1 = F.cross_entropy(logits1.view(-1, logits1.size(-1)), target_clusters.view(-1))
                 loss2 = F.cross_entropy(logits2.view(-1, logits2.size(-1)), target_idx_in_cluster.view(-1))
                 loss = loss1 * loss2
+                logits = logits1  # xzl: cat logits1,2??
             else: 
                 logits = self(idx)          # xzl: a fwd pass...
                 loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))

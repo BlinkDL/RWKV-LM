@@ -1,13 +1,4 @@
 #!/bin/bash
-#######################################################################################################################
-#
-# Run demo-training-prepare.sh with the same MODEL_TYPE & N_LAYER & N_EMBD first
-# Or, rename your base model to rwkv-init.pth and put it in the output folder
-#
-# The trainer will load the last rwkv-*.pth in the folder, such that it can continue from a stopped run
-# Therefore check the log (### Loading rwkv-xxx.pth... ###), and make sure you don't have extra rwkv-*.pth there
-#
-#######################################################################################################################
 
 source model-config.sh
 
@@ -22,7 +13,7 @@ source model-config.sh
 M_BSZ="16" # takes ~9G VRAM here => reduce this to save VRAM, increase this for faster speed
 LR_INIT="6e-4"
 LR_FINAL="6e-5"
-GRAD_CP=0 # 1 => slower, save VRAM; 0 => faster, more VRAM
+GRAD_CP=1 # 1 => slower, save VRAM; 0 => faster, more VRAM
 EPOCH_SAVE=5 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens) => decrease if your GPU is weak
 #
 #######################################################################################################################
@@ -40,7 +31,6 @@ GPU_PER_NODE=1
 # WANDB=rwkv-dbg
 WANDB=
 
-
 #
 DS_BUCKET_MB=2 # set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects speed & vram usage)
 
@@ -51,4 +41,7 @@ python3 train.py --load_model "0" --wandb "$WANDB" --proj_dir $PROJ_DIR --my_tes
  --lr_init $LR_INIT --lr_final $LR_FINAL --warmup_steps 10 --beta1 0.9 --beta2 0.99 --adam_eps 1e-8 --my_pile_edecay 0 --data_type "binidx" --vocab_size 65536 \
  --weight_decay 0.001 --epoch_save $EPOCH_SAVE --head_size_a 64 \
  --accelerator gpu --devices $GPU_PER_NODE --precision bf16 --strategy deepspeed_stage_2 --grad_cp $GRAD_CP --enable_progress_bar True --ds_bucket_mb $DS_BUCKET_MB \
- --svdfac $SVDFAC
+ --svdfac $SVDFAC   \
+ --head_K $HEAD_K   \
+ --load_token_cls "out/L12-D768-F4-x052xzlNoReLu/rwkv-60-cls.npy"   \
+ --load_partial 1

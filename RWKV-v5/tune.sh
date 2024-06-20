@@ -24,7 +24,7 @@ MODEL_TYPE="x052xzlTune" # save as above, finetune
 # N_EMBD="768"
 N_LAYER="24"
 N_EMBD="1024"
-SVDFAC="16"
+SVDFAC="4"
 #
 CTX_LEN="512" # !!! change magic_prime if you change ctx_len !!!
 PROJ_DIR="out/L"$N_LAYER"-D"$N_EMBD"-F"$SVDFAC"-"$MODEL_TYPE # set output folder
@@ -38,11 +38,11 @@ PROJ_DIR="out/L"$N_LAYER"-D"$N_EMBD"-F"$SVDFAC"-"$MODEL_TYPE # set output folder
 # Larger model => use smaller LR
 # Finetuning => use very small LR, such as 1e-5
 #
-#M_BSZ="16" # takes ~9G VRAM here => reduce this to save VRAM, increase this for faster speed
-M_BSZ="8" # xzl
+M_BSZ="16" # takes ~9G VRAM here => reduce this to save VRAM, increase this for faster speed
+# M_BSZ="8" # xzl
 LR_INIT="6e-4"
 LR_FINAL="6e-5"
-GRAD_CP=1 # 1 => slower, save VRAM; 0 => faster, more VRAM
+GRAD_CP=0 # 1 => slower, save VRAM; 0 => faster, more VRAM
 EPOCH_SAVE=5 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens) => decrease if your GPU is weak
 #
 #######################################################################################################################
@@ -53,9 +53,9 @@ EPOCH_SAVE=5 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens)
 N_NODE=1 # number of nodes
 
 # export CUDA_VISIBLE_DEVICES=1,2,3
-# GPU_PER_NODE=1 
-
-GPU_PER_NODE=4
+export CUDA_VISIBLE_DEVICES=0
+GPU_PER_NODE=1
+# GPU_PER_NODE=4
 
 # WANDB=rwkv-dbg
 WANDB=rwkv-tune

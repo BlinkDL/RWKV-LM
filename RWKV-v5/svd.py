@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
 
-# xzl: can do the following things: 
-#       a pretrained model -->  svd decompose, and save to *.pth
-#       our decmoposed model (finetuned) ---> a model in the original format, save to *pth 
-#       diff the recovered model vs. the original model 
-
-# Ex
-
 '''
+# xzl: can do the following things: 
+
 # decompse
+#       a pretrained model -->  svd decompose, and save to *.pth
+#       diff the recovered model vs. the original model 
 python3 svd.py --svdfac 8 --decompose 1
+
+# recover: 
+#       our decmoposed model (finetuned) ---> a model in the original format, save to *pth 
+python3 svd.py --decompose 0 
 
 # decompse emb
 python3 svd.py --decompose 2
+# own model
+python3 svd.py --decompose 2 --orig_model out/L12-D768-F4-x052xzlNoReLu/rwkv-60
 
-# recover 
-python3 svd.py --decompose 0 
 '''
 
 DEFAULT_ORIG = '/p/cam-diva/RWKV-5-World-0.4B-v2-20231113-ctx4096'
@@ -76,16 +77,15 @@ def decompose_emb(args):
     
     from sklearn.cluster import KMeans
 
-    if False:   # do kmeans & save results. slow 
+    if True:   # do kmeans & save results. slow 
         pc1 = pc.numpy()
         kmeans = KMeans(n_clusters=K, random_state=0).fit(pc1)
         labels = kmeans.labels_
         # breakpoint()
-        np.save('out/RWKV-5-World-0.4B-v2-20231113-ctx4096-emb-cluster-labels.npy', labels)
+        np.save(f'{args.MODEL_NAME}-cls.npy', labels)
     else:       # load a saved file 
         labels = np.load('out/RWKV-5-World-0.4B-v2-20231113-ctx4096-emb-cluster-labels.npy')
 
-    breakpoint()
     clusters = []
     for i in range(K):
         clusters.append([])
@@ -93,10 +93,9 @@ def decompose_emb(args):
         c = labels[i]
         clusters[c].append(i)
 
-    breakpoint()
     # to count cluster sizes
-    # counts = np.bincount(labels[labels>=0])
-    # print(counts)
+    counts = np.bincount(labels[labels>=0])
+    print(counts)
     
 def full_to_svd(w,args):
     selfkeys = [".att.receptance.", ".att.key.", ".att.value.", ".att.gate."]

@@ -38,7 +38,6 @@ if __name__ == "__main__":
     parser.add_argument("--dim_ffn", default=0, type=int)
     parser.add_argument("--pre_ffn", default=0, type=int)  # replace first att layer by ffn (sometimes better)      xzl: dark trick...
     parser.add_argument("--head_qk", default=0, type=int)  # my headQK trick        xzl:cf REAMDE
-    parser.add_argument("--head_K", default=0, type=int)  # xzl: compress cls head as K clusters
     parser.add_argument("--tiny_att_dim", default=0, type=int)  # tiny attention dim
     # xzl: can "shrink" att dim at specified layers... (cf model.py) not used in train script
     parser.add_argument("--tiny_att_layer", default=-999, type=int)  # tiny attention @ which layer         
@@ -82,7 +81,9 @@ if __name__ == "__main__":
     parser.add_argument("--svdfac", default=1, type=int) 
     parser.add_argument("--finetune", default=0, type=int)  # only finetune specific paras, freezing others
     parser.add_argument("--NoReLu", default=0, type=int) # use relu between decomposed weights?
-                        
+    parser.add_argument("--head_K", default=0, type=int)  # xzl: compress cls head as K clusters
+    parser.add_argument("--load_token_cls", default="", type=str)  # token clusters, *.npy
+
     if pl.__version__[0]=='2':
         parser.add_argument("--accelerator", default="gpu", type=str)
         parser.add_argument("--strategy", default="auto", type=str)
@@ -292,11 +293,21 @@ if __name__ == "__main__":
             rank_zero_info(f"Trying {args.load_model}")
             load_dict = torch.load(args.load_model, map_location="cpu")
 
+    # xzl: allow the ckpt file to lack certain params, in which case just 
+    #   keep the model's params as is (what values???
+    # breakpoint()
     if args.load_partial == 1:
         load_keys = load_dict.keys()
         for k in model.state_dict():
             if k not in load_keys:
                 load_dict[k] = model.state_dict()[k]
+                if "head_l1" in k or "head_l2" in k:        # xzl: cls head
+                    if args.vocab_size > args.n_embd:
+                        scale = 0.5 * math.sqrt(args.vocab_size / args.n_embd)
+                    else:
+                        scale = 0.5
+                    torch.nn.init.orthogonal_(load_dict[k], gain=scale)
+
     model.load_state_dict(load_dict)
 
     if pl.__version__[0]=='2':
@@ -319,8 +330,9 @@ if __name__ == "__main__":
                 print(f"{str(shape[0]).ljust(5)} {str(shape[1]).ljust(5)} {str(shape[2]).ljust(5)} {n}")
             elif len(shape) > 1:
                 print(f"{str(shape[0]).ljust(5)} {str(shape[1]).ljust(5)}       {n}")
-            else:
+            elif len(shape) > 0:
                 print(f"{str(shape[0]).ljust(5)}             {n}")
+                # print(f"{str(shape).ljust(5)}             {n}")
 
     if "deepspeed" in args.strategy:
         trainer.strategy.config["zero_optimization"]["allgather_bucket_size"] = args.ds_bucket_mb * 1000 * 1000

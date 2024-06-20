@@ -27,4 +27,4 @@ python3 train.py --wandb "" --proj_dir $PROJ_DIR \
  --lr_init 1e-5 --lr_final 1e-5 --warmup_steps 10 --beta1 0.9 --beta2 0.99 --adam_eps 1e-8 --my_pile_edecay 0 \
  --accelerator cpu --devices 1 --precision bf16 --strategy deepspeed_stage_2 --grad_cp 1 \
  --svdfac $SVDFAC   \
- --head_K 200
+ --head_K $HEAD_K
