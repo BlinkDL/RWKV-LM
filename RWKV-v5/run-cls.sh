@@ -31,6 +31,8 @@ GPU_PER_NODE=1
 # WANDB=rwkv-dbg
 WANDB=
 
+CTX_LEN="512" # !!! change magic_prime if you change ctx_len !!!
+
 #
 DS_BUCKET_MB=2 # set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects speed & vram usage)
 

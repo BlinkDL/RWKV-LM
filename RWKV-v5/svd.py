@@ -8,9 +8,24 @@
 #       diff the recovered model vs. the original model 
 python3 svd.py --svdfac 8 --decompose 1
 
+python3 svd.py --svdfac 8 --decompose 1 --decompose_ffn 1   \
+    --orig_model /data/models/RWKV-5-World-0.4B-v2-20231113-ctx4096
+
+python3 svd.py --svdfac 8 --decompose 1 --decompose_ffn 1   \
+    --orig_model /data/models/RWKV-5-World-1B5-v2-20231025-ctx4096
+
 # recover: 
 #       our decmoposed model (finetuned) ---> a model in the original format, save to *pth 
 python3 svd.py --decompose 0 
+
+python3 svd.py \
+    --decompose 0  \
+    --my_model /data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D1024-F4-x052attDiag/rwkv-15
+
+python3 svd.py \
+    --decompose 0  \
+    --my_model /data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D1024-F8-x052xzlTune/rwkv-90
+        
 
 # decompse emb
 python3 svd.py --decompose 2
@@ -19,10 +34,11 @@ python3 svd.py --decompose 2 --orig_model out/L12-D768-F4-x052xzlNoReLu/rwkv-60
 
 '''
 
-DEFAULT_ORIG = '/p/cam-diva/RWKV-5-World-0.4B-v2-20231113-ctx4096'
+DEFAULT_ORIG = '/data/models/RWKV-5-World-0.4B-v2-20231113-ctx4096'
 # DEFAULT_MY = '/u/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D1024-F4-x052attTune/rwkv-0'
 # DEFAULT_MY = '/u/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D1024-F4-x052xzlTune/rwkv-10'
-DEFAULT_MY = '/u/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D2048-F4-x052xzlNoReLu/rwkv-11'
+# DEFAULT_MY = '/u/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D2048-F4-x052xzlNoReLu/rwkv-11'
+DEFAULT_MY = '/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D1024-F4-x052xzlTune/rwkv-16'
 
 # orig name: RWKV_v5_demo.py, inference code
 ########################################################################################################
@@ -190,6 +206,11 @@ def svd_recover_to_full(w, args):
     self_head_size = w['blocks.0.ln1.weight'].shape[0] // self_n_head
     self_rank = args.n_embd // args.svdfac 
 
+    if 'blocks.0.att.key_diag' in w:
+        has_diag = True
+    else:
+        has_diag = False
+
     shortkeys = ["receptance", "key", "value", "gate"]
     for i in range(args.n_layer):
         for kk in shortkeys:        
@@ -197,14 +218,22 @@ def svd_recover_to_full(w, args):
                 n0 = f"att.{kk}"
                 n1 = f"att.{kk}1"
                 n2 = f"att.{kk}2"
-                print(f"{n1},{n2} -> {n0}")
+                ndiag = ""
+                if has_diag:
+                    ndiag = f"att.{kk}_diag"
+                print(f"{n1},{n2} {ndiag} -> {n0}")
 
             n0 = f"blocks.{i}.att.{kk}.weight"
             n1 = f"blocks.{i}.att.{kk}1.weight"
             n2 = f"blocks.{i}.att.{kk}2.weight"
+            if has_diag:
+                ndiag = f"blocks.{i}.att.{kk}_diag"
             w1 = w[n1]
             w2 = w[n2]
             w0 = w2 @ w1
+            if has_diag:
+                w0 += torch.diag(w[ndiag])
+                del w[ndiag]
             del w[n1]
             del w[n2]
             w[n0] = w0
@@ -234,6 +263,10 @@ def svd_recover_to_full(w, args):
             w1 = w[n1]
             w2 = w[n2]
             w0 = w2 @ w1
+            if has_diag:
+                ndiag = f"blocks.{i}.ffn.{kk}_diag"
+                w0 += torch.diag(w[ndiag])
+                del w[ndiag]
             del w[n1]
             del w[n2]
             w[n0] = w0 

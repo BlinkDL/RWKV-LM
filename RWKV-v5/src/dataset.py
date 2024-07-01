@@ -50,7 +50,8 @@ class MyDataset(Dataset):
                 self.samples_per_epoch = args.epoch_steps * args.real_bsz
                 assert self.samples_per_epoch == 40320
                 rank_zero_info(f"########## Pile 20b-tokenized stage {args.my_pile_stage} ##########")
-                dataset_slot = self.data_size // args.ctx_len
+                dataset_slot = self.data_size // args.ctx_len # xzl: ~num of samples 
+                # breakpoint()
                 if args.my_pile_stage != 4:
                     assert MaybeIsPrime(args.magic_prime)
                     assert args.magic_prime % 3 == 2

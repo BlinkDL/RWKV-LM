@@ -267,6 +267,7 @@ class train_callback(pl.Callback):
     def on_train_epoch_end(self, trainer, pl_module):
         args = self.args
         to_save_dict = {}
+        save_model_path = ""
         if (trainer.is_global_zero) or ('deepspeed_stage_3' in args.strategy):  # save pth
             if (args.epoch_save > 0 and trainer.current_epoch % args.epoch_save == 0) or (trainer.current_epoch == args.epoch_count - 1):
                 if args.data_type == 'wds_img':
@@ -277,10 +278,11 @@ class train_callback(pl.Callback):
                 else:
                     to_save_dict = pl_module.state_dict()
                 try:
+                    save_model_path = f"{args.proj_dir}/rwkv-{args.epoch_begin + trainer.current_epoch}"
                     my_save(
                         args, trainer,
                         to_save_dict,
-                        f"{args.proj_dir}/rwkv-{args.epoch_begin + trainer.current_epoch}.pth",
+                        save_model_path+".pth",
                     )
                 except Exception as e:
                     print('Error\n\n', e, '\n\n')
@@ -288,6 +290,19 @@ class train_callback(pl.Callback):
         if trainer.is_global_zero:  # logging
             trainer.my_log.write(f"{args.epoch_begin + trainer.current_epoch} {trainer.my_epoch_loss:.6f} {math.exp(trainer.my_epoch_loss):.4f} {trainer.my_lr:.8f} {datetime.datetime.now()} {trainer.current_epoch}\n")
             trainer.my_log.flush()
+
+            # call lm_eval and log 
+            if save_model_path != "":
+                from .run_lm_eval import do_eval
+                res = do_eval(save_model_path)
+
+                import json
+                trainer.my_log.write(json.dumps(res)+'\n')
+                trainer.my_log.flush()
+
+                args = self.args
+                real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
+                trainer.my_wandb.log(res, step=int(real_step)) 
 
             trainer.my_loss_sum = 0
             trainer.my_loss_count = 0

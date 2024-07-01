@@ -19,9 +19,17 @@ source model-config.sh
 # Larger model => use smaller LR
 # Finetuning => use very small LR, such as 1e-5
 #
-M_BSZ="16" # takes ~9G VRAM here => reduce this to save VRAM, increase this for faster speed
-LR_INIT="6e-4"
-LR_FINAL="6e-5"
+# M_BSZ="32" # takes ~9G VRAM here => reduce this to save VRAM, increase this for faster speed
+M_BSZ="8" 
+
+# orig
+#LR_INIT="6e-4"
+#LR_FINAL="6e-5"
+
+# for "pile"
+LR_INIT="3e-4"
+LR_FINAL="3e-5"
+
 GRAD_CP=0 # 1 => slower, save VRAM; 0 => faster, more VRAM
 EPOCH_SAVE=5 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens) => decrease if your GPU is weak
 #
@@ -37,16 +45,15 @@ GPU_PER_NODE=1
 # GPU_PER_NODE=4 # number of GPUs per node  
 # GPU_PER_NODE=8 # number of GPUs per node  
 
-# WANDB=rwkv-dbg
-WANDB=
-
+WANDB=rwkv-dbg
+# WANDB=
 
 #
 DS_BUCKET_MB=2 # set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects speed & vram usage)
 
 python3 train.py --load_model "0" --wandb "$WANDB" --proj_dir $PROJ_DIR --my_testing $MODEL_TYPE \
- --ctx_len $CTX_LEN --my_pile_stage 3 --epoch_count 999999 --epoch_begin 0 \
- --data_file "data/minipile" --my_exit_tokens 1498226207 --magic_prime 2926181 \
+ --my_pile_stage 3 --epoch_count 999999 --epoch_begin 0 \
+ $DATAINFO \
  --num_nodes $N_NODE --micro_bsz $M_BSZ --n_layer $N_LAYER --n_embd $N_EMBD --pre_ffn 0 --head_qk 0 \
  --lr_init $LR_INIT --lr_final $LR_FINAL --warmup_steps 10 --beta1 0.9 --beta2 0.99 --adam_eps 1e-8 --my_pile_edecay 0 --data_type "binidx" --vocab_size 65536 \
  --weight_decay 0.001 --epoch_save $EPOCH_SAVE --head_size_a 64 \

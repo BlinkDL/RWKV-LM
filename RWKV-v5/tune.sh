@@ -13,6 +13,7 @@
 # MODEL_TYPE="x052" # x052 => rwkv-5.2 (rwkv-5 final)
 # MODEL_TYPE="x052xzl" # my mods, both att and ffn
 MODEL_TYPE="x052xzlTune" # save as above, finetune
+# MODEL_TYPE="x052attDiag"  # grad abnormal.... TBD
 
 # MODEL_TYPE="x052attTune" # my mods, att only + finetune
 # MODEL_TYPE="x052att" # my mods, att only
@@ -22,11 +23,16 @@ MODEL_TYPE="x052xzlTune" # save as above, finetune
 #
 # N_LAYER="12"
 # N_EMBD="768"
+
 N_LAYER="24"
 N_EMBD="1024"
-SVDFAC="4"
-#
-CTX_LEN="512" # !!! change magic_prime if you change ctx_len !!!
+
+# N_LAYER="24"
+# N_EMBD="2048"
+
+SVDFAC="8"
+# SVDFAC="4"
+
 PROJ_DIR="out/L"$N_LAYER"-D"$N_EMBD"-F"$SVDFAC"-"$MODEL_TYPE # set output folder
 #
 
@@ -38,8 +44,8 @@ PROJ_DIR="out/L"$N_LAYER"-D"$N_EMBD"-F"$SVDFAC"-"$MODEL_TYPE # set output folder
 # Larger model => use smaller LR
 # Finetuning => use very small LR, such as 1e-5
 #
-M_BSZ="16" # takes ~9G VRAM here => reduce this to save VRAM, increase this for faster speed
-# M_BSZ="8" # xzl
+# M_BSZ="16" # takes ~9G VRAM here => reduce this to save VRAM, increase this for faster speed
+M_BSZ="8"
 LR_INIT="6e-4"
 LR_FINAL="6e-5"
 GRAD_CP=0 # 1 => slower, save VRAM; 0 => faster, more VRAM
@@ -61,15 +67,23 @@ GPU_PER_NODE=1
 WANDB=rwkv-tune
 # WANDB=
 
+# !!! change magic_prime if you change ctx_len !!!
+
+# DATAINFO="--data_file /data/rwkv-data/data --my_exit_tokens 74958479689 --magic_prime 146403263 --ctx_len 512"
+# DATAINFO="--data_file "data/minipile" --my_exit_tokens 1498226207 --magic_prime 2926181 --ctx_len 512"
+DATAINFO="--data_file "data/minipile" --my_exit_tokens 1498226207 --magic_prime 731531 --ctx_len 2048"
+# DATAINFO="--data_file "data/minipile" --my_exit_tokens 1498226207 --magic_prime 365759 --ctx_len 4096"
+
 DS_BUCKET_MB=2 # set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects speed & vram usage)
 #
 python3 train.py --load_model "0" --wandb "$WANDB"  --proj_dir $PROJ_DIR --my_testing $MODEL_TYPE \
- --ctx_len $CTX_LEN --my_pile_stage 3 --epoch_count 999999 --epoch_begin 0 \
- --data_file "data/minipile" --my_exit_tokens 1498226207 --magic_prime 2926181 \
+ --my_pile_stage 3 --epoch_count 999999 --epoch_begin 0 \
+ $DATAINFO \
  --num_nodes $N_NODE --micro_bsz $M_BSZ --n_layer $N_LAYER --n_embd $N_EMBD --pre_ffn 0 --head_qk 0 \
  --lr_init $LR_INIT --lr_final $LR_FINAL --warmup_steps 10 --beta1 0.9 --beta2 0.99 --adam_eps 1e-8 --my_pile_edecay 0 --data_type "binidx" --vocab_size 65536 \
  --weight_decay 0.001 --epoch_save $EPOCH_SAVE --head_size_a 64 \
  --accelerator gpu --devices $GPU_PER_NODE --precision bf16 --strategy deepspeed_stage_2 --grad_cp $GRAD_CP --enable_progress_bar True --ds_bucket_mb $DS_BUCKET_MB \
  --svdfac $SVDFAC   \
  --NoReLu   1       \
+ --load_partial 1   \
  --finetune 1     # cf train.py "args.finetune"

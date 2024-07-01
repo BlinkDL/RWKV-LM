@@ -307,6 +307,9 @@ if __name__ == "__main__":
                     else:
                         scale = 0.5
                     torch.nn.init.orthogonal_(load_dict[k], gain=scale)
+                if "diag" in k: 
+                    scale = -1e-4
+                    torch.nn.init.uniform_(load_dict[k], a=scale, b=-scale)
 
     model.load_state_dict(load_dict)
 

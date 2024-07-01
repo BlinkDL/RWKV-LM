@@ -1024,7 +1024,71 @@ class RWKV_CMix_x052(MyModule):
         kv = self.value(k)
         return torch.sigmoid(self.receptance(xr)) * kv
 
-class RWKV_CMix_x052_xzl(MyModule):
+class RWKV_CMix_x052_r(MyModule):
+    # SVD + finetune: decomposed='r'
+    # pretrain: decomposed='rkv'
+    # (cf comments below
+    def __init__(self, args, layer_id):
+        super().__init__()
+        self.args = args
+        self.layer_id = layer_id
+        self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
+
+        self.hasrelu = True
+        if self.args.NoReLu:
+            self.hasrelu = False
+
+        with torch.no_grad():  # fancy init of time_mix
+            ratio_1_to_almost0 = 1.0 - (layer_id / args.n_layer)  # 1 to ~0
+            ddd = torch.ones(1, 1, args.n_embd)
+            for i in range(args.n_embd):
+                ddd[0, 0, i] = i / args.n_embd
+            self.time_mix_k = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))
+            self.time_mix_r = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))
+        
+        # xzl: May 2024 below upper projection n_embd->(3.5x)n_embed is different than 
+        # others, i.e. n_embd->n_embd projection
+        # 1. if we follow the theory of svd for finetuning, it's gonna be         
+        # n_embd -> n_embd//svdfac ->dim_ffn (b/c the svd rank) which creates a very narrow 
+        # bottleneck. this seems to be at odds with the rationale of upper projection
+        #
+        # 2. if we do n_embd -> dim_ffn//svdfac ->dim_ffn, it seems not warranted
+        # by svd theory (i.e. the left/right matrix rank must < n_embd). this 
+        # may be ok for pretraining (tested to work), but not finetuning?
+
+        # breakpoint()
+
+        # orig scale 1.0
+        self.key = nn.Linear(args.n_embd, args.dim_ffn, bias=False)
+
+        # orig scale 0
+        self.receptance1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
+        self.receptance2 = nn.Linear(args.n_embd//args.svdfac, args.n_embd, bias=False)
+
+        # cf self.key above, maybe ok for pretraining (to be tested again)
+        # orig scale 0
+        self.value = nn.Linear(args.dim_ffn, args.n_embd, bias=False)
+
+    @MyFunction
+    def forward(self, x):
+        xx = self.time_shift(x) # xzl: also, mix with prev timestep (not all the way to the beginning
+        xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)
+        xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)
+        
+        k = self.key(xk)
+
+        k = torch.relu(k) ** 2  #xzl: sqr relu, in original design 
+
+        kv = self.value(k)
+
+        # Wr mod
+        r = self.receptance1(xr)
+        if self.hasrelu:
+            r = torch.relu(r) ** 2
+        r = self.receptance2(r)
+        return torch.sigmoid(r) * kv
+
+class RWKV_CMix_x052_rkv(MyModule):
     # SVD + finetune: decomposed='r'
     # pretrain: decomposed='rkv'
     # (cf comments below
@@ -1057,72 +1121,47 @@ class RWKV_CMix_x052_xzl(MyModule):
         # by svd theory (i.e. the left/right matrix rank must < n_embd). this 
         # may be ok for pretraining (tested to work), but not finetuning?
 
-        breakpoint()
-        
         # orig scale 1.0
-        if 'k' in self.decomposed:
-            self.key1 = nn.Linear(args.n_embd, args.dim_ffn//args.svdfac, bias=False)
-            self.key2 = nn.Linear(args.dim_ffn//args.svdfac, args.dim_ffn, bias=False)            
-        else:
-            self.key1 = nn.Linear(1,1)  # appease forward() (torchscript)
-            self.key2 = nn.Linear(1,1)  # appease forward() (torchscript)
-            self.key = nn.Linear(args.n_embd, args.dim_ffn, bias=False)
-
+        self.key1 = nn.Linear(args.n_embd, args.dim_ffn//args.svdfac, bias=False)
+        self.key2 = nn.Linear(args.dim_ffn//args.svdfac, args.dim_ffn, bias=False)            
+    
         # orig scale 0
-        if 'r' in self.decomposed:
-            self.receptance = nn.Linear(1,1)  # appease forward() (torchscript)
-            self.receptance1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
-            self.receptance2 = nn.Linear(args.n_embd//args.svdfac, args.n_embd, bias=False)
-        else:
-            self.receptance1 = nn.Linear(1,1)  # appease forward() (torchscript)
-            self.receptance2 = nn.Linear(1,1)  # appease forward() (torchscript)
-            self.receptance = nn.Linear(args.n_embd, args.n_embd, bias=False)
-
+        self.receptance1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
+        self.receptance2 = nn.Linear(args.n_embd//args.svdfac, args.n_embd, bias=False)
+    
         # cf self.key above, maybe ok for pretraining (to be tested again)
         # orig scale 0
-        if 'v' in self.decomposed:        
-            self.value1 = nn.Linear(args.dim_ffn, args.dim_ffn//args.svdfac, bias=False)
-            self.value2 = nn.Linear(args.dim_ffn//args.svdfac, args.n_embd, bias=False)
-        else:
-            self.value1 = nn.Linear(1,1)  # appease forward() (torchscript)
-            self.value2 = nn.Linear(1,1)  # appease forward() (torchscript)
-            self.value = nn.Linear(args.dim_ffn, args.n_embd, bias=False)
+        self.value1 = nn.Linear(args.dim_ffn, args.dim_ffn//args.svdfac, bias=False)
+        self.value2 = nn.Linear(args.dim_ffn//args.svdfac, args.n_embd, bias=False)
 
     @MyFunction
     def forward(self, x):
         xx = self.time_shift(x) # xzl: also, mix with prev timestep (not all the way to the beginning
         xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)
         xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)
-        
-        if not 'k' in self.decomposed:
-            k = self.key(xk)
-        else: 
-            k = self.key1(xk)
-            if self.hasrelu:
-                k = torch.relu(k) ** 2
-            k = self.key2(k)
+
+        k = self.key1(xk)
+        if self.hasrelu:
+            k = torch.relu(k) ** 2
+        k = self.key2(k)
 
         k = torch.relu(k) ** 2  #xzl: sqr relu, in original design 
 
-        if not 'v' in self.decomposed:
-            kv = self.value(k)
-        else: 
-            kv = self.value1(k)
-            if self.hasrelu:
-                kv = torch.relu(kv) ** 2        
-            kv = self.value2(kv)
+        kv = self.value1(k)
+        if self.hasrelu:
+            kv = torch.relu(kv) ** 2        
+        kv = self.value2(kv)
 
         # Wr mod
-        if not 'r' in self.decomposed:
-            # Wr - orig
-            return torch.sigmoid(self.receptance(xr)) * kv
-        else: 
-            r = self.receptance1(xr)
-            if self.hasrelu:
-                r = torch.relu(r) ** 2
-            r = self.receptance2(r)
-            return torch.sigmoid(r) * kv
-            
+        r = self.receptance1(xr)
+        if self.hasrelu:
+            r = torch.relu(r) ** 2
+        r = self.receptance2(r)
+        return torch.sigmoid(r) * kv
+                    
+########################################################################################################
+
+
 class RWKV_CMix_x060(MyModule):
     def __init__(self, args, layer_id):
         super().__init__()
@@ -1218,17 +1257,19 @@ class Block(nn.Module):
                     self.att = RWKV_Tmix_x060_state(args, layer_id)
                 else:
                     self.att = RWKV_Tmix_x060(args, layer_id)
-            # NOTICE THE ORDER ..... 
-            elif 'x052xzlNoReLu' in os.environ["RWKV_MY_TESTING"]:
+            elif 'x052xzlNoReLu' == os.environ["RWKV_MY_TESTING"]:
                 args.NoReLu=True
                 self.att = RWKV_Tmix_x052_xzl(args, layer_id)                   
-            elif 'x052xzl' in os.environ["RWKV_MY_TESTING"]:
+            elif 'x052xzl' == os.environ["RWKV_MY_TESTING"]:
                 self.att = RWKV_Tmix_x052_xzl(args, layer_id)
-            elif 'x052attDiag' in os.environ["RWKV_MY_TESTING"]:
-                self.att = RWKV_Tmix_x052_diag(args, layer_id)                
-            elif 'x052att' in os.environ["RWKV_MY_TESTING"]:
+            elif 'x052xzlTune' == os.environ["RWKV_MY_TESTING"]:
+                args.NoReLu=True
                 self.att = RWKV_Tmix_x052_xzl(args, layer_id)                
-            elif 'x052' in os.environ["RWKV_MY_TESTING"]:
+            elif 'x052attDiag' == os.environ["RWKV_MY_TESTING"]:
+                self.att = RWKV_Tmix_x052_diag(args, layer_id)                
+            elif 'x052att' == os.environ["RWKV_MY_TESTING"]:
+                self.att = RWKV_Tmix_x052_xzl(args, layer_id)                
+            elif 'x052' == os.environ["RWKV_MY_TESTING"]:
                 self.att = RWKV_Tmix_x052(args, layer_id)
             elif 'mamba' in os.environ["RWKV_MY_TESTING"]:
                 self.att = Mamba(d_model=args.n_embd, d_state=16, d_conv=4, expand=2.125) # match rwkv6 #params
@@ -1239,12 +1280,17 @@ class Block(nn.Module):
         # elif 'x060' in os.environ["RWKV_MY_TESTING"]:
         if 'x060' in os.environ["RWKV_MY_TESTING"]:
             self.ffn = RWKV_CMix_x060(args, layer_id)
-        elif 'x052xzlNoReLu' in os.environ["RWKV_MY_TESTING"]:
+        elif 'x052xzlNoReLu' == os.environ["RWKV_MY_TESTING"]:
             args.NoReLu=True
-            self.ffn = RWKV_CMix_x052_xzl(args, layer_id)            
-        elif 'x052xzl' in os.environ["RWKV_MY_TESTING"]:
-            self.ffn = RWKV_CMix_x052_xzl(args, layer_id)
-        elif 'x052' in os.environ["RWKV_MY_TESTING"]:
+            self.ffn = RWKV_CMix_x052_r(args, layer_id)            
+        elif 'x052xzlTune' == os.environ["RWKV_MY_TESTING"]:
+            args.NoReLu=True
+            self.ffn = RWKV_CMix_x052_r(args, layer_id)
+        elif 'x052xzl' == os.environ["RWKV_MY_TESTING"]:
+            self.ffn = RWKV_CMix_x052_r(args, layer_id)
+        elif 'x052attDiag' == os.environ["RWKV_MY_TESTING"]:
+            self.ffn = RWKV_CMix_x052(args, layer_id)
+        elif 'x052' == os.environ["RWKV_MY_TESTING"]:
             self.ffn = RWKV_CMix_x052(args, layer_id)
         elif 'mamba' in os.environ["RWKV_MY_TESTING"]:
             self.ffn = Mamba(d_model=args.n_embd, d_state=16, d_conv=4, expand=2.125) # match rwkv6 #params

@@ -2,9 +2,10 @@
 # HOST=gpusrv14
 # DESTROOT=/tmp
 
-HOST=ubuntu@150.136.115.69
+#HOST=ubuntu@150.136.115.69
+HOST=amd2
 # DESTROOT=/home/ubuntu/workspace-rwkv-tx
-DESTROOT=/home/ubuntu/workspace-rwkv
+DESTROOT=/home/xl6yq/workspace-rwkv
 
 # DRYRUN=--dry-run
 DRYRUN=
@@ -19,7 +20,8 @@ rsync -avXP \
     --exclude='.git/' \
     --exclude='*.png' \
     --exclude='RWKV-v5/wandb' \
-    --exclude='RWKV-v5/data' \
     --exclude='orig-RWKV-v5/' \
     `pwd`   \
     $HOST:$DESTROOT
+
+#    --exclude='RWKV-v5/data' \
