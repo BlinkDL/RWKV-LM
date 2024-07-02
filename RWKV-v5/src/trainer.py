@@ -294,15 +294,18 @@ class train_callback(pl.Callback):
             # call lm_eval and log 
             if save_model_path != "":
                 from .run_lm_eval import do_eval
+                from .run_lm_eval import clean_cache
                 res = do_eval(save_model_path)
+                clean_cache() # otherwise run_lm_eval will cache for future runs
 
                 import json
                 trainer.my_log.write(json.dumps(res)+'\n')
                 trainer.my_log.flush()
 
-                args = self.args
-                real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
-                trainer.my_wandb.log(res, step=int(real_step)) 
+                if len(args.wandb) > 0 and hasattr(trainer, 'my_wandb'):
+                    args = self.args
+                    real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
+                    trainer.my_wandb.log(res, step=int(real_step)) 
 
             trainer.my_loss_sum = 0
             trainer.my_loss_count = 0

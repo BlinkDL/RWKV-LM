@@ -19,8 +19,8 @@ source model-config.sh
 # Larger model => use smaller LR
 # Finetuning => use very small LR, such as 1e-5
 #
-# M_BSZ="32" # takes ~9G VRAM here => reduce this to save VRAM, increase this for faster speed
-M_BSZ="8" 
+# M_BSZ="16" # takes ~9G VRAM here => reduce this to save VRAM, increase this for faster speed
+M_BSZ="8" # ctx2k, .1B, 24GB VRAM
 
 # orig
 #LR_INIT="6e-4"
@@ -45,11 +45,14 @@ GPU_PER_NODE=1
 # GPU_PER_NODE=4 # number of GPUs per node  
 # GPU_PER_NODE=8 # number of GPUs per node  
 
-WANDB=rwkv-dbg
-# WANDB=
+# WANDB=rwkv-dbg
+WANDB=
 
 #
 DS_BUCKET_MB=2 # set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects speed & vram usage)
+
+rm -f out/last
+ln -sf `readlink -f $PROJ_DIR` out/last
 
 python3 train.py --load_model "0" --wandb "$WANDB" --proj_dir $PROJ_DIR --my_testing $MODEL_TYPE \
  --my_pile_stage 3 --epoch_count 999999 --epoch_begin 0 \

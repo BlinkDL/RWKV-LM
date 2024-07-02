@@ -68,7 +68,8 @@ from lm_eval.models.gpt2 import GPT2LM
 # largepiple, ctx=2k, pretrained, acc=0 ??
 # MODEL_NAME = '/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L12-D768-x052/rwkv-15'
 # uncopy pile, ctx=2k, pretrained, acc=.19
-MODEL_NAME = '/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L12-D768-x052/rwkv-45'
+# MODEL_NAME = '/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L12-D768-x052/rwkv-78'   #.21
+MODEL_NAME = '/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L12-D768-x052/rwkv-73'
 
 ###### .4B
 # ok but worse acc .44 (lmo
@@ -120,6 +121,8 @@ eval_tasks += ['lambada_openai']  # OK
 
 ########################################################################################################
 
+# xzl: cached logits, cache outcome "True/False"
+#       key: textual string
 logitBuf = {}
 correctBuf = {}
 
@@ -181,7 +184,7 @@ class EvalHarnessAdapter(GPT2LM):
 
             sss = str(src)
             correct = True
-            if sss in logitBuf:
+            if sss in logitBuf: # xzl: cache...
                 logit = logitBuf[sss]
                 correct = correctBuf[sss]
             else:
@@ -190,6 +193,7 @@ class EvalHarnessAdapter(GPT2LM):
                 logit = 0
                 
                 with torch.no_grad():
+                    # print("*",end='')
                     outputs, _ = self.model.forward(src, None, full_output=True)
                     for i in range(q_len-1, len(src)-1):
                         oo = outputs[i].detach().float()
@@ -219,6 +223,14 @@ class EvalHarnessAdapter(GPT2LM):
             limit=None,
             bootstrap_iters=bootstrap_iters,
         )
+        # results = evaluator.simple_evaluate(
+        #     model=self,
+        #     tasks=eval_tasks,
+        #     num_fewshot=num_fewshot,
+        #     limit=None,
+        #     bootstrap_iters=bootstrap_iters,
+        #     no_cache=True
+        # )
         return results
 
 def do_eval(model_path):
@@ -233,14 +245,21 @@ def do_eval(model_path):
     print('RWKV_PAD', RWKV_PAD)
 
     adapter = EvalHarnessAdapter(rwkv_model, pipeline, RWKV_PAD)
+    # breakpoint()
     results = adapter.run_eval(
         eval_tasks=eval_tasks,
         bootstrap_iters=10000,
     )
     # results ex: 
     # {'lambada_openai': {'ppl': 185.72807052650887, 'ppl_stderr': 8.49129898264202, 'acc': 0.19289734135455075, 'acc_stderr': 0.005497175253106871}}
-    return results
+    # print(results['results'])
+    return results['results']    
+
+def clean_cache():
+    global logitBuf, correctBuf
+    logitBuf = {}
+    correctBuf = {}
 
 if __name__ == "__main__":
-    results = do_eval(MODEL_NAME)    
+    results = do_eval(MODEL_NAME)
     print(results['results'])
