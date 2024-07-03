@@ -115,7 +115,7 @@ def decompose_emb(args):
     
 def full_to_svd(w,args):
     selfkeys = [".att.receptance.", ".att.key.", ".att.value.", ".att.gate."]
-    if args.decompose_ffn: 
+    if args.decompose_ffn == 1: 
         selfkeys += [".ffn.receptance."]
 
     # xzl: all params saved in bfloat16 in model file

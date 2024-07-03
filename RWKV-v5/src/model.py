@@ -1611,6 +1611,11 @@ class RWKV(pl.LightningModule):
             else: 
                 logits = self(idx)          # xzl: a fwd pass...
                 loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+                # xzl: dump gradient graph
+                # import torchviz
+                # dot=torchviz.make_dot(logits, params=dict(self.named_parameters()))
+                # dot.render("mymodel", format="png")
+                # breakpoint()
 
             # if '0' in os.environ["RWKV_MY_TESTING"]:
             #     print('logits', logits)   
@@ -1721,8 +1726,9 @@ class RWKV(pl.LightningModule):
                     assert n.endswith('.weight') # should always be true    xzl: means all other params should be named witih "XXX.weight"
 
                     # zero = [".att.output.", ".ffn.value.", ".ffn.receptance.", ".ffnPre.value.", ".ffnPre.receptance.", "head_q.", '.oo.', '.rr.']
-                    # xzl: to include .att.output{1|2} .ffn.value{1|2}. .ffn.receptance{1|2}
-                    zero = [".att.output", ".ffn.value", ".ffn.receptance", ".ffnPre.value.", ".ffnPre.receptance.", "head_q.", '.oo.', '.rr.']
+                    # xzl: to include .att.output{1|2} .ffn.value{1|2}. 
+                    #  leave out .ffn.receptance{1|2}: if init as zero --> zero graidents 
+                    zero = [".att.output", ".ffn.value", ".ffnPre.value.", ".ffnPre.receptance.", "head_q.", '.oo.', '.rr.']
 
                     for kk in zero:
                         if kk in n:

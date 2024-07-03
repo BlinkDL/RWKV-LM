@@ -34,53 +34,59 @@ class train_callback(pl.Callback):
         args = self.args
         real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
         
-        # xzl -- note deepspeed api
-        # If all processes don’t participate these utilities will hang waiting for all processes to send their contribution
-                
+        # xzl -- logging grads ---
+        # note deepspeed api
+        # If all processes don’t participate these utilities will hang waiting for all processes to send their contribution                
         nlayers=len(pl_module.blocks)
         layers=[nlayers//5, nlayers//2, nlayers-1]
         lll = {}
         logstr = ""
         for ly in layers:
-            # breakpoint()
             if 'x052att' in os.environ["RWKV_MY_TESTING"] or 'x052xzl' in os.environ["RWKV_MY_TESTING"]:
+                # ---- att ----- # 
                 param = pl_module.blocks[ly].att.receptance1.weight
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
-                lll[f"GRAD: layer {ly} receptance1"] = nm.item()
+                lll[f"GRAD: layer {ly} att receptance1"] = nm.item()
                 logstr += f"layer {ly} receptance.grad {nm.item()}\n"
 
                 param = pl_module.blocks[ly].att.receptance2.weight
                 nm = torch.linalg.vector_norm(deepspeed.utils.safe_get_full_grad(param)) 
-                lll[f"GRAD: layer {ly} receptance2"] = nm.item()
+                lll[f"GRAD: layer {ly} att receptance2"] = nm.item()
                 logstr += f"layer {ly} receptance.grad {nm.item()}\n"            
 
                 param = pl_module.blocks[ly].att.key1.weight
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
-                lll[f"GRAD: layer {ly} key1"] = nm.item()
+                lll[f"GRAD: layer {ly} att key1"] = nm.item()
                 logstr += f"layer {ly} key.grad {nm.item()}\n"
 
                 param = pl_module.blocks[ly].att.key2.weight
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
-                lll[f"GRAD: layer {ly} key2"] = nm.item()
+                lll[f"GRAD: layer {ly} att key2"] = nm.item()
                 logstr += f"layer {ly} key.grad {nm.item()}\n"
 
                 param = pl_module.blocks[ly].att.value1.weight
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
-                lll[f"GRAD: layer {ly} value1"] = nm.item()
+                lll[f"GRAD: layer {ly} att value1"] = nm.item()
                 logstr += f"layer {ly} value.grad {nm.item()}\n"
 
                 param = pl_module.blocks[ly].att.value2.weight
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
-                lll[f"GRAD: layer {ly} value2"] = nm.item()
+                lll[f"GRAD: layer {ly} att value2"] = nm.item()
                 logstr += f"layer {ly} value.grad {nm.item()}\n"
                 
             if 'Diag' in os.environ["RWKV_MY_TESTING"]:
+                # ---- att.diag ----- # 
                 param = pl_module.blocks[ly].att.receptance_diag
                 nm = torch.linalg.vector_norm(deepspeed.utils.safe_get_full_grad(param)) 
                 lll[f"GRAD: layer {ly} receptance_diag"] = nm.item()
                 logstr += f"layer {ly} receptance.grad {nm.item()}\n"
 
             if 'x052ffn' in os.environ["RWKV_MY_TESTING"] or 'x052xzl' in os.environ["RWKV_MY_TESTING"]:
+                # ---- ffn.key ----- # 
+                param = pl_module.blocks[ly].ffn.key.weight
+                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: layer {ly} ffn key"] = nm.item()
+
                 '''
                 param = pl_module.blocks[ly].ffn.key1.weight
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
@@ -93,6 +99,8 @@ class train_callback(pl.Callback):
                 # logstr += f"layer {ly} key.grad {nm.item()}\n"
                 '''
                 
+                # ---- ffn.receptance ----- # 
+                # breakpoint()
                 param = pl_module.blocks[ly].ffn.receptance1.weight
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
                 lll[f"GRAD: layer {ly} ffn receptance1"] = nm.item()
@@ -102,6 +110,10 @@ class train_callback(pl.Callback):
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
                 lll[f"GRAD: layer {ly} ffn receptance2"] = nm.item()
 
+                # ---- ffn.value ----- # 
+                param = pl_module.blocks[ly].ffn.value.weight
+                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: layer {ly} ffn value"] = nm.item()
                 '''
                 param = pl_module.blocks[ly].ffn.value1.weight
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
@@ -112,6 +124,18 @@ class train_callback(pl.Callback):
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
                 lll[f"GRAD: layer {ly} ffn value2"] = nm.item()
                 '''
+            else: # original 
+                param = pl_module.blocks[ly].ffn.receptance.weight
+                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: layer {ly} ffn receptance"] = nm.item()
+                            
+        param = pl_module.ln_out.weight
+        nm = torch.linalg.vector_norm(deepspeed.utils.safe_get_full_grad(param)) 
+        lll[f"GRAD: ln_out weight"] = nm.item()
+
+        param = pl_module.head.weight
+        nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+        lll[f"GRAD: head weight"] = nm.item()
 
         if trainer.is_global_zero:
             # textual... (too much info)
@@ -293,7 +317,7 @@ class train_callback(pl.Callback):
 
             # call lm_eval and log. 
             # NB: save_model_path has no .pth
-            if save_model_path != "": # we just saved a model file
+            if save_model_path != "": # we've just saved a model file
                 if args.finetune == 1:
                     from src.svd import recover_save
                     eval_model_path = save_model_path + "-recover"
