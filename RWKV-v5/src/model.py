@@ -96,19 +96,21 @@ if 'x060' in os.environ["RWKV_MY_TESTING"]:
         def RUN_CUDA_RWKV6_STATE(B, T, C, H, r, k, v, w, u, s):
             return WKV_6STATE.apply(B, T, C, H, r, k, v, w, u, s)
     else:
-        wkv6_cuda = load(name="wkv6", sources=["cuda/wkv6_op.cpp", f"cuda/wkv6_cuda.cu"],
+        load(name="wkv6", sources=["cuda/wkv6_op.cpp", f"cuda/wkv6_cuda.cu"], is_python_module=False,
                         verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}", f"-D_T_={int(os.environ['RWKV_CTXLEN'])}"])
             
         class WKV_6(torch.autograd.Function):
             @staticmethod
-            def forward(ctx, B, T, C, H, r, k, v, w, u):
+            def forward(ctx, r, k, v, w, u):
                 with torch.no_grad():
+                    B, T, C = r.size()
+                    H = C // HEAD_SIZE
+                    assert C % HEAD_SIZE == 0
                     assert r.dtype == torch.bfloat16
                     assert k.dtype == torch.bfloat16
                     assert v.dtype == torch.bfloat16
                     assert w.dtype == torch.bfloat16
                     assert u.dtype == torch.bfloat16
-                    assert HEAD_SIZE == C // H
                     ctx.B = B
                     ctx.T = T
                     ctx.C = C
@@ -120,7 +122,7 @@ if 'x060' in os.environ["RWKV_MY_TESTING"]:
                     assert u.is_contiguous()
                     ctx.save_for_backward(r, k, v, w, u)
                     y = torch.empty((B, T, C), device=r.device, dtype=torch.bfloat16, memory_format=torch.contiguous_format)#.uniform_(-100, 100)
-                    wkv6_cuda.forward(B, T, C, H, r, k, v, w, u, y)
+                    torch.ops.wkv6.forward(B, T, C, H, r, k, v, w, u, y)
                     return y
 
             @staticmethod
@@ -138,12 +140,12 @@ if 'x060' in os.environ["RWKV_MY_TESTING"]:
                     gv = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format)#.uniform_(-100, 100)
                     gw = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format)#.uniform_(-100, 100)
                     gu = torch.empty((B, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format)#.uniform_(-100, 100)
-                    wkv6_cuda.backward(B, T, C, H, r, k, v, w, u, gy, gr, gk, gv, gw, gu)
+                    torch.ops.wkv6.backward(B, T, C, H, r, k, v, w, u, gy, gr, gk, gv, gw, gu)
                     gu = torch.sum(gu, 0).view(H, C//H)
-                    return (None, None, None, None, gr, gk, gv, gw, gu)
+                    return (gr, gk, gv, gw, gu)
 
-        def RUN_CUDA_RWKV6(B, T, C, H, r, k, v, w, u):
-            return WKV_6.apply(B, T, C, H, r, k, v, w, u)
+        def RUN_CUDA_RWKV6(r, k, v, w, u):
+            return WKV_6.apply(r, k, v, w, u)
 
 elif 'x052' in os.environ["RWKV_MY_TESTING"]:
     wkv5_cuda = load(name="wkv5", sources=["cuda/wkv5_op.cpp", f"cuda/wkv5_cuda.cu"],
@@ -343,7 +345,7 @@ class RWKV_Tmix_x060(MyModule):
         self.ln_x = nn.GroupNorm(self.n_head, args.dim_att, eps=(1e-5)*(args.head_size_divisor**2))
 
     @MyFunction
-    def jit_func(self, x):
+    def forward(self, x):
         B, T, C = x.size()
 
         xx = self.time_shift(x) - x
@@ -367,25 +369,12 @@ class RWKV_Tmix_x060(MyModule):
         ww = torch.tanh(xw @ self.time_decay_w1) @ self.time_decay_w2
         w = self.time_decay + ww
 
-        return r, k, v, g, w
+        x = RUN_CUDA_RWKV6(r, k, v, w, u=self.time_faaaa)
 
-    @MyFunction
-    def jit_func_2(self, x, g):
-        B, T, C = x.size()
-        x = x.view(B * T, C)
-        
+        x = x.view(B * T, C)        
         x = self.ln_x(x).view(B, T, C)
         x = self.output(x * g)
         return x
-
-    def forward(self, x):
-        B, T, C = x.size()
-        H = self.n_head
-
-        r, k, v, g, w = self.jit_func(x)
-        x = RUN_CUDA_RWKV6(B, T, C, H, r, k, v, w, u=self.time_faaaa)
-
-        return self.jit_func_2(x, g)
 
 ########################################################################################################
 
@@ -551,7 +540,7 @@ class RWKV_Tmix_x060a(MyModule):
         self.ln_x = nn.GroupNorm(self.n_head, args.dim_att, eps=(1e-5)*(args.head_size_divisor**2))
 
     @MyFunction
-    def jit_func(self, x):
+    def forward(self, x):
         B, T, C = x.size()
 
         xx = self.time_shift(x) - x
@@ -575,25 +564,13 @@ class RWKV_Tmix_x060a(MyModule):
         ww = torch.tanh(xw @ self.time_decay_w1) @ self.time_decay_w2
         w = self.time_decay + ww
 
-        return r, k, v, g, w
+        x = RUN_CUDA_RWKV6(r, k, v, w, u=self.time_faaaa)
 
-    @MyFunction
-    def jit_func_2(self, x, g):
-        B, T, C = x.size()
-        x = x.view(B * T, C)
-        
+        x = x.view(B * T, C)        
         x = self.ln_x(x).view(B, T, C)
         x = self.output(x * g)
         return x
-
-    def forward(self, x):
-        B, T, C = x.size()
-        H = self.n_head
-
-        r, k, v, g, w = self.jit_func(x)
-        x = RUN_CUDA_RWKV6(B, T, C, H, r, k, v, w, u=self.time_faaaa)
-
-        return self.jit_func_2(x, g)
+    
 ########################################################################################################
 
 class RWKV_Tmix_x060b(MyModule):
@@ -645,7 +622,7 @@ class RWKV_Tmix_x060b(MyModule):
         self.ln_x = nn.LayerNorm(args.dim_att)
 
     @MyFunction
-    def jit_func(self, x):
+    def forward(self, x):
         B, T, C = x.size()
 
         xx = self.time_shift(x) - x
@@ -664,22 +641,12 @@ class RWKV_Tmix_x060b(MyModule):
         k = self.key(k)
         v = self.value(v)
         w = self.time_decay + torch.tanh(w @ self.time_decay_w1) @ self.time_decay_w2
-        return r, k, v, w
 
-    @MyFunction
-    def jit_func_2(self, x):
+        x = RUN_CUDA_RWKV6(r, k, v, w, u=self.time_faaaa)
+
         x = self.ln_x(x)
         x = self.output(x)
         return x
-
-    def forward(self, x):
-        B, T, C = x.size()
-        H = self.n_head
-
-        r, k, v, w = self.jit_func(x)
-        x = RUN_CUDA_RWKV6(B, T, C, H, r, k, v, w, u=self.time_faaaa)
-
-        return self.jit_func_2(x)
     
 ########################################################################################################
 
@@ -732,7 +699,7 @@ class RWKV_Tmix_x060c(MyModule):
         self.ln_x = nn.LayerNorm(args.dim_att)
 
     @MyFunction
-    def jit_func(self, x):
+    def forward(self, x):
         B, T, C = x.size()
 
         xx = self.time_shift(x) - x
@@ -755,22 +722,11 @@ class RWKV_Tmix_x060c(MyModule):
         # k = k * (1-(-w.exp()).exp()) # for fp32
         k = k * (1-(-w.float().exp()).exp()).to(dtype=torch.bfloat16) # for bf16
 
-        return r, k, v, w
+        x = RUN_CUDA_RWKV6(r, k, v, w, u=self.time_faaaa)
 
-    @MyFunction
-    def jit_func_2(self, x):
         x = self.ln_x(x)
         x = self.output(x)
         return x
-
-    def forward(self, x):
-        B, T, C = x.size()
-        H = self.n_head
-
-        r, k, v, w = self.jit_func(x)
-        x = RUN_CUDA_RWKV6(B, T, C, H, r, k, v, w, u=self.time_faaaa)
-
-        return self.jit_func_2(x)
     
 ########################################################################################################
 
