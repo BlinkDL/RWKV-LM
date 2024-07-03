@@ -321,7 +321,7 @@ class train_callback(pl.Callback):
                 if args.finetune == 1:
                     from src.svd import recover_save
                     eval_model_path = save_model_path + "-recover"
-                    recover_save(args.load_model.replace(".pth",""), eval_model_path.replace(".pth",""), 
+                    recover_save(args.save_model_path.replace(".pth",""), eval_model_path.replace(".pth",""), 
                                  args.n_layer, args.n_embd)
                 else: # pretrain 
                     eval_model_path = save_model_path
