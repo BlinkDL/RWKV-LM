@@ -52,7 +52,7 @@ WANDB=
 DS_BUCKET_MB=2 # set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects speed & vram usage)
 
 rm -f out/last
-ln -sf $PROJ_DIR out/last
+ln -sf `readlink -f $PROJ_DIR` out/last
 
 python3 train.py --load_model "0" --wandb "$WANDB" --proj_dir $PROJ_DIR --my_testing $MODEL_TYPE \
  --my_pile_stage 3 --epoch_count 999999 --epoch_begin 0 \
