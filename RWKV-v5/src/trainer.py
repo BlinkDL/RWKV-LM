@@ -291,18 +291,30 @@ class train_callback(pl.Callback):
             trainer.my_log.write(f"{args.epoch_begin + trainer.current_epoch} {trainer.my_epoch_loss:.6f} {math.exp(trainer.my_epoch_loss):.4f} {trainer.my_lr:.8f} {datetime.datetime.now()} {trainer.current_epoch}\n")
             trainer.my_log.flush()
 
-            # call lm_eval and log 
-            if save_model_path != "":
+            # call lm_eval and log. 
+            # NB: save_model_path has no .pth
+            if save_model_path != "": # we just saved a model file
+                if args.finetune == 1:
+                    from src.svd import recover_save
+                    eval_model_path = save_model_path + "-recover"
+                    recover_save(args.load_model.replace(".pth",""), eval_model_path.replace(".pth",""), 
+                                 args.n_layer, args.n_embd)
+                else: # pretrain 
+                    eval_model_path = save_model_path
                 from .run_lm_eval import do_eval
-                res = do_eval(save_model_path)
+                from .run_lm_eval import clean_cache
+                res = do_eval(eval_model_path)
+                clean_cache() # otherwise run_lm_eval will cache for future runs
 
                 import json
                 trainer.my_log.write(json.dumps(res)+'\n')
                 trainer.my_log.flush()
 
-                args = self.args
-                real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
-                trainer.my_wandb.log(res, step=int(real_step)) 
+                # works, but no need 
+                # if len(args.wandb) > 0 and hasattr(trainer, 'my_wandb'):
+                #     args = self.args
+                #     real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
+                #     trainer.my_wandb.log(res, step=int(real_step)) 
 
             trainer.my_loss_sum = 0
             trainer.my_loss_count = 0

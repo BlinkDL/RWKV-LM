@@ -195,7 +195,7 @@ def full_to_svd(w,args):
         setattr(here, last, w[k])
     '''
 
-# load svd and recover full matrices
+# load svd model and recover full matrices
 # return the model as dict
 def svd_recover_to_full(w, args):
     for k in w.keys():
@@ -204,7 +204,7 @@ def svd_recover_to_full(w, args):
 
     self_n_head = w['blocks.0.att.time_decay'].shape[0]
     self_head_size = w['blocks.0.ln1.weight'].shape[0] // self_n_head
-    self_rank = args.n_embd // args.svdfac 
+    # self_rank = args.n_embd // args.svdfac 
 
     if 'blocks.0.att.key_diag' in w:
         has_diag = True
@@ -310,7 +310,7 @@ def decompose_orig(args):
 
     print(f"saved to {args.MODEL_NAME}-svd-F{args.svdfac}.pth")
 
-# load a trained (or finetuned) custom model, recover to the orig format, 
+# load a trained (or finetuned) custom model, recover to the orig format, & save to disk 
 #       so it can be exec with unmodified infer engine
 def recover(args):
     print(f"to load custom model {args.MODEL_NAME}.pth...")
@@ -321,9 +321,22 @@ def recover(args):
     for k in w00.keys():
         w00[k]=w00[k].to(dtype=torch.bfloat16) # still save as bfloat
 
-    torch.save(w00,f"{args.MODEL_NAME}-recover.pth")
-    print(f">>> saved to {args.MODEL_NAME}-recover.pth")
-    
+    if args.path_to == "":
+        args.path_to = f"{args.MODEL_NAME}-recover"
+
+    torch.save(w00, args.path_to + ".pth")
+    print(f">>>>>>>>>>>>> saved to {args.path_to}.pth")
+        
+def recover_save(path_from, path_to, nlayers, nembd):
+    args = types.SimpleNamespace()
+    args.verbose = 0
+    args.n_layer = nlayers   
+    args.n_embd = nembd
+
+    args.MODEL_NAME = path_from
+    args.path_to = path_to
+    recover(args)
+
 if __name__ == '__main__':
     from argparse import ArgumentParser
     parser = ArgumentParser()
@@ -339,7 +352,6 @@ if __name__ == '__main__':
     parser.add_argument("--verbose", default=0, type=int)
 
     args = parser.parse_args()
-
     
     # .1B
     # args.n_layer = 12   
@@ -360,6 +372,8 @@ if __name__ == '__main__':
     args.vocab_size = 65536
 
     args.convert = 1
+
+    args.path_to = "" # use default name 
 
     if args.decompose == 1: 
         args.MODEL_NAME = args.orig_model

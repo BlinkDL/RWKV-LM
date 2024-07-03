@@ -293,6 +293,22 @@ if __name__ == "__main__":
             rank_zero_info(f"Trying {args.load_model}")
             load_dict = torch.load(args.load_model, map_location="cpu")
 
+    # xzl: now we have a good model file, run lm_eval. 
+    #       -- ensures lm_eval works prior to training 
+    if args.finetune == 1:
+        from src.svd import recover_save
+        eval_model_path = args.load_model.replace(".pth", "-recover.pth")
+        recover_save(args.load_model.replace(".pth",""), eval_model_path.replace(".pth",""), 
+                    args.n_layer, args.n_embd)
+    else: # pretrain
+        eval_model_path = args.load_model
+    from src.run_lm_eval import do_eval
+    from src.run_lm_eval import clean_cache
+    res = do_eval(eval_model_path)
+    clean_cache() # otherwise next run_lm_eval will cache the results
+    import json
+    print(json.dumps(res)+'\n') # just write to console
+
     # xzl: allow the ckpt file to lack certain params, in which case just 
     #   keep the model's params as is (what values???
     # breakpoint()

@@ -68,7 +68,7 @@ def simple_evaluate(
         assert isinstance(model, lm_eval.base.LM)
         lm = model
 
-    if not no_cache:
+    if not no_cache:        # xzl: load from cache?? (sqlit db, direct res??)
         lm = lm_eval.base.CachingLM(
             lm,
             "lm_cache/"
@@ -253,10 +253,12 @@ def evaluate(
 
         print("Running", reqtype, "requests")
         # xzl: below calling into lm... each 'req' is a text (an example)
+        #       cache within???
         resps = getattr(lm, reqtype)([req.args for req in reqs])
         resps = [
             x if req.index is None else x[req.index] for x, req in zip(resps, reqs)
         ]
+        # xzl: assemble responses...
 
         for resp, (i, task_name, doc, doc_id) in zip(resps, requests_origin[reqtype]):
             process_res_queue[(task_name, doc_id)].append((i, resp))

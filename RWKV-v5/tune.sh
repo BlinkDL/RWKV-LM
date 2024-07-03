@@ -45,11 +45,11 @@ PROJ_DIR="out/L"$N_LAYER"-D"$N_EMBD"-F"$SVDFAC"-"$MODEL_TYPE # set output folder
 # Finetuning => use very small LR, such as 1e-5
 #
 # M_BSZ="16" # takes ~9G VRAM here => reduce this to save VRAM, increase this for faster speed
-M_BSZ="8"
+M_BSZ="4"
 LR_INIT="6e-4"
 LR_FINAL="6e-5"
 GRAD_CP=0 # 1 => slower, save VRAM; 0 => faster, more VRAM
-EPOCH_SAVE=5 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens) => decrease if your GPU is weak
+EPOCH_SAVE=1 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens) => decrease if your GPU is weak
 #
 #######################################################################################################################
 #
@@ -64,15 +64,18 @@ GPU_PER_NODE=1
 # GPU_PER_NODE=4
 
 # WANDB=rwkv-dbg
-WANDB=rwkv-tune
-# WANDB=
+# WANDB=rwkv-tune
+WANDB=
 
 # !!! change magic_prime if you change ctx_len !!!
 
-# DATAINFO="--data_file /data/rwkv-data/data --my_exit_tokens 74958479689 --magic_prime 146403263 --ctx_len 512"
+# minipile = 1.5G tokens
 # DATAINFO="--data_file "data/minipile" --my_exit_tokens 1498226207 --magic_prime 2926181 --ctx_len 512"
-DATAINFO="--data_file "data/minipile" --my_exit_tokens 1498226207 --magic_prime 731531 --ctx_len 2048"
+# DATAINFO="--data_file "data/minipile" --my_exit_tokens 1498226207 --magic_prime 731531 --ctx_len 2048"
 # DATAINFO="--data_file "data/minipile" --my_exit_tokens 1498226207 --magic_prime 365759 --ctx_len 4096"
+
+# pile, ~250G tokens
+DATAINFO="--data_file /data/rwkv-data/uncopyright_pile/pile --my_exit_tokens 253684860910 --magic_prime 123869549 --ctx_len 2048"
 
 DS_BUCKET_MB=2 # set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects speed & vram usage)
 #
