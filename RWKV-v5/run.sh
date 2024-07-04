@@ -58,7 +58,7 @@ DS_BUCKET_MB=2 # set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects
 rm -f out/last
 ln -sf `readlink -f $PROJ_DIR` out/last
 
-python3 train.py --load_model "0" --wandb "$WANDB" --proj_dir $PROJ_DIR --my_testing $MODEL_TYPE \
+python3.10 train.py --load_model "0" --wandb "$WANDB" --proj_dir $PROJ_DIR --my_testing $MODEL_TYPE \
  --my_pile_stage 3 --epoch_count 999999 --epoch_begin 0 \
  $DATAINFO \
  --num_nodes $N_NODE --micro_bsz $M_BSZ --n_layer $N_LAYER --n_embd $N_EMBD --pre_ffn 0 --head_qk 0 \
