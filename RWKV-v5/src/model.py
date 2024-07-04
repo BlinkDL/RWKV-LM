@@ -1465,11 +1465,12 @@ class RWKV(pl.LightningModule):
         lr_2x = sorted(list(lr_2x))
         lr_3x = sorted(list(lr_3x))
 
-        if self.trainer.is_global_zero:
-            print('decay', lr_decay, '\n')
-            print('1x', lr_1x, '\n')
-            print('2x', lr_2x, '\n')
-            print('3x', lr_3x, '\n')
+        # xzl: too much print info ... 
+        # if self.trainer.is_global_zero:
+        #     print('decay', lr_decay, '\n')
+        #     print('1x', lr_1x, '\n')
+        #     print('2x', lr_2x, '\n')
+        #     print('3x', lr_3x, '\n')
 
         param_dict = {n: p for n, p in self.named_parameters()}
         

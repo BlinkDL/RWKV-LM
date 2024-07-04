@@ -12,13 +12,18 @@
 #
 #######################################################################################################################
 
+RWKVROOT=`readlink -f ../../`
+source $RWKVROOT/env-amd.sh
+source $RWKVROOT/gpu-detect.sh
 source model-config.sh
 
 #######################################################################################################################
 #
 # magic_prime = the largest 3n+2 prime smaller than datalen/ctxlen-1 (= 1498226207/512-1 = 2926222.06 in this case) = 2926181 in this case
 # use https://www.dcode.fr/prime-numbers-search
-# # xzl: ??? why magic_prime
+
+cd $RWKVROOT
+
 python3 train.py --wandb "" --proj_dir $PROJ_DIR \
  --data_type "binidx" --vocab_size 65536 --my_testing $MODEL_TYPE \
  --my_pile_stage 1 --epoch_count 1 --epoch_begin 0 \

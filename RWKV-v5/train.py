@@ -84,6 +84,7 @@ if __name__ == "__main__":
     parser.add_argument("--head_K", default=0, type=int)  # xzl: compress cls head as K clusters
     parser.add_argument("--load_token_cls", default="", type=str)  # token clusters, *.npy
     parser.add_argument("--lm_eval_0", default=1, type=int)  # run lm_eval before training/tuning starts, ensures lm_eval works 
+    parser.add_argument("--vram_mb", default=-1, type=int)  # detected gpu vram size, -1==uknown
 
     if pl.__version__[0]=='2':
         parser.add_argument("--accelerator", default="gpu", type=str)
@@ -113,6 +114,29 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore", ".*Consider increasing the value of the `num_workers` argument*")
     warnings.filterwarnings("ignore", ".*The progress bar already tracks a metric with the*")
     # os.environ["WDS_SHOW_SEED"] = "1"
+
+    # xzl: override bsz based on gpu vram, model arch, and finetune or not 
+    # e.g. [2,6,8,10] are micro_bsz for VRAM of ~12GB, ~24GB, ~40GB, ~80GB
+    bsztable = {
+        "L24-D1024-ctx2048-pretrain": [2,6,14,20], 
+        "L24-D1024-ctx2048-finetune": [2,6,14,20], 
+        "L12-D768-ctx2048-pretrain" : [2,6,18,10], 
+        "L12-D768-ctx2048-finetune" : [2,6,8,10],
+    }
+    vram_idx = -1
+    sss = "finetune" if args.finetune else "pretrain"
+    bszkey = f"L{args.n_layer}-D{args.n_embd}-ctx{args.ctx_len}-{sss}"
+
+    if (args.vram_mb > 10000 and args.vram_mb < 15000): 
+        vram_idx = 0
+    elif (args.vram_mb > 20000 and args.vram_mb < 30000): 
+        vram_idx = 1
+    elif (args.vram_mb > 40000 and args.vram_mb < 50000): 
+        vram_idx = 2
+    elif (args.vram_mb > 50000): 
+        vram_idx = 3
+    if vram_idx>=0 and bszkey in bsztable:
+        args.micro_bsz = bsztable[bszkey][vram_idx] 
 
     args.my_timestamp = datetime.datetime.today().strftime("%Y-%m-%d-%H-%M-%S")
     args.enable_checkpointing = False
@@ -203,7 +227,7 @@ if __name__ == "__main__":
         f"""
 ############################################################################
 #
-# RWKV-5 {args.precision.upper()} on {args.num_nodes}x{args.devices} {args.accelerator.upper()}, bsz {args.num_nodes}x{args.devices}x{args.micro_bsz}={args.real_bsz}, {args.strategy} {'with grad_cp' if args.grad_cp > 0 else ''}
+# RWKV-5 {args.precision.upper()} on {args.num_nodes}x{args.devices} {args.accelerator.upper()}, bsz {args.num_nodes}x{args.devices}x(Per GPU){args.micro_bsz}={args.real_bsz}, {args.strategy} {'with grad_cp' if args.grad_cp > 0 else ''}
 #
 # Data = {args.data_file} ({args.data_type}), ProjDir = {args.proj_dir}
 #
