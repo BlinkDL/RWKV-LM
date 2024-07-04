@@ -19,3 +19,5 @@ conda activate rwkv
 export CUDA_HOME=/sfs/applications/202406/software/standard/core/cuda/12.4.1/
 # many things will install here
 #export PATH=$PATH:${HOME}/.local/bin
+
+export RWKVDATA=/scratch/xl6yq/data/rwkv-data

@@ -1,6 +1,10 @@
 #!/bin/bash
 RWKVROOT=`readlink -f ../../`
-source $RWKVROOT/env-amd.sh
+if [[ $HOSTNAME == *"xsel0"* ]]; then 
+    source $RWKVROOT/env-amd.sh
+elif [[ $HOSTNAME == *"udc-"* ]]; then 
+    source $RWKVROOT/env-rivanna.sh
+fi 
 source $RWKVROOT/gpu-detect.sh
 source model-config.sh
 
