@@ -14,6 +14,8 @@ vocab.json
 test/
 tools/
 
+settings.json
+
 RWKV-v5/out/
 
 # Byte-compiled / optimized / DLL files
