@@ -56,6 +56,8 @@ advanced: repeat your SFT data 3 or 4 times in your jsonl (note make_data.py wil
 
 **Simple inference for RWKV-6**: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
 
+```Note: In [state = kv + w.view(H, N, 1) * state] everything must be in fp32 (state, kv, w) because w can be very close to 1```
+
 lm_eval: https://github.com/BlinkDL/ChatRWKV/blob/main/run_lm_eval.py
 
 chat demo for developers: https://github.com/BlinkDL/ChatRWKV/blob/main/API_DEMO_CHAT.py
