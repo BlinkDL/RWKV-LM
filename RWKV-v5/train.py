@@ -120,8 +120,8 @@ if __name__ == "__main__":
     bsztable = {
         "L24-D1024-ctx2048-pretrain": [2,6,14,20], 
         "L24-D1024-ctx2048-finetune": [2,6,14,20], 
-        "L12-D768-ctx2048-pretrain" : [2,6,18,10], 
-        "L12-D768-ctx2048-finetune" : [2,6,8,10],
+        "L12-D768-ctx2048-pretrain" : [2,8,18,24], 
+        "L12-D768-ctx2048-finetune" : [2,10,20,30],
     }
     vram_idx = -1
     sss = "finetune" if args.finetune else "pretrain"
