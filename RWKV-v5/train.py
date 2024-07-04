@@ -344,7 +344,10 @@ if __name__ == "__main__":
 
     # xzl after loading model, print out info:  layers, params shapes, etc. 
     if trainer.global_rank == 0:
+        print("Dump model arch ....")
         for n in model.state_dict():            # xzl: n: para name, can be used as key        cf https://pytorch.org/tutorials/recipes/recipes/what_is_state_dict.html             
+            if not "blocks.0." in n: 
+                continue # xzl: only print layer0, less cluter ....            
             shape = model.state_dict()[n].shape
             shape = [i for i in shape if i != 1]
             if len(shape) > 2:
@@ -354,7 +357,7 @@ if __name__ == "__main__":
             elif len(shape) > 0:
                 print(f"{str(shape[0]).ljust(5)}             {n}")
                 # print(f"{str(shape).ljust(5)}             {n}")
-
+        print("(Omit other layers...")
     if "deepspeed" in args.strategy:
         trainer.strategy.config["zero_optimization"]["allgather_bucket_size"] = args.ds_bucket_mb * 1000 * 1000
         trainer.strategy.config["zero_optimization"]["reduce_bucket_size"] = args.ds_bucket_mb * 1000 * 1000
@@ -373,24 +376,22 @@ if __name__ == "__main__":
     if args.finetune: 
         tunepara = [".att.receptance1.", ".att.key1.", ".att.value1.", ".att.gate1.", 
                     ".att.receptance2.", ".att.key2.", ".att.value2.", ".att.gate2.", 
-                    ".att.receptance1.", ".att.receptance2.", 
+                    ".ffn.receptance1.", ".ffn.receptance2.", 
                     # "blocks.23.",
                     # ".att.output.",
                     # "head.weight",
                     # "ln_x", "ln1", "ln2", 
                     "ln_out",   # must include this otherwise loss has no grad_fn (below).... 
                     ]
-        '''
-        couldn't get this to work... (above). grads will be zero no matter what. 
-        suspect: freezing some paras may block grad???
-        instead, cf model.py "dirty hack" as a workaround.... 
-        '''
+
         model.requires_grad_(False)    #xzl this seems a must
         for pname, param in model.named_parameters():
             for tp in tunepara:
                 if tp in pname:
                     param.requires_grad = True
-                    print(f"will train: {pname}")
+                    if "blocks.0" in pname:
+                        ppname = pname.replace("blocks.0.","")
+                        print(f"will train: {ppname}")
                 # else:
                 #     param.requires_grad = False
 

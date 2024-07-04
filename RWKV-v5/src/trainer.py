@@ -84,8 +84,9 @@ class train_callback(pl.Callback):
             if 'x052ffn' in os.environ["RWKV_MY_TESTING"] or 'x052xzl' in os.environ["RWKV_MY_TESTING"]:
                 # ---- ffn.key ----- # 
                 param = pl_module.blocks[ly].ffn.key.weight
-                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
-                lll[f"GRAD: layer {ly} ffn key"] = nm.item()
+                if param.requires_grad:
+                    nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                    lll[f"GRAD: layer {ly} ffn key"] = nm.item()
 
                 '''
                 param = pl_module.blocks[ly].ffn.key1.weight
@@ -102,18 +103,21 @@ class train_callback(pl.Callback):
                 # ---- ffn.receptance ----- # 
                 # breakpoint()
                 param = pl_module.blocks[ly].ffn.receptance1.weight
-                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
-                lll[f"GRAD: layer {ly} ffn receptance1"] = nm.item()
-                # logstr += f"layer {ly} key.grad {nm.item()}\n"
+                if param.requires_grad:
+                    nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                    lll[f"GRAD: layer {ly} ffn receptance1"] = nm.item()
+                    # logstr += f"layer {ly} key.grad {nm.item()}\n"
 
                 param = pl_module.blocks[ly].ffn.receptance2.weight
-                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
-                lll[f"GRAD: layer {ly} ffn receptance2"] = nm.item()
+                if param.requires_grad:
+                    nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                    lll[f"GRAD: layer {ly} ffn receptance2"] = nm.item()
 
                 # ---- ffn.value ----- # 
                 param = pl_module.blocks[ly].ffn.value.weight
-                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
-                lll[f"GRAD: layer {ly} ffn value"] = nm.item()
+                if param.requires_grad:
+                    nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                    lll[f"GRAD: layer {ly} ffn value"] = nm.item()
                 '''
                 param = pl_module.blocks[ly].ffn.value1.weight
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
@@ -130,12 +134,14 @@ class train_callback(pl.Callback):
                 lll[f"GRAD: layer {ly} ffn receptance"] = nm.item()
                             
         param = pl_module.ln_out.weight
-        nm = torch.linalg.vector_norm(deepspeed.utils.safe_get_full_grad(param)) 
-        lll[f"GRAD: ln_out weight"] = nm.item()
+        if param.requires_grad:
+            nm = torch.linalg.vector_norm(deepspeed.utils.safe_get_full_grad(param)) 
+            lll[f"GRAD: ln_out weight"] = nm.item()
 
         param = pl_module.head.weight
-        nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
-        lll[f"GRAD: head weight"] = nm.item()
+        if param.requires_grad:
+            nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+            lll[f"GRAD: head weight"] = nm.item()
 
         if trainer.is_global_zero:
             # textual... (too much info)
@@ -321,7 +327,7 @@ class train_callback(pl.Callback):
                 if args.finetune == 1:
                     from src.svd import recover_save
                     eval_model_path = save_model_path + "-recover"
-                    recover_save(args.save_model_path.replace(".pth",""), eval_model_path.replace(".pth",""), 
+                    recover_save(save_model_path.replace(".pth",""), eval_model_path.replace(".pth",""), 
                                  args.n_layer, args.n_embd)
                 else: # pretrain 
                     eval_model_path = save_model_path

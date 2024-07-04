@@ -45,7 +45,7 @@ PROJ_DIR="out/L"$N_LAYER"-D"$N_EMBD"-F"$SVDFAC"-"$MODEL_TYPE # set output folder
 # Finetuning => use very small LR, such as 1e-5
 #
 # M_BSZ="16" # takes ~9G VRAM here => reduce this to save VRAM, increase this for faster speed
-M_BSZ="4"
+M_BSZ="6"   # 21G, finetune .4B, ctx 2K 
 LR_INIT="6e-4"
 LR_FINAL="6e-5"
 GRAD_CP=0 # 1 => slower, save VRAM; 0 => faster, more VRAM
@@ -77,6 +77,9 @@ WANDB=
 # pile, ~250G tokens
 DATAINFO="--data_file /data/rwkv-data/uncopyright_pile/pile --my_exit_tokens 253684860910 --magic_prime 123869549 --ctx_len 2048"
 
+rm -f out/last
+ln -sf `readlink -f $PROJ_DIR` out/last
+
 DS_BUCKET_MB=2 # set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects speed & vram usage)
 #
 python3 train.py --load_model "0" --wandb "$WANDB"  --proj_dir $PROJ_DIR --my_testing $MODEL_TYPE \
@@ -89,4 +92,5 @@ python3 train.py --load_model "0" --wandb "$WANDB"  --proj_dir $PROJ_DIR --my_te
  --svdfac $SVDFAC   \
  --NoReLu   1       \
  --load_partial 1   \
+ --lm_eval_0    0   \
  --finetune 1     # cf train.py "args.finetune"

@@ -6,7 +6,10 @@
 # decompse
 #       a pretrained model -->  svd decompose, and save to *.pth
 #       diff the recovered model vs. the original model 
-python3 svd.py --svdfac 8 --decompose 1
+
+# XXXX won't work, as this is v1 (lacking att.gate1)
+python3 svd.py --svdfac 8 --decompose 1 --decompose_ffn 1   \
+    --orig_model /data/models/RWKV-5-World-0.1B-v1-20230803-ctx4096
 
 python3 svd.py --svdfac 8 --decompose 1 --decompose_ffn 1   \
     --orig_model /data/models/RWKV-5-World-0.4B-v2-20231113-ctx4096

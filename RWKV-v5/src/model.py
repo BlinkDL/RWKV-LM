@@ -1422,9 +1422,14 @@ class RWKV(pl.LightningModule):
         lr_3x = set()
         for n, p in self.named_parameters():  
 
-            if not p.requires_grad:     
-                p.requires_grad=True  # xzl: dirty hack. still compute grads, but keep out of optimizer....
-                # cf train.py "args.finetune"
+            # xzl: dirty hack. still compute grads, but keep out of optimizer....
+            # if not p.requires_grad:     
+            #    p.requires_grad=True  
+            #    # cf train.py "args.finetune"
+            #    continue
+
+            # xzl: otherwise we'll have empty para group for optim
+            if not p.requires_grad:
                 continue
 
             if args.train_type == 'states':
