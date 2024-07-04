@@ -11,8 +11,8 @@
 
 # NB: #SBATCH are read by sbatch. the "#" symbol is needed
 #SBATCH --job-name="rwkv-pretrain"
-#SBATCH --error="slurm_L24_D1024-pretrain.err"
-#SBATCH --output="slurm_L24_D1024-pretrain.log"
+#SBATCH --error="slurm.err"
+#SBATCH --output="slurm.log"
 #SBATCH -A xsel
 
 #####################
@@ -27,9 +27,7 @@
 #\\SBATCH --gres=gpu:a100:8
 #\\SBATCH --gres=gpu:a100:4
 #\\SBATCH --gres=gpu:a100:1
-
 #\\SBATCH --gres=gpu:a40:8
-
 #\\SBATCH --gres=gpu:a6000:8
 #\\SBATCH --gres=gpu:v100:4
 
@@ -62,14 +60,13 @@ nvidia-smi
 #####################
 #   actual code 
 #####################
-RWKVROOT=/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5
 # env setup...
-source $RWKVROOT/env-rivanna.sh
+source env-rivanna.sh
 
 ### prepare a base model
-# bash $RWKVROOT/prep.sh
+# bash prep.sh
 #### train
-bash $RWKVROOT/run.sh
+bash run.sh
 
 ####################################
 # useful 

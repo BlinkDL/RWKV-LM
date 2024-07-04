@@ -9,11 +9,31 @@ MODEL_TYPE="x052" # x052 => rwkv-5.2 (rwkv-5 final)
 # MODEL_TYPE="x060" # x060 => rwkv-6.0
 # MODEL_TYPE="mamba" # pip install mamba_ssm --upgrade
 
+source gpu-detect.sh
+
+
 # 0.1B
 # N_LAYER="12"
 # N_EMBD="768"
+# pretrain: ctx2k, .1B, 24GB VRAM, sz=8
+# 12GB
+if [ "$VRAM_MB" -gt 10000 ] && [ "$VRAM_MB" -lt 15000 ]; then
+    M_BSZ="2"  
+fi
+# 24GB
+if [ "$VRAM_MB" -gt 20000 ] && [ "$VRAM_MB" -lt 30000 ]; then
+    M_BSZ="8"
+fi
+# 40GB
+if [ "$VRAM_MB" -gt 40000 ] && [ "$VRAM_MB" -lt 50000 ]; then
+    M_BSZ="16" # ??
+fi
+# 80 GB
+if [ "$VRAM_MB" -gt 50000 ]; then
+    M_BSZ="32" # ??
+fi
 
-# .3B
+# .3B (unused)
 # N_LAYER="16"
 # N_EMBD="1024"
 

@@ -10,14 +10,15 @@
 
 
 # NB: #SBATCH are read by sbatch. the "#" symbol is needed
-#SBATCH --job-name="rwkv-pretrain"
-#SBATCH --error="slurm_L24_D1024-pretrain.err"
-#SBATCH --output="slurm_L24_D1024-pretrain.log"
+#SBATCH --job-name="rwkv-tune"
+#SBATCH --error="slurm_L24_D1024-tune.err"
+#SBATCH --output="slurm_L24_D1024-tune.log"
 #SBATCH -A xsel
 
 #####################
 #   partition related 
 #####################
+#\\SBATCH --partition="gpu-a100-40"
 #SBATCH --partition="gpu"
 #\\SBATCH --partition="standard"
 
@@ -30,16 +31,16 @@
 
 #\\SBATCH --gres=gpu:a40:8
 
+#SBATCH --gres=gpu:8
+
 #\\SBATCH --gres=gpu:a6000:8
 #\\SBATCH --gres=gpu:v100:4
 
-#SBATCH --gres=gpu:4
-
 # gpupod, https://www.rc.virginia.edu/userinfo/hpc/basepod/
-# only has a100 80GB
+# ALL a100 80GB
 #\\SBATCH --constraint=gpupod
 
-#SBATCH --constraint=a100_80gb|a100|a6000|a40
+#\\SBATCH --constraint=a100_80gb
 
 
 #####################
@@ -56,20 +57,21 @@
 #SBATCH --mail-type=END
 #SBATCH --mail-user=xl6yq@virginia.edu
 
+# env setup...
+source ../env-rivanna.sh
+
 # echo ">>>> (FL) we are on host:" ${HOSTNAME}
 nvidia-smi
+
 
 #####################
 #   actual code 
 #####################
-RWKVROOT=/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5
-# env setup...
-source $RWKVROOT/env-rivanna.sh
-
 ### prepare a base model
-# bash $RWKVROOT/prep.sh
+# bash prep.sh
 #### train
-bash $RWKVROOT/run.sh
+# bash run.sh
+bash tune.sh
 
 ####################################
 # useful 
@@ -88,7 +90,7 @@ bash $RWKVROOT/run.sh
 # scancel 123   # job 123
 
 ## check node availability
-# sinfo -p gpu -o "%20N %10R %10e %25f %25G %t %C" -t IDLE,MIX
+# sinfo -o "%20N %10R %10e %25f %25G %t %C" -t IDLE,MIX
 
 ## job accnt (also show # of cpus allocated)
 # sacct
