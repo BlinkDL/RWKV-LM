@@ -19,8 +19,12 @@ source model-config.sh
 # Larger model => use smaller LR
 # Finetuning => use very small LR, such as 1e-5
 #
-# M_BSZ="16" # takes ~9G VRAM here => reduce this to save VRAM, increase this for faster speed
-M_BSZ="8" # ctx2k, .1B, 24GB VRAM
+# M_BSZ is per GPU, per node. so no need to scale with GPU# here
+#   real_bsz = int(args.num_nodes) * int(args.devices) * args.micro_bsz
+# ctx2k, .1B, sz=8 per node --> 24GB VRAM, 
+# M_BSZ="32" # takes ~9G VRAM here => reduce this to save VRAM, increase this for faster speed
+# M_BSZ="8" # ctx2k, .1B, 24GB VRAM
+M_BSZ="6" # 
 
 # orig
 #LR_INIT="6e-4"
@@ -40,13 +44,13 @@ EPOCH_SAVE=5 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens)
 #
 N_NODE=1 # number of nodes
 
+# number of GPUs per node, must match the actual # of gpus...
+# GPU_PER_NODE=4 
+GPU_PER_NODE=8 
 # export CUDA_VISIBLE_DEVICES=1,2,3
-GPU_PER_NODE=1
-# GPU_PER_NODE=4 # number of GPUs per node  
-# GPU_PER_NODE=8 # number of GPUs per node  
 
-# WANDB=rwkv-dbg
-WANDB=
+WANDB=rwkv-hpc
+# WANDB=
 
 #
 DS_BUCKET_MB=2 # set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects speed & vram usage)
@@ -54,7 +58,7 @@ DS_BUCKET_MB=2 # set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects
 rm -f out/last
 ln -sf `readlink -f $PROJ_DIR` out/last
 
-python3 train.py --load_model "0" --wandb "$WANDB" --proj_dir $PROJ_DIR --my_testing $MODEL_TYPE \
+python3.10 train.py --load_model "0" --wandb "$WANDB" --proj_dir $PROJ_DIR --my_testing $MODEL_TYPE \
  --my_pile_stage 3 --epoch_count 999999 --epoch_begin 0 \
  $DATAINFO \
  --num_nodes $N_NODE --micro_bsz $M_BSZ --n_layer $N_LAYER --n_embd $N_EMBD --pre_ffn 0 --head_qk 0 \
