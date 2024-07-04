@@ -8,7 +8,8 @@
 
 # we can also use own version of lm_eval (good for cusotmization, code comment, etc
 
-# pip install pycountry
+# pip install pycountry datasets sacrebleu sqlitedict scikit-learn transformers
+
 '''
 # /u/xl6yq/workspace-rwkv/venv-eval-lm/lib/python3.10/site-packages/lm_eval/base.py 
         self.dataset = datasets.load_dataset(
@@ -32,7 +33,7 @@ torch.backends.cuda.matmul.allow_tf32 = True
 from torch.nn import functional as F
 
 # xzl: use our own version of lm_eval, rwkv
-sys.path.append('/data/xl6yq/workspace-rwkv/RWKV-LM')
+sys.path.append('/home/xl6yq/workspace-rwkv/RWKV-LM')
 
 os.environ["RWKV_JIT_ON"] = '1'
 os.environ["RWKV_CUDA_ON"] = '1'
@@ -69,7 +70,7 @@ from lm_eval.models.gpt2 import GPT2LM
 # MODEL_NAME = '/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L12-D768-x052/rwkv-15'
 # uncopy pile, ctx=2k, pretrained, acc=.19
 # MODEL_NAME = '/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L12-D768-x052/rwkv-78'   #.21
-MODEL_NAME = '/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L12-D768-x052/rwkv-73'
+# MODEL_NAME = '/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L12-D768-x052/rwkv-73'
 
 ###### .4B
 # ok but worse acc .44 (lmo
@@ -233,7 +234,6 @@ class EvalHarnessAdapter(GPT2LM):
         # )
         return results
 
-# model_path: no ".pth"
 def do_eval(model_path):
     global eval_tasks
 

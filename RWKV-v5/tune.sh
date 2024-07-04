@@ -9,6 +9,12 @@
 #
 #######################################################################################################################
 
+source gpu-detect.sh
+
+# M_BSZ="16" # takes ~9G VRAM here => reduce this to save VRAM, increase this for faster speed
+# M_BSZ="6"   # 21G, finetune .4B, ctx 2K 
+# M_BSZ="4"   # 21G, finetune .4B, ctx 2K 
+
 #
 # MODEL_TYPE="x052" # x052 => rwkv-5.2 (rwkv-5 final)
 # MODEL_TYPE="x052xzl" # my mods, both att and ffn
@@ -26,6 +32,22 @@ MODEL_TYPE="x052xzlTune" # save as above, finetune
 
 N_LAYER="24"
 N_EMBD="1024"
+# 12GB
+if [ "$VRAM_MB" -gt 10000 ] && [ "$VRAM_MB" -lt 15000 ]; then
+    M_BSZ="2"  
+fi
+# 24GB
+if [ "$VRAM_MB" -gt 20000 ] && [ "$VRAM_MB" -lt 30000 ]; then
+    M_BSZ="6"
+fi
+# 40GB
+if [ "$VRAM_MB" -gt 40000 ] && [ "$VRAM_MB" -lt 50000 ]; then
+    M_BSZ="8" # ??
+fi
+# 80 GB
+if [ "$VRAM_MB" -gt 50000 ]; then
+    M_BSZ="10" # ??
+fi
 
 # N_LAYER="24"
 # N_EMBD="2048"
@@ -44,8 +66,7 @@ PROJ_DIR="out/L"$N_LAYER"-D"$N_EMBD"-F"$SVDFAC"-"$MODEL_TYPE # set output folder
 # Larger model => use smaller LR
 # Finetuning => use very small LR, such as 1e-5
 #
-# M_BSZ="16" # takes ~9G VRAM here => reduce this to save VRAM, increase this for faster speed
-M_BSZ="6"   # 21G, finetune .4B, ctx 2K 
+
 LR_INIT="6e-4"
 LR_FINAL="6e-5"
 GRAD_CP=0 # 1 => slower, save VRAM; 0 => faster, more VRAM
@@ -59,7 +80,8 @@ EPOCH_SAVE=1 # save every 10 "miniepochs" (1 miniepoch = 40320 * ctx_len tokens)
 N_NODE=1 # number of nodes
 
 # export CUDA_VISIBLE_DEVICES=1,2,3
-export CUDA_VISIBLE_DEVICES=0
+# export CUDA_VISIBLE_DEVICES=0
+
 GPU_PER_NODE=1
 # GPU_PER_NODE=4
 
@@ -75,7 +97,8 @@ WANDB=
 # DATAINFO="--data_file "data/minipile" --my_exit_tokens 1498226207 --magic_prime 365759 --ctx_len 4096"
 
 # pile, ~250G tokens
-DATAINFO="--data_file /data/rwkv-data/uncopyright_pile/pile --my_exit_tokens 253684860910 --magic_prime 123869549 --ctx_len 2048"
+# DATAINFO="--data_file /data/rwkv-data/uncopyright_pile/pile --my_exit_tokens 253684860910 --magic_prime 123869549 --ctx_len 2048"
+DATAINFO="--data_file /home/xl6yq/data/rwkv-data/uncopyright_pile/pile --my_exit_tokens 253684860910 --magic_prime 123869549 --ctx_len 2048"
 
 rm -f out/last
 ln -sf `readlink -f $PROJ_DIR` out/last
