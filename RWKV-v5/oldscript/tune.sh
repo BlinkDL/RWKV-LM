@@ -1,19 +1,5 @@
 #!/bin/bash
-#######################################################################################################################
-#
-# Run demo-training-prepare.sh with the same MODEL_TYPE & N_LAYER & N_EMBD first
-# Or, rename your base model to rwkv-init.pth and put it in the output folder
-#
-# The trainer will load the last rwkv-*.pth in the folder, such that it can continue from a stopped run
-# Therefore check the log (### Loading rwkv-xxx.pth... ###), and make sure you don't have extra rwkv-*.pth there
-#
-#######################################################################################################################
-
 source gpu-detect.sh
-
-# M_BSZ="16" # takes ~9G VRAM here => reduce this to save VRAM, increase this for faster speed
-# M_BSZ="6"   # 21G, finetune .4B, ctx 2K 
-# M_BSZ="4"   # 21G, finetune .4B, ctx 2K 
 
 #
 # MODEL_TYPE="x052" # x052 => rwkv-5.2 (rwkv-5 final)
@@ -26,10 +12,13 @@ MODEL_TYPE="x052xzlTune" # save as above, finetune
 
 # MODEL_TYPE="x060" # x060 => rwkv-6.0
 # MODEL_TYPE="mamba" # pip install mamba_ssm --upgrade
-#
+
+
+##############################################
 # N_LAYER="12"
 # N_EMBD="768"
 
+##############################################
 N_LAYER="24"
 N_EMBD="1024"
 # 12GB
@@ -48,6 +37,7 @@ fi
 if [ "$VRAM_MB" -gt 50000 ]; then
     M_BSZ="10" # ??
 fi
+##############################################
 
 # N_LAYER="24"
 # N_EMBD="2048"
@@ -82,8 +72,7 @@ N_NODE=1 # number of nodes
 # export CUDA_VISIBLE_DEVICES=1,2,3
 # export CUDA_VISIBLE_DEVICES=0
 
-GPU_PER_NODE=1
-# GPU_PER_NODE=4
+GPU_PER_NODE=$NGPUS
 
 # WANDB=rwkv-dbg
 # WANDB=rwkv-tune
@@ -100,11 +89,16 @@ WANDB=
 # DATAINFO="--data_file /data/rwkv-data/uncopyright_pile/pile --my_exit_tokens 253684860910 --magic_prime 123869549 --ctx_len 2048"
 DATAINFO="--data_file /home/xl6yq/data/rwkv-data/uncopyright_pile/pile --my_exit_tokens 253684860910 --magic_prime 123869549 --ctx_len 2048"
 
-rm -f out/last
-ln -sf `readlink -f $PROJ_DIR` out/last
+# set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects speed & vram usage)
+if [[ $GPU0_NAME == *"A100"* ]]; then 
+    DS_BUCKET_MB=200
+else 
+    DS_BUCKET_MB=2 
+fi 
 
-DS_BUCKET_MB=2 # set to 2 for consumer GPUs, set to 200 for A100 / H100 (affects speed & vram usage)
-#
+RWKVROOT=`readlink -f ../../`
+cd $RWKVROOT
+
 python3 train.py --load_model "0" --wandb "$WANDB"  --proj_dir $PROJ_DIR --my_testing $MODEL_TYPE \
  --my_pile_stage 3 --epoch_count 999999 --epoch_begin 0 \
  $DATAINFO \

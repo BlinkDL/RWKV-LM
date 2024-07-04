@@ -13,3 +13,5 @@ source /home/xl6yq/workspace-rwkv/venv/bin/activate
 export CUDA_HOME=/usr/local/cuda-12/
 # many things will install here
 #export PATH=$PATH:${HOME}/.local/bin
+
+export RWKVDATA=/data/rwkv-data

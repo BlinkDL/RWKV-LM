@@ -1,18 +1,17 @@
 # https://developer.download.nvidia.com/compute/DCGM/docs/nvidia-smi-367.38.pdf
 # https://enterprise-support.nvidia.com/s/article/Useful-nvidia-smi-Queries-2
 
-NGPUS=`nvidia-smi  --list-gpus |wc -l`
+# goal: set two env vars: 
+# VRAM_MB, NGPUS
 
-# guess primary gpu, 0 or 1
-GPUID=0
+if [ $HOSTNAME = "xsel01" ]; then
+    NGPUS=1; GPUID=0
+elif [ $HOSTNAME = "xsel02" ]; then 
+    NGPUS=1; GPUID=1
+else
+    NGPUS=`nvidia-smi  --list-gpus |wc -l`; GPUID=0
+fi    
+
 VRAM_MB=`nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits --id=$GPUID`
 
-# gpu0 too small vram. must be using gpu1
-if ((VRAM_MB < 4000)); then
-GPUID=1
-VRAM_MB=`nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits --id=$GPUID`
-fi 
-
-
-
-
+GPU0_NAME=`nvidia-smi --query-gpu=name --format=csv,noheader,nounits --id=$GPUID`
