@@ -81,9 +81,11 @@ if __name__ == "__main__":
     parser.add_argument("--svdfac", default=1, type=int) 
     parser.add_argument("--finetune", default=0, type=int)  # only finetune specific paras, freezing others
     parser.add_argument("--NoReLu", default=0, type=int) # use relu between decomposed weights?
+    parser.add_argument("--NoDiag", default=1, type=int) # add diag to the weights? 
     parser.add_argument("--head_K", default=0, type=int)  # xzl: compress cls head as K clusters
     parser.add_argument("--load_token_cls", default="", type=str)  # token clusters, *.npy
     parser.add_argument("--lm_eval_0", default=1, type=int)  # run lm_eval before training/tuning starts, ensures lm_eval works 
+    parser.add_argument("--lm_eval_n", default=1, type=int)  # run lm_eval on every chkpt we save
     parser.add_argument("--vram_mb", default=-1, type=int)  # detected gpu vram size, -1==uknown
 
     if pl.__version__[0]=='2':
