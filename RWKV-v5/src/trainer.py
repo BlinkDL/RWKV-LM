@@ -324,7 +324,7 @@ class train_callback(pl.Callback):
             # call lm_eval and log. 
             # NB: save_model_path has no .pth
             if save_model_path != "": # we've just saved a model file
-                if args.finetune == 1:
+                if args.finetune == 1 or 'x052xzl' == os.environ["RWKV_MY_TESTING"]:
                     from src.svd import recover_save
                     eval_model_path = save_model_path + "-recover"
                     recover_save(save_model_path.replace(".pth",""), eval_model_path.replace(".pth",""), 
