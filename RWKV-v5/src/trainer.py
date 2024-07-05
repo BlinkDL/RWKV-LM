@@ -74,12 +74,19 @@ class train_callback(pl.Callback):
                 lll[f"GRAD: layer {ly} att value2"] = nm.item()
                 logstr += f"layer {ly} value.grad {nm.item()}\n"
                 
-            if 'Diag' in os.environ["RWKV_MY_TESTING"]:
-                # ---- att.diag ----- # 
+            if not args.NoDiag: 
+                # ---- att.diag ----- (r only, there's more...) # 
                 param = pl_module.blocks[ly].att.receptance_diag
                 nm = torch.linalg.vector_norm(deepspeed.utils.safe_get_full_grad(param)) 
-                lll[f"GRAD: layer {ly} receptance_diag"] = nm.item()
+                lll[f"GRAD: layer {ly} att receptance_diag"] = nm.item()
                 logstr += f"layer {ly} receptance.grad {nm.item()}\n"
+
+                # --- ffn diag --- # 
+                param = pl_module.blocks[ly].ffn.receptance_diag
+                nm = torch.linalg.vector_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: layer {ly} ffn receptance_diag"] = nm.item()
+                logstr += f"layer {ly} receptance.grad {nm.item()}\n"
+
 
             if 'x052ffn' in os.environ["RWKV_MY_TESTING"] or 'x052xzl' in os.environ["RWKV_MY_TESTING"]:
                 # ---- ffn.key ----- # 
@@ -323,7 +330,7 @@ class train_callback(pl.Callback):
 
             # call lm_eval and log. 
             # NB: save_model_path has no .pth
-            if save_model_path != "": # we've just saved a model file
+            if save_model_path != "" and args.lm_eval_n: # we've just saved a model file
                 if args.finetune == 1 or 'x052xzl' == os.environ["RWKV_MY_TESTING"]:
                     from src.svd import recover_save
                     eval_model_path = save_model_path + "-recover"
