@@ -59,7 +59,9 @@ fi
 
 cd $RWKVROOT
 
-python3 train.py --load_model "0" --wandb "$WANDB" --proj_dir $PROJ_DIR --my_testing $MODEL_TYPE \
+# for whatever reason, on RVA slurm `python3` may bind to python3.11 (why??
+# so force python3.10 here...
+python3.10 train.py --load_model "0" --wandb "$WANDB" --proj_dir $PROJ_DIR --my_testing $MODEL_TYPE \
  --my_pile_stage 3 --epoch_count 999999 --epoch_begin 0 \
  $DATAINFO \
  --num_nodes $N_NODE --n_layer $N_LAYER --n_embd $N_EMBD --pre_ffn 0 --head_qk 0 \
