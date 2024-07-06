@@ -322,7 +322,7 @@ class RWKV_Tmix_x052(MyModule):
 
         return self.jit_func_2(x, g)
     
-# decomposed (left, right), optional relu in between     
+# decomposed (left, right), optional relu in between, optional diag
 class RWKV_Tmix_x052_xzl(MyModule):
     def __init__(self, args, layer_id):
         super().__init__()

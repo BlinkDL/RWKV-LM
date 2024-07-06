@@ -120,8 +120,8 @@ if __name__ == "__main__":
     # xzl: override bsz based on gpu vram, model arch, and finetune or not 
     # e.g. [2,6,8,10] are micro_bsz for VRAM of ~12GB, ~24GB, ~40GB, ~80GB
     bsztable = {
-        "L24-D1024-ctx2048-pretrain": [2,6,14,20], 
-        "L24-D1024-ctx2048-finetune": [2,6,14,20], 
+        "L24-D1024-ctx2048-pretrain": [2,6,14,16],      # xzl: bsz=20 for A100 80GB... OOM WHY
+        "L24-D1024-ctx2048-finetune": [2,6,14,16], 
         "L12-D768-ctx2048-pretrain" : [2,8,18,24], 
         "L12-D768-ctx2048-finetune" : [2,10,20,30],
     }
@@ -323,7 +323,8 @@ if __name__ == "__main__":
     # xzl: now we have a good model file, run lm_eval. 
     #       -- ensures lm_eval works prior to training 
     if args.lm_eval_0 == 1:
-        if args.finetune == 1 or 'x052xzl' == os.environ["RWKV_MY_TESTING"]:
+        # if args.finetune == 1 or 'x052xzl' == os.environ["RWKV_MY_TESTING"]:
+        if args.finetune == 1:
             from src.svd import recover_save
             eval_model_path = args.load_model.replace(".pth", "-recover.pth")
             recover_save(args.load_model.replace(".pth",""), eval_model_path.replace(".pth",""), 
