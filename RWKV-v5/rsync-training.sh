@@ -12,11 +12,12 @@ DESTROOT=/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out
 
 set -x 
 
-DRYRUN=--dry-run
-# DRYRUN=
+# DRYRUN=--dry-run
+DRYRUN=
 
 # most recent chkpt (.pth)
 recent_file=$(find "." -regex ".*[0-9].pth" -type f -printf '%T+ %p\n' | sort -r | head -n 1 | awk '{print $2}')
+recent_file=`basename $recent_file`   # cannot have "./"
 
 ## echo $recent_file
 
