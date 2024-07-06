@@ -36,7 +36,10 @@ from torch.nn import functional as F
 sys.path.append('/home/xl6yq/workspace-rwkv/RWKV-LM')
 
 os.environ["RWKV_JIT_ON"] = '1'
-os.environ["RWKV_CUDA_ON"] = '1'
+
+if os.environ.get('RWKV_CUDA_ON') != '0':
+    os.environ["RWKV_CUDA_ON"] = '1' #default
+
 from rwkv.model import RWKV
 from rwkv.utils import PIPELINE
 
@@ -234,11 +237,11 @@ class EvalHarnessAdapter(GPT2LM):
         # )
         return results
 
-def do_eval(model_path):
+def do_eval(model_path, isverbose=False):
     global eval_tasks
 
     print(f'Loading model - {model_path}')
-    rwkv_model = RWKV(model=model_path, strategy='cuda fp16', verbose=True)
+    rwkv_model = RWKV(model=model_path, strategy='cuda fp16', verbose=isverbose)
     pipeline = PIPELINE(rwkv_model, "rwkv_vocab_v20230424")
 
     RWKV_PAD = pipeline.tokenizer.encode('\n') # we will use '\n' as PAD
