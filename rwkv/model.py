@@ -386,7 +386,7 @@ class RWKV(MyModule):
                             w[x] = -torch.exp(w[x].float())
                         elif int(self.version) == 5:
                             w[x] = torch.exp(-torch.exp(w[x].float())).reshape(-1,1,1)
-                            if self.version in [5.2, 5.9]:
+                            if self.version in [5.2, 5.8, 5.9]:
                                 w[x] = w[x].reshape(args.n_head, -1, 1)
                         elif self.version == 6.0:
                             w[x] = w[x].float().reshape(args.n_head, -1, 1)
@@ -398,7 +398,7 @@ class RWKV(MyModule):
                                 w[x] = w[x].float().reshape(-1,1,1)
                             else:
                                 w[x] = torch.exp(w[x].float()).reshape(-1,1,1)
-                            if self.version in [5.2, 5.9, 6.0]:
+                            if self.version in [5.2, 5.8, 5.9, 6.0]:
                                 w[x] = w[x].reshape(args.n_head, -1, 1)
                     elif '.ln_x' in x: # need fp32 for group_norm
                         w[x] = w[x].float()
@@ -587,6 +587,25 @@ class RWKV(MyModule):
 
     # xzl: ours, based on above
     @MyFunction
+    def ffn_one_v5_8(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw, 
+                     rw1, rw2, # sans rwdiag, 
+                     kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry):
+        xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
+        kx = xx * k_mix + sx * (1 - k_mix)
+        rx = xx * r_mix + sx * (1 - r_mix)
+
+        # r = torch.sigmoid(matmul(rx, rw, rmx, rrx, rmy, rry)) # orig
+        r = matmul(rx, rw1) 
+        r = torch.relu(r) ** 2
+        r = matmul(r, rw2)
+        r = torch.sigmoid(r)
+
+        vx = torch.relu(matmul(kx, kw, kmx, krx, kmy, kry)) ** 2
+        out = r * matmul(vx, vw, vmx, vrx, vmy, vry)
+        return x + out, xx
+    
+    # xzl: ours, based on above
+    @MyFunction
     def ffn_one_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw, 
                      rw1, rw2, rwdiag, 
                      kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry):
@@ -618,6 +637,26 @@ class RWKV(MyModule):
         out = r * matmul(vx, vw, vmx, vrx, vmy, vry)
         return x + out, xx[-1,:]
 
+    # xzl: ours, based on above
+    @MyFunction
+    def ffn_seq_v5_8(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw, 
+                     rw1, rw2, # sans rwdiag, 
+                     kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry):
+        xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
+        sx = torch.cat((sx.unsqueeze(0), xx[:-1,:]))
+        kx = xx * k_mix + sx * (1 - k_mix)
+        rx = xx * r_mix + sx * (1 - r_mix)
+
+        # r = torch.sigmoid(matmul(rx, rw, rmx, rrx, rmy, rry)) # orig
+        r = matmul(rx, rw1) 
+        r = torch.relu(r) ** 2
+        r = matmul(r, rw2)
+        r = torch.sigmoid(r)        
+
+        vx = torch.relu(matmul(kx, kw, kmx, krx, kmy, kry)) ** 2
+        out = r * matmul(vx, vw, vmx, vrx, vmy, vry)
+        return x + out, xx[-1,:]
+    
     # xzl: ours, based on above
     @MyFunction
     def ffn_seq_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw, 
@@ -899,7 +938,7 @@ class RWKV(MyModule):
     @MyFunction
     def att_one_v5_9(self, x, sx, s, ln_w, ln_b, lx_w, lx_b, k_mix, v_mix, r_mix, g_mix, t_decay, t_first, 
                      kw1, kw2, kwdiag, vw1, vw2, vwdiag, rw1, rw2, rwdiag, gw1, gw2, gwdiag,   # ours 
-                     ow, kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry, gmx, grx, gmy, gry, omx, orx, omy, ory):
+                     ow, kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry, gmx, grx, gmy, gry, omx, orx, omy, ory):        
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         kx = xx * k_mix + sx * (1 - k_mix)
         vx = xx * v_mix + sx * (1 - v_mix)
@@ -948,6 +987,55 @@ class RWKV(MyModule):
 
         return x + out, xx, s
 
+    # xzl: ours, based on att_one_v5_1
+    @MyFunction
+    def att_one_v5_8(self, x, sx, s, ln_w, ln_b, lx_w, lx_b, k_mix, v_mix, r_mix, g_mix, t_decay, t_first, 
+                     kw1,kw2, vw1,vw2, rw1,rw2, gw1,gw2,    # ours 
+                     ow, kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry, gmx, grx, gmy, gry, omx, orx, omy, ory):        
+        xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
+        kx = xx * k_mix + sx * (1 - k_mix)
+        vx = xx * v_mix + sx * (1 - v_mix)
+        rx = xx * r_mix + sx * (1 - r_mix)
+        gx = xx * g_mix + sx * (1 - g_mix)
+
+        H = t_decay.shape[0]        # xzl: H: head dim? N: # of heads??
+        N = x.shape[-1] // H
+
+        # r = matmul(rx, rw, rmx, rrx, rmy, rry, output_dtype=torch.float32).view(H, 1, N)  # orig
+        r = matmul(rx, rw1) 
+        r = torch.relu(r) ** 2
+        r = matmul(r, rw2, output_dtype=torch.float32)     
+        r = r.view(H,1,N)
+
+        # k = matmul(kx, kw, kmx, krx, kmy, kry, output_dtype=torch.float32).view(H, N, 1) # orig
+        k = matmul(kx, kw1) 
+        k = torch.relu(k) ** 2
+        k = matmul(k, kw2, output_dtype=torch.float32)
+        k = k.view(H,N,1)
+
+        # v = matmul(vx, vw, vmx, vrx, vmy, vry, output_dtype=torch.float32).view(H, 1, N) # orig
+        v = matmul(vx, vw1) 
+        v = torch.relu(v) ** 2
+        v = matmul(v, vw2, output_dtype=torch.float32)     
+        v = v.view(H,1,N)
+
+        # g = F.silu(matmul(gx, gw, gmx, grx, gmy, gry))  @ orig
+        g = matmul(gx, gw1)
+        g = torch.relu(g) ** 2
+        g = matmul(g, gw2) 
+        g = F.silu(g) 
+        
+        a = matmul(k, v)
+        out = r @ (t_first * a + s)
+        s = a + t_decay * s
+
+        out = out.flatten()
+        out = F.group_norm(out.unsqueeze(0), num_groups=H, weight=lx_w, bias=lx_b, eps = 64e-5).squeeze(0)
+        out = out.to(dtype=x.dtype) * g
+        out = matmul(out, ow, omx, orx, omy, ory)
+
+        return x + out, xx, s
+    
     # xzl: ours, based on att_seq_v5_2
     @MyFunction
     def att_seq_v5_9(self, x, sx, s, ln_w, ln_b, lx_w, lx_b, k_mix, v_mix, r_mix, g_mix, t_decay, t_first, 
@@ -1007,6 +1095,62 @@ class RWKV(MyModule):
         out = matmul(out, ow, omx, orx, omy, ory)
 
         return x + out, xx[-1,:], s
+    
+    # xzl: ours, based on att_seq_v5_2
+    @MyFunction
+    def att_seq_v5_8(self, x, sx, s, ln_w, ln_b, lx_w, lx_b, k_mix, v_mix, r_mix, g_mix, t_decay, t_first, 
+                     kw1,kw2, vw1,vw2, rw1,rw2, gw1,gw2, 
+                     ow, kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry, gmx, grx, gmy, gry, omx, orx, omy, ory):
+        xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
+        sx = torch.cat((sx.unsqueeze(0), xx[:-1,:]))
+        kx = xx * k_mix + sx * (1 - k_mix)
+        vx = xx * v_mix + sx * (1 - v_mix)
+        rx = xx * r_mix + sx * (1 - r_mix)
+        gx = xx * g_mix + sx * (1 - g_mix)
+
+        H = t_decay.shape[0]
+        N = x.shape[-1] // H
+        T = x.shape[0]
+
+        # r = matmul(rx, rw, rmx, rrx, rmy, rry, output_dtype=torch.float32).view(T, H, N).transpose(0, 1) # orig
+        r = matmul(rx, rw1) 
+        r = torch.relu(r) ** 2
+        r = matmul(r, rw2, output_dtype=torch.float32)     
+        r = r.view(T,H,N).transpose(0, 1)
+
+        # k = matmul(kx, kw, kmx, krx, kmy, kry, output_dtype=torch.float32).view(T, H, N).permute(1, 2, 0) # orig
+        k = matmul(kx, kw1) 
+        k = torch.relu(k) ** 2
+        k = matmul(k, kw2, output_dtype=torch.float32)     
+        k = k.view(T,H,N).permute(1, 2, 0)
+                
+        # v = matmul(vx, vw, vmx, vrx, vmy, vry, output_dtype=torch.float32).view(T, H, N).transpose(0, 1) # orig
+        v = matmul(vx, vw1) 
+        v = torch.relu(v) ** 2
+        v = matmul(v, vw2, output_dtype=torch.float32)     
+        v = v.view(T,H,N).transpose(0, 1)
+
+        # g = F.silu(matmul(gx, gw, gmx, grx, gmy, gry)) # orig
+        g = matmul(gx, gw1)
+        g = torch.relu(g) ** 2
+        g = matmul(g, gw2) 
+        g = F.silu(g)
+
+        out = torch.empty((T, H, N), dtype=r.dtype, device=r.device)
+        for t in range(T):
+            rt = r[:,t:t+1,:]
+            kt = k[:,:,t:t+1]
+            vt = v[:,t:t+1,:]
+            at = matmul(kt, vt)
+            out[t] = (rt @ (t_first * at + s)).squeeze(1)
+            s = at + t_decay * s
+
+        out = out.reshape(T, H*N)
+        out = F.group_norm(out, num_groups=H, weight=lx_w, bias=lx_b, eps = 64e-5)
+        out = out.to(dtype=x.dtype) * g
+        out = matmul(out, ow, omx, orx, omy, ory)
+
+        return x + out, xx[-1,:], s    
     ########################################################################################################
 
     @MyFunction
@@ -1249,6 +1393,8 @@ class RWKV(MyModule):
                         ATT = self.att_seq_v5_2
                         if cuda_applicable:
                             ATT = self.cuda_att_seq_v5_2
+                    elif self.version == 5.8:
+                        ATT = self.att_seq_v5_8
                     elif self.version == 5.9:
                         ATT = self.att_seq_v5_9
                     elif self.version == 6.0:
@@ -1258,6 +1404,8 @@ class RWKV(MyModule):
                     FFN = self.ffn_seq
                     if self.version >= 6.0:
                         FFN = self.ffn_seq_v6
+                    elif self.version == 5.8:
+                        FFN = self.ffn_seq_v5_8
                     elif self.version == 5.9:
                         FFN = self.ffn_seq_v5_9
                 else:
@@ -1268,6 +1416,8 @@ class RWKV(MyModule):
                         ATT = self.att_one_v5_1
                     elif self.version == 5.2:
                         ATT = self.att_one_v5_1 # same as v5.1
+                    elif self.version == 5.8:
+                        ATT = self.att_one_v5_8
                     elif self.version == 5.9:
                         ATT = self.att_one_v5_9
                     elif self.version == 6.0:
@@ -1275,21 +1425,24 @@ class RWKV(MyModule):
                     FFN = self.ffn_one
                     if self.version >= 6.0:
                         FFN = self.ffn_one_v6
+                    elif self.version == 5.8:
+                        FFN = self.ffn_one_v5_8
                     elif self.version == 5.9:
                         FFN = self.ffn_one_v5_9
 
                 x = x.to(dtype=atype, device=dev) #xzl:x input
 
-                if self.version in [5.9]:
+                if self.version in [5.8, 5.9]:
                     kw1 = w[f'{att}key1.weight']
-                    kw2 = w[f'{att}key2.weight']
-                    kwdiag = w[f'{att}key_diag']
+                    kw2 = w[f'{att}key2.weight']                    
                     vw1 = w[f'{att}value1.weight']
                     vw2 = w[f'{att}value2.weight']
-                    vwdiag = w[f'{att}value_diag']
                     rw1 = w[f'{att}receptance1.weight']
-                    rw2 = w[f'{att}receptance2.weight']
-                    rwdiag = w[f'{att}receptance_diag']
+                    rw2 = w[f'{att}receptance2.weight']                    
+                    if self.version == 5.9:
+                        kwdiag = w[f'{att}key_diag']
+                        vwdiag = w[f'{att}value_diag']
+                        rwdiag = w[f'{att}receptance_diag']
                 else: 
                     kw = w[f'{att}key.weight']
                     vw = w[f'{att}value.weight']
@@ -1325,10 +1478,11 @@ class RWKV(MyModule):
                     grx = w[f'{att}gate.weight_rx'] if wtype == torch.uint8 else x
                     gmy = w[f'{att}gate.weight_my'] if wtype == torch.uint8 else x
                     gry = w[f'{att}gate.weight_ry'] if wtype == torch.uint8 else x
-                elif self.version in [5.9]:
+                elif self.version in [5.8, 5.9]:
                     gw1 = w[f'{att}gate1.weight']
                     gw2 = w[f'{att}gate2.weight']
-                    gwdiag = w[f'{att}gate_diag']
+                    if self.version ==5.9:
+                        gwdiag = w[f'{att}gate_diag']
                     # dummy, placeholders
                     gmx = None
                     grx = None
@@ -1375,6 +1529,22 @@ class RWKV(MyModule):
                         gmx, grx, gmy, gry,
                         omx, orx, omy, ory,
                         )
+                elif self.version in [5.8]:
+                    x, state[i*3+0], state[i*3+1] = ATT(
+                        x, state[i*3+0], state[i*3+1],
+                        w[f'{bbb}ln1.weight'], w[f'{bbb}ln1.bias'],
+                        w[f'{att}ln_x.weight'], w[f'{att}ln_x.bias'],
+                        w[f'{att}time_mix_k'], w[f'{att}time_mix_v'], w[f'{att}time_mix_r'], w[f'{att}time_mix_g'],
+                        w[f'{att}time_decay'], w[f'{att}time_first'],
+                        # kw, vw, rw, gw, 
+                        kw1,kw2, vw1,vw2, rw1,rw2, gw1,gw2, # sans "diag"
+                        ow,
+                        kmx, krx, kmy, kry,
+                        vmx, vrx, vmy, vry,
+                        rmx, rrx, rmy, rry,
+                        gmx, grx, gmy, gry,
+                        omx, orx, omy, ory,
+                        )                    
                 elif self.version in [5.9]:
                     x, state[i*3+0], state[i*3+1] = ATT(
                         x, state[i*3+0], state[i*3+1],
@@ -1390,7 +1560,7 @@ class RWKV(MyModule):
                         rmx, rrx, rmy, rry,
                         gmx, grx, gmy, gry,
                         omx, orx, omy, ory,
-                        )                    
+                        )
                 elif self.version == 6.0:
                     x, state[i*3+0], state[i*3+1] = ATT(
                         x, state[i*3+0], state[i*3+1],
@@ -1413,10 +1583,11 @@ class RWKV(MyModule):
 
                 kw = w[f'{ffn}key.weight']
                 vw = w[f'{ffn}value.weight']
-                if self.version in [5.9]:
-                    rw1 = w[f'{att}receptance1.weight']
-                    rw2 = w[f'{att}receptance2.weight']
-                    rwdiag = w[f'{att}receptance_diag']
+                if self.version in [5.8, 5.9]:
+                    rw1 = w[f'{ffn}receptance1.weight']
+                    rw2 = w[f'{ffn}receptance2.weight']
+                    if self.version == 5.9:
+                        rwdiag = w[f'{ffn}receptance_diag']
                 else: 
                     rw = w[f'{ffn}receptance.weight']
                 if dd.stream:
@@ -1451,7 +1622,19 @@ class RWKV(MyModule):
                         kmx, krx, kmy, kry,
                         vmx, vrx, vmy, vry,
                         rmx, rrx, rmy, rry,                    
-                        )    
+                        )
+                elif self.version in [5.8]:
+                    x, state[offset] = FFN(
+                        x, state[offset],
+                        w[f'{bbb}ln2.weight'], w[f'{bbb}ln2.bias'],
+                        w[f'{ffn}time_mix_k'], w[f'{ffn}time_mix_r'],
+                        kw, vw, 
+                        # rw,
+                        rw1, rw2, # sans diag 
+                        kmx, krx, kmy, kry,
+                        vmx, vrx, vmy, vry,
+                        rmx, rrx, rmy, rry,                    
+                        )                    
                 elif self.version < 6.0:
                     x, state[offset] = FFN(
                         x, state[offset],

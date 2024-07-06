@@ -27,7 +27,8 @@ from rwkv.utils import PIPELINE, PIPELINE_ARGS
 # model_path='/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L12-D768-x052-ctx2K-pile/rwkv-15'    #v5.2
 #v5.9
 # model_path='/data-xsel01/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-x059/rwkv-init' 
-model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01B-relu-diag-pretrain/rwkv-25'
+# model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01B-relu-diag-pretrain/rwkv-25'
+model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01B-relu-diag-pretrain/rwkv-35'
 
 print(f'Loading model - {model_path}')
 model = RWKV(model=model_path, strategy='cuda fp16', verbose=False)
