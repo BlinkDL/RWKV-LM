@@ -153,10 +153,10 @@ elif 'x052' in os.environ["RWKV_MY_TESTING"]:
     import platform
     if platform.system() == 'Darwin':
         wkv5_gpu = load(name='wkv5', sources=['metal/wkv5_op.mm'], 
-                        verbose=True, extra_cflags=['-std=c++17', f"-D_N_={HEAD_SIZE}"])
+                        verbose=False, extra_cflags=['-std=c++17', f"-D_N_={HEAD_SIZE}"])
     else: 
         wkv5_gpu = load(name="wkv5", sources=["cuda/wkv5_op.cpp", f"cuda/wkv5_cuda.cu"],
-                    verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}"])
+                    verbose=False, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}"])
         
     class WKV_5(torch.autograd.Function):
         @staticmethod
@@ -490,6 +490,7 @@ class RWKV_Tmix_x052_xzl(MyModule):
         return self.jit_func_2(x, g)
 
 # decomposed (left, right), optional relu in between; + diag
+# OBSOLETED 
 class RWKV_Tmix_x052_diag(MyModule):
     def __init__(self, args, layer_id):
         super().__init__()

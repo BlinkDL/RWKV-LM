@@ -33,7 +33,7 @@ if os.environ.get('RWKV_CUDA_ON') == '1':
         load(
             name=f"wkv_cuda",
             sources=[f"{current_path}/cuda/wrapper.cpp", f"{current_path}/cuda/operators.cu", f"{current_path}/cuda/gemm_fp16_cublas.cpp"],
-            verbose=True,
+            verbose=False,
             extra_ldflags=["cublas.lib" if os.name == "nt" else ""],
             extra_cuda_cflags=["--use_fast_math", "-O3", "--extra-device-vectorization"],
             is_python_module=False)
@@ -43,7 +43,7 @@ if os.environ.get('RWKV_CUDA_ON') == '1':
         load(
             name=f"wkv_cuda",
             sources=[f"{current_path}/cuda/wrapper.cpp", f"{current_path}/cuda/operators.cu"],
-            verbose=True,
+            verbose=False,
             extra_cuda_cflags=["--use_fast_math", "-O3", "--extra-device-vectorization"],
             extra_cflags=["-DDISABLE_CUBLAS_GEMM"],
             is_python_module=False)
@@ -125,6 +125,7 @@ def mm8(x: torch.Tensor, w: torch.Tensor, mx: torch.Tensor, rx: torch.Tensor, my
         return mm8_one(x, w, mx, rx, my, ry)
     return mm8_seq(x, w, mx, rx, my, ry)
 
+# xzl: matmul with optional quant (for mm8 above)
 def matmul(a, b, mx: Optional[torch.Tensor]=None, rx: Optional[torch.Tensor]=None, my: Optional[torch.Tensor]=None, ry: Optional[torch.Tensor]=None, output_dtype: Optional[torch.dtype]=None) -> torch.Tensor:
     if output_dtype is None:
         output_dtype = a.dtype
@@ -141,7 +142,7 @@ def matmul(a, b, mx: Optional[torch.Tensor]=None, rx: Optional[torch.Tensor]=Non
         raise ValueError("Unsupported dtype")
 
 
-# xzl: specified matmul for certain shapes....
+# xzl: speiclized matmul for certain shapes....
 if os.environ.get('RWKV_CUDA_ON') == '1' and not DISABLE_CUBLAS_GEMM:
     def matmul_float(a, b, output_dtype: Optional[torch.dtype]=None):
         if output_dtype is None:
@@ -224,12 +225,12 @@ class RWKV(MyModule):
                 del w['_rescale_layer']
             
             args.n_embd = w['emb.weight'].shape[1]
-            # xzl: TBD
-            args.n_att = w['blocks.0.att.key.weight'].shape[0] # note: transposed matrix
-            args.n_ffn = w['blocks.0.ffn.key.weight'].shape[0] # note: transposed matrix
+            # xzl: detect dimension, etc. (moved down
+            # args.n_att = w['blocks.0.att.key.weight'].shape[0] # note: transposed matrix
+            # args.n_ffn = w['blocks.0.ffn.key.weight'].shape[0] # note: transposed matrix
             args.n_layer = 0
             keys = list(w.keys())
-            # xzl: detect model version, TBD
+            # xzl: detect model version, 
             self.version = 4
             for x in keys:
                 layer_id = int(x.split('.')[1]) if ('blocks.' in x) else 0
@@ -243,13 +244,26 @@ class RWKV(MyModule):
                     if len(w[x].shape) > 1:
                         if w[x].shape[1] > 1:
                             self.version = max(5.2, self.version)
+                if 'key1.weight' in x: # xzl
+                    self.version = max(5.8, self.version)
+                if 'key_diag' in x:  # xzl
+                    self.version = max(5.9, self.version)
                 if 'time_maa' in x:
                     self.version = max(6, self.version)
                 if int(self.version) == 6 and 'time_faaaa' in x:
                     args.n_head = w[x].shape[0]
             prxxx(f'Model detected: v{self.version:.1f}')
+            
+            if self.version in [5.8, 5.9]: # our mod
+                # xzl: is this right? 
+                args.n_att = w['blocks.0.att.key2.weight'].shape[0] # note: transposed matrix
+                args.n_ffn = w['blocks.0.ffn.key.weight'].shape[0] # unchanged
+            else: # official model
+                args.n_att = w['blocks.0.att.key.weight'].shape[0] # note: transposed matrix
+                args.n_ffn = w['blocks.0.ffn.key.weight'].shape[0] # note: transposed matrix
 
-            ####################### Compute strategy   xzl: print out "strategy" for each layer... 
+            ####################### Compute strategy   
+            # xzl: & print out "strategy" for each layer... (quant weight? activation??
 
             s = [x.strip().split(' ') for x in strategy.split('->')]
             plan = [0] * len(s)
@@ -340,19 +354,20 @@ class RWKV(MyModule):
                 w = {k.replace('.time_faaaa','.time_first') if '.time_faaaa' in k else k: v for k, v in w.items()}
                 self.w = w
             
+            # xzl: below - convert weights per layer strategy...
             keys = list(w.keys())
             for x in keys:
                 w[x].requires_grad = False
                 layer_id = int(x.split('.')[1]) if ('blocks.' in x) else 0
                 if ('ln_out.' in x) or ('head.' in x):
                     layer_id = args.n_layer
-                dd = strategy[layer_id]  # xzl: convert weights per layer strategy...
+                dd = strategy[layer_id]  
                 DEVICE = dd.device
                 ATYPE = dd.atype
                 WTYPE = dd.wtype
 
                 if not ALREADY_CONVERTED:
-                    if self.RESCALE_LAYER > 0:  # xzl TBD
+                    if self.RESCALE_LAYER > 0:  # xzl we didnt touch these..
                         if 'att.output.weight' in x:
                             w[x] = w[x] / (2 ** int(layer_id // self.RESCALE_LAYER))
                         if 'ffn.value.weight' in x:
@@ -361,15 +376,17 @@ class RWKV(MyModule):
                     if '.time_' in x:
                         w[x] = w[x].squeeze()
                     if 'key.weight' in x or 'value.weight' in x or 'receptance.weight' in x or 'gate.weight' in x or 'output.weight' in x or 'head.weight' in x:
-                        # breakpoint()
-                        w[x] = w[x].t()     # xzl TBD  transposed (why
-
+                        w[x] = w[x].t()     # xzl transposed (why
+                    #xzl: mimic above 
+                    if 'key1.weight' in x or 'value1.weight' in x or 'receptance1.weight' in x or 'gate1.weight' in x \
+                        or 'key2.weight' in x or 'value2.weight' in x or 'receptance2.weight' in x or 'gate2.weight' in x:
+                        w[x] = w[x].t()     # xzl transposed (why
                     if '.time_decay' in x and '_w' not in x: # need fp32 for this
                         if self.version == 4:
                             w[x] = -torch.exp(w[x].float())
                         elif int(self.version) == 5:
                             w[x] = torch.exp(-torch.exp(w[x].float())).reshape(-1,1,1)
-                            if self.version == 5.2:
+                            if self.version in [5.2, 5.9]:
                                 w[x] = w[x].reshape(args.n_head, -1, 1)
                         elif self.version == 6.0:
                             w[x] = w[x].float().reshape(args.n_head, -1, 1)
@@ -381,13 +398,13 @@ class RWKV(MyModule):
                                 w[x] = w[x].float().reshape(-1,1,1)
                             else:
                                 w[x] = torch.exp(w[x].float()).reshape(-1,1,1)
-                            if self.version in [5.2, 6.0]:
+                            if self.version in [5.2, 5.9, 6.0]:
                                 w[x] = w[x].reshape(args.n_head, -1, 1)
                     elif '.ln_x' in x: # need fp32 for group_norm
                         w[x] = w[x].float()
                     else:
                         if (len(w[x].shape) == 2) and ('emb' not in x) and ('_w1' not in x) and ('_w2' not in x):
-                            if WTYPE != torch.uint8:
+                            if WTYPE != torch.uint8:  # xzl: (default weight) cast to WTYPE
                                 w[x] = w[x].to(dtype=WTYPE)
                             else:   # xzl: cast to uint8 (?), compute min/max, then scale..
                                 w[x] = w[x].float()
@@ -419,7 +436,7 @@ class RWKV(MyModule):
                         else:
                             w[x] = w[x].to(dtype=ATYPE)
                 
-                if convert_and_save_and_exit == None:    # xzl: force weight to be contig in cpu mem... why
+                if convert_and_save_and_exit == None:    # xzl: force weight to be contig in cpu mem... TBD for stream mode
                     if 'emb.' in x:
                         w[x] = w[x].contiguous()
                     elif (dd.stream) and (x.endswith('key.weight') or x.endswith('value.weight') or x.endswith('receptance.weight') or x.endswith('output.weight')):
@@ -439,7 +456,7 @@ class RWKV(MyModule):
                         except:
                             pass
 
-                if 'ffn.value.weight' in x:     # xzl: the last weight of a layer??? so collect??
+                if 'ffn.value.weight' in x:     # xzl: reach the last weight of a layer??? so GC??
                     gc.collect()
                     if 'cuda' in args.strategy_string:
                         torch.cuda.empty_cache()
@@ -474,11 +491,11 @@ class RWKV(MyModule):
                 prxxx(f'Converted and saved. Now this will exit.')
                 exit(0)
             
-            # xzl: below specialized cuda impl for v5.2 (othrewise fall back to what??
+            # xzl: below specialized cuda impl for v5.2 (othrewise fall back to torch??
             if self.version == 5.2 and os.environ["RWKV_CUDA_ON"] == '1':
                 HEAD_SIZE = args.n_att // args.n_head
                 rwkv5 = load(name="rwkv5", sources=[f"{current_path}/cuda/rwkv5_op.cpp", f"{current_path}/cuda/rwkv5.cu"],
-                                verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3" if os.name != "nt" else "", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}"])
+                                verbose=False, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3" if os.name != "nt" else "", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}"])
 
                 # xzl: whole block in a cuda kernel???
                 class RWKV_5(torch.autograd.Function):
@@ -553,8 +570,10 @@ class RWKV(MyModule):
         return self.RWKV_6.apply(B, T, C, H, state, r, k, v, w, u)
 
     # xzl: below, non-cuda version...
+    # XXX_one -- for single input token; XXX_seq -- for a seq of tokens (prompt??
     ########################################################################################################
 
+    # xzl: this 
     @MyFunction
     def ffn_one(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw, rw, kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
@@ -566,6 +585,27 @@ class RWKV(MyModule):
         out = r * matmul(vx, vw, vmx, vrx, vmy, vry)
         return x + out, xx
 
+    # xzl: ours, based on above
+    @MyFunction
+    def ffn_one_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw, 
+                     rw1, rw2, rwdiag, 
+                     kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry):
+        xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
+        kx = xx * k_mix + sx * (1 - k_mix)
+        rx = xx * r_mix + sx * (1 - r_mix)
+
+        # r = torch.sigmoid(matmul(rx, rw, rmx, rrx, rmy, rry)) # orig
+        r = matmul(rx, rw1) 
+        r = torch.relu(r) ** 2
+        r = matmul(r, rw2)
+        r += rx @ torch.diag(rwdiag)   # xzl: should use matmul??
+        r = torch.sigmoid(r)
+
+        vx = torch.relu(matmul(kx, kw, kmx, krx, kmy, kry)) ** 2
+        out = r * matmul(vx, vw, vmx, vrx, vmy, vry)
+        return x + out, xx
+    
+    # xzl: this 
     @MyFunction
     def ffn_seq(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw, rw, kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
@@ -578,6 +618,27 @@ class RWKV(MyModule):
         out = r * matmul(vx, vw, vmx, vrx, vmy, vry)
         return x + out, xx[-1,:]
 
+    # xzl: ours, based on above
+    @MyFunction
+    def ffn_seq_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw, 
+                     rw1, rw2, rwdiag, 
+                     kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry):
+        xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
+        sx = torch.cat((sx.unsqueeze(0), xx[:-1,:]))
+        kx = xx * k_mix + sx * (1 - k_mix)
+        rx = xx * r_mix + sx * (1 - r_mix)
+
+        # r = torch.sigmoid(matmul(rx, rw, rmx, rrx, rmy, rry)) # orig
+        r = matmul(rx, rw1) 
+        r = torch.relu(r) ** 2
+        r = matmul(r, rw2)
+        r += rx @ torch.diag(rwdiag)   # xzl: use matmul??
+        r = torch.sigmoid(r)        
+
+        vx = torch.relu(matmul(kx, kw, kmx, krx, kmy, kry)) ** 2
+        out = r * matmul(vx, vw, vmx, vrx, vmy, vry)
+        return x + out, xx[-1,:]
+    
     @MyFunction
     def ffn_one_v6(self, x, sx, ln_w, ln_b, k_maa, r_maa, kw, vw, rw, kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
@@ -728,6 +789,7 @@ class RWKV(MyModule):
 
     ########################################################################################################
 
+    # xzl: this 
     @MyFunction
     def att_one_v5_1(self, x, sx, s, ln_w, ln_b, lx_w, lx_b, k_mix, v_mix, r_mix, g_mix, t_decay, t_first, kw, vw, rw, gw, ow, kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry, gmx, grx, gmy, gry, omx, orx, omy, ory):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
@@ -798,6 +860,7 @@ class RWKV(MyModule):
 
     ########################################################################################################
 
+    # xzl: this 
     @MyFunction
     def att_seq_v5_2(self, x, sx, s, ln_w, ln_b, lx_w, lx_b, k_mix, v_mix, r_mix, g_mix, t_decay, t_first, kw, vw, rw, gw, ow, kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry, gmx, grx, gmy, gry, omx, orx, omy, ory):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
@@ -831,7 +894,119 @@ class RWKV(MyModule):
         out = matmul(out, ow, omx, orx, omy, ory)
 
         return x + out, xx[-1,:], s
+    ########################################################################################################
+    # xzl: ours, based on att_one_v5_1
+    @MyFunction
+    def att_one_v5_9(self, x, sx, s, ln_w, ln_b, lx_w, lx_b, k_mix, v_mix, r_mix, g_mix, t_decay, t_first, 
+                     kw1, kw2, kwdiag, vw1, vw2, vwdiag, rw1, rw2, rwdiag, gw1, gw2, gwdiag,   # ours 
+                     ow, kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry, gmx, grx, gmy, gry, omx, orx, omy, ory):
+        xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
+        kx = xx * k_mix + sx * (1 - k_mix)
+        vx = xx * v_mix + sx * (1 - v_mix)
+        rx = xx * r_mix + sx * (1 - r_mix)
+        gx = xx * g_mix + sx * (1 - g_mix)
 
+        H = t_decay.shape[0]        # xzl: H: head dim? N: # of heads??
+        N = x.shape[-1] // H
+
+        # r = matmul(rx, rw, rmx, rrx, rmy, rry, output_dtype=torch.float32).view(H, 1, N)  # orig
+        r = matmul(rx, rw1) 
+        r = torch.relu(r) ** 2
+        r = matmul(r, rw2, output_dtype=torch.float32)     
+        r += rx @ torch.diag(rwdiag)   # xzl: should use matmul??
+        r = r.view(H,1,N)
+
+        # k = matmul(kx, kw, kmx, krx, kmy, kry, output_dtype=torch.float32).view(H, N, 1) # orig
+        k = matmul(kx, kw1) 
+        k = torch.relu(k) ** 2
+        k = matmul(k, kw2, output_dtype=torch.float32)
+        k += kx @ torch.diag(kwdiag)
+        k = k.view(H,N,1)
+
+        # v = matmul(vx, vw, vmx, vrx, vmy, vry, output_dtype=torch.float32).view(H, 1, N) # orig
+        v = matmul(vx, vw1) 
+        v = torch.relu(v) ** 2
+        v = matmul(v, vw2, output_dtype=torch.float32)     
+        v += vx @ torch.diag(vwdiag)
+        v = v.view(H,1,N)
+
+        # g = F.silu(matmul(gx, gw, gmx, grx, gmy, gry))  @ orig
+        g = matmul(gx, gw1)
+        g = torch.relu(g) ** 2
+        g = matmul(g, gw2) 
+        g += gx @ torch.diag(gwdiag)
+        g = F.silu(g) 
+        
+        a = matmul(k, v)
+        out = r @ (t_first * a + s)
+        s = a + t_decay * s
+
+        out = out.flatten()
+        out = F.group_norm(out.unsqueeze(0), num_groups=H, weight=lx_w, bias=lx_b, eps = 64e-5).squeeze(0)
+        out = out.to(dtype=x.dtype) * g
+        out = matmul(out, ow, omx, orx, omy, ory)
+
+        return x + out, xx, s
+
+    # xzl: ours, based on att_seq_v5_2
+    @MyFunction
+    def att_seq_v5_9(self, x, sx, s, ln_w, ln_b, lx_w, lx_b, k_mix, v_mix, r_mix, g_mix, t_decay, t_first, 
+                     kw1, kw2, kwdiag, vw1, vw2, vwdiag, rw1, rw2, rwdiag, gw1, gw2, gwdiag, 
+                     ow, kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry, gmx, grx, gmy, gry, omx, orx, omy, ory):
+        xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
+        sx = torch.cat((sx.unsqueeze(0), xx[:-1,:]))
+        kx = xx * k_mix + sx * (1 - k_mix)
+        vx = xx * v_mix + sx * (1 - v_mix)
+        rx = xx * r_mix + sx * (1 - r_mix)
+        gx = xx * g_mix + sx * (1 - g_mix)
+
+        H = t_decay.shape[0]
+        N = x.shape[-1] // H
+        T = x.shape[0]
+
+        # r = matmul(rx, rw, rmx, rrx, rmy, rry, output_dtype=torch.float32).view(T, H, N).transpose(0, 1) # orig
+        r = matmul(rx, rw1) 
+        r = torch.relu(r) ** 2
+        r = matmul(r, rw2, output_dtype=torch.float32)     
+        r += rx @ torch.diag(rwdiag)   # xzl: should use matmul??
+        r = r.view(T,H,N).transpose(0, 1)
+
+        # k = matmul(kx, kw, kmx, krx, kmy, kry, output_dtype=torch.float32).view(T, H, N).permute(1, 2, 0) # orig
+        k = matmul(kx, kw1) 
+        k = torch.relu(k) ** 2
+        k = matmul(k, kw2, output_dtype=torch.float32)     
+        k += kx @ torch.diag(kwdiag)
+        k = k.view(T,H,N).permute(1, 2, 0)
+                
+        # v = matmul(vx, vw, vmx, vrx, vmy, vry, output_dtype=torch.float32).view(T, H, N).transpose(0, 1) # orig
+        v = matmul(vx, vw1) 
+        v = torch.relu(v) ** 2
+        v = matmul(v, vw2, output_dtype=torch.float32)     
+        v += vx @ torch.diag(vwdiag)
+        v = v.view(T,H,N).transpose(0, 1)
+
+        # g = F.silu(matmul(gx, gw, gmx, grx, gmy, gry)) # orig
+        g = matmul(gx, gw1)
+        g = torch.relu(g) ** 2
+        g = matmul(g, gw2) 
+        g += gx @ torch.diag(gwdiag)
+        g = F.silu(g)
+
+        out = torch.empty((T, H, N), dtype=r.dtype, device=r.device)
+        for t in range(T):
+            rt = r[:,t:t+1,:]
+            kt = k[:,:,t:t+1]
+            vt = v[:,t:t+1,:]
+            at = matmul(kt, vt)
+            out[t] = (rt @ (t_first * at + s)).squeeze(1)
+            s = at + t_decay * s
+
+        out = out.reshape(T, H*N)
+        out = F.group_norm(out, num_groups=H, weight=lx_w, bias=lx_b, eps = 64e-5)
+        out = out.to(dtype=x.dtype) * g
+        out = matmul(out, ow, omx, orx, omy, ory)
+
+        return x + out, xx[-1,:], s
     ########################################################################################################
 
     @MyFunction
@@ -1020,6 +1195,7 @@ class RWKV(MyModule):
             w = self.w
             args = self.args
 
+            # xzl: init state
             if state == None:
                 if self.version == 4:
                     state = [None] * args.n_layer * 5
@@ -1047,9 +1223,10 @@ class RWKV(MyModule):
 
             seq_mode = len(tokens) > 1
 
-            x = w['emb.weight'][tokens if seq_mode else tokens[0]]
+            x = w['emb.weight'][tokens if seq_mode else tokens[0]] # xzl: 'x'-input
 
-            # xzl: below- use cuda impl if available, otherwise fall back totorch
+            # xzl: below- assemble layers (each layer)
+            #  use custom cuda impl if available, otherwise fall back to torch
             for i in range(args.n_layer):
                 bbb = f'blocks.{i}.'
                 att = f'blocks.{i}.att.'
@@ -1072,6 +1249,8 @@ class RWKV(MyModule):
                         ATT = self.att_seq_v5_2
                         if cuda_applicable:
                             ATT = self.cuda_att_seq_v5_2
+                    elif self.version == 5.9:
+                        ATT = self.att_seq_v5_9
                     elif self.version == 6.0:
                         ATT = self.att_seq_v6_0
                         if cuda_applicable:
@@ -1079,6 +1258,8 @@ class RWKV(MyModule):
                     FFN = self.ffn_seq
                     if self.version >= 6.0:
                         FFN = self.ffn_seq_v6
+                    elif self.version == 5.9:
+                        FFN = self.ffn_seq_v5_9
                 else:
                     ATT = self.att_one
                     if self.version == 5:
@@ -1087,23 +1268,39 @@ class RWKV(MyModule):
                         ATT = self.att_one_v5_1
                     elif self.version == 5.2:
                         ATT = self.att_one_v5_1 # same as v5.1
+                    elif self.version == 5.9:
+                        ATT = self.att_one_v5_9
                     elif self.version == 6.0:
                         ATT = self.att_one_v6_0
                     FFN = self.ffn_one
                     if self.version >= 6.0:
                         FFN = self.ffn_one_v6
+                    elif self.version == 5.9:
+                        FFN = self.ffn_one_v5_9
 
-                x = x.to(dtype=atype, device=dev)
+                x = x.to(dtype=atype, device=dev) #xzl:x input
 
-                kw = w[f'{att}key.weight']
-                vw = w[f'{att}value.weight']
-                rw = w[f'{att}receptance.weight']
+                if self.version in [5.9]:
+                    kw1 = w[f'{att}key1.weight']
+                    kw2 = w[f'{att}key2.weight']
+                    kwdiag = w[f'{att}key_diag']
+                    vw1 = w[f'{att}value1.weight']
+                    vw2 = w[f'{att}value2.weight']
+                    vwdiag = w[f'{att}value_diag']
+                    rw1 = w[f'{att}receptance1.weight']
+                    rw2 = w[f'{att}receptance2.weight']
+                    rwdiag = w[f'{att}receptance_diag']
+                else: 
+                    kw = w[f'{att}key.weight']
+                    vw = w[f'{att}value.weight']
+                    rw = w[f'{att}receptance.weight']
                 ow = w[f'{att}output.weight']
                 if dd.stream:
                     kw = kw.to(device=dev, non_blocking=True)
                     vw = vw.to(device=dev, non_blocking=True)
                     rw = rw.to(device=dev, non_blocking=True)
                     ow = ow.to(device=dev, non_blocking=True)
+                # xzl: below, dequant int8 weight (why "else x?"
                 kmx = w[f'{att}key.weight_mx'] if wtype == torch.uint8 else x
                 krx = w[f'{att}key.weight_rx'] if wtype == torch.uint8 else x
                 kmy = w[f'{att}key.weight_my'] if wtype == torch.uint8 else x
@@ -1128,6 +1325,17 @@ class RWKV(MyModule):
                     grx = w[f'{att}gate.weight_rx'] if wtype == torch.uint8 else x
                     gmy = w[f'{att}gate.weight_my'] if wtype == torch.uint8 else x
                     gry = w[f'{att}gate.weight_ry'] if wtype == torch.uint8 else x
+                elif self.version in [5.9]:
+                    gw1 = w[f'{att}gate1.weight']
+                    gw2 = w[f'{att}gate2.weight']
+                    gwdiag = w[f'{att}gate_diag']
+                    # dummy, placeholders
+                    gmx = None
+                    grx = None
+                    gmy = None
+                    gry = None
+
+                # --- xzl: below, run att (one or seq) --- # 
                 if self.version == 4:
                     x, state[i*5+0], state[i*5+1], state[i*5+2], state[i*5+3] = ATT(
                         x, state[i*5+0], state[i*5+1], state[i*5+2], state[i*5+3],
@@ -1153,7 +1361,7 @@ class RWKV(MyModule):
                         rmx, rrx, rmy, rry,
                         omx, orx, omy, ory,
                         )
-                elif self.version in [5.1, 5.2]:
+                elif self.version in [5.1, 5.2]:                    
                     x, state[i*3+0], state[i*3+1] = ATT(
                         x, state[i*3+0], state[i*3+1],
                         w[f'{bbb}ln1.weight'], w[f'{bbb}ln1.bias'],
@@ -1167,6 +1375,22 @@ class RWKV(MyModule):
                         gmx, grx, gmy, gry,
                         omx, orx, omy, ory,
                         )
+                elif self.version in [5.9]:
+                    x, state[i*3+0], state[i*3+1] = ATT(
+                        x, state[i*3+0], state[i*3+1],
+                        w[f'{bbb}ln1.weight'], w[f'{bbb}ln1.bias'],
+                        w[f'{att}ln_x.weight'], w[f'{att}ln_x.bias'],
+                        w[f'{att}time_mix_k'], w[f'{att}time_mix_v'], w[f'{att}time_mix_r'], w[f'{att}time_mix_g'],
+                        w[f'{att}time_decay'], w[f'{att}time_first'],
+                        # kw, vw, rw, gw, 
+                        kw1,kw2,kwdiag,vw1,vw2,vwdiag,rw1,rw2,rwdiag,gw1,gw2,gwdiag, 
+                        ow,
+                        kmx, krx, kmy, kry,
+                        vmx, vrx, vmy, vry,
+                        rmx, rrx, rmy, rry,
+                        gmx, grx, gmy, gry,
+                        omx, orx, omy, ory,
+                        )                    
                 elif self.version == 6.0:
                     x, state[i*3+0], state[i*3+1] = ATT(
                         x, state[i*3+0], state[i*3+1],
@@ -1189,7 +1413,12 @@ class RWKV(MyModule):
 
                 kw = w[f'{ffn}key.weight']
                 vw = w[f'{ffn}value.weight']
-                rw = w[f'{ffn}receptance.weight']
+                if self.version in [5.9]:
+                    rw1 = w[f'{att}receptance1.weight']
+                    rw2 = w[f'{att}receptance2.weight']
+                    rwdiag = w[f'{att}receptance_diag']
+                else: 
+                    rw = w[f'{ffn}receptance.weight']
                 if dd.stream:
                     kw = kw.to(device=dev, non_blocking=True)
                     vw = vw.to(device=dev, non_blocking=True)
@@ -1210,7 +1439,20 @@ class RWKV(MyModule):
                     offset = i*5+4
                 elif int(self.version) in [5,6]:
                     offset = i*3+2
-                if self.version < 6.0:
+                # ---- xzl: below, run FFN ----- #
+                if self.version in [5.9]:
+                    x, state[offset] = FFN(
+                        x, state[offset],
+                        w[f'{bbb}ln2.weight'], w[f'{bbb}ln2.bias'],
+                        w[f'{ffn}time_mix_k'], w[f'{ffn}time_mix_r'],
+                        kw, vw, 
+                        # rw,
+                        rw1, rw2, rwdiag, 
+                        kmx, krx, kmy, kry,
+                        vmx, vrx, vmy, vry,
+                        rmx, rrx, rmy, rry,                    
+                        )    
+                elif self.version < 6.0:
                     x, state[offset] = FFN(
                         x, state[offset],
                         w[f'{bbb}ln2.weight'], w[f'{bbb}ln2.bias'],
@@ -1219,7 +1461,7 @@ class RWKV(MyModule):
                         kmx, krx, kmy, kry,
                         vmx, vrx, vmy, vry,
                         rmx, rrx, rmy, rry,                    
-                        )
+                        )    
                 else:
                     x, state[offset] = FFN(
                         x, state[offset],
