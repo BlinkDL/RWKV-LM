@@ -323,13 +323,12 @@ if __name__ == "__main__":
     # xzl: now we have a good model file, run lm_eval. 
     #       -- ensures lm_eval works prior to training 
     if args.lm_eval_0 == 1:
-        # if args.finetune == 1 or 'x052xzl' == os.environ["RWKV_MY_TESTING"]:
-        if args.finetune == 1:
+        if 'x058' == os.environ["RWKV_MY_TESTING"]:
             from src.svd import recover_save
             eval_model_path = args.load_model.replace(".pth", "-recover.pth")
             recover_save(args.load_model.replace(".pth",""), eval_model_path.replace(".pth",""), 
                         args.n_layer, args.n_embd)
-        else: # pretrain
+        else:
             eval_model_path = args.load_model
         from src.run_lm_eval import do_eval
         from src.run_lm_eval import clean_cache
