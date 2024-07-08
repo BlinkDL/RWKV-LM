@@ -355,7 +355,8 @@ if __name__ == "__main__":
                     scale = -1e-4
                     torch.nn.init.uniform_(load_dict[k], a=scale, b=-scale)
 
-    model.load_state_dict(load_dict)
+    model.load_state_dict(load_dict, strict=False)
+    # model.load_state_dict(load_dict, strict=True)
 
     if pl.__version__[0]=='2':
         trainer = Trainer(accelerator=args.accelerator,strategy=args.strategy,devices=args.devices,num_nodes=args.num_nodes,precision=args.precision,
