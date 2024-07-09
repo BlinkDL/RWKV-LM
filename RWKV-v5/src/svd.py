@@ -17,6 +17,11 @@ python3 svd.py --svdfac 8 --decompose 1 --decompose_ffn 1   \
 python3 svd.py --svdfac 8 --decompose 1 --decompose_ffn 1   \
     --orig_model /data/models/RWKV-5-World-1B5-v2-20231025-ctx4096
 
+##############
+# strip diag:
+python3 src/svd.py --decompose 3 \
+    --orig_model /data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x58/from-hpc/rwkv-295
+
 # recover: 
 #       our decmoposed model (finetuned) ---> a model in the original format, save to *pth 
 python3 svd.py --decompose 0 
@@ -116,6 +121,31 @@ def decompose_emb(args):
     counts = np.bincount(labels[labels>=0])
     print(counts)
     
+# strip _diag from given model 
+def strip_diag(args): 
+    print(f"to load model {args.MODEL_NAME}.pth...")
+    w00 = torch.load(args.MODEL_NAME + '.pth', map_location='cpu') # xzl: load model...
+    print("model loaded")
+
+    keys_del = []
+
+    for k in w00.keys():
+        if "_diag" in k:
+            keys_del.append(k) 
+
+    for k in keys_del: 
+        print(f"REMOVED {k}")
+        del w00[k] 
+
+    for k in w00.keys():        
+        w00[k]=w00[k].to(dtype=torch.bfloat16) # still save as bfloat
+
+    if args.path_to == "":
+        args.path_to = f"{args.MODEL_NAME}-nodiag"
+
+    torch.save(w00, args.path_to + ".pth")
+    print(f">>>>>>>>>>>>> saved to {args.path_to}.pth")
+
 def full_to_svd(w,args):
     selfkeys = [".att.receptance.", ".att.key.", ".att.value.", ".att.gate."]
     if args.decompose_ffn == 1: 
@@ -347,7 +377,9 @@ if __name__ == '__main__':
     parser.add_argument("--orig_model", default=DEFAULT_ORIG, type=str)
     parser.add_argument("--my_model", default=DEFAULT_MY, type=str)
     
+    # our commad....
     parser.add_argument("-d", "--decompose", default=1, type=int)
+    
     parser.add_argument("-s", "--svdfac", default=4, type=int)
     # decompose (some) ffn weights in ffn as well 
     parser.add_argument("--decompose_ffn", default=0, type=int)
@@ -387,3 +419,6 @@ if __name__ == '__main__':
     elif args.decompose == 2:
         args.MODEL_NAME = args.orig_model
         decompose_emb(args)
+    elif args.decompose == 3:
+        args.MODEL_NAME = args.orig_model
+        strip_diag(args)        
