@@ -16,7 +16,11 @@ os.environ["RWKV_CUDA_ON"] = '0'   # we dont have cuda custom ops
 #v5.9
 # path='/data-xsel01/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-x059/rwkv-init' 
 # path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01B-relu-diag-pretrain/rwkv-25'  # acc .19
-path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01B-relu-diag-pretrain/rwkv-35'  # acc .21
+# path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01B-relu-diag-pretrain/rwkv-35'  # acc .21
+
+#v5.8
+path='/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x58/from-hpc/rwkv-270-nodiag'
+path='/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x58/from-hpc/rwkv-295-nodiag'
 
 res = run_lm_eval.do_eval(path, isverbose=True)
 print(res)

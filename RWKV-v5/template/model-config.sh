@@ -3,13 +3,10 @@
 # M_BSZ="4"   # 21G, finetune .4B, ctx 2K 
 
 #
-# MODEL_TYPE="x052" # x052 => rwkv-5.2 (rwkv-5 final)
-# MODEL_TYPE="x052xzl" # my mods, both att and ffn
-MODEL_TYPE="x052xzlTune" # save as above, finetune
-# MODEL_TYPE="x052attDiag"  # grad abnormal.... TBD
-
-# MODEL_TYPE="x052attTune" # my mods, att only + finetune
-# MODEL_TYPE="x052att" # my mods, att only
+MODEL_TYPE="x052" # x052 => rwkv-5.2 (rwkv-5 final)
+# MODEL_TYPE="x058" # decomposed, No relu between left/right, No diag
+# MODEL_TYPE="x0585" # TBD -- decomposed, relu between left/right, No diag  -- 
+# MODEL_TYPE="x059" # decomposed, relu between left/right, diag
 
 # MODEL_TYPE="x060" # x060 => rwkv-6.0
 # MODEL_TYPE="mamba" # pip install mamba_ssm --upgrade

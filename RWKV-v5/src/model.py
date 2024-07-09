@@ -149,7 +149,7 @@ if 'x060' in os.environ["RWKV_MY_TESTING"]:
         def RUN_CUDA_RWKV6(B, T, C, H, r, k, v, w, u):
             return WKV_6.apply(B, T, C, H, r, k, v, w, u)
 
-elif 'x052' in os.environ["RWKV_MY_TESTING"]:
+elif os.environ["RWKV_MY_TESTING"] in ['x052', 'x058', 'x059']:
     import platform
     if platform.system() == 'Darwin':
         wkv5_gpu = load(name='wkv5', sources=['metal/wkv5_op.mm'], 
@@ -223,10 +223,13 @@ elif 'x052' in os.environ["RWKV_MY_TESTING"]:
                 return (None, None, None, None, gr, gk, gv, gw, gu)
 
     def RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w, u):
-        return WKV_5.apply(B, T, C, H, r, k, v, w, u)   #xzl: goes to forward/backward above
-
+        return WKV_5.apply(B, T, C, H, r, k, v, w, u)   #xzl: goes to forward/backward above    
 elif 'mamba' in os.environ["RWKV_MY_TESTING"]:
     from mamba_ssm import Mamba
+else: 
+    import sys
+    print("bug")
+    sys.exit(-1)
 
 ########################################################################################################
 
@@ -322,8 +325,8 @@ class RWKV_Tmix_x052(MyModule):
 
         return self.jit_func_2(x, g)
     
-# decomposed (left, right), optional relu in between, optional diag
-class RWKV_Tmix_x052_xzl(MyModule):
+# decomposed (left, right), has relu in between, has diag
+class RWKV_Tmix_x059(MyModule):
     def __init__(self, args, layer_id):
         super().__init__()
         self.args = args
@@ -334,16 +337,6 @@ class RWKV_Tmix_x052_xzl(MyModule):
         self.n_head = args.dim_att // self.head_size
         assert args.dim_att % self.n_head == 0
         self.head_size_divisor = args.head_size_divisor
-
-        self.hasrelu = True
-        if self.args.NoReLu:
-            self.hasrelu = False
-                
-        self.hasdiag = True
-        if self.args.NoDiag:
-            self.hasdiag = False
-        # regardless of the option, we will still define XXX_diag parameters (below);
-        # otherwise JIT'd methods will complain. XXX_diag are small, anyway
 
         with torch.no_grad():
             ratio_0_to_1 = layer_id / (args.n_layer - 1)  # 0 to 1
@@ -376,7 +369,6 @@ class RWKV_Tmix_x052_xzl(MyModule):
         # self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)  # orig
         self.receptance1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
         self.receptance2 = nn.Linear(args.n_embd//args.svdfac, args.dim_att, bias=False)
-        # see comment self.hasdiag above
         self.receptance_diag = nn.Parameter(torch.ones(min(args.n_embd, args.dim_att)))
         
         # self.key = nn.Linear(args.n_embd, args.dim_att, bias=False)   # orig
@@ -417,44 +409,36 @@ class RWKV_Tmix_x052_xzl(MyModule):
 
         # r = self.receptance(xr) # orig
         r = self.receptance1(xr)  
-        if self.hasrelu:
-            r = torch.relu(r) ** 2   # sqr relu
+        r = torch.relu(r) ** 2   # sqr relu
         r = self.receptance2(r)     # r shape is still (B,T,C)        
-        if self.hasdiag:
-            r1 = xr @ torch.diag(self.receptance_diag) # r1 shape still (B,T,C)
-            r += r1
+        r1 = xr @ torch.diag(self.receptance_diag) # r1 shape still (B,T,C)
+        r += r1
 
         # k = self.key(xk)  # orig
         k = self.key1(xk)
-        if self.hasrelu:
-            k = torch.relu(k) ** 2 
+        k = torch.relu(k) ** 2 
         k = self.key2(k)
-        if self.hasdiag:
-            k1 = xk @ torch.diag(self.key_diag) 
-            k += k1
+        k1 = xk @ torch.diag(self.key_diag) 
+        k += k1
 
         # v = self.value(xv) # orig
         v = self.value1(xv)
-        if self.hasrelu:
-            v = torch.relu(v) ** 2 
+        v = torch.relu(v) ** 2 
         v = self.value2(v)
-        if self.hasdiag:
-            v1 = xv @ torch.diag(self.value_diag)
-            v += v1
+        v1 = xv @ torch.diag(self.value_diag)
+        v += v1
 
         # g = F.silu(self.gate(xg))  # orig
         g = self.gate1(xg)
-        if self.hasrelu:
-            g  =torch.relu(g) ** 2
+        g  =torch.relu(g) ** 2
         g = self.gate2(g)
-        if self.hasdiag:
-            g1 = xg @ torch.diag(self.gate_diag)
-            g += g1
+        g1 = xg @ torch.diag(self.gate_diag)
+        g += g1
         g = F.silu(g)
 
         return r, k, v, g
 
-    # xzl: x,g->x see below
+    # xzl: x,g->x see below. UNCHANGED for v5.8, 5.9
     @MyFunction
     def jit_func_2(self, x, g):
         B, T, C = x.size()
@@ -489,9 +473,8 @@ class RWKV_Tmix_x052_xzl(MyModule):
 
         return self.jit_func_2(x, g)
 
-# decomposed (left, right), optional relu in between; + diag
-# OBSOLETED 
-class RWKV_Tmix_x052_diag(MyModule):
+# decomposed (left, right), no relu, no diag
+class RWKV_Tmix_x058(MyModule):
     def __init__(self, args, layer_id):
         super().__init__()
         self.args = args
@@ -502,10 +485,6 @@ class RWKV_Tmix_x052_diag(MyModule):
         self.n_head = args.dim_att // self.head_size
         assert args.dim_att % self.n_head == 0
         self.head_size_divisor = args.head_size_divisor
-
-        self.hasrelu = True
-        if self.args.NoReLu:
-            self.hasrelu = False
 
         with torch.no_grad():
             ratio_0_to_1 = layer_id / (args.n_layer - 1)  # 0 to 1
@@ -538,17 +517,14 @@ class RWKV_Tmix_x052_diag(MyModule):
         # self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)  # orig
         self.receptance1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
         self.receptance2 = nn.Linear(args.n_embd//args.svdfac, args.dim_att, bias=False)
-        self.receptance_diag = nn.Parameter(torch.ones(min(args.n_embd, args.dim_att)))
         
         # self.key = nn.Linear(args.n_embd, args.dim_att, bias=False)   # orig
         self.key1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
         self.key2 = nn.Linear(args.n_embd//args.svdfac, args.dim_att, bias=False)
-        self.key_diag = nn.Parameter(torch.ones(min(args.n_embd, args.dim_att)))
 
         # self.value = nn.Linear(args.n_embd, args.dim_att, bias=False)
         self.value1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
         self.value2 = nn.Linear(args.n_embd//args.svdfac, args.dim_att, bias=False)
-        self.value_diag = nn.Parameter(torch.ones(min(args.n_embd, args.dim_att)))
 
         self.output = nn.Linear(args.dim_att, args.n_embd, bias=False)
         # will cause zero grad... why??? (XXX figure out better init value) 
@@ -558,15 +534,14 @@ class RWKV_Tmix_x052_diag(MyModule):
         # self.gate = nn.Linear(args.n_embd, args.dim_att, bias=False)
         self.gate1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
         self.gate2 = nn.Linear(args.n_embd//args.svdfac, args.dim_att, bias=False)
-        self.gate_diag = nn.Parameter(torch.ones(min(args.n_embd, args.dim_att)))
 
         self.ln_x = nn.GroupNorm(self.n_head, args.dim_att)
 
-    # xzl: x->r/k/v/g see below   MyFunction -> torch script jit. default on
+    # xzl: x->r/k/v/g see below   MyFunction -> torch script jit. default on??
     @MyFunction
     def jit_func(self, x):
         B, T, C = x.size()      # xzl: NB the size
-
+        
         # xzl: NB only mix with prev ts. (not all the way to the beginning. cf time_shift()
         xx = self.time_shift(x) # Mix x with the previous timestep to produce xk, xv, xr
         xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)
@@ -575,38 +550,27 @@ class RWKV_Tmix_x052_diag(MyModule):
         xg = x * self.time_mix_g + xx * (1 - self.time_mix_g)
 
         # xzl: after mix, project 
+
         # r = self.receptance(xr) # orig
         r = self.receptance1(xr)  
-        r = torch.relu(r) ** 2   # sqr relu
-        r = self.receptance2(r)   # r shape is still (B,T,C)
-        # breakpoint()
-        r1 = xr @ torch.diag(self.receptance_diag) # r1 shape still (B,T,C)
-        r += r1
+        r = self.receptance2(r)     # r shape is still (B,T,C)        
 
-        # k = self.key(xk) # orig
+        # k = self.key(xk)  # orig
         k = self.key1(xk)
-        k = torch.relu(k) ** 2 
         k = self.key2(k)
-        k1 = xk @ torch.diag(self.key_diag) 
-        k += k1
 
         # v = self.value(xv) # orig
         v = self.value1(xv)
-        v = torch.relu(v) ** 2 
         v = self.value2(v)
-        v1 = xv @ torch.diag(self.value_diag)
-        v += v1
 
-        # g = F.silu(self.gate(xg))
+        # g = F.silu(self.gate(xg))  # orig
         g = self.gate1(xg)
-        g = torch.relu(g) ** 2
         g = self.gate2(g)
-        g1 = xg @ torch.diag(self.gate_diag)
-        g = F.silu(g+g1)
+        g = F.silu(g)
 
         return r, k, v, g
 
-    # xzl: x/g->x see below
+    # xzl: x,g->x see below   (unchanged for 5.8, 5.9) 
     @MyFunction
     def jit_func_2(self, x, g):
         B, T, C = x.size()
@@ -626,13 +590,15 @@ class RWKV_Tmix_x052_diag(MyModule):
 
         r, k, v, g = self.jit_func(x)
 
-        # xzl: cf above. (from paper) B batchsz T maxseqlen C channels H heads?; r,k,v are vectors (?)
-        #       how about s? (from prev timestep <<<<< biggest question so far
+        # xzl: cf above. (from paper) B batchsz T maxseqlen C channels H #of heads
+        #       r,k,v are vectors (?)
+        #       s: state
         #       (A: inside the cuda kernel, serial scan
+        #       w & u are paras
         x = RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w=self.time_decay, u=self.time_faaaa)
 
         return self.jit_func_2(x, g)
-    
+
 # xzl: v6 time mixing.... to understand lter
 class RWKV_Tmix_x060(MyModule):
     def __init__(self, args, layer_id):
@@ -1030,7 +996,7 @@ class RWKV_Tmix_x060b(MyModule):
     
 ########################################################################################################
 
-
+# original desgin
 class RWKV_CMix_x052(MyModule):
     def __init__(self, args, layer_id):
         super().__init__()
@@ -1060,7 +1026,8 @@ class RWKV_CMix_x052(MyModule):
         kv = self.value(k)
         return torch.sigmoid(self.receptance(xr)) * kv
 
-class RWKV_CMix_x052_r(MyModule):
+# decomposed weights, has relu, has diag
+class RWKV_CMix_x059_r(MyModule):
     # SVD + finetune: decomposed='r'
     # pretrain: decomposed='rkv'
     # (cf comments below
@@ -1069,14 +1036,6 @@ class RWKV_CMix_x052_r(MyModule):
         self.args = args
         self.layer_id = layer_id
         self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
-
-        self.hasrelu = True
-        if self.args.NoReLu:
-            self.hasrelu = False
-
-        self.hasdiag = True
-        if self.args.NoDiag:
-            self.hasdiag = False
 
         with torch.no_grad():  # fancy init of time_mix
             ratio_1_to_almost0 = 1.0 - (layer_id / args.n_layer)  # 1 to ~0
@@ -1122,17 +1081,82 @@ class RWKV_CMix_x052_r(MyModule):
 
         kv = self.value(k)
 
-        # Wr mod
+        # Wr - ours
         r = self.receptance1(xr)
-        if self.hasrelu:
-            r = torch.relu(r) ** 2
+        r = torch.relu(r) ** 2
         r = self.receptance2(r)
-        if self.hasdiag:
-            r1 = xr @ torch.diag(self.receptance_diag)
-            r += r1
+        r1 = xr @ torch.diag(self.receptance_diag)
+        r += r1
         return torch.sigmoid(r) * kv
 
-class RWKV_CMix_x052_rkv(MyModule):
+# decomposed weights, no relu, no diag
+class RWKV_CMix_x058_r(MyModule):
+    # SVD + finetune: decomposed='r'
+    # pretrain: decomposed='rkv'
+    # (cf comments below
+    def __init__(self, args, layer_id):
+        super().__init__()
+        self.args = args
+        self.layer_id = layer_id
+        self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
+
+        self.hasrelu = True
+        if self.args.NoReLu:
+            self.hasrelu = False
+
+        self.hasdiag = True
+        if self.args.NoDiag:
+            self.hasdiag = False
+
+        with torch.no_grad():  # fancy init of time_mix
+            ratio_1_to_almost0 = 1.0 - (layer_id / args.n_layer)  # 1 to ~0
+            ddd = torch.ones(1, 1, args.n_embd)
+            for i in range(args.n_embd):
+                ddd[0, 0, i] = i / args.n_embd
+            self.time_mix_k = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))
+            self.time_mix_r = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))
+        
+        # xzl: May 2024 below upper projection n_embd->(3.5x)n_embed is different than 
+        # others, i.e. n_embd->n_embd projection
+        # 1. if we follow the theory of svd for finetuning, it's gonna be         
+        # n_embd -> n_embd//svdfac ->dim_ffn (b/c the svd rank) which creates a very narrow 
+        # bottleneck. this seems to be at odds with the rationale of upper projection
+        #
+        # 2. if we do n_embd -> dim_ffn//svdfac ->dim_ffn, it seems not warranted
+        # by svd theory (i.e. the left/right matrix rank must < n_embd). this 
+        # may be ok for pretraining (tested to work), but not finetuning?
+
+        # breakpoint()
+
+        # orig scale 1.0
+        self.key = nn.Linear(args.n_embd, args.dim_ffn, bias=False)
+
+        # orig scale 0
+        self.receptance1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
+        self.receptance2 = nn.Linear(args.n_embd//args.svdfac, args.n_embd, bias=False)
+
+        # cf self.key above, maybe ok for pretraining (to be tested again)
+        # orig scale 0
+        self.value = nn.Linear(args.dim_ffn, args.n_embd, bias=False)
+
+    @MyFunction
+    def forward(self, x):
+        xx = self.time_shift(x) # xzl: also, mix with prev timestep (not all the way to the beginning
+        xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)
+        xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)
+        
+        k = self.key(xk)
+
+        k = torch.relu(k) ** 2  #xzl: sqr relu, in original design 
+
+        kv = self.value(k)
+
+        # Wr - ours
+        r = self.receptance1(xr)
+        r = self.receptance2(r)
+        return torch.sigmoid(r) * kv
+    
+class RWKV_CMix_x059_rkv(MyModule):
     # SVD + finetune: decomposed='r'
     # pretrain: decomposed='rkv'
     # (cf comments below
@@ -1287,7 +1311,13 @@ class Block(nn.Module):
                 self.pos_emb_x = nn.Parameter(torch.zeros((1,args.my_pos_emb,args.n_embd)))
                 self.pos_emb_y = nn.Parameter(torch.zeros((args.my_pos_emb,1,args.n_embd)))
 
-        # breakpoint()
+        # if 'x058' == os.environ["RWKV_MY_TESTING"]:
+        #     args.NoReLu=True
+        #     args.NoDiag=True
+        # elif 'x059' == os.environ["RWKV_MY_TESTING"]:
+        #     args.NoReLu=False
+        #     args.NoDiag=False
+
         # xzl: attn, shop around ....
         if self.layer_id == 0 and self.args.pre_ffn > 0:        # xzl: replace layer0 attn with ffn.. trick
             self.ffnPre = RWKV_ChannelMix(args, 0)
@@ -1301,18 +1331,10 @@ class Block(nn.Module):
                     self.att = RWKV_Tmix_x060_state(args, layer_id)
                 else:
                     self.att = RWKV_Tmix_x060(args, layer_id)
-            elif 'x052xzlNoReLu' == os.environ["RWKV_MY_TESTING"]:
-                args.NoReLu=True
-                self.att = RWKV_Tmix_x052_xzl(args, layer_id)                   
-            elif 'x052xzl' == os.environ["RWKV_MY_TESTING"]:
-                self.att = RWKV_Tmix_x052_xzl(args, layer_id)
-            elif 'x052xzlTune' == os.environ["RWKV_MY_TESTING"]:
-                args.NoReLu=True
-                self.att = RWKV_Tmix_x052_xzl(args, layer_id)                
-            elif 'x052attDiag' == os.environ["RWKV_MY_TESTING"]:
-                self.att = RWKV_Tmix_x052_diag(args, layer_id)                
-            elif 'x052att' == os.environ["RWKV_MY_TESTING"]:
-                self.att = RWKV_Tmix_x052_xzl(args, layer_id)                
+            elif os.environ["RWKV_MY_TESTING"] in ['x058']:
+                self.att = RWKV_Tmix_x058(args, layer_id)
+            elif os.environ["RWKV_MY_TESTING"] in ['x059']:
+                self.att = RWKV_Tmix_x059(args, layer_id)                
             elif 'x052' == os.environ["RWKV_MY_TESTING"]:
                 self.att = RWKV_Tmix_x052(args, layer_id)
             elif 'mamba' in os.environ["RWKV_MY_TESTING"]:
@@ -1324,16 +1346,10 @@ class Block(nn.Module):
         # elif 'x060' in os.environ["RWKV_MY_TESTING"]:
         if 'x060' in os.environ["RWKV_MY_TESTING"]:
             self.ffn = RWKV_CMix_x060(args, layer_id)
-        elif 'x052xzlNoReLu' == os.environ["RWKV_MY_TESTING"]:
-            args.NoReLu=True
-            self.ffn = RWKV_CMix_x052_r(args, layer_id)            
-        elif 'x052xzlTune' == os.environ["RWKV_MY_TESTING"]:
-            args.NoReLu=True
-            self.ffn = RWKV_CMix_x052_r(args, layer_id)
-        elif 'x052xzl' == os.environ["RWKV_MY_TESTING"]:
-            self.ffn = RWKV_CMix_x052_r(args, layer_id)
-        elif 'x052attDiag' == os.environ["RWKV_MY_TESTING"]:
-            self.ffn = RWKV_CMix_x052(args, layer_id)
+        elif os.environ["RWKV_MY_TESTING"] in ['x058']:
+            self.ffn = RWKV_CMix_x058_r(args, layer_id)            
+        elif os.environ["RWKV_MY_TESTING"] in ['x059']:
+            self.ffn = RWKV_CMix_x059_r(args, layer_id)
         elif 'x052' == os.environ["RWKV_MY_TESTING"]:
             self.ffn = RWKV_CMix_x052(args, layer_id)
         elif 'mamba' in os.environ["RWKV_MY_TESTING"]:

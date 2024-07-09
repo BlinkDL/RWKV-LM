@@ -5,6 +5,7 @@ cf: https://pypi.org/project/rwkv/
 '''
 import sys, os
 
+# run chat app on the inference engine (rwkv), check for sanity 
 
 # xzl: use our own version of lm_eval, rwkv
 sys.path.append('/home/xl6yq/workspace-rwkv/RWKV-LM')

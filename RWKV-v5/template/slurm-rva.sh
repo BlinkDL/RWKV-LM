@@ -12,9 +12,11 @@
 #
 #    No shell script before #SBATCH -- will cause errors (why??
 #
-
 # NB: #SBATCH are read by sbatch. the "#" symbol is needed
-#SBATCH --job-name="pre-01b"     #  keep it under 8 chars
+
+#\\ naming: size-{pre|tune}-modelver
+#SBATCH --job-name="01b-pre-x58"     
+
 #SBATCH --error="slurm.err"
 #SBATCH --output="slurm.log"
 #SBATCH -A xsel
@@ -30,6 +32,7 @@
 #####################
 ## 4 gpus easier to get than 8 gpus
 #SBATCH --gres=gpu:4
+#\\SBATCH --gres=gpu:8
 #\\SBATCH --gres=gpu:1
 
 #\\SBATCH --gres=gpu:a100:8

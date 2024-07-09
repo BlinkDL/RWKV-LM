@@ -323,14 +323,13 @@ if __name__ == "__main__":
     # xzl: now we have a good model file, run lm_eval. 
     #       -- ensures lm_eval works prior to training 
     if args.lm_eval_0 == 1:
-        # if args.finetune == 1 or 'x052xzl' == os.environ["RWKV_MY_TESTING"]:
-        if args.finetune == 1:
-            from src.svd import recover_save
-            eval_model_path = args.load_model.replace(".pth", "-recover.pth")
-            recover_save(args.load_model.replace(".pth",""), eval_model_path.replace(".pth",""), 
-                        args.n_layer, args.n_embd)
-        else: # pretrain
-            eval_model_path = args.load_model
+        # if 'x058' == os.environ["RWKV_MY_TESTING"]:
+        #     from src.svd import recover_save
+        #     eval_model_path = args.load_model.replace(".pth", "-recover.pth")
+        #     recover_save(args.load_model.replace(".pth",""), eval_model_path.replace(".pth",""), 
+        #                 args.n_layer, args.n_embd)
+        # else:
+        eval_model_path = args.load_model
         from src.run_lm_eval import do_eval
         from src.run_lm_eval import clean_cache
         res = do_eval(eval_model_path)
@@ -356,7 +355,8 @@ if __name__ == "__main__":
                     scale = -1e-4
                     torch.nn.init.uniform_(load_dict[k], a=scale, b=-scale)
 
-    model.load_state_dict(load_dict)
+    # model.load_state_dict(load_dict, strict=False)
+    model.load_state_dict(load_dict, strict=True)
 
     if pl.__version__[0]=='2':
         trainer = Trainer(accelerator=args.accelerator,strategy=args.strategy,devices=args.devices,num_nodes=args.num_nodes,precision=args.precision,

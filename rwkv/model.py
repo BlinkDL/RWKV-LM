@@ -596,7 +596,7 @@ class RWKV(MyModule):
 
         # r = torch.sigmoid(matmul(rx, rw, rmx, rrx, rmy, rry)) # orig
         r = matmul(rx, rw1) 
-        r = torch.relu(r) ** 2
+        # r = torch.relu(r) ** 2    // no relu
         r = matmul(r, rw2)
         r = torch.sigmoid(r)
 
@@ -649,7 +649,7 @@ class RWKV(MyModule):
 
         # r = torch.sigmoid(matmul(rx, rw, rmx, rrx, rmy, rry)) # orig
         r = matmul(rx, rw1) 
-        r = torch.relu(r) ** 2
+        # r = torch.relu(r) ** 2    # no relu
         r = matmul(r, rw2)
         r = torch.sigmoid(r)        
 
@@ -1003,25 +1003,25 @@ class RWKV(MyModule):
 
         # r = matmul(rx, rw, rmx, rrx, rmy, rry, output_dtype=torch.float32).view(H, 1, N)  # orig
         r = matmul(rx, rw1) 
-        r = torch.relu(r) ** 2
+        # r = torch.relu(r) ** 2    # no relu
         r = matmul(r, rw2, output_dtype=torch.float32)     
         r = r.view(H,1,N)
 
         # k = matmul(kx, kw, kmx, krx, kmy, kry, output_dtype=torch.float32).view(H, N, 1) # orig
         k = matmul(kx, kw1) 
-        k = torch.relu(k) ** 2
+        # k = torch.relu(k) ** 2   # no relu
         k = matmul(k, kw2, output_dtype=torch.float32)
         k = k.view(H,N,1)
 
         # v = matmul(vx, vw, vmx, vrx, vmy, vry, output_dtype=torch.float32).view(H, 1, N) # orig
         v = matmul(vx, vw1) 
-        v = torch.relu(v) ** 2
+        # v = torch.relu(v) ** 2   # no relu
         v = matmul(v, vw2, output_dtype=torch.float32)     
         v = v.view(H,1,N)
 
         # g = F.silu(matmul(gx, gw, gmx, grx, gmy, gry))  @ orig
         g = matmul(gx, gw1)
-        g = torch.relu(g) ** 2
+        # g = torch.relu(g) ** 2    # no relu
         g = matmul(g, gw2) 
         g = F.silu(g) 
         
@@ -1114,25 +1114,25 @@ class RWKV(MyModule):
 
         # r = matmul(rx, rw, rmx, rrx, rmy, rry, output_dtype=torch.float32).view(T, H, N).transpose(0, 1) # orig
         r = matmul(rx, rw1) 
-        r = torch.relu(r) ** 2
+        # r = torch.relu(r) ** 2        # no relu
         r = matmul(r, rw2, output_dtype=torch.float32)     
         r = r.view(T,H,N).transpose(0, 1)
 
         # k = matmul(kx, kw, kmx, krx, kmy, kry, output_dtype=torch.float32).view(T, H, N).permute(1, 2, 0) # orig
         k = matmul(kx, kw1) 
-        k = torch.relu(k) ** 2
+        # k = torch.relu(k) ** 2        # no relu
         k = matmul(k, kw2, output_dtype=torch.float32)     
         k = k.view(T,H,N).permute(1, 2, 0)
                 
         # v = matmul(vx, vw, vmx, vrx, vmy, vry, output_dtype=torch.float32).view(T, H, N).transpose(0, 1) # orig
         v = matmul(vx, vw1) 
-        v = torch.relu(v) ** 2
+        # v = torch.relu(v) ** 2        # no relu
         v = matmul(v, vw2, output_dtype=torch.float32)     
         v = v.view(T,H,N).transpose(0, 1)
 
         # g = F.silu(matmul(gx, gw, gmx, grx, gmy, gry)) # orig
         g = matmul(gx, gw1)
-        g = torch.relu(g) ** 2
+        # g = torch.relu(g) ** 2        # no relu
         g = matmul(g, gw2) 
         g = F.silu(g)
 
