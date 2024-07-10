@@ -20,7 +20,7 @@ python3 svd.py --svdfac 8 --decompose 1 --decompose_ffn 1   \
 ##############
 # strip diag:
 python3 src/svd.py --decompose 3 \
-    --orig_model /data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x58/from-hpc/rwkv-295
+    --orig_model /sfs/weka/scratch/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x58/rwkv-410
 
 # recover: 
 #       our decmoposed model (finetuned) ---> a model in the original format, save to *pth 

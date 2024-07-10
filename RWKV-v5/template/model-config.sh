@@ -31,7 +31,10 @@ HEAD_K=0    # 0 for disabling cluster head
 # DATAINFO="--data_file "data/minipile" --my_exit_tokens 1498226207 --magic_prime 365759 --ctx_len 4096"
 
 # pile, ~250G tokens
-DATAINFO="--data_file $RWKVDATA/uncopyright_pile/pile --my_exit_tokens 253684860910 --magic_prime 123869549 --ctx_len 2048"
+# DATAINFO="--data_file $RWKVDATA/uncopyright_pile/pile --my_exit_tokens 253684860910 --magic_prime 123869549 --ctx_len 2048"
+
+# dedup pile, ~200G tokens
+DATAINFO="--data_file $RWKVDATA/pile_dedup/pile_dedup --my_exit_tokens 198788818379 --magic_prime 97064741 --ctx_len 2048"
 
 ##########################################################################
 # proj dir

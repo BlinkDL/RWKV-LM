@@ -43,9 +43,10 @@
 #\\SBATCH --gres=gpu:v100:4
 
 #\\SBATCH --constraint=a100
-#SBATCH --constraint=a100_80gb|a100|a6000|a40
-# gpupod, https://www.rc.virginia.edu/userinfo/hpc/basepod/ only has a100 80GB
-#\\SBATCH --constraint=gpupod
+#\\SBATCH --constraint=a100|a100_80gb
+#SBATCH --constraint=gpupod
+#\\SBATCH --constraint=a100_80gb|a100|a6000|a40
+# gpupod, https://www.rc.virginia.edu/userinfo/hpc/basepod/ has ten nodes. each a100 80GB
 
 #####################
 #   cpu related 
