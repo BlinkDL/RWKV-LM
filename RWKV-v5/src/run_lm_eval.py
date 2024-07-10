@@ -106,11 +106,12 @@ from lm_eval.models.gpt2 import GPT2LM
 
 eval_tasks = []
 eval_tasks += ['lambada_openai']  # OK
-# eval_tasks += ['hellaswag','winogrande']   #OK, but a long test
+# eval_tasks += ['hellaswag','winogrande']   #OK, but very slow
 # eval_tasks += ['lambada_openai','piqa','storycloze_2016','hellaswag','winogrande']
 # eval_tasks += ['arc_challenge','arc_easy','headqa','openbookqa','sciq']
-# eval_tasks += ['record','copa']
+# eval_tasks += ['record','copa']  # 113K examples -- take long (CUDA=1
 
+# triviaqa 
 # FileNotFoundError: [Errno 2] No such file or directory: '/home/xl6yq/.cache/huggingface/datasets/downloads/extracted/639e03d5bf552352817e3dc02799cea2906076df9fe1cac49fe359a64dca8e9c/unfiltered-web-train.jsonl'
 # the downloaded zip misses some file???
 # need jsonl file... which we dont have 
@@ -214,7 +215,7 @@ class EvalHarnessAdapter(GPT2LM):
             
             res += [(logit, correct)]
             if n % 1000 == 0:
-                print(f'{n//1000}/{len(requests)//1000}', end = ' ', flush=True)
+                print(f'{n//1000}K/{len(requests)//1000}K', end = ' ', flush=True)
         return res
 
     @torch.no_grad()
