@@ -12,6 +12,8 @@ python make_data_verifyonly.py /data/rwkv-data/data.bin 2048
 
 python make_data_verifyonly.py /data/rwkv-data/uncopyright_pile/pile.bin 2048
 
+python make_data_verifyonly.py /data/rwkv-data/pile_dedup/pile_dedup.bin 2048
+
 This will:
 ==> compute "magic_prime" for ctxlen 4096
 

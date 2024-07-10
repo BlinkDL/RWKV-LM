@@ -334,15 +334,18 @@ class train_callback(pl.Callback):
                 res = do_eval(eval_model_path)
                 clean_cache() # otherwise run_lm_eval will cache for future runs
 
+                # "res" looks like:
+                # {'lambada_openai': {'ppl': 173.28, 'ppl_stderr': 7.60, 'acc': 0.182, 'acc_stderr': 0.0053}}
+                res0={'lambada_openai_acc':res['lambada_openai']['acc']}
                 import json
+                trainer.my_log.write(datetime.datetime.today().strftime("%Y-%m-%d-%H-%M-%S "))
                 trainer.my_log.write(json.dumps(res)+'\n')
                 trainer.my_log.flush()
 
-                # works, but no need 
-                # if len(args.wandb) > 0 and hasattr(trainer, 'my_wandb'):
-                #     args = self.args
-                #     real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
-                #     trainer.my_wandb.log(res, step=int(real_step)) 
+                if len(args.wandb) > 0 and hasattr(trainer, 'my_wandb'):
+                    args = self.args
+                    real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
+                    trainer.my_wandb.log(res0, step=int(real_step)) 
 
             trainer.my_loss_sum = 0
             trainer.my_loss_count = 0
