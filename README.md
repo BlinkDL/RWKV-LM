@@ -150,19 +150,19 @@ https://github.com/OpenGVLab/Vision-RWKV Vision RWKV
 
 https://github.com/feizc/Diffusion-RWKV Diffusion RWKV
 
-https://github.com/cgisky1980/ai00_rwkv_server Fastest WebGPU inference (nVidia/AMD/Intel), supports rwkv5 & rwkv6
+https://github.com/cgisky1980/ai00_rwkv_server Fastest WebGPU inference (nVidia/AMD/Intel)
 
 https://github.com/cryscan/web-rwkv backend for ai00_rwkv_server
 
-https://github.com/saharNooby/rwkv.cpp Fast CPU/cuBLAS/CLBlast inference: int4/int8/fp16/fp32, supports rwkv5
+https://github.com/saharNooby/rwkv.cpp Fast CPU/cuBLAS/CLBlast inference: int4/int8/fp16/fp32
 
-https://github.com/daquexian/faster-rwkv supports rwkv5
-
-https://github.com/mlc-ai/mlc-llm/pull/1275 supports rwkv5
+https://github.com/JL-er/RWKV-PEFT lora/pissa/Qlora/Qpissa/state tuning
 
 https://github.com/RWKV/RWKV-infctx-trainer Infctx trainer
 
-https://github.com/Blealtan/RWKV-LM-LoRA LoRA finetuning
+https://github.com/daquexian/faster-rwkv
+
+https://github.com/mlc-ai/mlc-llm/pull/1275
 
 https://github.com/TheRamU/Fay/blob/main/README_EN.md Digital Assistant with RWKV
 
