@@ -15,7 +15,7 @@
 # NB: #SBATCH are read by sbatch. the "#" symbol is needed
 
 #\\ naming: size-{pre|tune}-modelver
-#SBATCH --job-name="01b-pre-x58"     
+#\\SBATCH --job-name="04b-pre-x52"  # preferred set in wrapper (submit.sh)
 
 #SBATCH --error="slurm.err"
 #SBATCH --output="slurm.log"
@@ -30,7 +30,8 @@
 #####################
 #   gpu related 
 #####################
-## 4 gpus easier to get than 8 gpus
+## 4 gpus easier to get than 8 gpus. 8gpus often take hours to get; and 
+##  fail due to low level sw/hw errors (??
 #SBATCH --gres=gpu:4
 #\\SBATCH --gres=gpu:8
 #\\SBATCH --gres=gpu:1

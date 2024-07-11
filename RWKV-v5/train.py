@@ -120,7 +120,7 @@ if __name__ == "__main__":
     # xzl: override bsz based on gpu vram, model arch, and finetune or not 
     # e.g. [2,6,8,10] are micro_bsz for VRAM of ~12GB, ~24GB, ~40GB, ~80GB
     bsztable = {
-        "L24-D1024-ctx2048-pretrain": [2,6,14,16],      # xzl: bsz=20 for A100 80GB... OOM WHY
+        "L24-D1024-ctx2048-pretrain": [2,6,8,16],      # OOM: bsz=20 for A100 80GB; bsz=10 for A100 40GB ... why?
         "L24-D1024-ctx2048-finetune": [2,6,14,16], 
         "L12-D768-ctx2048-pretrain" : [2,8,18,24], 
         "L12-D768-ctx2048-finetune" : [2,10,20,30],
@@ -168,7 +168,11 @@ if __name__ == "__main__":
         args.proj_dir = f"{args.proj_dir}-{args.run_name}"
     else:
         # args.run_name = f"{args.vocab_size} ctx{args.ctx_len} L{args.n_layer} D{args.n_embd} F{args.svdfac}"
-        args.run_name = f"L{args.n_layer} D{args.n_embd} F{args.svdfac} {args.my_testing}"  # xzl add
+        # xzl 
+        if "RUN_NAME" in os.environ: 
+            args.run_name = os.environ["RUN_NAME"] # set by slurm-rva.sh or run.sh
+        else: 
+            args.run_name = f"L{args.n_layer} D{args.n_embd} F{args.svdfac} {args.my_testing}"  
     if not os.path.exists(args.proj_dir):
         os.makedirs(args.proj_dir)
 
