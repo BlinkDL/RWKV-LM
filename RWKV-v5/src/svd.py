@@ -14,7 +14,8 @@ python3 svd.py --svdfac 8 --decompose 1 --decompose_ffn 1   \
 python3 svd.py --svdfac 8 --decompose 1 --decompose_ffn 1   \
     --orig_model /data/models/RWKV-5-World-0.4B-v2-20231113-ctx4096
 
-python3 svd.py --svdfac 8 --decompose 1 --decompose_ffn 1   \
+    # can take a while to finish 
+python3 src/svd.py --svdfac 8 --decompose 1 --decompose_ffn 1   \
     --orig_model /data/models/RWKV-5-World-1B5-v2-20231025-ctx4096
 
 ##############

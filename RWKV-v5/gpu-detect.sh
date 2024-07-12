@@ -7,7 +7,7 @@
 if [ $HOSTNAME = "xsel01" ]; then
     NGPUS=1; GPUID=0
 elif [ $HOSTNAME = "xsel02" ]; then 
-    NGPUS=1; GPUID=1
+    NGPUS=1; GPUID=0
 else
     NGPUS=`nvidia-smi  --list-gpus |wc -l`; GPUID=0
 fi    
