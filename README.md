@@ -16,9 +16,7 @@ RWKV-6 RNN-mode demo: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo
 
 ### HOW TO TEST TRAINING RWKV-5 on MiniPile (1.5G tokens) ###
 
-For reference, use python 3.10, torch==1.13.1+cu117, cuda 11.7.1
-
-For best performance, use python 3.10, torch 2.1.2+cu121 (or latest), cuda 12.3+, **latest deepspeed**, but **keep pytorch-lightning==1.9.5**
+For reference, use python 3.10, torch 2.1.2+cu121 (or latest), cuda 12.3+, **latest deepspeed**, but **keep pytorch-lightning==1.9.5**
 
 ```
 reference:
