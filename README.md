@@ -19,11 +19,6 @@ RWKV-6 RNN-mode demo: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo
 For reference, use python 3.10, torch 2.1.2+cu121 (or latest), cuda 12.3+, **latest deepspeed**, but **keep pytorch-lightning==1.9.5**
 
 ```
-reference:
-pip install torch==1.13.1+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
-pip install pytorch-lightning==1.9.5 deepspeed==0.7.0 wandb ninja
-
-best performance:
 pip install torch --upgrade --extra-index-url https://download.pytorch.org/whl/cu121
 pip install pytorch-lightning==1.9.5 deepspeed wandb ninja --upgrade
 
