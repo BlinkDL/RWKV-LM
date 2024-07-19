@@ -32,7 +32,7 @@ if __name__ == "__main__":
     if len(sys.argv)>1:
         path=sys.argv[1]
     res = run_lm_eval.do_eval(path, isverbose=False)
-    print(sys.arg[1])
+    print(f"test-lm-eval {sys.argv[1]}")
     print(res)
 
 '''

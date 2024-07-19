@@ -56,6 +56,8 @@ from lm_eval.models.gpt2 import GPT2LM
 # acc .55 (lmo
 # MODEL_NAME = "/data/models/RWKV-5-World-0.4B-v2-20231113-ctx4096"
 
+# 1.5B, acc=??
+
 # acc ~.7
 # MODEL_NAME = "/data/models/RWKV-5-World-3B-v2-20231113-ctx4096"
 
@@ -241,13 +243,15 @@ class EvalHarnessAdapter(GPT2LM):
 def do_eval(model_path, isverbose=False):
     global eval_tasks
 
-    print(f'Loading model - {model_path}')
+    if isverbose: 
+        print(f'Loading model - {model_path}')
     rwkv_model = RWKV(model=model_path, strategy='cuda fp16', verbose=isverbose)
     pipeline = PIPELINE(rwkv_model, "rwkv_vocab_v20230424")
 
     RWKV_PAD = pipeline.tokenizer.encode('\n') # we will use '\n' as PAD
     # RWKV_PAD = [0] # you can try using [0] as pad
-    print('RWKV_PAD', RWKV_PAD)
+    if isverbose:
+        print('RWKV_PAD', RWKV_PAD)
 
     adapter = EvalHarnessAdapter(rwkv_model, pipeline, RWKV_PAD)
     # breakpoint()
