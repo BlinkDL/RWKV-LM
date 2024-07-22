@@ -149,3 +149,4 @@ dmypy.json
 # Pyre type checker
 .pyre/
 RWKV-v5/out/L12-D768-x052
+.vscode/settings.json
