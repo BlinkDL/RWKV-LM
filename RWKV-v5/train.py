@@ -378,7 +378,8 @@ if __name__ == "__main__":
     if trainer.global_rank == 0:
         print("Dump model arch ....")
         for n in model.state_dict():            # xzl: n: para name, can be used as key        cf https://pytorch.org/tutorials/recipes/recipes/what_is_state_dict.html             
-            if not "blocks.0." in n: 
+            # if "blocks." in n and not "blocks.0." in n: 
+            if not "blocks.0." in n: # only print params in "blocks"
                 continue # xzl: only print layer0, less cluter ....            
             shape = model.state_dict()[n].shape
             shape = [i for i in shape if i != 1]
@@ -405,16 +406,19 @@ if __name__ == "__main__":
     # xzl: above: DataLoader decides how data is fed into trainer, which goes to callbacks in model.py
 
 
-    if args.finetune: 
-        tunepara = [".att.receptance1.", ".att.key1.", ".att.value1.", ".att.gate1.", 
-                    ".att.receptance2.", ".att.key2.", ".att.value2.", ".att.gate2.", 
-                    ".ffn.receptance1.", ".ffn.receptance2.", 
-                    # "blocks.23.",
-                    # ".att.output.",
-                    # "head.weight",
-                    # "ln_x", "ln1", "ln2", 
-                    "ln_out",   # must include this otherwise loss has no grad_fn (below).... 
-                    ]
+    if args.finetune or args.head_K > 1:
+        if args.finetune:
+            tunepara = [".att.receptance1.", ".att.key1.", ".att.value1.", ".att.gate1.", 
+                        ".att.receptance2.", ".att.key2.", ".att.value2.", ".att.gate2.", 
+                        ".ffn.receptance1.", ".ffn.receptance2.", 
+                        # "blocks.23.",
+                        # ".att.output.",
+                        # "head.weight",
+                        # "ln_x", "ln1", "ln2", 
+                        "ln_out",   # must include this otherwise loss has no grad_fn (below).... 
+                        ]
+        if args.head_K > 1:
+            tunepara = ["head_l1", "head_l2"]
 
         model.requires_grad_(False)    #xzl this seems a must
         for pname, param in model.named_parameters():
@@ -424,9 +428,10 @@ if __name__ == "__main__":
                     if "blocks.0" in pname:
                         ppname = pname.replace("blocks.0.","")
                         print(f"will train: {ppname}")
+                    else:
+                        print(f"will train: {pname}")
                 # else:
                 #     param.requires_grad = False
-
     # if args.train_type == 'states':
     #     model.requires_grad_(False)
     #     for name, module in model.named_modules():
