@@ -17,6 +17,7 @@ first pretrain out/L12-D768-F4-x052xzlNoReLu with run.sh, which trains
 run svd.py to cluster tokens, based on the trained emb, i.e. 
 python3 svd.py --decompose 2 --orig_model out/L12-D768-F4-x052xzlNoReLu/rwkv-60
 
+the results are cluster "labels" for each token in the vocab
 ----> rwkv-60-cls.npy
 
 then, run run-cls.sh

@@ -25,13 +25,14 @@ import run_lm_eval
 #v5.8
 # # path='/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x58/from-hpc/rwkv-270-nodiag'
 # # path='/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x58/from-hpc/rwkv-295-nodiag'
-path='/sfs/weka/scratch/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x58/rwkv-410-nodiag'
+# path='/sfs/weka/scratch/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x58/rwkv-410-nodiag'
 
+path='/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L12-D768-F4-x052xzlNoReLu-cls/rwkv-66'
 
 if __name__ == "__main__":
     if len(sys.argv)>1:
         path=sys.argv[1]
-    res = run_lm_eval.do_eval(path, isverbose=False)
+    res = run_lm_eval.do_eval(path, isverbose=True)
     print(f"test-lm-eval {sys.argv[1]}")
     print(res)
 
