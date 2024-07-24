@@ -57,6 +57,7 @@ class PIPELINE():
             temperature = 1.0
             top_p = 0
         probs = F.softmax(logits.float(), dim=-1)
+        # breakpoint()
         top_k = int(top_k)
         # 'privateuseone' is the type of custom devices like `torch_directml.device()`
         if probs.device.type in ['cpu', 'privateuseone']:
@@ -91,7 +92,7 @@ class PIPELINE():
         all_tokens = []
         out_last = 0
         out_str = ''
-        occurrence = {}
+        occurrence = {}   # xzl: will decay over time 
         for i in range(token_count):
 
             # forward & adjust prob.
@@ -100,8 +101,10 @@ class PIPELINE():
                 out, state = self.model.forward(tokens[:args.chunk_len], state)
                 tokens = tokens[args.chunk_len:]
                 
+            # xzl: out: logits over all possible tokens
             for n in args.token_ban:
                 out[n] = -float('inf')
+            # xzl: reduce a logit for a token as it recurs...
             for n in occurrence:
                 out[n] -= (args.alpha_presence + occurrence[n] * args.alpha_frequency)
             
