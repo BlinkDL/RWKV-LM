@@ -260,6 +260,7 @@ def do_eval(model_path, isverbose=False):
         bootstrap_iters=10000,
     )
     # results ex: 
+    breakpoint()
     # {'lambada_openai': {'ppl': 185.72807052650887, 'ppl_stderr': 8.49129898264202, 'acc': 0.19289734135455075, 'acc_stderr': 0.005497175253106871}}
     # print(results['results'])
     return results['results']    
@@ -271,4 +272,6 @@ def clean_cache():
 
 if __name__ == "__main__":
     results = do_eval(MODEL_NAME)
-    print(results['results'])
+    # print(results['results'])
+    breakpoint()
+    print(results)
