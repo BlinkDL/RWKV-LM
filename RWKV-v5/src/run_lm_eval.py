@@ -50,8 +50,8 @@ from lm_eval.models.gpt2 import GPT2LM
 
 # MODEL_NAME = "/fsx/BlinkDL/HF-MODEL/rwkv-5-world/RWKV-5-World-1.5B-v2-OnlyForTest_14%_trained-20231001-ctx4096"
 
-# acc .38
-# MODEL_NAME = "/data/models/RWKV-5-World-0.1B-v1-20230803-ctx4096"
+# acc .38 (openai) .29 (hellaswag)
+MODEL_NAME = "/data/models/RWKV-5-World-0.1B-v1-20230803-ctx4096"
 
 # acc .55 (lmo
 # MODEL_NAME = "/data/models/RWKV-5-World-0.4B-v2-20231113-ctx4096"
@@ -107,8 +107,9 @@ from lm_eval.models.gpt2 import GPT2LM
 ########################################################################################################
 
 eval_tasks = []
-eval_tasks += ['lambada_openai']  # OK
-# eval_tasks += ['hellaswag','winogrande']   #OK, but very slow
+# eval_tasks += ['lambada_openai']  # OK
+eval_tasks += ['hellaswag'] 
+# eval_tasks += ['winogrande'] 
 # eval_tasks += ['lambada_openai','piqa','storycloze_2016','hellaswag','winogrande']
 # eval_tasks += ['arc_challenge','arc_easy','headqa','openbookqa','sciq']
 # eval_tasks += ['record','copa']  # 113K examples -- take long (CUDA=1
@@ -254,16 +255,14 @@ def do_eval(model_path, isverbose=False):
         print('RWKV_PAD', RWKV_PAD)
 
     adapter = EvalHarnessAdapter(rwkv_model, pipeline, RWKV_PAD)
-    # breakpoint()
     results = adapter.run_eval(
         eval_tasks=eval_tasks,
         bootstrap_iters=10000,
     )
     # results ex: 
-    breakpoint()
-    # {'lambada_openai': {'ppl': 185.72807052650887, 'ppl_stderr': 8.49129898264202, 'acc': 0.19289734135455075, 'acc_stderr': 0.005497175253106871}}
+    # {'results': {'hellaswag': {'acc': 0.2921728739294961, 'acc_stderr': 0.004538319464111977, 'acc_norm': 0.31955785700059747, 'acc_norm_stderr': 0.0046535230383693855}}, 'versions': {'hellaswag': 0}}
     # print(results['results'])
-    return results['results']    
+    return results['results']
 
 def clean_cache():
     global logitBuf, correctBuf
@@ -272,6 +271,4 @@ def clean_cache():
 
 if __name__ == "__main__":
     results = do_eval(MODEL_NAME)
-    # print(results['results'])
-    breakpoint()
-    print(results)
+    print(results['results'])
