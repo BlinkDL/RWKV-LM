@@ -1,18 +1,9 @@
-ffn.receptance1,2 ... if init as 0, then no graidents. (wjhy???                                                       
-shall init as scale=1 (norm
-
 
 ---------------------------------------------------------------
-training on rivanna (Rv) workflow 
 
-interactive: 
-ijob -A xsel -p interactive --time=0-00:30:00 --gres=gpu:rtx2080:1 --mem=128G 
-source env-rivanna.sh
-(commands)
 
-batch: 
-sbatch slurm-rivanna.sh 
-# this will load env-rivanna.sh automatically
+ffn.receptance1,2 ... if init as 0, then no graidents. (wjhy???                                                       
+shall init as scale=1 (norm
 
 ---------------------------------------------------------------
 

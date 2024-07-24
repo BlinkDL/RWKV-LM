@@ -29,10 +29,17 @@ from rwkv.utils import PIPELINE, PIPELINE_ARGS
 #v5.9
 # model_path='/data-xsel01/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-x059/rwkv-init' 
 # model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01B-relu-diag-pretrain/rwkv-25'
-model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01B-relu-diag-pretrain/rwkv-35'
+# model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01B-relu-diag-pretrain/rwkv-35'
+
+model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/rwkv-7'
+# model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/rwkv-init'
+
 
 print(f'Loading model - {model_path}')
-model = RWKV(model=model_path, strategy='cuda fp16', verbose=False)
+model = RWKV(model=model_path, strategy='cuda fp16', verbose=True)
+# model = RWKV(model=model_path, strategy='cuda fp16', verbose=False,
+#              head_K=200, load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy')
+
 pipeline = PIPELINE(model, "rwkv_vocab_v20230424")
 
 ctx = "\nElon Musk has"

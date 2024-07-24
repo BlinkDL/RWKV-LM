@@ -130,6 +130,17 @@ class train_callback(pl.Callback):
                 lll[f"GRAD: layer {ly} ffn receptance_diag"] = nm.item()
                 logstr += f"layer {ly} receptance.grad {nm.item()}\n"
                             
+        if args.head_K>1:
+            param = pl_module.head_l1.weight
+            nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+            lll[f"GRAD: head_l1 weight"] = nm.item()
+            # sample a few L2
+            cls=[10,50,100,150]
+            for c in cls: 
+                param = pl_module.head_l2[c].weight
+                nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+                lll[f"GRAD: head_l2.{c} weight"] = nm.item()
+
         # unchanged weight 
         param = pl_module.ln_out.weight
         if param.requires_grad:

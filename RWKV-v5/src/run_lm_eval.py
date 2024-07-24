@@ -271,5 +271,4 @@ def clean_cache():
 
 if __name__ == "__main__":
     results = do_eval(MODEL_NAME)
-    # print(results['results'])
-    print(results)
+    print(results['results'])

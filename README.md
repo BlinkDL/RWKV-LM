@@ -1,3 +1,63 @@
+# HOWTO: training on rivanna 
+
+## env config 
+clone this repo 
+
+create a conda environment called "rwkv", install needed packages (via pip).
+IMPORTANT: use Python3.10
+
+## to train (step1, one time)
+
+to train a new model: cr a subdir with the name as the training, e.g. 
+
+```
+cd RWKV-LM/RWKV-v5/out
+mkdir 01b-pretrain-x52
+```
+
+copy over all training scripts
+```
+cd 01b-pretrain-x52
+cp ../../template/*.sh . 
+```
+
+modify model-config.sh to set model variant, # of layers, etc. 
+
+modify run-train.sh to change training hyperparams, etc
+
+modify run-eval1.sh to change evaluation hyperparams, etc
+
+## to train (step2, repeat)
+
+init the model weights, can execute from non-GPU instance
+```
+./prep.sh  
+```
+
+submit training job
+```
+./submit-train.sh 
+```
+
+Results (loss, grads) can be viewed from wandb web console
+
+Debugging: interactive training, needs an interactive shell from a GPU node (only 1x2080 possible)
+```
+ijob -A xsel -p interactive --time=0-00:30:00 --gres=gpu:1 --mem=128G 
+./run-train.sh 
+```
+
+## to eval 
+submit eval job
+```
+./submit-eval.sh
+```
+Results will be written to eval_log.txt, eval_log.png
+
+
+--------------------------------------------
+(the original README below)
+
 # RWKV: Parallelizable RNN with Transformer-level LM Performance (pronounced as "RwaKuv" (rʌkuv in IPA), from 4 major params: R W K V)
 
 RWKV homepage: https://www.rwkv.com
