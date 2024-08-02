@@ -1,4 +1,4 @@
-# 
+# an attempt to submit slurm job from python. not working well. abandoned. fxl
 # https://pypi.org/project/simple-slurm/
 
 import os
