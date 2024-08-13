@@ -1,4 +1,4 @@
-export RUN_NAME=EV-1b5-tunefull-x58   # used by: both slurm (squeue) & wandb. (cf train.py)
+export RUN_NAME=`basename $PWD`   # used by: both slurm (squeue) & wandb. (cf train.py)
 
 GPUCONFIG="gpu:4"
 # GPUCONFIG="gpu:8"
@@ -16,7 +16,7 @@ sbatch --job-name=$RUN_NAME \
     --mem="256G"  \
     --cpus-per-task=2   \
     --time=3-00:00:00   \
-    run.sh
+    run-train.sh
 
 echo "wait for 1 sec..."; sleep 1
 # https://stackoverflow.com/questions/42217102/expand-columns-to-see-full-jobname-in-slurm

@@ -120,6 +120,7 @@ if __name__ == "__main__":
     # xzl: override bsz based on gpu vram, model arch, and finetune or not 
     # e.g. [2,6,8,10] are micro_bsz for VRAM of ~12GB, ~24GB, ~40GB, ~80GB
     bsztable = {
+        "L32-D2560-ctx2048-pretrain": [1,1,2,3],      # 3B OOM: bsz=4 for A100 80GB...
         "L24-D2048-ctx2048-pretrain": [1,1,4,8],      # 1B5 OOM: bsz=6 for A100 40GB ... 
         "L24-D1024-ctx2048-pretrain": [2,6,8,16],      # 04B. OOM: bsz=20 for A100 80GB; bsz=10 for A100 40GB ... why?
         "L24-D1024-ctx2048-finetune": [2,6,14,16], 

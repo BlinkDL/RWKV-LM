@@ -32,7 +32,7 @@ path='/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L12-D768-F4-x052xzlNoReLu-c
 if __name__ == "__main__":
     if len(sys.argv)>1:
         path=sys.argv[1]
-    res = run_lm_eval.do_eval(path, isverbose=True)
+    res = run_lm_eval.do_eval(path, isverbose=False)
     print(f"test-lm-eval {sys.argv[1]}")
     print(res)
 
