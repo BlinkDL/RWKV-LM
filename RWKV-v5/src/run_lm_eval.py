@@ -1,14 +1,24 @@
 ########################################################################################################
 # The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM
 ########################################################################################################
-#
-# pip install rwkv lm_eval --upgrade
-# xzl: newer lm_eval changed api (remove gpt2; use generic huggingface???)
-# pip install rwkv lm_eval==0.3.0 
 
-# we can also use own version of lm_eval (good for cusotmization, code comment, etc
+'''
+run a model against lm benchmarks. 
 
-# pip install pycountry datasets sacrebleu sqlitedict scikit-learn transformers
+make sure to use own version of lm_eval (good for cusotmization, code comment, etc
+
+other dependencies: 
+pip3 install pycountry datasets sacrebleu sqlitedict scikit-learn transformers
+
+    alternatively, if run against the upstream lm_eval: 
+    pip install rwkv lm_eval --upgrade
+    newer lm_eval changed api (remove gpt2; use generic huggingface???)
+    pip install rwkv lm_eval==0.3.0 
+
+# to run: 
+python3.10 src/run_lm_eval.py    
+'''
+
 
 '''
 # /u/xl6yq/workspace-rwkv/venv-eval-lm/lib/python3.10/site-packages/lm_eval/base.py 
@@ -50,17 +60,64 @@ from lm_eval.models.gpt2 import GPT2LM
 
 # MODEL_NAME = "/fsx/BlinkDL/HF-MODEL/rwkv-5-world/RWKV-5-World-1.5B-v2-OnlyForTest_14%_trained-20231001-ctx4096"
 
-# acc .38
+# 01B --- official 
+# acc .38 (openai) .29 (hellaswag) .529(winogrande  .612(piqa   ???(storycloze_2016)  .68 (copa) .67 (record, f1)
 # MODEL_NAME = "/data/models/RWKV-5-World-0.1B-v1-20230803-ctx4096"
 
-# acc .55 (lmo
-# MODEL_NAME = "/data/models/RWKV-5-World-0.4B-v2-20231113-ctx4096"
+# 01B --- 01b-pre-x52
+# acc:  .33 (openai) .29(hellaswag) .51(winogrande) .624 (piqa) ??(storycloze_2016) .64 (copa) .639 (record, f1)
+# MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823'
 
-# 1.5B, acc=??
+# 01B --- 01b-pre-x59
+MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
+
+# 04B --- official 
+# MODEL_NAME = "/data/models/RWKV-5-World-0.4B-v2-20231113-ctx4096"
+'''
+{'lambada_openai': {'ppl': 8.87493839489865, 'ppl_stderr': 0.25349028138862983, 'acc': 0.539879681738793, 'acc_stderr': 0.006943785077347288}, 
+'hellaswag': {'acc': 0.34166500697072294, 'acc_stderr': 0.004732986187325881, 'acc_norm': 0.40908185620394344, 'acc_norm_stderr': 0.004906595857916763}, 
+'winogrande': {'acc': np.float64(0.5327545382794001), 'acc_stderr': 0.014022300570434134}, 
+'piqa': {'acc': 0.6653971708378672, 'acc_stderr': 0.011009071725162512, 'acc_norm': 0.6724700761697497, 'acc_norm_stderr': 0.010949830482825471}, 
+'copa': {'acc': 0.69, 'acc_stderr': 0.04648231987117316}, 
+'record': {'f1': 0.759412380952382, 'f1_stderr': 0.004246607860007095, 'em': 0.7527, 'em_stderr': 0.004314641655254821}}
+'''
+
+# 04B --- 04b-pre-x59 
+'''
+{'lambada_openai': {'ppl': 13.345917664546763, 'ppl_stderr':
+    0.42075893130926734, 'acc': 0.4717640209586649, 'acc_stderr':
+    0.006954861250178411}, 
+'hellaswag': {'acc': 0.33270264887472617, 'acc_stderr':0.0047021810422159015, 'acc_norm': 0.3917546305516829, 'acc_norm_stderr':0.004871447106554941}, 
+'winogrande': {'acc': np.float64(0.5146014206787688),
+    'acc_stderr': 0.014046492383275835}, 
+'piqa': {'acc': 0.676822633297062,
+    'acc_stderr': 0.01091197412428213, 'acc_norm': 0.6746463547334058,
+    'acc_norm_stderr': 0.010931036623525191}, 
+'copa': {'acc': 0.68, 'acc_stderr': 0.046882617226215034}}
+'''
+# MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59/from-hpc/rwkv-860'
+
+# 1B5 -- official
+# MODEL_NAME = "/data/models/RWKV-5-World-1B5-v2-20231025-ctx4096"
+# {'lambada_openai': {'ppl': 5.1095589778823856, 'ppl_stderr':
+#   0.12199277116202499, 'acc': 0.6551523384436251, 'acc_stderr':
+#   0.0066221172076032205}, 
+# 'hellaswag': {'acc': 0.4237203744274049, 'acc_stderr':
+#   0.0049313726571298035, 'acc_norm': 0.5500896235809599, 'acc_norm_stderr':
+#   0.0049646798459184295}, 
+# 'winogrande': {'acc': np.float64(0.5974743488555643),
+#   'acc_stderr': 0.013782866831703044}, 
+# 'piqa': {'acc': 0.7121871599564744,
+#   'acc_stderr': 0.01056325038305919, 'acc_norm': 0.7225244831338411,
+#   'acc_norm_stderr': 0.01044681828103994}, 
+# 'copa': {'acc': 0.77, 'acc_stderr':
+#   0.04229525846816506}}
+
+# 1B5 --- 1b5-tunefull-x58
+# MODEL_NAME = "/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/1b5-tunefull-x58/from-hpc/rwkv-451"
 
 # acc ~.7
 # MODEL_NAME = "/data/models/RWKV-5-World-3B-v2-20231113-ctx4096"
-
 
 #0.1B
 #acc 0.13, pretrained 
@@ -75,7 +132,6 @@ from lm_eval.models.gpt2 import GPT2LM
 # MODEL_NAME = '/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L12-D768-x052/rwkv-15'
 # uncopy pile, ctx=2k, pretrained, acc=.19
 # MODEL_NAME = '/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L12-D768-x052/rwkv-78'   #.21
-# MODEL_NAME = '/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L12-D768-x052/rwkv-73'
 
 ###### .4B
 # ok but worse acc .44 (lmo
@@ -98,6 +154,8 @@ from lm_eval.models.gpt2 import GPT2LM
 # acc .21 (pretrained
 # MODEL_NAME = "/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D1024-x052-orig/rwkv-final"
 
+# MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-tunefull-x58/from-hpc/rwkv-562'
+
 ##### 1.5B 
 # pretrained, very bad
 # MODEL_NAME = "/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D2048-F4-x052xzlNoReLu/rwkv-11-recover"
@@ -105,10 +163,18 @@ from lm_eval.models.gpt2 import GPT2LM
 # MODEL_NAME = "/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D2048-F4-x052xzlTune/rwkv-16-recover"
 
 ########################################################################################################
+# select benchmarks below 
 
 eval_tasks = []
-eval_tasks += ['lambada_openai']  # OK
-# eval_tasks += ['hellaswag','winogrande']   #OK, but very slow
+eval_tasks += ['lambada_openai']  # OK, (10k
+eval_tasks += ['hellaswag'] # OK (40k
+eval_tasks += ['winogrande'] # ok, fast (2k
+eval_tasks += ['piqa']  # ok, fast (3k
+eval_tasks += ['copa']  # fast <1k
+# eval_tasks += ['record']  # slow 113K examples -- take long (even CUDA=1
+
+# eval_tasks += ['storycloze_2016']  # missing in our lm_eval version. TBD
+
 # eval_tasks += ['lambada_openai','piqa','storycloze_2016','hellaswag','winogrande']
 # eval_tasks += ['arc_challenge','arc_easy','headqa','openbookqa','sciq']
 # eval_tasks += ['record','copa']  # 113K examples -- take long (CUDA=1
@@ -123,7 +189,7 @@ eval_tasks += ['lambada_openai']  # OK
 #      max_length() not implemented 
 # eval_tasks += ['coqa']
 
-#  for 'glue', must specify separate names
+#  for 'glue' benchmarks, must specify separate names
 # eval_tasks += ['sst']  # OK 
 
 ########################################################################################################
@@ -243,8 +309,9 @@ class EvalHarnessAdapter(GPT2LM):
 def do_eval(model_path, isverbose=False):
     global eval_tasks
 
-    if isverbose: 
-        print(f'Loading model - {model_path}')
+    # if isverbose: 
+    print(f'Loading model - {model_path}')
+
     rwkv_model = RWKV(model=model_path, strategy='cuda fp16', verbose=isverbose)
     pipeline = PIPELINE(rwkv_model, "rwkv_vocab_v20230424")
 
@@ -254,15 +321,14 @@ def do_eval(model_path, isverbose=False):
         print('RWKV_PAD', RWKV_PAD)
 
     adapter = EvalHarnessAdapter(rwkv_model, pipeline, RWKV_PAD)
-    # breakpoint()
     results = adapter.run_eval(
         eval_tasks=eval_tasks,
         bootstrap_iters=10000,
     )
     # results ex: 
-    # {'lambada_openai': {'ppl': 185.72807052650887, 'ppl_stderr': 8.49129898264202, 'acc': 0.19289734135455075, 'acc_stderr': 0.005497175253106871}}
+    # {'results': {'hellaswag': {'acc': 0.2921728739294961, 'acc_stderr': 0.004538319464111977, 'acc_norm': 0.31955785700059747, 'acc_norm_stderr': 0.0046535230383693855}}, 'versions': {'hellaswag': 0}}
     # print(results['results'])
-    return results['results']    
+    return results['results']
 
 def clean_cache():
     global logitBuf, correctBuf
@@ -271,4 +337,6 @@ def clean_cache():
 
 if __name__ == "__main__":
     results = do_eval(MODEL_NAME)
-    print(results['results'])
+    # print(results)
+    print(json.dumps(results, indent=4, sort_keys=False))
+

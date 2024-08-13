@@ -262,6 +262,32 @@ class RWKV(MyModule):
                 args.n_att = w['blocks.0.att.key.weight'].shape[0] # note: transposed matrix
                 args.n_ffn = w['blocks.0.ffn.key.weight'].shape[0] # note: transposed matrix
 
+            ##### xzl: load & build cls lookup table
+            if 'head_l1.weight' in w: # use compressed cls heads                
+                import numpy as np
+                args.head_K = 200    # XXX
+                args.load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
+
+                K=args.head_K
+                labels = np.load(args.load_token_cls)
+                # idx: cls id, element: list of token_id inside the cls
+                clusters = []
+                # idx: token_id, element: (cls_id, token id within the cls)
+                token2cls = []  
+                for i in range(K):
+                    clusters.append([])
+                for i in range(len(labels)):
+                    c = labels[i]
+                    token2cls.append((c,len(clusters[c])))
+                    clusters[c].append(i)
+                
+                self.token2cls = torch.tensor(token2cls, device='cuda')
+                self.clusters = clusters
+
+                # cf rwkv/utils.py generate()
+                # XXX move it out of "model", to "pipeline"
+                self.occurrence = {}  
+
             ####################### Compute strategy   
             # xzl: & print out "strategy" for each layer... (quant weight? activation??
 
@@ -376,11 +402,13 @@ class RWKV(MyModule):
                     if '.time_' in x:
                         w[x] = w[x].squeeze()
                     if 'key.weight' in x or 'value.weight' in x or 'receptance.weight' in x or 'gate.weight' in x or 'output.weight' in x or 'head.weight' in x:
-                        w[x] = w[x].t()     # xzl transposed (why
+                        w[x] = w[x].t()     # xzl transposed (b/c of linear layer
+                    if 'head_l1.weight' in x or ('head_l2' in x and '.weight' in x): 
+                        w[x] = w[x].t()   # for compressed cls head. same spirit as above. 
                     #xzl: mimic above 
                     if 'key1.weight' in x or 'value1.weight' in x or 'receptance1.weight' in x or 'gate1.weight' in x \
                         or 'key2.weight' in x or 'value2.weight' in x or 'receptance2.weight' in x or 'gate2.weight' in x:
-                        w[x] = w[x].t()     # xzl transposed (why
+                        w[x] = w[x].t()     # xzl transposed 
                     if '.time_decay' in x and '_w' not in x: # need fp32 for this
                         if self.version == 4:
                             w[x] = -torch.exp(w[x].float())
@@ -1365,6 +1393,7 @@ class RWKV(MyModule):
                             state[i*3+1] = torch.zeros((args.n_head, args.n_att//args.n_head, args.n_att//args.n_head), dtype=torch.float, requires_grad=False, device=dev).contiguous()
                         state[i*3+2] = torch.zeros(args.n_embd, dtype=atype, requires_grad=False, device=dev).contiguous()
 
+            # xzl: seq_mode=True for prompt encoding; =False for autoregression
             seq_mode = len(tokens) > 1
 
             x = w['emb.weight'][tokens if seq_mode else tokens[0]] # xzl: 'x'-input
@@ -1663,11 +1692,70 @@ class RWKV(MyModule):
                         x = x / 2
             
             dd = self.strategy[args.n_layer]
+            # xzl: below, take last token ONLY even if seq_mode==True, 
+            # means that prompt stage only update state. no need to materialize
+            # the tokens 
+            # "full_output" (default False) seems for debugging 
+            #       i.e. materialize tokens even for the prompt stage
             x = x[-1,:] if (seq_mode and (not full_output)) else x
             x = x.to(dtype=dd.atype, device=dd.device)
             
             x = F.layer_norm(x, (args.n_embd,), weight=w['ln_out.weight'], bias=w['ln_out.bias'])
-            if w['head.weight'].dtype != torch.uint8:
+
+            if 'head_l1.weight' in w: # use compressed cls heads
+            # if False:
+                '''
+                Current design: greedy sampling cls (L1).
+                cal logits over all clusters. find the cls with highest logit
+                (greedy); within this cls, compute logits over tokens 
+                return: computed logits (for tokens for cls); -inf for other
+                tokens
+
+                alternatively: TBD
+                cal logits over all clustres, return to the caller
+                the caller: sample a cluster (non greedy). the model: cal logits
+                within that cluster. caller: sample a token. 
+                '''
+
+                args.alpha_frequency = 0.25
+                args.alpha_presence = 0.25
+                args.alpha_decay = 0.996 # gradually decay the penalty
+        
+                # x: shape D (regardless of seq_mode
+                # l1 projection
+                x1 = x @ w['head_l1.weight']  # shape D,K
+                # breakpoint()
+                # cls = x1.argmax(dim=-1)       # greedy
+                # sample_logits (cf test-rwkv-chat.py
+                for n in self.occurrence:
+                    x1[n] -= (args.alpha_presence + self.occurrence[n] * args.alpha_frequency)
+                cls = self.sample_logits(x1, temperature=1.0, top_p=0.7, top_k=100) 
+                for xxx in self.occurrence:
+                    self.occurrence[xxx] *= args.alpha_decay
+                www = 1
+                if cls not in self.occurrence:
+                    self.occurrence[cls] = www
+                else:
+                    self.occurrence[cls] += www
+
+                # print(f">>>>>> # self.occurrence = {len(self.occurrence)}")
+                # print(f"\t\t\t\t\t cls {cls} occur {self.occurrence[cls]:.2f} #tokens {len(self.clusters[cls])}")
+
+                # l2 project x to: logits over all possible tokens within the cls
+                x = x @ w[f'head_l2.{cls}.weight']
+                                
+                vocab = w['head.weight'].shape[1]   # shape D,vocab                
+                # cls: cluster id, 
+                # self.clusters[cls] list of token_ids in this cls (as scatter idx
+                # x: logits over tokens inside cls, (as scatter src
+                # res: logits over all tokens (vocab). prefilled with -inf, used
+                #   as scatter dest
+                idx = torch.tensor(self.clusters[cls], device='cuda')
+                res = torch.full((vocab,),float('-inf'),device='cuda',dtype=x.dtype) \
+                    .scatter_(0, idx, x)
+                x = res
+
+            elif w['head.weight'].dtype != torch.uint8:  # original cls head
                 x = x @ w['head.weight']
             else:
                 if seq_mode and full_output:
@@ -1676,3 +1764,40 @@ class RWKV(MyModule):
                     x = mm8_one(x, w['head.weight'], w['head.weight_mx'], w['head.weight_rx'], w['head.weight_my'], w['head.weight_ry'])
 
             return x.float(), state
+        
+    # copied from rwkv/utils.py 
+    def sample_logits(self, logits, temperature=1.0, top_p=0.85, top_k=0):
+        import numpy as np
+        if temperature == 0:
+            temperature = 1.0
+            top_p = 0
+        probs = F.softmax(logits.float(), dim=-1)
+        top_k = int(top_k)
+        # 'privateuseone' is the type of custom devices like `torch_directml.device()`
+        if probs.device.type in ['cpu', 'privateuseone']:
+            probs = probs.cpu().numpy()
+            sorted_ids = np.argsort(probs)
+            sorted_probs = probs[sorted_ids][::-1]
+            cumulative_probs = np.cumsum(sorted_probs)
+            cutoff = float(sorted_probs[np.argmax(cumulative_probs >= top_p)])
+            probs[probs < cutoff] = 0
+            if top_k < len(probs) and top_k > 0:
+                probs[sorted_ids[:-top_k]] = 0
+            if temperature != 1.0:
+                probs = probs ** (1.0 / temperature)
+            probs = probs / np.sum(probs)
+            out = np.random.choice(a=len(probs), p=probs)
+            return int(out)
+        else:
+            sorted_ids = torch.argsort(probs)
+            sorted_probs = probs[sorted_ids]
+            sorted_probs = torch.flip(sorted_probs, dims=(0,))
+            cumulative_probs = torch.cumsum(sorted_probs, dim=-1).cpu().numpy()
+            cutoff = float(sorted_probs[np.argmax(cumulative_probs >= top_p)])
+            probs[probs < cutoff] = 0
+            if top_k < len(probs) and top_k > 0:
+                probs[sorted_ids[:-top_k]] = 0
+            if temperature != 1.0:
+                probs = probs ** (1.0 / temperature)
+            out = torch.multinomial(probs, num_samples=1)[0]
+            return int(out)

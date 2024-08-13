@@ -1448,6 +1448,7 @@ class RWKV(pl.LightningModule):
         if args.head_K > 1:                        
             K = args.head_K
             # labels = np.load('out/RWKV-5-World-0.4B-v2-20231113-ctx4096-emb-cluster-labels.npy')
+            # idx: token_id, element: cls_id
             labels = np.load(args.load_token_cls)
             clusters = []
             
@@ -1462,7 +1463,7 @@ class RWKV(pl.LightningModule):
             for i in range(len(labels)):
                 c = labels[i]
                 self.token2cls.append((c,len(clusters[c])))
-                clusters[c].append(i)            
+                clusters[c].append(i)
             for c in range(K):
                 self.head_l2.append(nn.Linear(args.n_embd, len(clusters[c]), bias=False))
         if args.head_qk > 0:        # xzl: (cf README) disabled in training script.
@@ -1694,13 +1695,16 @@ class RWKV(pl.LightningModule):
                 # alternatively, we can take the original cls output as a pseudo target...
                 logits1, logits2, logits00, target_clusters, target_idx_in_cluster = self(idx)
                 
-                breakpoint()
-
                 # 1. loss over all clusters
-                loss1 = F.cross_entropy(logits1.view(-1, logits1.size(-1)), target_clusters.view(-1))
                 # 2. loss over the tokens, in the target cluster
-                loss2 = F.cross_entropy(logits2.view(-1, logits2.size(-1)), target_idx_in_cluster.view(-1))
-                loss = loss1 * loss2
+                # loss1 = F.cross_entropy(logits1.view(-1, logits1.size(-1)), target_clusters.view(-1))
+                # loss2 = F.cross_entropy(logits2.view(-1, logits2.size(-1)), target_idx_in_cluster.view(-1))
+                # loss = loss1 * loss2
+                # logits = logits1  # xzl: cat logits1,2??
+
+                loss1 = F.cross_entropy(logits1.view(-1, logits1.size(-1)), target_clusters.view(-1), reduction='none')
+                loss2 = F.cross_entropy(logits2.view(-1, logits2.size(-1)), target_idx_in_cluster.view(-1), reduction='none')
+                loss = (loss1 * loss2).mean()
                 logits = logits1  # xzl: cat logits1,2??
 
             else: 

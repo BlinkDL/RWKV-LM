@@ -1,5 +1,33 @@
 
+understand "compressed cls" code
+
+here's chat code using a 0.1B model with compressed cls head
+https://github.com/fxlin/RWKV-LM/blob/4dbe46bc3bc5b1a59e68ead30bc1d527af040770/RWKV-v5/src/test-rwkv-chat.py#L34
+ 
+[3:24 PM] Lin, Felix (xl6yq)
+here is the code for inference with the "cls" model 
+https://github.com/fxlin/RWKV-LM/blob/4dbe46bc3bc5b1a59e68ead30bc1d527af040770/rwkv/model.py#L1705
+RWKV-LM/rwkv/model.py at 4dbe46bc3bc5b1a59e68ead30bc1d527af040770 · fxlin/RWKV-LM
+RWKV is an RNN with transformer-level LLM performance. It can be directly trained like a GPT (parallelizable). So it&#39;s combining the best of RNN and transformer - great performance, fast in...
+ 
+[3:26 PM] Lin, Felix (xl6yq)
+training code: 
+https://github.com/fxlin/RWKV-LM/blob/4dbe46bc3bc5b1a59e68ead30bc1d527af040770/RWKV-v5/src/model.py
+search for "self.head_l1" "self.head_l2"
+RWKV-LM/RWKV-v5/src/model.py at 4dbe46bc3bc5b1a59e68ead30bc1d527af040770 · fxlin/RWKV-LM
+RWKV is an RNN with transformer-level LLM performance. It can be directly trained like a GPT (parallelizable). So it&#39;s combining the best of RNN and transformer - great performance, fast in...
+ 
+[3:27 PM] Lin, Felix (xl6yq)
+workflow to generate the cls head:
+https://github.com/fxlin/RWKV-LM/blob/4dbe46bc3bc5b1a59e68ead30bc1d527af040770/README-xzl-notes
+RWKV-LM/README-xzl-notes at 4dbe46bc3bc5b1a59e68ead30bc1d527af040770 · fxlin/RWKV-LM
+RWKV is an RNN with transformer-level LLM performance. It can be directly trained like a GPT (parallelizable). So it&#39;s combining the best of RNN and transformer - great performance, fast in...
+
+
+
+
 ---------------------------------------------------------------
+
 
 
 ffn.receptance1,2 ... if init as 0, then no graidents. (wjhy???                                                       
