@@ -54,7 +54,7 @@ from rwkv.model import RWKV
 from rwkv.utils import PIPELINE
 
 from lm_eval import tasks, evaluator
-from lm_eval.models.gpt2 import GPT2LM
+from lm_eval.api.model import TemplateLM
 
 ########################################################################################################
 
@@ -165,12 +165,28 @@ MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x
 ########################################################################################################
 # select benchmarks below 
 
-eval_tasks = []
-eval_tasks += ['lambada_openai']  # OK, (10k
-eval_tasks += ['hellaswag'] # OK (40k
-eval_tasks += ['winogrande'] # ok, fast (2k
-eval_tasks += ['piqa']  # ok, fast (3k
-eval_tasks += ['copa']  # fast <1k
+eval_tasks = [
+        'lambada_openai',
+        'lambada_standard',
+        'piqa',
+        'hellaswag',
+        'winogrande',
+        'arc_easy',
+        'arc_challenge',
+        'openbookqa',
+        'sciq',
+        #'leaderboard_gpqa_main',
+        #'leaderboard_ifeval',
+        #'leaderboard_mmlu_pro',
+        #'leaderboard_musr_murder_mysteries',
+        #'leaderboard_musr_object_placements',
+        #'leaderboard_musr_team_allocation',
+        ]
+#eval_tasks += ['lambada_openai']  # OK, (10k
+#eval_tasks += ['hellaswag'] # OK (40k
+#eval_tasks += ['winogrande'] # ok, fast (2k
+#eval_tasks += ['piqa']  # ok, fast (3k
+#eval_tasks += ['copa']  # fast <1k
 # eval_tasks += ['record']  # slow 113K examples -- take long (even CUDA=1
 
 # eval_tasks += ['storycloze_2016']  # missing in our lm_eval version. TBD
@@ -210,11 +226,12 @@ class TokenizerWrapper:
     def decode(self, tokens):
         return self.tokenizer.decode(tokens)
 
-class EvalHarnessAdapter(GPT2LM):
-    def __init__(self, model, pipeline, pad):
-        self.tokenizer = TokenizerWrapper(pipeline.tokenizer)
-        self.model = model
+class EvalHarnessAdapter(TemplateLM):
+    def __init__(self, pretrained, pipeline, pad):
+        super().__init__()
         self.pad = pad
+        self.pretrained = pretrained
+        self.tokenizer = TokenizerWrapper(pipeline.tokenizer)
 
     # def greedy_until(self, requests): # designed for coqa
     #     res = []
@@ -267,11 +284,14 @@ class EvalHarnessAdapter(GPT2LM):
                 
                 with torch.no_grad():
                     # print("*",end='')
-                    outputs, _ = self.model.forward(src, None, full_output=True)
+                    outputs, _ = self.pretrained.forward(src, None, full_output=True)
                     for i in range(q_len-1, len(src)-1):
                         oo = outputs[i].detach().float()
                         dst = src[i+1]
-                        logit += math.log(F.softmax(oo, dim=-1)[dst])
+                        v = F.softmax(oo, dim=-1)[dst]
+                        if v == 0:
+                            v = 0.00000000000000000000000001
+                        logit += math.log(v)
                         _, s_index = torch.sort(oo, descending=True)
                         pred = s_index[0].item()
                         if pred != dst:
@@ -280,30 +300,46 @@ class EvalHarnessAdapter(GPT2LM):
                     pred = None
                 logitBuf[sss] = logit
                 correctBuf[sss] = correct
+                #clean_cache()
             
             res += [(logit, correct)]
             if n % 1000 == 0:
                 print(f'{n//1000}K/{len(requests)//1000}K', end = ' ', flush=True)
         return res
 
+    def loglikelihood_rolling():
+        pass
+
+    def generate_until():
+        pass
+
+    def tok_encode(self, string: str):
+        return self.tokenizer.encode(string, add_special_tokens=False)
+
+    @property
+    def eot_token_id(self):
+        # we use EOT because end of *text* is more accurate for what we're doing than end of *sentence*
+        return self.tokenizer.eos_token_id
+
+
     @torch.no_grad()
     def run_eval(self, eval_tasks=None, num_fewshot=0, bootstrap_iters=2):
         results = evaluator.evaluate(
             lm=self,
             task_dict=tasks.get_task_dict(eval_tasks),
-            provide_description=False,
-            num_fewshot=num_fewshot,
+            #provide_description=False,
+            #num_fewshot=num_fewshot,
             limit=None,
             bootstrap_iters=bootstrap_iters,
         )
-        # results = evaluator.simple_evaluate(
-        #     model=self,
-        #     tasks=eval_tasks,
-        #     num_fewshot=num_fewshot,
-        #     limit=None,
-        #     bootstrap_iters=bootstrap_iters,
-        #     no_cache=True
-        # )
+        #results = evaluator.simple_evaluate(
+        #    model=self,
+        #    tasks=eval_tasks,
+        #    num_fewshot=num_fewshot,
+        #    limit=None,
+        #    bootstrap_iters=bootstrap_iters,
+        #    #no_cache=True
+        #)
         return results
 
 def do_eval(model_path, isverbose=False):

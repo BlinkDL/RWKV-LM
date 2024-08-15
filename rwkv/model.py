@@ -1703,57 +1703,66 @@ class RWKV(MyModule):
             x = F.layer_norm(x, (args.n_embd,), weight=w['ln_out.weight'], bias=w['ln_out.bias'])
 
             if 'head_l1.weight' in w: # use compressed cls heads
-            # if False:
-                '''
-                Current design: greedy sampling cls (L1).
-                cal logits over all clusters. find the cls with highest logit
-                (greedy); within this cls, compute logits over tokens 
-                return: computed logits (for tokens for cls); -inf for other
-                tokens
+                def _retrieve_value(x, w):
+                    '''
+                    Current design: greedy sampling cls (L1).
+                    cal logits over all clusters. find the cls with highest logit
+                    (greedy); within this cls, compute logits over tokens 
+                    return: computed logits (for tokens for cls); -inf for other
+                    tokens
 
-                alternatively: TBD
-                cal logits over all clustres, return to the caller
-                the caller: sample a cluster (non greedy). the model: cal logits
-                within that cluster. caller: sample a token. 
-                '''
+                    alternatively: TBD
+                    cal logits over all clustres, return to the caller
+                    the caller: sample a cluster (non greedy). the model: cal logits
+                    within that cluster. caller: sample a token. 
+                    '''
 
-                args.alpha_frequency = 0.25
-                args.alpha_presence = 0.25
-                args.alpha_decay = 0.996 # gradually decay the penalty
-        
-                # x: shape D (regardless of seq_mode
-                # l1 projection
-                x1 = x @ w['head_l1.weight']  # shape D,K
-                # breakpoint()
-                # cls = x1.argmax(dim=-1)       # greedy
-                # sample_logits (cf test-rwkv-chat.py
-                for n in self.occurrence:
-                    x1[n] -= (args.alpha_presence + self.occurrence[n] * args.alpha_frequency)
-                cls = self.sample_logits(x1, temperature=1.0, top_p=0.7, top_k=100) 
-                for xxx in self.occurrence:
-                    self.occurrence[xxx] *= args.alpha_decay
-                www = 1
-                if cls not in self.occurrence:
-                    self.occurrence[cls] = www
+                    args.alpha_frequency = 0.25
+                    args.alpha_presence = 0.25
+                    args.alpha_decay = 0.996 # gradually decay the penalty
+
+                    # x: shape D (regardless of seq_mode
+                    # l1 projection
+                    x1 = x @ w['head_l1.weight']  # shape D,K
+
+                    # breakpoint()
+                    # cls = x1.argmax(dim=-1)       # greedy
+                    # sample_logits (cf test-rwkv-chat.py
+                    for n in self.occurrence:
+                        x1[n] -= (args.alpha_presence + self.occurrence[n] * args.alpha_frequency)
+                    cls = self.sample_logits(x1, temperature=1.0, top_p=0.7, top_k=100) 
+                    for xxx in self.occurrence:
+                        self.occurrence[xxx] *= args.alpha_decay
+                    www = 1
+                    if cls not in self.occurrence:
+                        self.occurrence[cls] = www
+                    else:
+                        self.occurrence[cls] += www
+
+                    # print(f">>>>>> # self.occurrence = {len(self.occurrence)}")
+                    # print(f"\t\t\t\t\t cls {cls} occur {self.occurrence[cls]:.2f} #tokens {len(self.clusters[cls])}")
+
+                    # l2 project x to: logits over all possible tokens within the cls
+                    x = x @ w[f'head_l2.{cls}.weight']
+                                    
+                    vocab = w['head.weight'].shape[1]   # shape D,vocab                
+                    # cls: cluster id, 
+                    # self.clusters[cls] list of token_ids in this cls (as scatter idx
+                    # x: logits over tokens inside cls, (as scatter src
+                    # res: logits over all tokens (vocab). prefilled with -inf, used
+                    #   as scatter dest
+                    idx = torch.tensor(self.clusters[cls], device='cuda')
+                    res = torch.full((vocab,),float('-inf'),device='cuda',dtype=x.dtype) \
+                        .scatter_(0, idx, x)
+                    return res
+
+                if x.dim() > 1:
+                    new_x = []
+                    for row in x:
+                        new_x.append(_retrieve_value(row, w))
+                    x = torch.stack(new_x)
                 else:
-                    self.occurrence[cls] += www
-
-                # print(f">>>>>> # self.occurrence = {len(self.occurrence)}")
-                # print(f"\t\t\t\t\t cls {cls} occur {self.occurrence[cls]:.2f} #tokens {len(self.clusters[cls])}")
-
-                # l2 project x to: logits over all possible tokens within the cls
-                x = x @ w[f'head_l2.{cls}.weight']
-                                
-                vocab = w['head.weight'].shape[1]   # shape D,vocab                
-                # cls: cluster id, 
-                # self.clusters[cls] list of token_ids in this cls (as scatter idx
-                # x: logits over tokens inside cls, (as scatter src
-                # res: logits over all tokens (vocab). prefilled with -inf, used
-                #   as scatter dest
-                idx = torch.tensor(self.clusters[cls], device='cuda')
-                res = torch.full((vocab,),float('-inf'),device='cuda',dtype=x.dtype) \
-                    .scatter_(0, idx, x)
-                x = res
+                    x = _retrieve_value(x, w)
 
             elif w['head.weight'].dtype != torch.uint8:  # original cls head
                 x = x @ w['head.weight']
