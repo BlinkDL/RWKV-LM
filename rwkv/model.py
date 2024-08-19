@@ -1726,11 +1726,13 @@ class RWKV(MyModule):
                     x1 = x @ w['head_l1.weight']  # shape D,K
 
                     # breakpoint()
-                    # cls = x1.argmax(dim=-1)       # greedy
+                    # cls = x1.argmax(dim=-1)       # greedy sampling. bad results
+                    # below: sample 1 cls (i.e. get one cls out of all)
                     # sample_logits (cf test-rwkv-chat.py
-                    for n in self.occurrence:
+                    for n in self.occurrence:       # penalize frequent cls (by reducing their logits...
                         x1[n] -= (args.alpha_presence + self.occurrence[n] * args.alpha_frequency)
                     cls = self.sample_logits(x1, temperature=1.0, top_p=0.7, top_k=100) 
+                    # below: update "occrruence" statistics
                     for xxx in self.occurrence:
                         self.occurrence[xxx] *= args.alpha_decay
                     www = 1
@@ -1739,6 +1741,7 @@ class RWKV(MyModule):
                     else:
                         self.occurrence[cls] += www
 
+                    #### now we've picked a cls. compute logits for all tokens within the cls
                     # print(f">>>>>> # self.occurrence = {len(self.occurrence)}")
                     # print(f"\t\t\t\t\t cls {cls} occur {self.occurrence[cls]:.2f} #tokens {len(self.clusters[cls])}")
 
@@ -1749,9 +1752,9 @@ class RWKV(MyModule):
                     # cls: cluster id, 
                     # self.clusters[cls] list of token_ids in this cls (as scatter idx
                     # x: logits over tokens inside cls, (as scatter src
+                    idx = torch.tensor(self.clusters[cls], device='cuda')
                     # res: logits over all tokens (vocab). prefilled with -inf, used
                     #   as scatter dest
-                    idx = torch.tensor(self.clusters[cls], device='cuda')
                     res = torch.full((vocab,),float('-inf'),device='cuda',dtype=x.dtype) \
                         .scatter_(0, idx, x)
                     return res

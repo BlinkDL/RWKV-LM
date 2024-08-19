@@ -167,14 +167,16 @@ MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x
 
 eval_tasks = [
         'lambada_openai',
-        'lambada_standard',
-        'piqa',
-        'hellaswag',
-        'winogrande',
-        'arc_easy',
-        'arc_challenge',
-        'openbookqa',
-        'sciq',
+        
+        # 'lambada_standard',
+        # 'piqa',
+        # 'hellaswag',
+        # 'winogrande',
+        # 'arc_easy',
+        # 'arc_challenge',
+        # 'openbookqa',
+        # 'sciq',
+
         #'leaderboard_gpqa_main',
         #'leaderboard_ifeval',
         #'leaderboard_mmlu_pro',
