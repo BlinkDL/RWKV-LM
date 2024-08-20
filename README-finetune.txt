@@ -1,3 +1,31 @@
+Pretrain instructions
+---------------------------
+
+# cr the result dir, e.g. name it as 01b-pre-x52. note the dir name, which 
+will automaticaly become SLURM job name -- easier to find 
+
+mkdir out/01b-pre-x52
+cd out/01b-pre-x52
+
+# copy all needed scripts to the results dir 
+cp ../template/*.sh . 
+
+# Files to change: 
+# model-config.sh for model arch 
+# submit-train.sh for slurm configs, e.g. # and types of gpus 
+# run-train.sh for training hyperparams e.g. learning rate, etc
+
+# prep 
+grab a gpu node for interactive job 
+
+
+
+
+
+
+
+---------------------------
+
 Finetune instructions
 
 ---------------------------
