@@ -68,8 +68,16 @@ from lm_eval.api.model import TemplateLM
 # acc:  .33 (openai) .29(hellaswag) .51(winogrande) .624 (piqa) ??(storycloze_2016) .64 (copa) .639 (record, f1)
 # MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823'
 
+# 01B, 01b-pre-x52 + CLS 
+# baseline, .33 openai
+# MODEL_NAME='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/rwkv-init'
+MODEL_NAME='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/rwkv-7'
+
+
+
 # 01B --- 01b-pre-x59
-MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
+# acc .37 (openai) 
+# MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
 
 # 04B --- official 
 # MODEL_NAME = "/data/models/RWKV-5-World-0.4B-v2-20231113-ctx4096"
@@ -374,7 +382,7 @@ def clean_cache():
     correctBuf = {}
 
 if __name__ == "__main__":
-    results = do_eval(MODEL_NAME)
+    results = do_eval(MODEL_NAME, isverbose=False)
     # print(results)
     print(json.dumps(results, indent=4, sort_keys=False))
 

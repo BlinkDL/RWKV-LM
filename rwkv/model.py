@@ -284,6 +284,14 @@ class RWKV(MyModule):
                 self.token2cls = torch.tensor(token2cls, device='cuda')
                 self.clusters = clusters
 
+                # build head_l2, but by splitting the original cls head weights
+                for cls in range(0, len(clusters)):
+                    orghead = w['head.weight']
+                    idx = torch.tensor(clusters[cls], device=orghead.device)
+                    # ww = torch.gather(input=orghead,dim=0,index=idx)
+                    ww = orghead[idx]
+                    w[f'head_l2org.{cls}.weight'] = ww # save it 
+
                 # cf rwkv/utils.py generate()
                 # XXX move it out of "model", to "pipeline"
                 self.occurrence = {}  
@@ -1703,7 +1711,9 @@ class RWKV(MyModule):
             x = F.layer_norm(x, (args.n_embd,), weight=w['ln_out.weight'], bias=w['ln_out.bias'])
 
             if 'head_l1.weight' in w: # use compressed cls heads
-                def _retrieve_value(x, w):
+                # version 0
+                # sample top1 cls. 
+                def _retrieve_value0(x, w):
                     '''
                     Current design: greedy sampling cls (L1).
                     cal logits over all clusters. find the cls with highest logit
@@ -1725,13 +1735,13 @@ class RWKV(MyModule):
                     # l1 projection
                     x1 = x @ w['head_l1.weight']  # shape D,K
 
-                    # breakpoint()
                     # cls = x1.argmax(dim=-1)       # greedy sampling. bad results
                     # below: sample 1 cls (i.e. get one cls out of all)
                     # sample_logits (cf test-rwkv-chat.py
                     for n in self.occurrence:       # penalize frequent cls (by reducing their logits...
                         x1[n] -= (args.alpha_presence + self.occurrence[n] * args.alpha_frequency)
-                    cls = self.sample_logits(x1, temperature=1.0, top_p=0.7, top_k=100) 
+                    cls, _ = self.sample_logits(x1, temperature=1.0, top_p=0.7, top_k=100, size=1) 
+                    cls = cls[0]
                     # below: update "occrruence" statistics
                     for xxx in self.occurrence:
                         self.occurrence[xxx] *= args.alpha_decay
@@ -1759,13 +1769,185 @@ class RWKV(MyModule):
                         .scatter_(0, idx, x)
                     return res
 
+                # version 1: sample N cls
+                def _retrieve_value1(x, w):
+                    args.alpha_frequency = 0.01     #.25
+                    args.alpha_presence = 0.01      #.25
+                    args.alpha_decay = 0.996 # gradually decay the penalty
+
+                    # N=100 # of cls we'll sample
+                    N=10 # of cls we'll sample
+
+                    # clsprob = .5 # idea: cumulatiev pros for the cls we'll sample
+
+                    # x: shape D (regardless of seq_mode
+                    # l1 projection
+                    x1 = x @ w['head_l1.weight']  # shape D,K
+                    # below: sample N cls (i.e. get N cls out of all)
+                    # sample_logits (cf test-rwkv-chat.py
+
+                    for n in self.occurrence:       # penalize frequent cls (by reducing their logits...
+                        x1[n] -= (args.alpha_presence + self.occurrence[n] * args.alpha_frequency)
+                    
+                    CLS, CLSPROBS = self.sample_logits(x1, temperature=1.0, top_p=0.85, top_k=N,
+                                             size=N, replace=False)                                         
+                    # breakpoint()                    
+
+                    # below: update "occrruence" statistics
+                    for xxx in self.occurrence:
+                        self.occurrence[xxx] *= args.alpha_decay
+                    www = 1
+                    for cls in CLS:
+                        if cls not in self.occurrence:
+                            self.occurrence[cls] = www
+                        else:
+                            self.occurrence[cls] += www
+
+                    #### now we've picked N cls. L2 projection.... ###
+
+                    vocab = w['head.weight'].shape[1]   # shape D,vocab                
+                    probs = torch.full((vocab,), 0.0, device='cuda', dtype=x.dtype)
+
+                    # project x to: probs over all possible tokens within each cls, 
+                    #           scaled by the cls prob
+                    ntokens=0
+                    for i in range(0, len(CLS)):
+                        cls = CLS[i]
+                        clsprob = CLSPROBS[i]
+                        x1 = x @ w[f'head_l2.{cls}.weight']
+                        x1 = F.softmax(x1, dim=-1)
+                        x1 = x1 * clsprob 
+                        ntokens += x1.shape[0]
+                        # cls: cluster id, 
+                        # self.clusters[cls] list of token_ids in this cls (as scatter idx
+                        # x: logits over tokens inside cls, (as scatter src
+                        idx = torch.tensor(self.clusters[cls], device='cuda')
+                        # breakpoint()    
+                        probs.scatter_(dim=0, index=idx, src=x1)
+
+                    if sum(CLSPROBS) < 0.3: 
+                        # print(f" CLSPROBS {CLSPROBS} ntokens {ntokens}")
+                        pass
+                        # idea: maybe we should fallback....
+                        breakpoint()
+
+                    # breakpoint()
+                    # invert all token probs to (fake) token logits, as expected by pipeline caller
+                    logits = torch.log(probs) - torch.logsumexp(torch.log(probs), dim=0)
+                    # NB: the probs calculated from these logits may != the probs
+                    # computed above, b/c probs from above do not add up to 1 (i.e. unsampled cls will have 
+                    # prob of 0
+                    return logits
+
+                # version 2
+                def _retrieve_value2(x, w):
+                    # orig
+                    # args.alpha_frequency = 0.25  # orig
+                    # args.alpha_presence = 0.25    # orig
+
+                    # need to test these
+                    args.alpha_frequency = 0.2  
+                    args.alpha_presence = 0.2   
+
+                    # -- kinda repeatitve ...
+                    # args.alpha_frequency = 0.1
+                    # args.alpha_presence = 0.1
+
+                    args.alpha_decay = 0.996 # gradually decay the penalty
+
+                    # N=200 # of cls we'll sample
+                    # N=80 # of cls we'll sample
+                    N=5 # of cls we'll sample
+
+                    # clsprob = .5 # idea: cumulatiev pros for the cls we'll sample
+
+                    # x: shape D (regardless of seq_mode
+                    # l1 projection
+                    x1 = x @ w['head_l1.weight']  # shape D,K
+                    # below: sample N cls (i.e. get N cls out of all)
+                    # sample_logits (cf test-rwkv-chat.py
+                    ## penalize frequent cls (by reducing their logits...  XXXX should do this???
+                    for n in self.occurrence:       
+                        x1[n] -= (args.alpha_presence + self.occurrence[n] * args.alpha_frequency)
+                    
+                    # CLS, CLSPROBS = self.sample_logits(x1, temperature=1.0, top_p=0.85, top_k=N,
+                    #                          size=N, replace=False)
+                    
+                    # --- select, not sampling --- # 
+                    CLS, CLSPROBS = self.select_logits(x1, minK=5, maxK=100, minProb=.75) 
+                    # CLS, CLSPROBS = self.select_logits(x1, minK=5, maxK=40, minProb=.5) 
+                    # CLS, CLSPROBS = self.select_logits(x1, minK=N, maxK=N, minProb=.5)  # seems quite good? (N=200
+
+                    # below: update "occrruence" statistics
+                    for xxx in self.occurrence:
+                        self.occurrence[xxx] *= args.alpha_decay
+                    www = 1
+                    for cls in CLS:
+                        if cls not in self.occurrence:
+                            self.occurrence[cls] = www
+                        else:
+                            self.occurrence[cls] += www
+
+                    #### now we've picked N cls. L2 projection.... ###
+
+                    vocab = w['head.weight'].shape[1]   # shape D,vocab                
+                    logits = torch.full((vocab,), float('-inf'), device='cuda', dtype=x.dtype) 
+
+                    # project x to: probs over all possible tokens within each cls, 
+                    #           scaled by the cls prob
+                    ntokens=0
+                    for i in range(0, len(CLS)):
+                        cls = CLS[i]
+                        clsprob = CLSPROBS[i]
+                        x1 = x @ w[f'head_l2org.{cls}.weight'] 
+
+                        ntokens += x1.shape[0]
+                        # cls: cluster id, 
+                        # self.clusters[cls] list of token_ids in this cl s (as scatter idx
+                        # x: logits over tokens inside cls, (as scatter src
+                        idx = torch.tensor(self.clusters[cls], device='cuda')
+                        #  ------ sanity check: if we use the org head.weight ------ # 
+                        if False:
+                            yyy=w[f'head_l2org.{cls}.weight']
+                            zzz=w['head.weight']
+                            for ii in range(len(idx)): 
+                                tokenid = idx[ii]
+                                if not torch.equal(yyy[:,ii], zzz[:,tokenid]): 
+                                    breakpoint()  
+                        # print("all good")                        
+                        # ---------------------------- # 
+
+                        # since we use the orig head weights, 
+                        #   it's ok to concat the raw logits from multi clusters
+                        logits.scatter_(dim=0, index=idx, src=x1)
+             
+                    # -- sanity check, if minK=200...
+                    if True: 
+                        reallogits = x @ w['head.weight']
+                        if N==200:
+                            # if not torch.equal(reallogits,logits):
+                            # XXX there might be a minor bug somewhere.... causing 
+                            # minor diff in the two logitgs...
+                            if not torch.allclose(reallogits,logits, rtol=0.01, atol=0.01):
+                                dif=reallogits-logits
+                                nzdifmask=dif!=0
+                                nzidx=torch.nonzero(nzdifmask, as_tuple=False)
+                                breakpoint()
+                        tokens, probs= self.select_logits(reallogits, 5, 20, 0.85)
+                        # our computed logits for them??
+                        print(reallogits[tokens])
+                        print(logits[tokens])
+                        breakpoint()
+
+                    return logits
+                
                 if x.dim() > 1:
                     new_x = []
                     for row in x:
-                        new_x.append(_retrieve_value(row, w))
+                        new_x.append(_retrieve_value2(row, w))
                     x = torch.stack(new_x)
                 else:
-                    x = _retrieve_value(x, w)
+                    x = _retrieve_value2(x, w)
 
             elif w['head.weight'].dtype != torch.uint8:  # original cls head
                 x = x @ w['head.weight']
@@ -1778,13 +1960,21 @@ class RWKV(MyModule):
             return x.float(), state
         
     # copied from rwkv/utils.py 
-    def sample_logits(self, logits, temperature=1.0, top_p=0.85, top_k=0):
+
+    #  only sample among top items with accumulative probs > "top_p", and 
+    #   ranked higher than "top_k"
+    #   "size": returned sample size
+    #   xzl: "replace=False" forbids same item selected multiple times
+    #  return: [samples], [probs]
+    def sample_logits(self, logits, temperature=1.0, top_p=0.85, top_k=0, 
+                      size=1, replace=False):
         import numpy as np
         if temperature == 0:
             temperature = 1.0
             top_p = 0
         probs = F.softmax(logits.float(), dim=-1)
         top_k = int(top_k)
+
         # 'privateuseone' is the type of custom devices like `torch_directml.device()`
         if probs.device.type in ['cpu', 'privateuseone']:
             probs = probs.cpu().numpy()
@@ -1792,14 +1982,16 @@ class RWKV(MyModule):
             sorted_probs = probs[sorted_ids][::-1]
             cumulative_probs = np.cumsum(sorted_probs)
             cutoff = float(sorted_probs[np.argmax(cumulative_probs >= top_p)])
-            probs[probs < cutoff] = 0
+            probs[probs < cutoff] = 0           #xzl: suppress the probs
             if top_k < len(probs) and top_k > 0:
-                probs[sorted_ids[:-top_k]] = 0
+                probs[sorted_ids[:-top_k]] = 0    #xzl: just supress the probs
             if temperature != 1.0:
                 probs = probs ** (1.0 / temperature)
             probs = probs / np.sum(probs)
-            out = np.random.choice(a=len(probs), p=probs)
-            return int(out)
+            # xzl: here, still can choose from items with prob=0 (?
+            out = np.random.choice(a=len(probs), p=probs, size=size, replace=replace)
+            # return int(out)
+            return out, probs[out]
         else:
             sorted_ids = torch.argsort(probs)
             sorted_probs = probs[sorted_ids]
@@ -1811,5 +2003,30 @@ class RWKV(MyModule):
                 probs[sorted_ids[:-top_k]] = 0
             if temperature != 1.0:
                 probs = probs ** (1.0 / temperature)
-            out = torch.multinomial(probs, num_samples=1)[0]
-            return int(out)
+            # out = torch.multinomial(probs, num_samples=size, replacement=replace)[0]  # old
+            # breakpoint()
+            out = torch.multinomial(probs, num_samples=size, replacement=replace)
+            # TODO: complete cumulative probs
+            # return int(out)
+            if sum(probs[out]) < 0.3:
+                print(sum(probs[out]))
+                breakpoint()
+            return out, probs[out]
+        
+    def select_logits(self, logits, minK, maxK, minProb):
+        import numpy as np
+
+        probs = F.softmax(logits.float(), dim=-1)
+        sorted_ids = torch.argsort(probs)
+        sorted_ids = torch.flip(sorted_ids, dims=(0,)) 
+        sorted_probs = probs[sorted_ids]
+        # sorted_probs = torch.flip(sorted_probs, dims=(0,)) 
+        # now sorted_probs in descending order
+        cumulative_probs = torch.cumsum(sorted_probs, dim=-1).cpu().numpy()
+        cutoff_idx = np.argmax(cumulative_probs >= minProb) + 1 # idx in sorted_probs
+        # cutoff = float(sorted_probs[np.argmax(cumulative_probs >= minProb)])
+        if cutoff_idx<minK:
+            cutoff_idx=minK
+        elif cutoff_idx>maxK:
+            cutoff_idx=maxK
+        return sorted_ids[:cutoff_idx], sorted_probs[:cutoff_idx]
