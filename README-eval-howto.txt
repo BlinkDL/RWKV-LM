@@ -34,3 +34,29 @@ cp ../../template/*.sh .
 
 ./submit-eval.sh
 Results will be written to eval_log.txt, eval_log.png
+
+
+Troubleshooting
+===============
+Q. I see 'NaN' on perplexity and a zero accuracy as follows:
+```bash
+{
+    "lambada_openai": {
+        "perplexity,none": NaN,
+        "perplexity_stderr,none": NaN,
+        "acc,none": 0.0,
+        "acc_stderr,none": 0.0,
+        "alias": "lambada_openai"
+    }
+}
+```
+
+A. This happens because of the wrong floating point. Load a model as `fp32` instead of `fp16`.
+A possible reason could be the following comment: "In [state = kv + w * state] everything must be in fp32 because w can be very close to 1. So we can keep state and w in fp32, and convert kv to fp32."
+
+
+```
+# src/run_lm_eval.py
+- rwkv_model = RWKV(model=model_path, strategy="cuda fp16", verboase=isverbose)
++ rwkv_model = RWKV(model=model_path, strategy="cuda fp32", verboase=isverbose)
+```
