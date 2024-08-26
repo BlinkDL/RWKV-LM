@@ -1,0 +1,1171 @@
+
+Using CPU. Loading /bigtemp/xl6yq/RWKV-5-World-0.4B-v2-20231113-ctx4096 ...
+to load orig model...
+model loaded
+to load svd model...
+model loaded
+recover full model & cmop...
+emb.weight
+blocks.0.ln1.weight
+blocks.0.ln1.bias
+blocks.0.ln2.weight
+blocks.0.ln2.bias
+blocks.0.ln0.weight
+blocks.0.ln0.bias
+blocks.0.att.time_mix_k
+blocks.0.att.time_mix_v
+blocks.0.att.time_mix_r
+blocks.0.att.time_mix_g
+blocks.0.att.time_decay
+blocks.0.att.time_faaaa
+blocks.0.att.output.weight
+blocks.0.att.ln_x.weight
+blocks.0.att.ln_x.bias
+blocks.0.ffn.time_mix_k
+blocks.0.ffn.time_mix_r
+blocks.0.ffn.key.weight
+blocks.0.ffn.receptance.weight
+blocks.0.ffn.value.weight
+blocks.1.ln1.weight
+blocks.1.ln1.bias
+blocks.1.ln2.weight
+blocks.1.ln2.bias
+blocks.1.att.time_mix_k
+blocks.1.att.time_mix_v
+blocks.1.att.time_mix_r
+blocks.1.att.time_mix_g
+blocks.1.att.time_decay
+blocks.1.att.time_faaaa
+blocks.1.att.output.weight
+blocks.1.att.ln_x.weight
+blocks.1.att.ln_x.bias
+blocks.1.ffn.time_mix_k
+blocks.1.ffn.time_mix_r
+blocks.1.ffn.key.weight
+blocks.1.ffn.receptance.weight
+blocks.1.ffn.value.weight
+blocks.2.ln1.weight
+blocks.2.ln1.bias
+blocks.2.ln2.weight
+blocks.2.ln2.bias
+blocks.2.att.time_mix_k
+blocks.2.att.time_mix_v
+blocks.2.att.time_mix_r
+blocks.2.att.time_mix_g
+blocks.2.att.time_decay
+blocks.2.att.time_faaaa
+blocks.2.att.output.weight
+blocks.2.att.ln_x.weight
+blocks.2.att.ln_x.bias
+blocks.2.ffn.time_mix_k
+blocks.2.ffn.time_mix_r
+blocks.2.ffn.key.weight
+blocks.2.ffn.receptance.weight
+blocks.2.ffn.value.weight
+blocks.3.ln1.weight
+blocks.3.ln1.bias
+blocks.3.ln2.weight
+blocks.3.ln2.bias
+blocks.3.att.time_mix_k
+blocks.3.att.time_mix_v
+blocks.3.att.time_mix_r
+blocks.3.att.time_mix_g
+blocks.3.att.time_decay
+blocks.3.att.time_faaaa
+blocks.3.att.output.weight
+blocks.3.att.ln_x.weight
+blocks.3.att.ln_x.bias
+blocks.3.ffn.time_mix_k
+blocks.3.ffn.time_mix_r
+blocks.3.ffn.key.weight
+blocks.3.ffn.receptance.weight
+blocks.3.ffn.value.weight
+blocks.4.ln1.weight
+blocks.4.ln1.bias
+blocks.4.ln2.weight
+blocks.4.ln2.bias
+blocks.4.att.time_mix_k
+blocks.4.att.time_mix_v
+blocks.4.att.time_mix_r
+blocks.4.att.time_mix_g
+blocks.4.att.time_decay
+blocks.4.att.time_faaaa
+blocks.4.att.output.weight
+blocks.4.att.ln_x.weight
+blocks.4.att.ln_x.bias
+blocks.4.ffn.time_mix_k
+blocks.4.ffn.time_mix_r
+blocks.4.ffn.key.weight
+blocks.4.ffn.receptance.weight
+blocks.4.ffn.value.weight
+blocks.5.ln1.weight
+blocks.5.ln1.bias
+blocks.5.ln2.weight
+blocks.5.ln2.bias
+blocks.5.att.time_mix_k
+blocks.5.att.time_mix_v
+blocks.5.att.time_mix_r
+blocks.5.att.time_mix_g
+blocks.5.att.time_decay
+blocks.5.att.time_faaaa
+blocks.5.att.output.weight
+blocks.5.att.ln_x.weight
+blocks.5.att.ln_x.bias
+blocks.5.ffn.time_mix_k
+blocks.5.ffn.time_mix_r
+blocks.5.ffn.key.weight
+blocks.5.ffn.receptance.weight
+blocks.5.ffn.value.weight
+blocks.6.ln1.weight
+blocks.6.ln1.bias
+blocks.6.ln2.weight
+blocks.6.ln2.bias
+blocks.6.att.time_mix_k
+blocks.6.att.time_mix_v
+blocks.6.att.time_mix_r
+blocks.6.att.time_mix_g
+blocks.6.att.time_decay
+blocks.6.att.time_faaaa
+blocks.6.att.output.weight
+blocks.6.att.ln_x.weight
+blocks.6.att.ln_x.bias
+blocks.6.ffn.time_mix_k
+blocks.6.ffn.time_mix_r
+blocks.6.ffn.key.weight
+blocks.6.ffn.receptance.weight
+blocks.6.ffn.value.weight
+blocks.7.ln1.weight
+blocks.7.ln1.bias
+blocks.7.ln2.weight
+blocks.7.ln2.bias
+blocks.7.att.time_mix_k
+blocks.7.att.time_mix_v
+blocks.7.att.time_mix_r
+blocks.7.att.time_mix_g
+blocks.7.att.time_decay
+blocks.7.att.time_faaaa
+blocks.7.att.output.weight
+blocks.7.att.ln_x.weight
+blocks.7.att.ln_x.bias
+blocks.7.ffn.time_mix_k
+blocks.7.ffn.time_mix_r
+blocks.7.ffn.key.weight
+blocks.7.ffn.receptance.weight
+blocks.7.ffn.value.weight
+blocks.8.ln1.weight
+blocks.8.ln1.bias
+blocks.8.ln2.weight
+blocks.8.ln2.bias
+blocks.8.att.time_mix_k
+blocks.8.att.time_mix_v
+blocks.8.att.time_mix_r
+blocks.8.att.time_mix_g
+blocks.8.att.time_decay
+blocks.8.att.time_faaaa
+blocks.8.att.output.weight
+blocks.8.att.ln_x.weight
+blocks.8.att.ln_x.bias
+blocks.8.ffn.time_mix_k
+blocks.8.ffn.time_mix_r
+blocks.8.ffn.key.weight
+blocks.8.ffn.receptance.weight
+blocks.8.ffn.value.weight
+blocks.9.ln1.weight
+blocks.9.ln1.bias
+blocks.9.ln2.weight
+blocks.9.ln2.bias
+blocks.9.att.time_mix_k
+blocks.9.att.time_mix_v
+blocks.9.att.time_mix_r
+blocks.9.att.time_mix_g
+blocks.9.att.time_decay
+blocks.9.att.time_faaaa
+blocks.9.att.output.weight
+blocks.9.att.ln_x.weight
+blocks.9.att.ln_x.bias
+blocks.9.ffn.time_mix_k
+blocks.9.ffn.time_mix_r
+blocks.9.ffn.key.weight
+blocks.9.ffn.receptance.weight
+blocks.9.ffn.value.weight
+blocks.10.ln1.weight
+blocks.10.ln1.bias
+blocks.10.ln2.weight
+blocks.10.ln2.bias
+blocks.10.att.time_mix_k
+blocks.10.att.time_mix_v
+blocks.10.att.time_mix_r
+blocks.10.att.time_mix_g
+blocks.10.att.time_decay
+blocks.10.att.time_faaaa
+blocks.10.att.output.weight
+blocks.10.att.ln_x.weight
+blocks.10.att.ln_x.bias
+blocks.10.ffn.time_mix_k
+blocks.10.ffn.time_mix_r
+blocks.10.ffn.key.weight
+blocks.10.ffn.receptance.weight
+blocks.10.ffn.value.weight
+blocks.11.ln1.weight
+blocks.11.ln1.bias
+blocks.11.ln2.weight
+blocks.11.ln2.bias
+blocks.11.att.time_mix_k
+blocks.11.att.time_mix_v
+blocks.11.att.time_mix_r
+blocks.11.att.time_mix_g
+blocks.11.att.time_decay
+blocks.11.att.time_faaaa
+blocks.11.att.output.weight
+blocks.11.att.ln_x.weight
+blocks.11.att.ln_x.bias
+blocks.11.ffn.time_mix_k
+blocks.11.ffn.time_mix_r
+blocks.11.ffn.key.weight
+blocks.11.ffn.receptance.weight
+blocks.11.ffn.value.weight
+blocks.12.ln1.weight
+blocks.12.ln1.bias
+blocks.12.ln2.weight
+blocks.12.ln2.bias
+blocks.12.att.time_mix_k
+blocks.12.att.time_mix_v
+blocks.12.att.time_mix_r
+blocks.12.att.time_mix_g
+blocks.12.att.time_decay
+blocks.12.att.time_faaaa
+blocks.12.att.output.weight
+blocks.12.att.ln_x.weight
+blocks.12.att.ln_x.bias
+blocks.12.ffn.time_mix_k
+blocks.12.ffn.time_mix_r
+blocks.12.ffn.key.weight
+blocks.12.ffn.receptance.weight
+blocks.12.ffn.value.weight
+blocks.13.ln1.weight
+blocks.13.ln1.bias
+blocks.13.ln2.weight
+blocks.13.ln2.bias
+blocks.13.att.time_mix_k
+blocks.13.att.time_mix_v
+blocks.13.att.time_mix_r
+blocks.13.att.time_mix_g
+blocks.13.att.time_decay
+blocks.13.att.time_faaaa
+blocks.13.att.output.weight
+blocks.13.att.ln_x.weight
+blocks.13.att.ln_x.bias
+blocks.13.ffn.time_mix_k
+blocks.13.ffn.time_mix_r
+blocks.13.ffn.key.weight
+blocks.13.ffn.receptance.weight
+blocks.13.ffn.value.weight
+blocks.14.ln1.weight
+blocks.14.ln1.bias
+blocks.14.ln2.weight
+blocks.14.ln2.bias
+blocks.14.att.time_mix_k
+blocks.14.att.time_mix_v
+blocks.14.att.time_mix_r
+blocks.14.att.time_mix_g
+blocks.14.att.time_decay
+blocks.14.att.time_faaaa
+blocks.14.att.output.weight
+blocks.14.att.ln_x.weight
+blocks.14.att.ln_x.bias
+blocks.14.ffn.time_mix_k
+blocks.14.ffn.time_mix_r
+blocks.14.ffn.key.weight
+blocks.14.ffn.receptance.weight
+blocks.14.ffn.value.weight
+blocks.15.ln1.weight
+blocks.15.ln1.bias
+blocks.15.ln2.weight
+blocks.15.ln2.bias
+blocks.15.att.time_mix_k
+blocks.15.att.time_mix_v
+blocks.15.att.time_mix_r
+blocks.15.att.time_mix_g
+blocks.15.att.time_decay
+blocks.15.att.time_faaaa
+blocks.15.att.output.weight
+blocks.15.att.ln_x.weight
+blocks.15.att.ln_x.bias
+blocks.15.ffn.time_mix_k
+blocks.15.ffn.time_mix_r
+blocks.15.ffn.key.weight
+blocks.15.ffn.receptance.weight
+blocks.15.ffn.value.weight
+blocks.16.ln1.weight
+blocks.16.ln1.bias
+blocks.16.ln2.weight
+blocks.16.ln2.bias
+blocks.16.att.time_mix_k
+blocks.16.att.time_mix_v
+blocks.16.att.time_mix_r
+blocks.16.att.time_mix_g
+blocks.16.att.time_decay
+blocks.16.att.time_faaaa
+blocks.16.att.output.weight
+blocks.16.att.ln_x.weight
+blocks.16.att.ln_x.bias
+blocks.16.ffn.time_mix_k
+blocks.16.ffn.time_mix_r
+blocks.16.ffn.key.weight
+blocks.16.ffn.receptance.weight
+blocks.16.ffn.value.weight
+blocks.17.ln1.weight
+blocks.17.ln1.bias
+blocks.17.ln2.weight
+blocks.17.ln2.bias
+blocks.17.att.time_mix_k
+blocks.17.att.time_mix_v
+blocks.17.att.time_mix_r
+blocks.17.att.time_mix_g
+blocks.17.att.time_decay
+blocks.17.att.time_faaaa
+blocks.17.att.output.weight
+blocks.17.att.ln_x.weight
+blocks.17.att.ln_x.bias
+blocks.17.ffn.time_mix_k
+blocks.17.ffn.time_mix_r
+blocks.17.ffn.key.weight
+blocks.17.ffn.receptance.weight
+blocks.17.ffn.value.weight
+blocks.18.ln1.weight
+blocks.18.ln1.bias
+blocks.18.ln2.weight
+blocks.18.ln2.bias
+blocks.18.att.time_mix_k
+blocks.18.att.time_mix_v
+blocks.18.att.time_mix_r
+blocks.18.att.time_mix_g
+blocks.18.att.time_decay
+blocks.18.att.time_faaaa
+blocks.18.att.output.weight
+blocks.18.att.ln_x.weight
+blocks.18.att.ln_x.bias
+blocks.18.ffn.time_mix_k
+blocks.18.ffn.time_mix_r
+blocks.18.ffn.key.weight
+blocks.18.ffn.receptance.weight
+blocks.18.ffn.value.weight
+blocks.19.ln1.weight
+blocks.19.ln1.bias
+blocks.19.ln2.weight
+blocks.19.ln2.bias
+blocks.19.att.time_mix_k
+blocks.19.att.time_mix_v
+blocks.19.att.time_mix_r
+blocks.19.att.time_mix_g
+blocks.19.att.time_decay
+blocks.19.att.time_faaaa
+blocks.19.att.output.weight
+blocks.19.att.ln_x.weight
+blocks.19.att.ln_x.bias
+blocks.19.ffn.time_mix_k
+blocks.19.ffn.time_mix_r
+blocks.19.ffn.key.weight
+blocks.19.ffn.receptance.weight
+blocks.19.ffn.value.weight
+blocks.20.ln1.weight
+blocks.20.ln1.bias
+blocks.20.ln2.weight
+blocks.20.ln2.bias
+blocks.20.att.time_mix_k
+blocks.20.att.time_mix_v
+blocks.20.att.time_mix_r
+blocks.20.att.time_mix_g
+blocks.20.att.time_decay
+blocks.20.att.time_faaaa
+blocks.20.att.output.weight
+blocks.20.att.ln_x.weight
+blocks.20.att.ln_x.bias
+blocks.20.ffn.time_mix_k
+blocks.20.ffn.time_mix_r
+blocks.20.ffn.key.weight
+blocks.20.ffn.receptance.weight
+blocks.20.ffn.value.weight
+blocks.21.ln1.weight
+blocks.21.ln1.bias
+blocks.21.ln2.weight
+blocks.21.ln2.bias
+blocks.21.att.time_mix_k
+blocks.21.att.time_mix_v
+blocks.21.att.time_mix_r
+blocks.21.att.time_mix_g
+blocks.21.att.time_decay
+blocks.21.att.time_faaaa
+blocks.21.att.output.weight
+blocks.21.att.ln_x.weight
+blocks.21.att.ln_x.bias
+blocks.21.ffn.time_mix_k
+blocks.21.ffn.time_mix_r
+blocks.21.ffn.key.weight
+blocks.21.ffn.receptance.weight
+blocks.21.ffn.value.weight
+blocks.22.ln1.weight
+blocks.22.ln1.bias
+blocks.22.ln2.weight
+blocks.22.ln2.bias
+blocks.22.att.time_mix_k
+blocks.22.att.time_mix_v
+blocks.22.att.time_mix_r
+blocks.22.att.time_mix_g
+blocks.22.att.time_decay
+blocks.22.att.time_faaaa
+blocks.22.att.output.weight
+blocks.22.att.ln_x.weight
+blocks.22.att.ln_x.bias
+blocks.22.ffn.time_mix_k
+blocks.22.ffn.time_mix_r
+blocks.22.ffn.key.weight
+blocks.22.ffn.receptance.weight
+blocks.22.ffn.value.weight
+blocks.23.ln1.weight
+blocks.23.ln1.bias
+blocks.23.ln2.weight
+blocks.23.ln2.bias
+blocks.23.att.time_mix_k
+blocks.23.att.time_mix_v
+blocks.23.att.time_mix_r
+blocks.23.att.time_mix_g
+blocks.23.att.time_decay
+blocks.23.att.time_faaaa
+blocks.23.att.output.weight
+blocks.23.att.ln_x.weight
+blocks.23.att.ln_x.bias
+blocks.23.ffn.time_mix_k
+blocks.23.ffn.time_mix_r
+blocks.23.ffn.key.weight
+blocks.23.ffn.receptance.weight
+blocks.23.ffn.value.weight
+ln_out.weight
+ln_out.bias
+head.weight
+blocks.0.att.receptance1.weight
+blocks.0.att.receptance2.weight
+blocks.0.att.key1.weight
+blocks.0.att.key2.weight
+blocks.0.att.value1.weight
+blocks.0.att.value2.weight
+blocks.0.att.gate1.weight
+blocks.0.att.gate2.weight
+blocks.1.att.receptance1.weight
+blocks.1.att.receptance2.weight
+blocks.1.att.key1.weight
+blocks.1.att.key2.weight
+blocks.1.att.value1.weight
+blocks.1.att.value2.weight
+blocks.1.att.gate1.weight
+blocks.1.att.gate2.weight
+blocks.2.att.receptance1.weight
+blocks.2.att.receptance2.weight
+blocks.2.att.key1.weight
+blocks.2.att.key2.weight
+blocks.2.att.value1.weight
+blocks.2.att.value2.weight
+blocks.2.att.gate1.weight
+blocks.2.att.gate2.weight
+blocks.3.att.receptance1.weight
+blocks.3.att.receptance2.weight
+blocks.3.att.key1.weight
+blocks.3.att.key2.weight
+blocks.3.att.value1.weight
+blocks.3.att.value2.weight
+blocks.3.att.gate1.weight
+blocks.3.att.gate2.weight
+blocks.4.att.receptance1.weight
+blocks.4.att.receptance2.weight
+blocks.4.att.key1.weight
+blocks.4.att.key2.weight
+blocks.4.att.value1.weight
+blocks.4.att.value2.weight
+blocks.4.att.gate1.weight
+blocks.4.att.gate2.weight
+blocks.5.att.receptance1.weight
+blocks.5.att.receptance2.weight
+blocks.5.att.key1.weight
+blocks.5.att.key2.weight
+blocks.5.att.value1.weight
+blocks.5.att.value2.weight
+blocks.5.att.gate1.weight
+blocks.5.att.gate2.weight
+blocks.6.att.receptance1.weight
+blocks.6.att.receptance2.weight
+blocks.6.att.key1.weight
+blocks.6.att.key2.weight
+blocks.6.att.value1.weight
+blocks.6.att.value2.weight
+blocks.6.att.gate1.weight
+blocks.6.att.gate2.weight
+blocks.7.att.receptance1.weight
+blocks.7.att.receptance2.weight
+blocks.7.att.key1.weight
+blocks.7.att.key2.weight
+blocks.7.att.value1.weight
+blocks.7.att.value2.weight
+blocks.7.att.gate1.weight
+blocks.7.att.gate2.weight
+blocks.8.att.receptance1.weight
+blocks.8.att.receptance2.weight
+blocks.8.att.key1.weight
+blocks.8.att.key2.weight
+blocks.8.att.value1.weight
+blocks.8.att.value2.weight
+blocks.8.att.gate1.weight
+blocks.8.att.gate2.weight
+blocks.9.att.receptance1.weight
+blocks.9.att.receptance2.weight
+blocks.9.att.key1.weight
+blocks.9.att.key2.weight
+blocks.9.att.value1.weight
+blocks.9.att.value2.weight
+blocks.9.att.gate1.weight
+blocks.9.att.gate2.weight
+blocks.10.att.receptance1.weight
+blocks.10.att.receptance2.weight
+blocks.10.att.key1.weight
+blocks.10.att.key2.weight
+blocks.10.att.value1.weight
+blocks.10.att.value2.weight
+blocks.10.att.gate1.weight
+blocks.10.att.gate2.weight
+blocks.11.att.receptance1.weight
+blocks.11.att.receptance2.weight
+blocks.11.att.key1.weight
+blocks.11.att.key2.weight
+blocks.11.att.value1.weight
+blocks.11.att.value2.weight
+blocks.11.att.gate1.weight
+blocks.11.att.gate2.weight
+blocks.12.att.receptance1.weight
+blocks.12.att.receptance2.weight
+blocks.12.att.key1.weight
+blocks.12.att.key2.weight
+blocks.12.att.value1.weight
+blocks.12.att.value2.weight
+blocks.12.att.gate1.weight
+blocks.12.att.gate2.weight
+blocks.13.att.receptance1.weight
+blocks.13.att.receptance2.weight
+blocks.13.att.key1.weight
+blocks.13.att.key2.weight
+blocks.13.att.value1.weight
+blocks.13.att.value2.weight
+blocks.13.att.gate1.weight
+blocks.13.att.gate2.weight
+blocks.14.att.receptance1.weight
+blocks.14.att.receptance2.weight
+blocks.14.att.key1.weight
+blocks.14.att.key2.weight
+blocks.14.att.value1.weight
+blocks.14.att.value2.weight
+blocks.14.att.gate1.weight
+blocks.14.att.gate2.weight
+blocks.15.att.receptance1.weight
+blocks.15.att.receptance2.weight
+blocks.15.att.key1.weight
+blocks.15.att.key2.weight
+blocks.15.att.value1.weight
+blocks.15.att.value2.weight
+blocks.15.att.gate1.weight
+blocks.15.att.gate2.weight
+blocks.16.att.receptance1.weight
+blocks.16.att.receptance2.weight
+blocks.16.att.key1.weight
+blocks.16.att.key2.weight
+blocks.16.att.value1.weight
+blocks.16.att.value2.weight
+blocks.16.att.gate1.weight
+blocks.16.att.gate2.weight
+blocks.17.att.receptance1.weight
+blocks.17.att.receptance2.weight
+blocks.17.att.key1.weight
+blocks.17.att.key2.weight
+blocks.17.att.value1.weight
+blocks.17.att.value2.weight
+blocks.17.att.gate1.weight
+blocks.17.att.gate2.weight
+blocks.18.att.receptance1.weight
+blocks.18.att.receptance2.weight
+blocks.18.att.key1.weight
+blocks.18.att.key2.weight
+blocks.18.att.value1.weight
+blocks.18.att.value2.weight
+blocks.18.att.gate1.weight
+blocks.18.att.gate2.weight
+blocks.19.att.receptance1.weight
+blocks.19.att.receptance2.weight
+blocks.19.att.key1.weight
+blocks.19.att.key2.weight
+blocks.19.att.value1.weight
+blocks.19.att.value2.weight
+blocks.19.att.gate1.weight
+blocks.19.att.gate2.weight
+blocks.20.att.receptance1.weight
+blocks.20.att.receptance2.weight
+blocks.20.att.key1.weight
+blocks.20.att.key2.weight
+blocks.20.att.value1.weight
+blocks.20.att.value2.weight
+blocks.20.att.gate1.weight
+blocks.20.att.gate2.weight
+blocks.21.att.receptance1.weight
+blocks.21.att.receptance2.weight
+blocks.21.att.key1.weight
+blocks.21.att.key2.weight
+blocks.21.att.value1.weight
+blocks.21.att.value2.weight
+blocks.21.att.gate1.weight
+blocks.21.att.gate2.weight
+blocks.22.att.receptance1.weight
+blocks.22.att.receptance2.weight
+blocks.22.att.key1.weight
+blocks.22.att.key2.weight
+blocks.22.att.value1.weight
+blocks.22.att.value2.weight
+blocks.22.att.gate1.weight
+blocks.22.att.gate2.weight
+blocks.23.att.receptance1.weight
+blocks.23.att.receptance2.weight
+blocks.23.att.key1.weight
+blocks.23.att.key2.weight
+blocks.23.att.value1.weight
+blocks.23.att.value2.weight
+blocks.23.att.gate1.weight
+blocks.23.att.gate2.weight
+emb.weight norm(diff) 0.0
+blocks.0.ln1.weight norm(diff) 0.0
+blocks.0.ln1.bias norm(diff) 0.0
+blocks.0.ln2.weight norm(diff) 0.0
+blocks.0.ln2.bias norm(diff) 0.0
+blocks.0.ln0.weight norm(diff) 0.0
+blocks.0.ln0.bias norm(diff) 0.0
+blocks.0.att.time_mix_k norm(diff) 0.0
+blocks.0.att.time_mix_v norm(diff) 0.0
+blocks.0.att.time_mix_r norm(diff) 0.0
+blocks.0.att.time_mix_g norm(diff) 0.0
+blocks.0.att.time_decay norm(diff) 0.0
+blocks.0.att.time_faaaa norm(diff) 0.0
+blocks.0.att.receptance.weight norm(diff) 137.88311767578125
+blocks.0.att.key.weight norm(diff) 133.46722412109375
+blocks.0.att.value.weight norm(diff) 117.39140319824219
+blocks.0.att.output.weight norm(diff) 0.0
+blocks.0.att.gate.weight norm(diff) 130.53582763671875
+blocks.0.att.ln_x.weight norm(diff) 0.0
+blocks.0.att.ln_x.bias norm(diff) 0.0
+blocks.0.ffn.time_mix_k norm(diff) 0.0
+blocks.0.ffn.time_mix_r norm(diff) 0.0
+blocks.0.ffn.key.weight norm(diff) 0.0
+blocks.0.ffn.receptance.weight norm(diff) 0.0
+blocks.0.ffn.value.weight norm(diff) 0.0
+blocks.1.ln1.weight norm(diff) 0.0
+blocks.1.ln1.bias norm(diff) 0.0
+blocks.1.ln2.weight norm(diff) 0.0
+blocks.1.ln2.bias norm(diff) 0.0
+blocks.1.att.time_mix_k norm(diff) 0.0
+blocks.1.att.time_mix_v norm(diff) 0.0
+blocks.1.att.time_mix_r norm(diff) 0.0
+blocks.1.att.time_mix_g norm(diff) 0.0
+blocks.1.att.time_decay norm(diff) 0.0
+blocks.1.att.time_faaaa norm(diff) 0.0
+blocks.1.att.receptance.weight norm(diff) 137.00059509277344
+blocks.1.att.key.weight norm(diff) 134.80467224121094
+blocks.1.att.value.weight norm(diff) 121.6964111328125
+blocks.1.att.output.weight norm(diff) 0.0
+blocks.1.att.gate.weight norm(diff) 136.51454162597656
+blocks.1.att.ln_x.weight norm(diff) 0.0
+blocks.1.att.ln_x.bias norm(diff) 0.0
+blocks.1.ffn.time_mix_k norm(diff) 0.0
+blocks.1.ffn.time_mix_r norm(diff) 0.0
+blocks.1.ffn.key.weight norm(diff) 0.0
+blocks.1.ffn.receptance.weight norm(diff) 0.0
+blocks.1.ffn.value.weight norm(diff) 0.0
+blocks.2.ln1.weight norm(diff) 0.0
+blocks.2.ln1.bias norm(diff) 0.0
+blocks.2.ln2.weight norm(diff) 0.0
+blocks.2.ln2.bias norm(diff) 0.0
+blocks.2.att.time_mix_k norm(diff) 0.0
+blocks.2.att.time_mix_v norm(diff) 0.0
+blocks.2.att.time_mix_r norm(diff) 0.0
+blocks.2.att.time_mix_g norm(diff) 0.0
+blocks.2.att.time_decay norm(diff) 0.0
+blocks.2.att.time_faaaa norm(diff) 0.0
+blocks.2.att.receptance.weight norm(diff) 139.37503051757812
+blocks.2.att.key.weight norm(diff) 133.41664123535156
+blocks.2.att.value.weight norm(diff) 123.60679626464844
+blocks.2.att.output.weight norm(diff) 0.0
+blocks.2.att.gate.weight norm(diff) 138.93325805664062
+blocks.2.att.ln_x.weight norm(diff) 0.0
+blocks.2.att.ln_x.bias norm(diff) 0.0
+blocks.2.ffn.time_mix_k norm(diff) 0.0
+blocks.2.ffn.time_mix_r norm(diff) 0.0
+blocks.2.ffn.key.weight norm(diff) 0.0
+blocks.2.ffn.receptance.weight norm(diff) 0.0
+blocks.2.ffn.value.weight norm(diff) 0.0
+blocks.3.ln1.weight norm(diff) 0.0
+blocks.3.ln1.bias norm(diff) 0.0
+blocks.3.ln2.weight norm(diff) 0.0
+blocks.3.ln2.bias norm(diff) 0.0
+blocks.3.att.time_mix_k norm(diff) 0.0
+blocks.3.att.time_mix_v norm(diff) 0.0
+blocks.3.att.time_mix_r norm(diff) 0.0
+blocks.3.att.time_mix_g norm(diff) 0.0
+blocks.3.att.time_decay norm(diff) 0.0
+blocks.3.att.time_faaaa norm(diff) 0.0
+blocks.3.att.receptance.weight norm(diff) 146.72775268554688
+blocks.3.att.key.weight norm(diff) 138.72872924804688
+blocks.3.att.value.weight norm(diff) 126.48372650146484
+blocks.3.att.output.weight norm(diff) 0.0
+blocks.3.att.gate.weight norm(diff) 139.53306579589844
+blocks.3.att.ln_x.weight norm(diff) 0.0
+blocks.3.att.ln_x.bias norm(diff) 0.0
+blocks.3.ffn.time_mix_k norm(diff) 0.0
+blocks.3.ffn.time_mix_r norm(diff) 0.0
+blocks.3.ffn.key.weight norm(diff) 0.0
+blocks.3.ffn.receptance.weight norm(diff) 0.0
+blocks.3.ffn.value.weight norm(diff) 0.0
+blocks.4.ln1.weight norm(diff) 0.0
+blocks.4.ln1.bias norm(diff) 0.0
+blocks.4.ln2.weight norm(diff) 0.0
+blocks.4.ln2.bias norm(diff) 0.0
+blocks.4.att.time_mix_k norm(diff) 0.0
+blocks.4.att.time_mix_v norm(diff) 0.0
+blocks.4.att.time_mix_r norm(diff) 0.0
+blocks.4.att.time_mix_g norm(diff) 0.0
+blocks.4.att.time_decay norm(diff) 0.0
+blocks.4.att.time_faaaa norm(diff) 0.0
+blocks.4.att.receptance.weight norm(diff) 143.0606231689453
+blocks.4.att.key.weight norm(diff) 135.61752319335938
+blocks.4.att.value.weight norm(diff) 129.2086944580078
+blocks.4.att.output.weight norm(diff) 0.0
+blocks.4.att.gate.weight norm(diff) 133.16656494140625
+blocks.4.att.ln_x.weight norm(diff) 0.0
+blocks.4.att.ln_x.bias norm(diff) 0.0
+blocks.4.ffn.time_mix_k norm(diff) 0.0
+blocks.4.ffn.time_mix_r norm(diff) 0.0
+blocks.4.ffn.key.weight norm(diff) 0.0
+blocks.4.ffn.receptance.weight norm(diff) 0.0
+blocks.4.ffn.value.weight norm(diff) 0.0
+blocks.5.ln1.weight norm(diff) 0.0
+blocks.5.ln1.bias norm(diff) 0.0
+blocks.5.ln2.weight norm(diff) 0.0
+blocks.5.ln2.bias norm(diff) 0.0
+blocks.5.att.time_mix_k norm(diff) 0.0
+blocks.5.att.time_mix_v norm(diff) 0.0
+blocks.5.att.time_mix_r norm(diff) 0.0
+blocks.5.att.time_mix_g norm(diff) 0.0
+blocks.5.att.time_decay norm(diff) 0.0
+blocks.5.att.time_faaaa norm(diff) 0.0
+blocks.5.att.receptance.weight norm(diff) 147.3404083251953
+blocks.5.att.key.weight norm(diff) 144.63038635253906
+blocks.5.att.value.weight norm(diff) 134.095458984375
+blocks.5.att.output.weight norm(diff) 0.0
+blocks.5.att.gate.weight norm(diff) 126.30378723144531
+blocks.5.att.ln_x.weight norm(diff) 0.0
+blocks.5.att.ln_x.bias norm(diff) 0.0
+blocks.5.ffn.time_mix_k norm(diff) 0.0
+blocks.5.ffn.time_mix_r norm(diff) 0.0
+blocks.5.ffn.key.weight norm(diff) 0.0
+blocks.5.ffn.receptance.weight norm(diff) 0.0
+blocks.5.ffn.value.weight norm(diff) 0.0
+blocks.6.ln1.weight norm(diff) 0.0
+blocks.6.ln1.bias norm(diff) 0.0
+blocks.6.ln2.weight norm(diff) 0.0
+blocks.6.ln2.bias norm(diff) 0.0
+blocks.6.att.time_mix_k norm(diff) 0.0
+blocks.6.att.time_mix_v norm(diff) 0.0
+blocks.6.att.time_mix_r norm(diff) 0.0
+blocks.6.att.time_mix_g norm(diff) 0.0
+blocks.6.att.time_decay norm(diff) 0.0
+blocks.6.att.time_faaaa norm(diff) 0.0
+blocks.6.att.receptance.weight norm(diff) 138.33438110351562
+blocks.6.att.key.weight norm(diff) 140.5758514404297
+blocks.6.att.value.weight norm(diff) 131.31394958496094
+blocks.6.att.output.weight norm(diff) 0.0
+blocks.6.att.gate.weight norm(diff) 119.77840423583984
+blocks.6.att.ln_x.weight norm(diff) 0.0
+blocks.6.att.ln_x.bias norm(diff) 0.0
+blocks.6.ffn.time_mix_k norm(diff) 0.0
+blocks.6.ffn.time_mix_r norm(diff) 0.0
+blocks.6.ffn.key.weight norm(diff) 0.0
+blocks.6.ffn.receptance.weight norm(diff) 0.0
+blocks.6.ffn.value.weight norm(diff) 0.0
+blocks.7.ln1.weight norm(diff) 0.0
+blocks.7.ln1.bias norm(diff) 0.0
+blocks.7.ln2.weight norm(diff) 0.0
+blocks.7.ln2.bias norm(diff) 0.0
+blocks.7.att.time_mix_k norm(diff) 0.0
+blocks.7.att.time_mix_v norm(diff) 0.0
+blocks.7.att.time_mix_r norm(diff) 0.0
+blocks.7.att.time_mix_g norm(diff) 0.0
+blocks.7.att.time_decay norm(diff) 0.0
+blocks.7.att.time_faaaa norm(diff) 0.0
+blocks.7.att.receptance.weight norm(diff) 142.17898559570312
+blocks.7.att.key.weight norm(diff) 144.98374938964844
+blocks.7.att.value.weight norm(diff) 134.8450927734375
+blocks.7.att.output.weight norm(diff) 0.0
+blocks.7.att.gate.weight norm(diff) 112.42144012451172
+blocks.7.att.ln_x.weight norm(diff) 0.0
+blocks.7.att.ln_x.bias norm(diff) 0.0
+blocks.7.ffn.time_mix_k norm(diff) 0.0
+blocks.7.ffn.time_mix_r norm(diff) 0.0
+blocks.7.ffn.key.weight norm(diff) 0.0
+blocks.7.ffn.receptance.weight norm(diff) 0.0
+blocks.7.ffn.value.weight norm(diff) 0.0
+blocks.8.ln1.weight norm(diff) 0.0
+blocks.8.ln1.bias norm(diff) 0.0
+blocks.8.ln2.weight norm(diff) 0.0
+blocks.8.ln2.bias norm(diff) 0.0
+blocks.8.att.time_mix_k norm(diff) 0.0
+blocks.8.att.time_mix_v norm(diff) 0.0
+blocks.8.att.time_mix_r norm(diff) 0.0
+blocks.8.att.time_mix_g norm(diff) 0.0
+blocks.8.att.time_decay norm(diff) 0.0
+blocks.8.att.time_faaaa norm(diff) 0.0
+blocks.8.att.receptance.weight norm(diff) 146.53807067871094
+blocks.8.att.key.weight norm(diff) 151.08035278320312
+blocks.8.att.value.weight norm(diff) 121.88650512695312
+blocks.8.att.output.weight norm(diff) 0.0
+blocks.8.att.gate.weight norm(diff) 97.51323699951172
+blocks.8.att.ln_x.weight norm(diff) 0.0
+blocks.8.att.ln_x.bias norm(diff) 0.0
+blocks.8.ffn.time_mix_k norm(diff) 0.0
+blocks.8.ffn.time_mix_r norm(diff) 0.0
+blocks.8.ffn.key.weight norm(diff) 0.0
+blocks.8.ffn.receptance.weight norm(diff) 0.0
+blocks.8.ffn.value.weight norm(diff) 0.0
+blocks.9.ln1.weight norm(diff) 0.0
+blocks.9.ln1.bias norm(diff) 0.0
+blocks.9.ln2.weight norm(diff) 0.0
+blocks.9.ln2.bias norm(diff) 0.0
+blocks.9.att.time_mix_k norm(diff) 0.0
+blocks.9.att.time_mix_v norm(diff) 0.0
+blocks.9.att.time_mix_r norm(diff) 0.0
+blocks.9.att.time_mix_g norm(diff) 0.0
+blocks.9.att.time_decay norm(diff) 0.0
+blocks.9.att.time_faaaa norm(diff) 0.0
+blocks.9.att.receptance.weight norm(diff) 132.12582397460938
+blocks.9.att.key.weight norm(diff) 135.8692626953125
+blocks.9.att.value.weight norm(diff) 134.4018096923828
+blocks.9.att.output.weight norm(diff) 0.0
+blocks.9.att.gate.weight norm(diff) 110.58522033691406
+blocks.9.att.ln_x.weight norm(diff) 0.0
+blocks.9.att.ln_x.bias norm(diff) 0.0
+blocks.9.ffn.time_mix_k norm(diff) 0.0
+blocks.9.ffn.time_mix_r norm(diff) 0.0
+blocks.9.ffn.key.weight norm(diff) 0.0
+blocks.9.ffn.receptance.weight norm(diff) 0.0
+blocks.9.ffn.value.weight norm(diff) 0.0
+blocks.10.ln1.weight norm(diff) 0.0
+blocks.10.ln1.bias norm(diff) 0.0
+blocks.10.ln2.weight norm(diff) 0.0
+blocks.10.ln2.bias norm(diff) 0.0
+blocks.10.att.time_mix_k norm(diff) 0.0
+blocks.10.att.time_mix_v norm(diff) 0.0
+blocks.10.att.time_mix_r norm(diff) 0.0
+blocks.10.att.time_mix_g norm(diff) 0.0
+blocks.10.att.time_decay norm(diff) 0.0
+blocks.10.att.time_faaaa norm(diff) 0.0
+blocks.10.att.receptance.weight norm(diff) 134.7561492919922
+blocks.10.att.key.weight norm(diff) 139.3148651123047
+blocks.10.att.value.weight norm(diff) 136.26449584960938
+blocks.10.att.output.weight norm(diff) 0.0
+blocks.10.att.gate.weight norm(diff) 102.76058959960938
+blocks.10.att.ln_x.weight norm(diff) 0.0
+blocks.10.att.ln_x.bias norm(diff) 0.0
+blocks.10.ffn.time_mix_k norm(diff) 0.0
+blocks.10.ffn.time_mix_r norm(diff) 0.0
+blocks.10.ffn.key.weight norm(diff) 0.0
+blocks.10.ffn.receptance.weight norm(diff) 0.0
+blocks.10.ffn.value.weight norm(diff) 0.0
+blocks.11.ln1.weight norm(diff) 0.0
+blocks.11.ln1.bias norm(diff) 0.0
+blocks.11.ln2.weight norm(diff) 0.0
+blocks.11.ln2.bias norm(diff) 0.0
+blocks.11.att.time_mix_k norm(diff) 0.0
+blocks.11.att.time_mix_v norm(diff) 0.0
+blocks.11.att.time_mix_r norm(diff) 0.0
+blocks.11.att.time_mix_g norm(diff) 0.0
+blocks.11.att.time_decay norm(diff) 0.0
+blocks.11.att.time_faaaa norm(diff) 0.0
+blocks.11.att.receptance.weight norm(diff) 123.51972198486328
+blocks.11.att.key.weight norm(diff) 131.63377380371094
+blocks.11.att.value.weight norm(diff) 134.85060119628906
+blocks.11.att.output.weight norm(diff) 0.0
+blocks.11.att.gate.weight norm(diff) 112.03790283203125
+blocks.11.att.ln_x.weight norm(diff) 0.0
+blocks.11.att.ln_x.bias norm(diff) 0.0
+blocks.11.ffn.time_mix_k norm(diff) 0.0
+blocks.11.ffn.time_mix_r norm(diff) 0.0
+blocks.11.ffn.key.weight norm(diff) 0.0
+blocks.11.ffn.receptance.weight norm(diff) 0.0
+blocks.11.ffn.value.weight norm(diff) 0.0
+blocks.12.ln1.weight norm(diff) 0.0
+blocks.12.ln1.bias norm(diff) 0.0
+blocks.12.ln2.weight norm(diff) 0.0
+blocks.12.ln2.bias norm(diff) 0.0
+blocks.12.att.time_mix_k norm(diff) 0.0
+blocks.12.att.time_mix_v norm(diff) 0.0
+blocks.12.att.time_mix_r norm(diff) 0.0
+blocks.12.att.time_mix_g norm(diff) 0.0
+blocks.12.att.time_decay norm(diff) 0.0
+blocks.12.att.time_faaaa norm(diff) 0.0
+blocks.12.att.receptance.weight norm(diff) 156.25006103515625
+blocks.12.att.key.weight norm(diff) 154.20587158203125
+blocks.12.att.value.weight norm(diff) 86.39373779296875
+blocks.12.att.output.weight norm(diff) 0.0
+blocks.12.att.gate.weight norm(diff) 60.86733627319336
+blocks.12.att.ln_x.weight norm(diff) 0.0
+blocks.12.att.ln_x.bias norm(diff) 0.0
+blocks.12.ffn.time_mix_k norm(diff) 0.0
+blocks.12.ffn.time_mix_r norm(diff) 0.0
+blocks.12.ffn.key.weight norm(diff) 0.0
+blocks.12.ffn.receptance.weight norm(diff) 0.0
+blocks.12.ffn.value.weight norm(diff) 0.0
+blocks.13.ln1.weight norm(diff) 0.0
+blocks.13.ln1.bias norm(diff) 0.0
+blocks.13.ln2.weight norm(diff) 0.0
+blocks.13.ln2.bias norm(diff) 0.0
+blocks.13.att.time_mix_k norm(diff) 0.0
+blocks.13.att.time_mix_v norm(diff) 0.0
+blocks.13.att.time_mix_r norm(diff) 0.0
+blocks.13.att.time_mix_g norm(diff) 0.0
+blocks.13.att.time_decay norm(diff) 0.0
+blocks.13.att.time_faaaa norm(diff) 0.0
+blocks.13.att.receptance.weight norm(diff) 109.62931823730469
+blocks.13.att.key.weight norm(diff) 112.11796569824219
+blocks.13.att.value.weight norm(diff) 129.65394592285156
+blocks.13.att.output.weight norm(diff) 0.0
+blocks.13.att.gate.weight norm(diff) 90.42923736572266
+blocks.13.att.ln_x.weight norm(diff) 0.0
+blocks.13.att.ln_x.bias norm(diff) 0.0
+blocks.13.ffn.time_mix_k norm(diff) 0.0
+blocks.13.ffn.time_mix_r norm(diff) 0.0
+blocks.13.ffn.key.weight norm(diff) 0.0
+blocks.13.ffn.receptance.weight norm(diff) 0.0
+blocks.13.ffn.value.weight norm(diff) 0.0
+blocks.14.ln1.weight norm(diff) 0.0
+blocks.14.ln1.bias norm(diff) 0.0
+blocks.14.ln2.weight norm(diff) 0.0
+blocks.14.ln2.bias norm(diff) 0.0
+blocks.14.att.time_mix_k norm(diff) 0.0
+blocks.14.att.time_mix_v norm(diff) 0.0
+blocks.14.att.time_mix_r norm(diff) 0.0
+blocks.14.att.time_mix_g norm(diff) 0.0
+blocks.14.att.time_decay norm(diff) 0.0
+blocks.14.att.time_faaaa norm(diff) 0.0
+blocks.14.att.receptance.weight norm(diff) 114.76176452636719
+blocks.14.att.key.weight norm(diff) 119.0328140258789
+blocks.14.att.value.weight norm(diff) 141.2914581298828
+blocks.14.att.output.weight norm(diff) 0.0
+blocks.14.att.gate.weight norm(diff) 87.78682708740234
+blocks.14.att.ln_x.weight norm(diff) 0.0
+blocks.14.att.ln_x.bias norm(diff) 0.0
+blocks.14.ffn.time_mix_k norm(diff) 0.0
+blocks.14.ffn.time_mix_r norm(diff) 0.0
+blocks.14.ffn.key.weight norm(diff) 0.0
+blocks.14.ffn.receptance.weight norm(diff) 0.0
+blocks.14.ffn.value.weight norm(diff) 0.0
+blocks.15.ln1.weight norm(diff) 0.0
+blocks.15.ln1.bias norm(diff) 0.0
+blocks.15.ln2.weight norm(diff) 0.0
+blocks.15.ln2.bias norm(diff) 0.0
+blocks.15.att.time_mix_k norm(diff) 0.0
+blocks.15.att.time_mix_v norm(diff) 0.0
+blocks.15.att.time_mix_r norm(diff) 0.0
+blocks.15.att.time_mix_g norm(diff) 0.0
+blocks.15.att.time_decay norm(diff) 0.0
+blocks.15.att.time_faaaa norm(diff) 0.0
+blocks.15.att.receptance.weight norm(diff) 113.82630157470703
+blocks.15.att.key.weight norm(diff) 116.2182846069336
+blocks.15.att.value.weight norm(diff) 134.75341796875
+blocks.15.att.output.weight norm(diff) 0.0
+blocks.15.att.gate.weight norm(diff) 80.16211700439453
+blocks.15.att.ln_x.weight norm(diff) 0.0
+blocks.15.att.ln_x.bias norm(diff) 0.0
+blocks.15.ffn.time_mix_k norm(diff) 0.0
+blocks.15.ffn.time_mix_r norm(diff) 0.0
+blocks.15.ffn.key.weight norm(diff) 0.0
+blocks.15.ffn.receptance.weight norm(diff) 0.0
+blocks.15.ffn.value.weight norm(diff) 0.0
+blocks.16.ln1.weight norm(diff) 0.0
+blocks.16.ln1.bias norm(diff) 0.0
+blocks.16.ln2.weight norm(diff) 0.0
+blocks.16.ln2.bias norm(diff) 0.0
+blocks.16.att.time_mix_k norm(diff) 0.0
+blocks.16.att.time_mix_v norm(diff) 0.0
+blocks.16.att.time_mix_r norm(diff) 0.0
+blocks.16.att.time_mix_g norm(diff) 0.0
+blocks.16.att.time_decay norm(diff) 0.0
+blocks.16.att.time_faaaa norm(diff) 0.0
+blocks.16.att.receptance.weight norm(diff) 121.01128387451172
+blocks.16.att.key.weight norm(diff) 129.9018096923828
+blocks.16.att.value.weight norm(diff) 129.95382690429688
+blocks.16.att.output.weight norm(diff) 0.0
+blocks.16.att.gate.weight norm(diff) 100.14433288574219
+blocks.16.att.ln_x.weight norm(diff) 0.0
+blocks.16.att.ln_x.bias norm(diff) 0.0
+blocks.16.ffn.time_mix_k norm(diff) 0.0
+blocks.16.ffn.time_mix_r norm(diff) 0.0
+blocks.16.ffn.key.weight norm(diff) 0.0
+blocks.16.ffn.receptance.weight norm(diff) 0.0
+blocks.16.ffn.value.weight norm(diff) 0.0
+blocks.17.ln1.weight norm(diff) 0.0
+blocks.17.ln1.bias norm(diff) 0.0
+blocks.17.ln2.weight norm(diff) 0.0
+blocks.17.ln2.bias norm(diff) 0.0
+blocks.17.att.time_mix_k norm(diff) 0.0
+blocks.17.att.time_mix_v norm(diff) 0.0
+blocks.17.att.time_mix_r norm(diff) 0.0
+blocks.17.att.time_mix_g norm(diff) 0.0
+blocks.17.att.time_decay norm(diff) 0.0
+blocks.17.att.time_faaaa norm(diff) 0.0
+blocks.17.att.receptance.weight norm(diff) 107.05467987060547
+blocks.17.att.key.weight norm(diff) 113.24464416503906
+blocks.17.att.value.weight norm(diff) 141.89915466308594
+blocks.17.att.output.weight norm(diff) 0.0
+blocks.17.att.gate.weight norm(diff) 98.7769775390625
+blocks.17.att.ln_x.weight norm(diff) 0.0
+blocks.17.att.ln_x.bias norm(diff) 0.0
+blocks.17.ffn.time_mix_k norm(diff) 0.0
+blocks.17.ffn.time_mix_r norm(diff) 0.0
+blocks.17.ffn.key.weight norm(diff) 0.0
+blocks.17.ffn.receptance.weight norm(diff) 0.0
+blocks.17.ffn.value.weight norm(diff) 0.0
+blocks.18.ln1.weight norm(diff) 0.0
+blocks.18.ln1.bias norm(diff) 0.0
+blocks.18.ln2.weight norm(diff) 0.0
+blocks.18.ln2.bias norm(diff) 0.0
+blocks.18.att.time_mix_k norm(diff) 0.0
+blocks.18.att.time_mix_v norm(diff) 0.0
+blocks.18.att.time_mix_r norm(diff) 0.0
+blocks.18.att.time_mix_g norm(diff) 0.0
+blocks.18.att.time_decay norm(diff) 0.0
+blocks.18.att.time_faaaa norm(diff) 0.0
+blocks.18.att.receptance.weight norm(diff) 117.35856628417969
+blocks.18.att.key.weight norm(diff) 119.90533447265625
+blocks.18.att.value.weight norm(diff) 131.93115234375
+blocks.18.att.output.weight norm(diff) 0.0
+blocks.18.att.gate.weight norm(diff) 105.59435272216797
+blocks.18.att.ln_x.weight norm(diff) 0.0
+blocks.18.att.ln_x.bias norm(diff) 0.0
+blocks.18.ffn.time_mix_k norm(diff) 0.0
+blocks.18.ffn.time_mix_r norm(diff) 0.0
+blocks.18.ffn.key.weight norm(diff) 0.0
+blocks.18.ffn.receptance.weight norm(diff) 0.0
+blocks.18.ffn.value.weight norm(diff) 0.0
+blocks.19.ln1.weight norm(diff) 0.0
+blocks.19.ln1.bias norm(diff) 0.0
+blocks.19.ln2.weight norm(diff) 0.0
+blocks.19.ln2.bias norm(diff) 0.0
+blocks.19.att.time_mix_k norm(diff) 0.0
+blocks.19.att.time_mix_v norm(diff) 0.0
+blocks.19.att.time_mix_r norm(diff) 0.0
+blocks.19.att.time_mix_g norm(diff) 0.0
+blocks.19.att.time_decay norm(diff) 0.0
+blocks.19.att.time_faaaa norm(diff) 0.0
+blocks.19.att.receptance.weight norm(diff) 122.8210220336914
+blocks.19.att.key.weight norm(diff) 124.19688415527344
+blocks.19.att.value.weight norm(diff) 131.54293823242188
+blocks.19.att.output.weight norm(diff) 0.0
+blocks.19.att.gate.weight norm(diff) 113.57936096191406
+blocks.19.att.ln_x.weight norm(diff) 0.0
+blocks.19.att.ln_x.bias norm(diff) 0.0
+blocks.19.ffn.time_mix_k norm(diff) 0.0
+blocks.19.ffn.time_mix_r norm(diff) 0.0
+blocks.19.ffn.key.weight norm(diff) 0.0
+blocks.19.ffn.receptance.weight norm(diff) 0.0
+blocks.19.ffn.value.weight norm(diff) 0.0
+blocks.20.ln1.weight norm(diff) 0.0
+blocks.20.ln1.bias norm(diff) 0.0
+blocks.20.ln2.weight norm(diff) 0.0
+blocks.20.ln2.bias norm(diff) 0.0
+blocks.20.att.time_mix_k norm(diff) 0.0
+blocks.20.att.time_mix_v norm(diff) 0.0
+blocks.20.att.time_mix_r norm(diff) 0.0
+blocks.20.att.time_mix_g norm(diff) 0.0
+blocks.20.att.time_decay norm(diff) 0.0
+blocks.20.att.time_faaaa norm(diff) 0.0
+blocks.20.att.receptance.weight norm(diff) 119.6817855834961
+blocks.20.att.key.weight norm(diff) 118.71382141113281
+blocks.20.att.value.weight norm(diff) 136.74032592773438
+blocks.20.att.output.weight norm(diff) 0.0
+blocks.20.att.gate.weight norm(diff) 115.35719299316406
+blocks.20.att.ln_x.weight norm(diff) 0.0
+blocks.20.att.ln_x.bias norm(diff) 0.0
+blocks.20.ffn.time_mix_k norm(diff) 0.0
+blocks.20.ffn.time_mix_r norm(diff) 0.0
+blocks.20.ffn.key.weight norm(diff) 0.0
+blocks.20.ffn.receptance.weight norm(diff) 0.0
+blocks.20.ffn.value.weight norm(diff) 0.0
+blocks.21.ln1.weight norm(diff) 0.0
+blocks.21.ln1.bias norm(diff) 0.0
+blocks.21.ln2.weight norm(diff) 0.0
+blocks.21.ln2.bias norm(diff) 0.0
+blocks.21.att.time_mix_k norm(diff) 0.0
+blocks.21.att.time_mix_v norm(diff) 0.0
+blocks.21.att.time_mix_r norm(diff) 0.0
+blocks.21.att.time_mix_g norm(diff) 0.0
+blocks.21.att.time_decay norm(diff) 0.0
+blocks.21.att.time_faaaa norm(diff) 0.0
+blocks.21.att.receptance.weight norm(diff) 137.2274627685547
+blocks.21.att.key.weight norm(diff) 136.62942504882812
+blocks.21.att.value.weight norm(diff) 139.73574829101562
+blocks.21.att.output.weight norm(diff) 0.0
+blocks.21.att.gate.weight norm(diff) 126.67654418945312
+blocks.21.att.ln_x.weight norm(diff) 0.0
+blocks.21.att.ln_x.bias norm(diff) 0.0
+blocks.21.ffn.time_mix_k norm(diff) 0.0
+blocks.21.ffn.time_mix_r norm(diff) 0.0
+blocks.21.ffn.key.weight norm(diff) 0.0
+blocks.21.ffn.receptance.weight norm(diff) 0.0
+blocks.21.ffn.value.weight norm(diff) 0.0
+blocks.22.ln1.weight norm(diff) 0.0
+blocks.22.ln1.bias norm(diff) 0.0
+blocks.22.ln2.weight norm(diff) 0.0
+blocks.22.ln2.bias norm(diff) 0.0
+blocks.22.att.time_mix_k norm(diff) 0.0
+blocks.22.att.time_mix_v norm(diff) 0.0
+blocks.22.att.time_mix_r norm(diff) 0.0
+blocks.22.att.time_mix_g norm(diff) 0.0
+blocks.22.att.time_decay norm(diff) 0.0
+blocks.22.att.time_faaaa norm(diff) 0.0
+blocks.22.att.receptance.weight norm(diff) 137.3179931640625
+blocks.22.att.key.weight norm(diff) 137.03944396972656
+blocks.22.att.value.weight norm(diff) 140.6435089111328
+blocks.22.att.output.weight norm(diff) 0.0
+blocks.22.att.gate.weight norm(diff) 123.11753845214844
+blocks.22.att.ln_x.weight norm(diff) 0.0
+blocks.22.att.ln_x.bias norm(diff) 0.0
+blocks.22.ffn.time_mix_k norm(diff) 0.0
+blocks.22.ffn.time_mix_r norm(diff) 0.0
+blocks.22.ffn.key.weight norm(diff) 0.0
+blocks.22.ffn.receptance.weight norm(diff) 0.0
+blocks.22.ffn.value.weight norm(diff) 0.0
+blocks.23.ln1.weight norm(diff) 0.0
+blocks.23.ln1.bias norm(diff) 0.0
+blocks.23.ln2.weight norm(diff) 0.0
+blocks.23.ln2.bias norm(diff) 0.0
+blocks.23.att.time_mix_k norm(diff) 0.0
+blocks.23.att.time_mix_v norm(diff) 0.0
+blocks.23.att.time_mix_r norm(diff) 0.0
+blocks.23.att.time_mix_g norm(diff) 0.0
+blocks.23.att.time_decay norm(diff) 0.0
+blocks.23.att.time_faaaa norm(diff) 0.0
+blocks.23.att.receptance.weight norm(diff) 136.66673278808594
+blocks.23.att.key.weight norm(diff) 137.8694610595703
+blocks.23.att.value.weight norm(diff) 137.1651611328125
+blocks.23.att.output.weight norm(diff) 0.0
+blocks.23.att.gate.weight norm(diff) 125.59902954101562
+blocks.23.att.ln_x.weight norm(diff) 0.0
+blocks.23.att.ln_x.bias norm(diff) 0.0
+blocks.23.ffn.time_mix_k norm(diff) 0.0
+blocks.23.ffn.time_mix_r norm(diff) 0.0
+blocks.23.ffn.key.weight norm(diff) 0.0
+blocks.23.ffn.receptance.weight norm(diff) 0.0
+blocks.23.ffn.value.weight norm(diff) 0.0
+ln_out.weight norm(diff) 0.0
+ln_out.bias norm(diff) 0.0
+head.weight norm(diff) 0.0
