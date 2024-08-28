@@ -70,10 +70,19 @@ from lm_eval.api.model import TemplateLM
 
 # 01B, 01b-pre-x52 + CLS 
 # baseline, .33 openai
-# MODEL_NAME='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/rwkv-init'
-MODEL_NAME='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/rwkv-7'
+# MODEL_NAME='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/rwkv-init'  # unmodified model,  pretrained by us
+# MODEL_NAME='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run/rwkv-7'  #old bad
 
+#Only head.l1 tuned, CE loss
+# MODEL_NAME='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run2/rwkv-24'  
+# acc: .26 (openai)  minK=5, maxK=100, minProb=.75
+# acc: .305 (openai) minK=10, maxK=150, minProb=.85
+# acc: .313 (openai) minK=5, maxK=100, minProb=.95
+# acc: .310 (openai) minK=3, maxK=100, minProb=.95 <--- seems good
 
+#Only head.l1 tuned, KL loss
+# acc: .331 (openai). minK=3, maxK=100, minProb=.95 <--- NEED TO CAREFULLY VERIFY
+MODEL_NAME='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
 
 # 01B --- 01b-pre-x59
 # acc .37 (openai) 
@@ -272,7 +281,12 @@ class EvalHarnessAdapter(TemplateLM):
 
         res = []
 
-        # xzl: invoke forward() for each "request"... (no batching??
+        # xzl: invoke forward() for each "request"... 
+        # a request - a text sequent (like prompt?). eg openai benchmark has 
+        # ~5K requests
+        #
+        # below UNLIKE test-rwkv.chat.py: NOT using pipeline args for logits sampling 
+        #   just treat it as greedy decoder, for next token predict???
         for COUNTER in range(len(requests)):
             n = COUNTER
             raw_src = requests[n][0][0] + requests[n][0][1]
@@ -293,22 +307,25 @@ class EvalHarnessAdapter(TemplateLM):
                 logit = 0
                 
                 with torch.no_grad():
-                    # print("*",end='')
+                    print("*",end='',flush=True)   # show progress....
+                    # xzl: below forward. send one seq to the model (i.e. shape bsz=1,L,D)
                     outputs, _ = self.pretrained.forward(src, None, full_output=True)
+                    # breakpoint()
+                    # xzl: for each token to be predicted... (q_len: prompt? 
                     for i in range(q_len-1, len(src)-1):
                         oo = outputs[i].detach().float()
-                        dst = src[i+1]
+                        dst = src[i+1]  # xzl: next token, from GT
                         v = F.softmax(oo, dim=-1)[dst]
                         if v == 0:
                             v = 0.00000000000000000000000001
-                        logit += math.log(v)
+                        logit += math.log(v)    # xzl: accmulate logits for the GT token ... why?
                         _, s_index = torch.sort(oo, descending=True)
-                        pred = s_index[0].item()
+                        pred = s_index[0].item()   # xzl: pred token with higehst prob? greedy?
                         if pred != dst:
                             correct = False
                     outputs = None
                     pred = None
-                logitBuf[sss] = logit
+                logitBuf[sss] = logit  # xzl: cache (accmulated) logit
                 correctBuf[sss] = correct
                 #clean_cache()
             
@@ -358,15 +375,15 @@ def do_eval(model_path, isverbose=False):
     # if isverbose: 
     print(f'Loading model - {model_path}')
 
-    rwkv_model = RWKV(model=model_path, strategy='cuda fp16', verbose=isverbose)
-    pipeline = PIPELINE(rwkv_model, "rwkv_vocab_v20230424")
+    model = RWKV(model=model_path, strategy='cuda fp16', verbose=isverbose)
+    pipeline = PIPELINE(model, "rwkv_vocab_v20230424")
 
     RWKV_PAD = pipeline.tokenizer.encode('\n') # we will use '\n' as PAD
     # RWKV_PAD = [0] # you can try using [0] as pad
     if isverbose:
         print('RWKV_PAD', RWKV_PAD)
 
-    adapter = EvalHarnessAdapter(rwkv_model, pipeline, RWKV_PAD)
+    adapter = EvalHarnessAdapter(model, pipeline, RWKV_PAD)
     results = adapter.run_eval(
         eval_tasks=eval_tasks,
         bootstrap_iters=10000,
@@ -374,6 +391,11 @@ def do_eval(model_path, isverbose=False):
     # results ex: 
     # {'results': {'hellaswag': {'acc': 0.2921728739294961, 'acc_stderr': 0.004538319464111977, 'acc_norm': 0.31955785700059747, 'acc_norm_stderr': 0.0046535230383693855}}, 'versions': {'hellaswag': 0}}
     # print(results['results'])
+
+    print(f"stats: runs: {model.stat_runs} \
+      cls/run {model.stat_loaded_cls/model.stat_runs:.2f} \
+      tokens/run {model.state_loaded_tokens/model.stat_runs/65535:.2f}")
+    
     return results['results']
 
 def clean_cache():
@@ -385,4 +407,5 @@ if __name__ == "__main__":
     results = do_eval(MODEL_NAME, isverbose=False)
     # print(results)
     print(json.dumps(results, indent=4, sort_keys=False))
+
 

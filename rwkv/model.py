@@ -184,6 +184,11 @@ class RWKV(MyModule):
         else:
             prxxx = lambda *args, **kwargs: None
 
+        # xzl: dirty statistics for cls head....
+        self.stat_runs = 0    # num of fwd passes run
+        self.stat_loaded_cls = 0    # num of cls loaded 
+        self.state_loaded_tokens = 0  # num of token "cols" loaded
+
         # xzl: parse strategy... e.g. "cuda fp16"... and apply to layers 
         STRATEGY_REGEX = r"^(?:(?:^|->) *(?:cuda(?::[\d]+)?|cpu|mps|dml) (?:fp(?:16|32)|bf16)(?:i8|i4|i3)?(?: \*[\d]+\+?)? *)+$"
         if not re.match(STRATEGY_REGEX, strategy):
@@ -283,6 +288,11 @@ class RWKV(MyModule):
                 
                 self.token2cls = torch.tensor(token2cls, device='cuda')
                 self.clusters = clusters
+
+                self.clusters_tensor = [] # also save as list of tensors
+                for ccc in self.clusters:
+                    self.clusters_tensor.append(
+                        torch.tensor(ccc, device='cuda'))
 
                 # build head_l2, but by splitting the original cls head weights
                 for cls in range(0, len(clusters)):
@@ -411,7 +421,7 @@ class RWKV(MyModule):
                         w[x] = w[x].squeeze()
                     if 'key.weight' in x or 'value.weight' in x or 'receptance.weight' in x or 'gate.weight' in x or 'output.weight' in x or 'head.weight' in x:
                         w[x] = w[x].t()     # xzl transposed (b/c of linear layer
-                    if 'head_l1.weight' in x or ('head_l2' in x and '.weight' in x): 
+                    if ('head_l1' in x and '.weight' in x) or ('head_l2' in x and '.weight' in x): 
                         w[x] = w[x].t()   # for compressed cls head. same spirit as above. 
                     #xzl: mimic above 
                     if 'key1.weight' in x or 'value1.weight' in x or 'receptance1.weight' in x or 'gate1.weight' in x \
@@ -1770,6 +1780,7 @@ class RWKV(MyModule):
                     return res
 
                 # version 1: sample N cls
+                # return: token logits (# = vocab)
                 def _retrieve_value1(x, w):
                     args.alpha_frequency = 0.01     #.25
                     args.alpha_presence = 0.01      #.25
@@ -1840,6 +1851,7 @@ class RWKV(MyModule):
                     return logits
 
                 # version 2
+                # return: token logits (# = vocab)
                 def _retrieve_value2(x, w):
                     # orig
                     # args.alpha_frequency = 0.25  # orig
@@ -1921,8 +1933,8 @@ class RWKV(MyModule):
                         #   it's ok to concat the raw logits from multi clusters
                         logits.scatter_(dim=0, index=idx, src=x1)
              
-                    # -- sanity check, if minK=200...
-                    if True: 
+                    # -- sanity check ---- ... expensive 
+                    if False: 
                         reallogits = x @ w['head.weight']
                         if N==200:
                             # if not torch.equal(reallogits,logits):
@@ -1934,20 +1946,181 @@ class RWKV(MyModule):
                                 nzidx=torch.nonzero(nzdifmask, as_tuple=False)
                                 breakpoint()
                         tokens, probs= self.select_logits(reallogits, 5, 20, 0.85)
-                        # our computed logits for them??
-                        print(reallogits[tokens])
-                        print(logits[tokens])
-                        breakpoint()
+                        
+                        # useful CMP: our computed logits (others filled -inf) vs. true logits
+                        # if K==200, they shall equal 
+                        if True:
+                            print(reallogits[tokens])
+                            print(logits[tokens])
+                            breakpoint()
 
                     return logits
+
+                # version 3. select the top K cls logits (no sampling) 
+                #   also NOT tracking cls "frequency" which is not useful to
+                #   lm_eval
+                #
+                #  can be problematic for "chat" output diversity b/c we are NOT sampling cls 
+                #  return: token logits (# = vocab)
+                def _retrieve_value3(x, w):
+                    # N=200 # of cls we'll sample
+                    # N=80 # of cls we'll sample
+                    N=5 # of cls we'll sample
+
+                    # x: shape D (regardless of seq_mode
+                    # l1 projection
+                    x1 = x @ w['head_l1.weight']  # shape D,K
+                    
+                    # CLS, CLSPROBS = self.sample_logits(x1, temperature=1.0, top_p=0.85, top_k=N,
+                    #                          size=N, replace=False)
+                    
+                    # --- select, not sampling --- # 
+                    # "minK" has a high impact on speed... 
+                    # CLS, CLSPROBS = self.select_logits(x1, minK=3, maxK=100, minProb=.95) # good
+                    CLS, CLSPROBS = self.select_logits(x1, minK=3, maxK=100, minProb=.95) # good
+                    # CLS, CLSPROBS = self.select_logits(x1, minK=5, maxK=40, minProb=.5) 
+                    # CLS, CLSPROBS = self.select_logits(x1, minK=N, maxK=N, minProb=.5)  # seems quite good? (N=200
+
+                    #### now we've picked N cls. L2 projection.... ###
+                    vocab = w['head.weight'].shape[1]   # shape D,vocab                
+                    logits = torch.full((vocab,), float('-inf'), device='cuda', dtype=x.dtype) 
+
+                    num_tokens=0
+                    # project x to logits
+                    for i in range(0, len(CLS)):
+                        cls = CLS[i]
+                        clsprob = CLSPROBS[i]
+                        x1 = x @ w[f'head_l2org.{cls}.weight'] 
+
+                        # cls: cluster id, 
+                        # self.clusters[cls] list of token_ids in this cl s (as scatter idx
+                        # x: logits over tokens inside cls, (as scatter src
+                        # idx = torch.tensor(self.clusters[cls], device='cuda')
+                        idx = self.clusters_tensor[cls]
+
+                        num_tokens += idx.shape[0]
+                        #  ------ sanity check: if we use the org head.weight ------ # 
+                        if False:
+                            yyy=w[f'head_l2org.{cls}.weight']
+                            zzz=w['head.weight']
+                            for ii in range(len(idx)): 
+                                tokenid = idx[ii]
+                                if not torch.equal(yyy[:,ii], zzz[:,tokenid]): 
+                                    breakpoint()  
+                        # print("all good")
+                        # ---------------------------- # 
+
+                        # since we use the orig head weights, 
+                        #   it's ok to concat the raw logits from multi clusters
+                        logits.scatter_(dim=0, index=idx, src=x1)
+                    
+                    # update statistics
+                    self.stat_runs += 1
+                    self.stat_loaded_cls += len(CLS)
+                    self.state_loaded_tokens += num_tokens
+
+                    # -- sanity check ---- ... expensive 
+                    if False: 
+                        reallogits = x @ w['head.weight']
+                        # if N==200:
+                        if False:
+                            # if not torch.equal(reallogits,logits):
+                            # XXX there might be a minor bug somewhere.... causing 
+                            # minor diff in the two logitgs...
+                            if not torch.allclose(reallogits,logits, rtol=0.01, atol=0.01):
+                                dif=reallogits-logits
+                                nzdifmask=dif!=0
+                                nzidx=torch.nonzero(nzdifmask, as_tuple=False)
+                                breakpoint()
+                        tokens, probs= self.select_logits(reallogits, 5, 20, 0.85)
+                        
+                        # useful CMP: our computed logits (others filled -inf) vs. true logits
+                        # if K==200, they shall equal 
+                        if True:
+                            print(reallogits[tokens])
+                            print(logits[tokens])
+                            breakpoint()
+
+                    return logits 
+
+                # same as value3, except that l1 project use MLP
+                def _retrieve_value4(x, w):
+                    # x: shape D (regardless of seq_mode
+                    # l1 projection
+                    # x1 = x @ w['head_l1.weight']  # shape D,K
+                    # >>>>>>>>>>> CHANGED HERE <<<<<<<<<<<<<<<<<<<<<
+                    x = F.relu(x @ w['head_l1fc1.weight'])
+                    x1 = x @ w['head_l1fc2.weight']
+                    
+                    # --- select, not sampling --- # 
+                    # "minK" has a high impact on speed... 
+                    CLS, CLSPROBS = self.select_logits(x1, minK=3, maxK=100, minProb=.95) 
+                    # CLS, CLSPROBS = self.select_logits(x1, minK=5, maxK=40, minProb=.5) 
+                    # CLS, CLSPROBS = self.select_logits(x1, minK=N, maxK=N, minProb=.5)  # seems quite good? (N=200
+
+                    #### now we've picked N cls. L2 projection.... ###
+                    vocab = w['head.weight'].shape[1]   # shape D,vocab                
+                    logits = torch.full((vocab,), float('-inf'), device='cuda', dtype=x.dtype) 
+
+                    # project x to logits
+                    for i in range(0, len(CLS)):
+                        cls = CLS[i]
+                        clsprob = CLSPROBS[i]
+                        x1 = x @ w[f'head_l2org.{cls}.weight'] 
+
+                        # cls: cluster id, 
+                        # self.clusters[cls] list of token_ids in this cl s (as scatter idx
+                        # x: logits over tokens inside cls, (as scatter src
+                        # idx = torch.tensor(self.clusters[cls], device='cuda')
+                        idx = self.clusters_tensor[cls]
+
+                        #  ------ sanity check: if we use the org head.weight ------ # 
+                        if False:
+                            yyy=w[f'head_l2org.{cls}.weight']
+                            zzz=w['head.weight']
+                            for ii in range(len(idx)): 
+                                tokenid = idx[ii]
+                                if not torch.equal(yyy[:,ii], zzz[:,tokenid]): 
+                                    breakpoint()  
+                        # print("all good")                        
+                        # ---------------------------- # 
+
+                        # since we use the orig head weights, 
+                        #   it's ok to concat the raw logits from multi clusters
+                        logits.scatter_(dim=0, index=idx, src=x1)
+
+                    # -- sanity check ---- ... expensive 
+                    if True: 
+                        reallogits = x @ w['head.weight']
+                        # if N==200:
+                        if False:
+                            # if not torch.equal(reallogits,logits):
+                            # XXX there might be a minor bug somewhere.... causing 
+                            # minor diff in the two logitgs...
+                            if not torch.allclose(reallogits,logits, rtol=0.01, atol=0.01):
+                                dif=reallogits-logits
+                                nzdifmask=dif!=0
+                                nzidx=torch.nonzero(nzdifmask, as_tuple=False)
+                                breakpoint()
+                        tokens, probs= self.select_logits(reallogits, 5, 20, 0.85)
+                        
+                        # useful CMP: our computed logits (others filled -inf) vs. true logits
+                        # if K==200, they shall equal 
+                        if True:
+                            print(reallogits[tokens])
+                            print(logits[tokens])
+                            breakpoint()
+
+
+                    return logits 
                 
                 if x.dim() > 1:
                     new_x = []
                     for row in x:
-                        new_x.append(_retrieve_value2(row, w))
+                        new_x.append(_retrieve_value3(row, w))
                     x = torch.stack(new_x)
                 else:
-                    x = _retrieve_value2(x, w)
+                    x = _retrieve_value3(x, w)
 
             elif w['head.weight'].dtype != torch.uint8:  # original cls head
                 x = x @ w['head.weight']

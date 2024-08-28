@@ -1450,22 +1450,26 @@ class RWKV(pl.LightningModule):
             # labels = np.load('out/RWKV-5-World-0.4B-v2-20231113-ctx4096-emb-cluster-labels.npy')
             # idx: token_id, element: cls_id
             labels = np.load(args.load_token_cls)
-            clusters = []
+            self.clusters = []
             
             # idx: token_id, element: (cls_id, token id within the cls)
             self.token2cls = []  
 
             self.head_l1 = nn.Linear(args.n_embd, K, bias=False) 
+            # alternatively: use MLP for l1
+            self.head_l1fc1 = nn.Linear(args.n_embd, args.n_embd, bias=False) 
+            self.head_l1fc2 = nn.Linear(args.n_embd, K, bias=False) 
+
             self.head_l2 = nn.ParameterList()
 
             for i in range(K):
-                clusters.append([])
+                self.clusters.append([])
             for i in range(len(labels)):
                 c = labels[i]
-                self.token2cls.append((c,len(clusters[c])))
-                clusters[c].append(i)
+                self.token2cls.append((c,len(self.clusters[c])))
+                self.clusters[c].append(i)
             for c in range(K):
-                self.head_l2.append(nn.Linear(args.n_embd, len(clusters[c]), bias=False))
+                self.head_l2.append(nn.Linear(args.n_embd, len(self.clusters[c]), bias=False))
         if args.head_qk > 0:        # xzl: (cf README) disabled in training script.
             self.head_q = nn.Linear(args.n_embd, args.head_qk, bias=False)  # xzl: additional projection??
             self.head_k = nn.Linear(args.n_embd, args.head_qk, bias=False)
@@ -1622,53 +1626,88 @@ class RWKV(pl.LightningModule):
             x = self.head(x) + c
             return x
         elif args.head_K > 1:
-            # will return: 
-            #   x1: logits over all clusters (K)
-            #   x2: logits over all tokens, within the target cluster 
-            #   xorg: logits over the vocab, using the original cls head
-
-            # l1 projection: x->cluster
-            # x1 = self.head_l1(x).numpy() 
-            # c = np.argmax(x1,dim=1) # xzl: graident shouldn't flow here?
-            # c = torch.argmax(x1.detach(),dim=2)  # xzl: graident shouldn't flow here
-            xorg = self.head(x)   # output from the original cls head
-
-            x1 = self.head_l1(x)
-
-            # l2 projection. force using the target cluster IDs,
-            # if target_cls not provided (from GT labels), use pseudo cls (based on pseudo target)
-            # breakpoint()
-            if target_cls == None: 
-                token2cls = torch.tensor(self.token2cls, device='cuda')
-                targets00 = xorg.argmax(dim=-1)
-                target_cls = token2cls[targets00][:,:,0]
-                target_idx_in_cluster = token2cls[targets00][:,:,1]
-
-            #   project x to: logits over all possible tokens within the target cls
-            #   below loop slow... XXX opt
-            res=[]
-            B,L = target_cls.shape
-            for b in range(B):
-                res0=[]
-                for l in range(L):                                      
-                    c=target_cls[b][l]      # c: target cluster id
-                    res1=self.head_l2[c](x[b][l]) # res1: logits for the token at (b,l)
-                    # breakpoint()
-                    # pad the logits (over all tokens in THIS target cluster) to a fixed size
-                    #       i.e. max size a single cluster max == vocabsize (inefficient
-                    # so logits for diff tokens can be packed in a tensor
-                    res1=torch.nn.functional.pad(res1, 
-                        (0,self.args.vocab_size-res1.shape[0]), 'constant', float('-inf'))
-                    res0.append(res1)                
-                res.append(torch.stack(res0))
-            x2=torch.stack(res)
-            return x1, x2, xorg, target_cls, target_idx_in_cluster
-        else:   # xzl: classifiction head
+            # return self.forward_cls0(x)
+            return self.forward_cls1(x)
+            # return self.forward_cls2(x)
+        else:   # xzl: org classifiction head
             x = self.head(x)
             return x
+
+    # x: input embedding 
+    # target_cls: the "true" cls label for this token. from training (GT) labels
+    #   if not provided (from GT labels), use pseudo cls, 
+    #       which is computed from the original model "head" weight
+    # return: 
+    #   x1: logits over all clusters (K)
+    #   x2: logits over all tokens, within the target cluster 
+    #   xorg: logits over the vocab, using the original cls head
+    def forward_cls0 (self, x, target_cls=None):
+        # l1 projection: x->cluster
+        # x1 = self.head_l1(x).numpy() 
+        # c = np.argmax(x1,dim=1) # xzl: graident shouldn't flow here?
+        # c = torch.argmax(x1.detach(),dim=2)  # xzl: graident shouldn't flow here
+        xorg = self.head(x)   # output from the original cls head
+
+        x1 = self.head_l1(x)
+
+        # l2 projection. force using the target cluster IDs,
+        # breakpoint()
+        if target_cls == None: 
+            token2cls = torch.tensor(self.token2cls, device='cuda')
+            targets00 = xorg.argmax(dim=-1)
+            target_cls = token2cls[targets00][:,:,0]
+            target_idx_in_cluster = token2cls[targets00][:,:,1]
+
+        #   project x to: logits over all possible tokens within the target cls
+        #   below loop slow... XXX opt
+        res=[]
+        B,L = target_cls.shape
+        for b in range(B):
+            res0=[]
+            for l in range(L):                                      
+                c=target_cls[b][l]      # c: target cluster id
+                res1=self.head_l2[c](x[b][l]) # res1: logits for the token at (b,l)
+                # breakpoint()
+                # pad the logits (over all tokens in THIS target cluster) to a fixed size
+                #       i.e. max size a single cluster max == vocabsize (inefficient
+                # so logits for diff tokens can be packed in a tensor
+                res1=torch.nn.functional.pad(res1, 
+                    (0,self.args.vocab_size-res1.shape[0]), 'constant', float('-inf'))
+                res0.append(res1)                
+            res.append(torch.stack(res0))
+        x2=torch.stack(res)
+        return x1, x2, xorg, target_cls, target_idx_in_cluster        
+
+    # a simple version of the above. only compute the cls logits (x1) 
+    #   and target_cls (using orig head) 
+    # return: logits - pred logits over all cls
+    #          xorg - logits from org model, over all tokens
+    #           target_cls - target cls from org model 
+    def forward_cls1(self, x): 
+        with torch.no_grad():  # needed?
+            xorg = self.head(x)   # the original cls head
+            targets00 = xorg.argmax(dim=-1) # output: token IDs
+            token2cls = torch.tensor(self.token2cls, device='cuda')
+            target_cls = token2cls[targets00][:,:,0]
+
+        logits = self.head_l1(x)
+
+        # target_idx_in_cluster = token2cls[targets00][:,:,1]
+
+        return logits, xorg, target_cls
+    
+    # same as above, but use MLP for head_l1
+    def forward_cls2(self, x): 
+        with torch.no_grad():  # needed?
+            xorg = self.head(x)   # the original cls head
+            targets00 = xorg.argmax(dim=-1) # output: token IDs
+            token2cls = torch.tensor(self.token2cls, device='cuda')
+            target_cls = token2cls[targets00][:,:,0]
+
+        x = F.relu(self.head_l1fc1(x))
+        logits = self.head_l1fc2(x)
+        return logits, xorg, target_cls
         
-        # return x
-                        
     def training_step(self, batch, batch_idx):
         # xzl: a traing step ... a batch??  a called back from torch lightning
         #   ... the "batch" formed by TL. each item  is supplied by DataLoader.__getitem__
@@ -1681,18 +1720,32 @@ class RWKV(pl.LightningModule):
                 # target_clusters = torch.from_numpy(tt[:,:,0])
                 # target_idx_in_cluster = torch.from_numpy(tt[:,:,1])
 
+                # approach 1: the target cls from the training labels
                 '''
-                # take the training labels as the target...
                 token2cls = torch.tensor(self.token2cls, device='cuda')
                 tt = token2cls[targets]
                 target_clusters = tt[:,:,0]
-                target_idx_in_cluster = tt[:,:,1]
+                # target_idx_in_cluster = tt[:,:,1]
                 # fwd. get logits for l1, l2...& original cls
                 # logits2, logits00 shape: B,L,vocab (cf comments)
                 logits1, logits2, logits00 = self(idx,target_clusters)
+                # loss on cluster prediction
+                loss = F.cross_entropy(logits1.view(-1, logits1.size(-1)), target_clusters.view(-1), reduction='none')
+                logits = logits1
                 '''
 
-                # alternatively, we can take the original cls output as a pseudo target...
+                # approach 2: take the original model's cls output as a pseudo target...
+                # logits1, logits2, logits00, target_clusters, target_idx_in_cluster = self(idx)
+                # to be used with forward_cls1()
+                '''
+                logits, _, target_clusters = self(idx) 
+                # loss on cluster prediction
+                loss = F.cross_entropy(logits.view(-1, logits.size(-1)), target_clusters.view(-1))
+                '''
+                
+                # approach 3: take the original model's cls output as a pseudo cls target, cal loss on both 
+                #       cls prediction & token prediction 
+                '''
                 logits1, logits2, logits00, target_clusters, target_idx_in_cluster = self(idx)
                 
                 # 1. loss over all clusters
@@ -1706,9 +1759,40 @@ class RWKV(pl.LightningModule):
                 loss2 = F.cross_entropy(logits2.view(-1, logits2.size(-1)), target_idx_in_cluster.view(-1), reduction='none')
                 loss = (loss1 * loss2).mean()
                 logits = logits1  # xzl: cat logits1,2??
+                '''
 
+                # approach 4:  loss as KV divgenrce 
+                #       cal token logits from original model, from which cal the cls logits 
+                #       use distill learning to cal loss
+                # to be used with forward_cls1/2()
+                myclslogits, orgtokenlogits, target_cls = self(idx)
+                # 1. logits1: pred over all clusters
+                # compute org model's cls logits (based on org model's token logits
+                # logits01 = torch.zeros(args.head_K)                
+                results = []
+
+                # NB: logprobs, as expected by torch kl_loss 
+                myclsprobs = F.log_softmax(myclslogits, dim=-1)   # myclsprobs shape: bsz,L,#clusters
+
+                # NB: probs, as expected by torch kl_loss 
+                orgtokenprobs = F.softmax(orgtokenlogits, dim=-1)  # shape: bsz,L,vocab
+                # for org model, compute cls probs by aggregating token probs ... 
+                #       XXX  this is slow, for sure... 
+                # for cls, tokenids in enumerate(self.clusters):
+                for tokenids in self.clusters:
+                    indices = torch.tensor(tokenids, device='cuda')
+                    indices = indices.expand(orgtokenprobs.shape[:-1] + indices.shape[-1:])
+                    gathered = torch.gather(orgtokenprobs, dim=-1, index=indices) # gathered.shape = [bsz, L, #_tokens_in_this_cls]
+                    summed = gathered.sum(dim=-1) # summed.shape = [bsz, L], i.e. summed token probs for this cls 
+                    results.append(summed)                                
+                orgclsprobs = torch.stack(results,dim=-1)  # orgclsprobs shape=bsz,L,#clusters
+                kl_loss = nn.KLDivLoss(reduction="batchmean")
+                # loss = F.kl_div(myclsprobs, orgclsprobs, reduction='batchmean') 
+                loss = kl_loss(myclsprobs, orgclsprobs)
+                # breakpoint()
+                logits = myclslogits
             else: 
-                logits = self(idx)          # xzl: a fwd pass...
+                logits = self(idx)          # xzl: a normal fwd pass...
                 loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
                 # xzl: dump gradient graph
                 # import torchviz

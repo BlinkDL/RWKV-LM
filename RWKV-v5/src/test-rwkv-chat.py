@@ -31,8 +31,16 @@ from rwkv.utils import PIPELINE, PIPELINE_ARGS
 # model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01B-relu-diag-pretrain/rwkv-25'
 # model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01B-relu-diag-pretrain/rwkv-35'
 
-model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/rwkv-7'
+# model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run1/rwkv-7'  # old
 # model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/rwkv-init'
+# model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run2/rwkv-24'  #Only head.l1 tuned
+# #Only head.l1 tuned. KL loss (good
+model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
+# only head.l1fc1, head.l1fc2 (MLP) trained. KL loss
+#   very bad
+# model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run5-KL-loss-MLP-KaimingInit/rwkv-230'
+#   very bad
+# model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run4-KL-loss-MLP/rwkv-40'
 
 
 print(f'Loading model - {model_path}')
@@ -62,7 +70,11 @@ args = PIPELINE_ARGS(temperature = 1.0, top_p = 0.7, top_k = 100, # top_k = 0 th
 pipeline.generate(ctx, token_count=200, args=args, callback=my_print)
 print('\n')
 
-print('-----  xzl ------- \n')
+print(f"stats: runs: {model.stat_runs} \
+      cls/run {model.stat_loaded_cls/model.stat_runs:.2f} \
+      tokens/run {model.state_loaded_tokens/model.stat_runs/65535:.2f}")
+      
+'''
 # xzl: what are thsse for??? demo cut a long prompt into pieces and feed??
 out, state = model.forward([187, 510, 1563, 310, 247], None)
 print(out.detach().cpu().numpy())                   # get logits
@@ -71,3 +83,4 @@ out, state = model.forward([1563], state)           # RNN has state (use deepcop
 out, state = model.forward([310, 247], state)
 print(out.detach().cpu().numpy())                   # same result as above
 print('\n')
+'''

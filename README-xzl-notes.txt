@@ -21,34 +21,80 @@ RWKV is an RNN with transformer-level LLM performance. It can be directly traine
 workflow to generate the cls head:
 https://github.com/fxlin/RWKV-LM/blob/4dbe46bc3bc5b1a59e68ead30bc1d527af040770/README-xzl-notes
 RWKV-LM/README-xzl-notes at 4dbe46bc3bc5b1a59e68ead30bc1d527af040770 · fxlin/RWKV-LM
+
 RWKV is an RNN with transformer-level LLM performance. It can be directly trained like a GPT (parallelizable). So it&#39;s combining the best of RNN and transformer - great performance, fast in...
 
-
-
-
 ---------------------------------------------------------------
-
-
 
 ffn.receptance1,2 ... if init as 0, then no graidents. (wjhy???                                                       
 shall init as scale=1 (norm
 
 ---------------------------------------------------------------
 
-experiment log: clustserd cls head
+WORKFLOW: clustserd cls head    8/28/2024
 
-first pretrain out/L12-D768-F4-x052xzlNoReLu with run.sh, which trains
-    both the original emb and original cls head
+* create a workdir, e.g. out/01b-cls-mine/    <---- use my version as the template
 
-----> out/L12-D768-F4-x052xzlNoReLu/rwkv-60.pth 
+* pick a pretrained model chkpt (official or ours, can be x52,x58,x59). copy 
+  the chkpt to the workdir, e.g. 
+    out/01b-cls-mine/from-hpc/rwkv-823.pth
 
-run svd.py to cluster tokens, based on the trained emb, i.e. 
-python3 svd.py --decompose 2 --orig_model out/L12-D768-F4-x052xzlNoReLu/rwkv-60
+* run svd.py to cluster tokens based on the model's emb.weight, e.g. 
 
-the results are cluster "labels" for each token in the vocab
-----> rwkv-60-cls.npy
+  python3 svd.py --decompose 2 --orig_model out/01b-cls-mine/from-hpc/rwkv-823
 
-then, run run-cls.sh
+  the result is a binary file:  clusters of token labels in the vocab (size=64K), e.g. 
+    ---> ./out/01b-cls-mine/from-hpc/rwkv-823-cls.npy
+
+* start training on xsel01/02: run-train.sh 
+  (NB: ./submit-train.sh not tested, which may be overkill b/c the training should be 
+  fast enough) 
+
+  key training code: src/model.py  
+    training_step() around line 1717
+      implements several approaches in computing labels & losses, cf comments
+        approach 4 with KV divergence loss seems the best 
+        apporach 3 with cross entropy (CE) also works, but slightly worse
+
+    three approaches were tried for cls head: 
+      forward_cls0:   both head_l1 head_2. not working well 
+        (results in: run1-train-both-l1-and-l2/)
+      forward_cls1:   only train head_l1 as a single linear layer. works 
+        (results in: run2-CE-loss/ run3-KL-loss/)
+      forward_cls2:   head_l1 as MLP. trained model generates nonsense. TBD
+        (results in: run4-KL-loss-MLP/ run5-KL-loss-MLP-KaimingInit/)
+    
+* typical training experienkce (xsel02, A6000): 
+    CE loss - several hours, loss goes down to ~0.1
+    KV loss - several hours, loss goes down to several hundred 
+    
+* try eval:
+  test-rwkv-chat.py
+  #Only head.l1 tuned. KL loss (good
+  /data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43
+
+    Elon Musk has made a lot of noise about using the same number as the rest of us, and in the process, he has given us a little extra life to enjoy our freedom.
+    And so, it is time for Elon Musk to start bringing back the world’s greatest company.
+    The company was founded in 1992, by Bill Gates and Jerry Yang, and they have built up a worldwide fortune that has grown since then.
+    But this year, Musk has made it clear that he wants to stay true to his principles, not get distracted by another titan.
+    The company will build on its initial funding in order to invest in a new generation of high tech companies, but that won’t happen without
+    Elon Musk’s help.
+    And as much as you may like Elon’s newfound wealth and trust, I urge you to invest in the company right now, instead of keeping your eyes open for a potential one.
+    Here are a few ways you can get involved with Elon Musk:
+    1)
+    stats: runs: 200       cls/run 34.91       tokens/run 0.13
+
+  ^^ last line means: each run (forward pass) only loads ~13% of the total cls 
+    head weights   
+
+  run_lm_eval.py 
+  #Only head.l1 tuned, KL loss
+  # acc: .331 (openai). minK=3, maxK=100, minProb=.95 <--- NEED TO CAREFULLY VERIFY
+  MODEL_NAME='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
+    
+---------------------------------------------------------------
+(below old) 
+
   which specifies load_partial, load_token_cls, and HEAD_K (# of clusters)==200
   it's very slow. b/c my unopt code for training individual cls clusters...
   after one night of training (9 epochs on 4090), loss drops from 1000 to 3.17 
