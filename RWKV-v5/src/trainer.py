@@ -77,7 +77,7 @@ class train_callback(pl.Callback):
                     )
                     exit(0)
         if trainer.global_step < w_step:
-            lr = lr * (0.2 + 0.8 * trainer.global_step / w_step)
+            lr = lr * (0.01 + 0.99 * trainer.global_step / w_step)
 
         if args.weight_decay_final > 0:
             wd_now = args.weight_decay * math.exp(math.log(args.weight_decay_final / args.weight_decay) * progress)
