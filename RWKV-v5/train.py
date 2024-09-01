@@ -435,8 +435,8 @@ if __name__ == "__main__":
                         ]
         if args.head_K > 1:
             # tunepara = ["head_l1", "head_l2"]
-            # tunepara = ["head_l1"]
-            tunepara = ["head_l1fc"]
+            tunepara = ["head_l1"]
+            #tunepara = ["head_l1fc"]
 
         model.requires_grad_(False)    #xzl this seems a must
         for pname, param in model.named_parameters():

@@ -82,7 +82,7 @@ from lm_eval.api.model import TemplateLM
 
 #Only head.l1 tuned, KL loss
 # acc: .331 (openai). minK=3, maxK=100, minProb=.95 <--- NEED TO CAREFULLY VERIFY
-MODEL_NAME='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
+MODEL_NAME='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
 
 # 01B --- 01b-pre-x59
 # acc .37 (openai) 
