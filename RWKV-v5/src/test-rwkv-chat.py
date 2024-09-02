@@ -8,7 +8,7 @@ import sys, os
 # run chat app on the inference engine (rwkv), check for sanity 
 
 # xzl: use our own version of lm_eval, rwkv
-#sys.path.append('/home/xl6yq/workspace-rwkv/RWKV-LM')
+sys.path.append('/home/xl6yq/workspace-rwkv/RWKV-LM')
 
 os.environ["RWKV_JIT_ON"] = '1'
 
@@ -35,7 +35,10 @@ from rwkv.utils import PIPELINE, PIPELINE_ARGS
 # model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/rwkv-init'
 # model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run2/rwkv-24'  #Only head.l1 tuned
 # #Only head.l1 tuned. KL loss (good
-model_path='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
+model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
+#model_path='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
+#model_path='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-cls/from-hpc/rwkv-1366'
+#model_path='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-cls/from-hpc/0.1b-official'
 # only head.l1fc1, head.l1fc2 (MLP) trained. KL loss
 #   very bad
 # model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run5-KL-loss-MLP-KaimingInit/rwkv-230'
@@ -44,7 +47,7 @@ model_path='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv
 
 
 print(f'Loading model - {model_path}')
-model = RWKV(model=model_path, strategy='cuda fp16', verbose=True)
+model = RWKV(model=model_path, strategy='cuda fp16i8', verbose=True)
 # model = RWKV(model=model_path, strategy='cuda fp16', verbose=False,
 #              head_K=200, load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy')
 
