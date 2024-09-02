@@ -141,7 +141,6 @@ def matmul(a, b, mx: Optional[torch.Tensor]=None, rx: Optional[torch.Tensor]=Non
     else:
         raise ValueError("Unsupported dtype")
 
-
 # xzl: speiclized matmul for certain shapes....
 if os.environ.get('RWKV_CUDA_ON') == '1' and not DISABLE_CUBLAS_GEMM:
     def matmul_float(a, b, output_dtype: Optional[torch.dtype]=None):
@@ -271,6 +270,7 @@ class RWKV(MyModule):
             if 'head_l1.weight' in w: # use compressed cls heads                
                 import numpy as np
                 args.head_K = 200    # XXX
+                #args.load_token_cls='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/04b-pre-x59-8x-cls/from-hpc/rwkv-2405-cls.npy'
                 args.load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
 
                 K=args.head_K
@@ -476,6 +476,7 @@ class RWKV(MyModule):
 
                                 w[x] = torch.clip(torch.floor(w[x] * 256), min=0, max=255).to(dtype=torch.uint8)
                                 w[x+'_mx'] = w[x+'_mx'].to(dtype=ATYPE).contiguous()
+                                # 16 might be further quantization ro storage efficiency
                                 w[x+'_rx'] = (w[x+'_rx'] / 16).to(dtype=ATYPE).contiguous()
                                 w[x+'_my'] = w[x+'_my'].to(dtype=ATYPE).contiguous()
                                 w[x+'_ry'] = (w[x+'_ry'] / 16).to(dtype=ATYPE).contiguous()
@@ -654,15 +655,18 @@ class RWKV(MyModule):
     @MyFunction
     def ffn_one_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw, 
                      rw1, rw2, rwdiag, 
-                     kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry):
+                     kmx, krx, kmy, kry, vmx, vrx, vmy, vry, 
+                     rmx1, rrx1, rmy1, rry1,
+                     rmx2, rrx2, rmy2, rry2,
+                     ):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         kx = xx * k_mix + sx * (1 - k_mix)
         rx = xx * r_mix + sx * (1 - r_mix)
 
         # r = torch.sigmoid(matmul(rx, rw, rmx, rrx, rmy, rry)) # orig
-        r = matmul(rx, rw1) 
+        r = matmul(rx, rw1, rmx1, rrx1, rmy1, rry1) 
         r = torch.relu(r) ** 2
-        r = matmul(r, rw2)
+        r = matmul(r, rw2, rmx2, rrx2, rmy2, rry2)
         r += rx @ torch.diag(rwdiag)   # xzl: should use matmul??
         r = torch.sigmoid(r)
 
@@ -707,16 +711,20 @@ class RWKV(MyModule):
     @MyFunction
     def ffn_seq_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw, 
                      rw1, rw2, rwdiag, 
-                     kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry):
+                     kmx, krx, kmy, kry, 
+                     vmx, vrx, vmy, vry, 
+                     rmx1, rrx1, rmy1, rry1,
+                     rmx2, rrx2, rmy2, rry2,
+                     ):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         sx = torch.cat((sx.unsqueeze(0), xx[:-1,:]))
         kx = xx * k_mix + sx * (1 - k_mix)
         rx = xx * r_mix + sx * (1 - r_mix)
 
         # r = torch.sigmoid(matmul(rx, rw, rmx, rrx, rmy, rry)) # orig
-        r = matmul(rx, rw1) 
+        r = matmul(rx, rw1, rmx1, rrx1, rmy1, rry1) 
         r = torch.relu(r) ** 2
-        r = matmul(r, rw2)
+        r = matmul(r, rw2, rmx2, rrx2, rmy2, rry2)
         r += rx @ torch.diag(rwdiag)   # xzl: use matmul??
         r = torch.sigmoid(r)        
 
@@ -984,7 +992,16 @@ class RWKV(MyModule):
     @MyFunction
     def att_one_v5_9(self, x, sx, s, ln_w, ln_b, lx_w, lx_b, k_mix, v_mix, r_mix, g_mix, t_decay, t_first, 
                      kw1, kw2, kwdiag, vw1, vw2, vwdiag, rw1, rw2, rwdiag, gw1, gw2, gwdiag,   # ours 
-                     ow, kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry, gmx, grx, gmy, gry, omx, orx, omy, ory):        
+                     ow, 
+                     kmx1, krx1, kmy1, kry1, 
+                     kmx2, krx2, kmy2, kry2, 
+                     vmx1, vrx1, vmy1, vry1, 
+                     vmx2, vrx2, vmy2, vry2, 
+                     rmx1, rrx1, rmy1, rry1, 
+                     rmx2, rrx2, rmy2, rry2, 
+                     gmx1, grx1, gmy1, gry1, 
+                     gmx2, grx2, gmy2, gry2, 
+                     omx, orx, omy, ory):        
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         kx = xx * k_mix + sx * (1 - k_mix)
         vx = xx * v_mix + sx * (1 - v_mix)
@@ -995,30 +1012,30 @@ class RWKV(MyModule):
         N = x.shape[-1] // H
 
         # r = matmul(rx, rw, rmx, rrx, rmy, rry, output_dtype=torch.float32).view(H, 1, N)  # orig
-        r = matmul(rx, rw1) 
+        r = matmul(rx, rw1, rmx1, rrx1, rmy1, rry1) 
         r = torch.relu(r) ** 2
-        r = matmul(r, rw2, output_dtype=torch.float32)     
+        r = matmul(r, rw2, rmx2, rrx2, rmy2, rry2, output_dtype=torch.float32)     
         r += rx @ torch.diag(rwdiag)   # xzl: should use matmul??
         r = r.view(H,1,N)
 
         # k = matmul(kx, kw, kmx, krx, kmy, kry, output_dtype=torch.float32).view(H, N, 1) # orig
-        k = matmul(kx, kw1) 
+        k = matmul(kx, kw1, kmx1, krx1, kmy1, kry1) 
         k = torch.relu(k) ** 2
-        k = matmul(k, kw2, output_dtype=torch.float32)
+        k = matmul(k, kw2, kmx2, krx2, kmy2, kry2, output_dtype=torch.float32)
         k += kx @ torch.diag(kwdiag)
         k = k.view(H,N,1)
 
         # v = matmul(vx, vw, vmx, vrx, vmy, vry, output_dtype=torch.float32).view(H, 1, N) # orig
-        v = matmul(vx, vw1) 
+        v = matmul(vx, vw1, vmx1, vrx1, vmy1, vry1) 
         v = torch.relu(v) ** 2
-        v = matmul(v, vw2, output_dtype=torch.float32)     
+        v = matmul(v, vw2, vmx2, vrx2, vmy2, vry2, output_dtype=torch.float32)     
         v += vx @ torch.diag(vwdiag)
         v = v.view(H,1,N)
 
         # g = F.silu(matmul(gx, gw, gmx, grx, gmy, gry))  @ orig
-        g = matmul(gx, gw1)
+        g = matmul(gx, gw1, gmx1, grx1, gmy1, gry1)
         g = torch.relu(g) ** 2
-        g = matmul(g, gw2) 
+        g = matmul(g, gw2, gmx2, grx2, gmy2, gry2) 
         g += gx @ torch.diag(gwdiag)
         g = F.silu(g) 
         
@@ -1086,7 +1103,16 @@ class RWKV(MyModule):
     @MyFunction
     def att_seq_v5_9(self, x, sx, s, ln_w, ln_b, lx_w, lx_b, k_mix, v_mix, r_mix, g_mix, t_decay, t_first, 
                      kw1, kw2, kwdiag, vw1, vw2, vwdiag, rw1, rw2, rwdiag, gw1, gw2, gwdiag, 
-                     ow, kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry, gmx, grx, gmy, gry, omx, orx, omy, ory):
+                     ow, 
+                     kmx1, krx1, kmy1, kry1,
+                     kmx2, krx2, kmy2, kry2,
+                     vmx1, vrx1, vmy1, vry1, 
+                     vmx2, vrx2, vmy2, vry2, 
+                     rmx1, rrx1, rmy1, rry1, 
+                     rmx2, rrx2, rmy2, rry2, 
+                     gmx1, grx1, gmy1, gry1, 
+                     gmx2, grx2, gmy2, gry2, 
+                     omx,  orx, omy, ory):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         sx = torch.cat((sx.unsqueeze(0), xx[:-1,:]))
         kx = xx * k_mix + sx * (1 - k_mix)
@@ -1099,30 +1125,30 @@ class RWKV(MyModule):
         T = x.shape[0]
 
         # r = matmul(rx, rw, rmx, rrx, rmy, rry, output_dtype=torch.float32).view(T, H, N).transpose(0, 1) # orig
-        r = matmul(rx, rw1) 
+        r = matmul(rx, rw1, rmx1, rrx1, rmy1, rry1) 
         r = torch.relu(r) ** 2
-        r = matmul(r, rw2, output_dtype=torch.float32)     
+        r = matmul(r, rw2, rmx2, rrx2, rmy2, rry2, output_dtype=torch.float32)     
         r += rx @ torch.diag(rwdiag)   # xzl: should use matmul??
         r = r.view(T,H,N).transpose(0, 1)
 
         # k = matmul(kx, kw, kmx, krx, kmy, kry, output_dtype=torch.float32).view(T, H, N).permute(1, 2, 0) # orig
-        k = matmul(kx, kw1) 
+        k = matmul(kx, kw1, kmx1, krx1, kmy1, kry1) 
         k = torch.relu(k) ** 2
-        k = matmul(k, kw2, output_dtype=torch.float32)     
+        k = matmul(k, kw2, kmx2, krx2, kmy2, kry2, output_dtype=torch.float32)     
         k += kx @ torch.diag(kwdiag)
         k = k.view(T,H,N).permute(1, 2, 0)
                 
         # v = matmul(vx, vw, vmx, vrx, vmy, vry, output_dtype=torch.float32).view(T, H, N).transpose(0, 1) # orig
-        v = matmul(vx, vw1) 
+        v = matmul(vx, vw1, vmx1, vrx1, vmy1, vry1) 
         v = torch.relu(v) ** 2
-        v = matmul(v, vw2, output_dtype=torch.float32)     
+        v = matmul(v, vw2, vmx2, vrx2, vmy2, vry2, output_dtype=torch.float32)     
         v += vx @ torch.diag(vwdiag)
         v = v.view(T,H,N).transpose(0, 1)
 
         # g = F.silu(matmul(gx, gw, gmx, grx, gmy, gry)) # orig
-        g = matmul(gx, gw1)
+        g = matmul(gx, gw1, gmx1, grx1, gmy1, gry1)
         g = torch.relu(g) ** 2
-        g = matmul(g, gw2) 
+        g = matmul(g, gw2, gmx2, grx2, gmy2, gry2)
         g += gx @ torch.diag(gwdiag)
         g = F.silu(g)
 
@@ -1486,6 +1512,37 @@ class RWKV(MyModule):
                     vw2 = w[f'{att}value2.weight']
                     rw1 = w[f'{att}receptance1.weight']
                     rw2 = w[f'{att}receptance2.weight']                    
+
+                    kmx1 = w[f'{att}key1.weight_mx'] if wtype == torch.uint8 else x
+                    krx1 = w[f'{att}key1.weight_rx'] if wtype == torch.uint8 else x
+                    kmy1 = w[f'{att}key1.weight_my'] if wtype == torch.uint8 else x
+                    kry1 = w[f'{att}key1.weight_ry'] if wtype == torch.uint8 else x
+
+                    kmx2 = w[f'{att}key2.weight_mx'] if wtype == torch.uint8 else x
+                    krx2 = w[f'{att}key2.weight_rx'] if wtype == torch.uint8 else x
+                    kmy2 = w[f'{att}key2.weight_my'] if wtype == torch.uint8 else x
+                    kry2 = w[f'{att}key2.weight_ry'] if wtype == torch.uint8 else x
+
+                    vmx1 = w[f'{att}value1.weight_mx'] if wtype == torch.uint8 else x
+                    vrx1 = w[f'{att}value1.weight_rx'] if wtype == torch.uint8 else x
+                    vmy1 = w[f'{att}value1.weight_my'] if wtype == torch.uint8 else x
+                    vry1 = w[f'{att}value1.weight_ry'] if wtype == torch.uint8 else x
+
+                    vmx2 = w[f'{att}value2.weight_mx'] if wtype == torch.uint8 else x
+                    vrx2 = w[f'{att}value2.weight_rx'] if wtype == torch.uint8 else x
+                    vmy2 = w[f'{att}value2.weight_my'] if wtype == torch.uint8 else x
+                    vry2 = w[f'{att}value2.weight_ry'] if wtype == torch.uint8 else x
+
+                    rmx1 = w[f'{att}receptance1.weight_mx'] if wtype == torch.uint8 else x
+                    rrx1 = w[f'{att}receptance1.weight_rx'] if wtype == torch.uint8 else x
+                    rmy1 = w[f'{att}receptance1.weight_my'] if wtype == torch.uint8 else x
+                    rry1 = w[f'{att}receptance1.weight_ry'] if wtype == torch.uint8 else x
+
+                    rmx2 = w[f'{att}receptance2.weight_mx'] if wtype == torch.uint8 else x
+                    rrx2 = w[f'{att}receptance2.weight_rx'] if wtype == torch.uint8 else x
+                    rmy2 = w[f'{att}receptance2.weight_my'] if wtype == torch.uint8 else x
+                    rry2 = w[f'{att}receptance2.weight_ry'] if wtype == torch.uint8 else x
+
                     if self.version == 5.9:
                         kwdiag = w[f'{att}key_diag']
                         vwdiag = w[f'{att}value_diag']
@@ -1494,29 +1551,34 @@ class RWKV(MyModule):
                     kw = w[f'{att}key.weight']
                     vw = w[f'{att}value.weight']
                     rw = w[f'{att}receptance.weight']
+
+                    # xzl: below, dequant int8 weight (why "else x?"
+                    kmx = w[f'{att}key.weight_mx'] if wtype == torch.uint8 else x
+                    krx = w[f'{att}key.weight_rx'] if wtype == torch.uint8 else x
+                    kmy = w[f'{att}key.weight_my'] if wtype == torch.uint8 else x
+                    kry = w[f'{att}key.weight_ry'] if wtype == torch.uint8 else x
+                    vmx = w[f'{att}value.weight_mx'] if wtype == torch.uint8 else x
+                    vrx = w[f'{att}value.weight_rx'] if wtype == torch.uint8 else x
+                    vmy = w[f'{att}value.weight_my'] if wtype == torch.uint8 else x
+                    vry = w[f'{att}value.weight_ry'] if wtype == torch.uint8 else x
+                    rmx = w[f'{att}receptance.weight_mx'] if wtype == torch.uint8 else x
+                    rrx = w[f'{att}receptance.weight_rx'] if wtype == torch.uint8 else x
+                    rmy = w[f'{att}receptance.weight_my'] if wtype == torch.uint8 else x
+                    rry = w[f'{att}receptance.weight_ry'] if wtype == torch.uint8 else x
+
                 ow = w[f'{att}output.weight']
+                omx = w[f'{att}output.weight_mx'] if wtype == torch.uint8 else x
+                orx = w[f'{att}output.weight_rx'] if wtype == torch.uint8 else x
+                omy = w[f'{att}output.weight_my'] if wtype == torch.uint8 else x
+                ory = w[f'{att}output.weight_ry'] if wtype == torch.uint8 else x
+
+
                 if dd.stream:
                     kw = kw.to(device=dev, non_blocking=True)
                     vw = vw.to(device=dev, non_blocking=True)
                     rw = rw.to(device=dev, non_blocking=True)
                     ow = ow.to(device=dev, non_blocking=True)
-                # xzl: below, dequant int8 weight (why "else x?"
-                kmx = w[f'{att}key.weight_mx'] if wtype == torch.uint8 else x
-                krx = w[f'{att}key.weight_rx'] if wtype == torch.uint8 else x
-                kmy = w[f'{att}key.weight_my'] if wtype == torch.uint8 else x
-                kry = w[f'{att}key.weight_ry'] if wtype == torch.uint8 else x
-                vmx = w[f'{att}value.weight_mx'] if wtype == torch.uint8 else x
-                vrx = w[f'{att}value.weight_rx'] if wtype == torch.uint8 else x
-                vmy = w[f'{att}value.weight_my'] if wtype == torch.uint8 else x
-                vry = w[f'{att}value.weight_ry'] if wtype == torch.uint8 else x
-                rmx = w[f'{att}receptance.weight_mx'] if wtype == torch.uint8 else x
-                rrx = w[f'{att}receptance.weight_rx'] if wtype == torch.uint8 else x
-                rmy = w[f'{att}receptance.weight_my'] if wtype == torch.uint8 else x
-                rry = w[f'{att}receptance.weight_ry'] if wtype == torch.uint8 else x
-                omx = w[f'{att}output.weight_mx'] if wtype == torch.uint8 else x
-                orx = w[f'{att}output.weight_rx'] if wtype == torch.uint8 else x
-                omy = w[f'{att}output.weight_my'] if wtype == torch.uint8 else x
-                ory = w[f'{att}output.weight_ry'] if wtype == torch.uint8 else x
+
                 if self.version in [5.1, 5.2, 6.0]:
                     gw = w[f'{att}gate.weight']
                     if dd.stream:
@@ -1530,11 +1592,16 @@ class RWKV(MyModule):
                     gw2 = w[f'{att}gate2.weight']
                     if self.version ==5.9:
                         gwdiag = w[f'{att}gate_diag']
-                    # dummy, placeholders
-                    gmx = None
-                    grx = None
-                    gmy = None
-                    gry = None
+                    
+                    gmx1 = w[f'{att}gate1.weight_mx'] if wtype == torch.uint8 else x
+                    grx1 = w[f'{att}gate1.weight_rx'] if wtype == torch.uint8 else x
+                    gmy1 = w[f'{att}gate1.weight_my'] if wtype == torch.uint8 else x
+                    gry1 = w[f'{att}gate1.weight_ry'] if wtype == torch.uint8 else x
+
+                    gmx2 = w[f'{att}gate2.weight_mx'] if wtype == torch.uint8 else x
+                    grx2 = w[f'{att}gate2.weight_rx'] if wtype == torch.uint8 else x
+                    gmy2 = w[f'{att}gate2.weight_my'] if wtype == torch.uint8 else x
+                    gry2 = w[f'{att}gate2.weight_ry'] if wtype == torch.uint8 else x
 
                 # --- xzl: below, run att (one or seq) --- # 
                 if self.version == 4:
@@ -1602,10 +1669,14 @@ class RWKV(MyModule):
                         # kw, vw, rw, gw, 
                         kw1,kw2,kwdiag,vw1,vw2,vwdiag,rw1,rw2,rwdiag,gw1,gw2,gwdiag, 
                         ow,
-                        kmx, krx, kmy, kry,
-                        vmx, vrx, vmy, vry,
-                        rmx, rrx, rmy, rry,
-                        gmx, grx, gmy, gry,
+                        kmx1, krx1, kmy1, kry1,
+                        kmx2, krx2, kmy2, kry2,
+                        vmx1, vrx1, vmy1, vry1,
+                        vmx2, vrx2, vmy2, vry2,
+                        rmx1, rrx1, rmy1, rry1,
+                        rmx2, rrx2, rmy2, rry2,
+                        gmx1, grx1, gmy1, gry1,
+                        gmx2, grx2, gmy2, gry2,
                         omx, orx, omy, ory,
                         )
                 elif self.version == 6.0:
@@ -1633,10 +1704,25 @@ class RWKV(MyModule):
                 if self.version in [5.8, 5.9]:
                     rw1 = w[f'{ffn}receptance1.weight']
                     rw2 = w[f'{ffn}receptance2.weight']
+
+                    rmx1 = w[f'{ffn}receptance1.weight_mx'] if wtype == torch.uint8 else x
+                    rrx1 = w[f'{ffn}receptance1.weight_rx'] if wtype == torch.uint8 else x
+                    rmy1 = w[f'{ffn}receptance1.weight_my'] if wtype == torch.uint8 else x
+                    rry1 = w[f'{ffn}receptance1.weight_ry'] if wtype == torch.uint8 else x
+
+                    rmx2 = w[f'{ffn}receptance2.weight_mx'] if wtype == torch.uint8 else x
+                    rrx2 = w[f'{ffn}receptance2.weight_rx'] if wtype == torch.uint8 else x
+                    rmy2 = w[f'{ffn}receptance2.weight_my'] if wtype == torch.uint8 else x
+                    rry2 = w[f'{ffn}receptance2.weight_ry'] if wtype == torch.uint8 else x
+
                     if self.version == 5.9:
                         rwdiag = w[f'{ffn}receptance_diag']
                 else: 
                     rw = w[f'{ffn}receptance.weight']
+                    rmx = w[f'{ffn}receptance.weight_mx'] if wtype == torch.uint8 else x
+                    rrx = w[f'{ffn}receptance.weight_rx'] if wtype == torch.uint8 else x
+                    rmy = w[f'{ffn}receptance.weight_my'] if wtype == torch.uint8 else x
+                    rry = w[f'{ffn}receptance.weight_ry'] if wtype == torch.uint8 else x
                 if dd.stream:
                     kw = kw.to(device=dev, non_blocking=True)
                     vw = vw.to(device=dev, non_blocking=True)
@@ -1649,10 +1735,6 @@ class RWKV(MyModule):
                 vrx = w[f'{ffn}value.weight_rx'] if wtype == torch.uint8 else x
                 vmy = w[f'{ffn}value.weight_my'] if wtype == torch.uint8 else x
                 vry = w[f'{ffn}value.weight_ry'] if wtype == torch.uint8 else x
-                rmx = w[f'{ffn}receptance.weight_mx'] if wtype == torch.uint8 else x
-                rrx = w[f'{ffn}receptance.weight_rx'] if wtype == torch.uint8 else x
-                rmy = w[f'{ffn}receptance.weight_my'] if wtype == torch.uint8 else x
-                rry = w[f'{ffn}receptance.weight_ry'] if wtype == torch.uint8 else x
                 if self.version == 4:
                     offset = i*5+4
                 elif int(self.version) in [5,6]:
@@ -1668,7 +1750,8 @@ class RWKV(MyModule):
                         rw1, rw2, rwdiag, 
                         kmx, krx, kmy, kry,
                         vmx, vrx, vmy, vry,
-                        rmx, rrx, rmy, rry,                    
+                        rmx1, rrx1, rmy1, rry1,
+                        rmx2, rrx2, rmy2, rry2,
                         )
                 elif self.version in [5.8]:
                     x, state[offset] = FFN(
@@ -2110,7 +2193,6 @@ class RWKV(MyModule):
                             print(reallogits[tokens])
                             print(logits[tokens])
                             breakpoint()
-
 
                     return logits 
                 
