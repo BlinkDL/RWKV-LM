@@ -22,20 +22,25 @@ from rwkv.utils import PIPELINE, PIPELINE_ARGS
 # rva
 # model_path='/scratch/xl6yq/data/models/RWKV-5-World-0.1B-v1-20230803-ctx4096'
 
-# amd
-# model_path='/data/models/RWKV-5-World-0.1B-v1-20230803-ctx4096' # official
-# model_path='/data/models/RWKV-5-World-0.1B-v1-20230803-ctx4096'       # v5.0 (?
-# model_path='/data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L12-D768-x052-ctx2K-pile/rwkv-15'    #v5.2
+# official
+# model_path='/data/models/RWKV-5-World-0.1B-v1-20230803-ctx4096' # official, NB it's v1
+# model_path='/data/models/RWKV-5-World-0.4B-v2-20231113-ctx4096'
+
+# .1B 16x, deeply compressed 
+# model_path='/data/models/01b-pre-x59-16x-901'
+
 #v5.9
-# model_path='/data-xsel01/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-x059/rwkv-init' 
+# model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/rwkv-init'   #unmodified model,  pretrained by us 
 # model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01B-relu-diag-pretrain/rwkv-25'
 # model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01B-relu-diag-pretrain/rwkv-35'
 
 # model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run1/rwkv-7'  # old
 # model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/rwkv-init'
 # model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run2/rwkv-24'  #Only head.l1 tuned
+
 # #Only head.l1 tuned. KL loss (good
 model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
+
 # only head.l1fc1, head.l1fc2 (MLP) trained. KL loss
 #   very bad
 # model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run5-KL-loss-MLP-KaimingInit/rwkv-230'
@@ -44,8 +49,21 @@ model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run
 
 
 print(f'Loading model - {model_path}')
-model = RWKV(model=model_path, strategy='cuda fp16', verbose=True)
-# model = RWKV(model=model_path, strategy='cuda fp16', verbose=False,
+
+# xzl: for strategy, cf: https://pypi.org/project/rwkv/
+#
+# Strategy Examples: (device = cpu/cuda/cuda:0/cuda:1/...)
+# 'cpu fp32' = all layers cpu fp32
+# 'cuda fp16' = all layers cuda fp16
+# 'cuda fp16i8' = all layers cuda fp16 with int8 quantization
+# 'cuda fp16i8 *10 -> cpu fp32' = first 10 layers cuda fp16i8, then cpu fp32 (increase 10 for better speed)
+# 'cuda:0 fp16 *10 -> cuda:1 fp16 *8 -> cpu fp32' = first 10 layers cuda:0 fp16, then 8 layers cuda:1 fp16, then cpu fp32
+#
+
+model = RWKV(model=model_path, 
+             strategy='cuda fp16', 
+            # strategy='cuda fp16i8',       # xzl: TBD
+             verbose=True)
 #              head_K=200, load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy')
 
 pipeline = PIPELINE(model, "rwkv_vocab_v20230424")
@@ -70,9 +88,10 @@ args = PIPELINE_ARGS(temperature = 1.0, top_p = 0.7, top_k = 100, # top_k = 0 th
 pipeline.generate(ctx, token_count=200, args=args, callback=my_print)
 print('\n')
 
-print(f"stats: runs: {model.stat_runs} \
-      cls/run {model.stat_loaded_cls/model.stat_runs:.2f} \
-      tokens/run {model.state_loaded_tokens/model.stat_runs/65535:.2f}")
+if model.stat_runs != 0:
+    print(f"stats: runs: {model.stat_runs} \
+        cls/run {model.stat_loaded_cls/model.stat_runs:.2f} \
+        tokens/run {model.state_loaded_tokens/model.stat_runs/65535:.2f}")
       
 '''
 # xzl: what are thsse for??? demo cut a long prompt into pieces and feed??

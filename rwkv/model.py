@@ -25,8 +25,15 @@ else:
         return ob
     MyFunction = __nop
     MyStatic = __nop
+'''
+xzl: below implement key ops: 
+    wkv
+    matmul 
+        - mm8_seq  (torch/cuda variants
+        - mm8_one    (torch/cuda variants...
+        - matmul_float (specialized for fp16...
+'''
 
-# xzl compile cuda etc...
 if os.environ.get('RWKV_CUDA_ON') == '1':
     from torch.utils.cpp_extension import load
     try:
@@ -49,6 +56,9 @@ if os.environ.get('RWKV_CUDA_ON') == '1':
             is_python_module=False)
         DISABLE_CUBLAS_GEMM = True
 
+    # xzl: below - invoke custom cuda ops loaded above? 
+    #       e.g. torch.ops.rwkv.wkv_forward
+
     @MyStatic
     def cuda_wkv(T: int, C: int, w, u, k, v, aa, bb, pp):
         assert 1 * C % min(C, 32) == 0
@@ -61,6 +71,8 @@ if os.environ.get('RWKV_CUDA_ON') == '1':
         y = torch.empty((T, C), device=w.device, memory_format=torch.contiguous_format, dtype=k.dtype)
         torch.ops.rwkv.wkv_forward(1, T, C, w, u, k, v, y, aa, bb, pp)
         return y, aa, bb, pp
+
+    # xzl: below - int8 versions of mm (need to reimple this?
     @MyStatic
     def cuda_mm8_seq(B: int, N: int, M: int, x, w, mx, rx, my, ry):
         assert x.dtype == mx.dtype == rx.dtype == my.dtype == ry.dtype
@@ -88,7 +100,7 @@ if os.environ.get('RWKV_CUDA_ON') == '1':
 else:
     os.environ["RWKV_CUDA_ON"] = '0'
 
-
+# xzl: dispatch mm8_seq/one to cuda and "torch" variants (i.e. non cuda
 @MyStatic
 def torch_mm8_seq(x, w, mx, rx, my, ry):
     return x @ ((w.to(dtype=x.dtype) + 0.5) * ry * rx + my + mx)
@@ -142,7 +154,8 @@ def matmul(a, b, mx: Optional[torch.Tensor]=None, rx: Optional[torch.Tensor]=Non
         raise ValueError("Unsupported dtype")
 
 
-# xzl: speiclized matmul for certain shapes....
+# xzl: matmul_float
+#       speiclized matmul for CUDA, for fp16, for certain shapes....
 if os.environ.get('RWKV_CUDA_ON') == '1' and not DISABLE_CUBLAS_GEMM:
     def matmul_float(a, b, output_dtype: Optional[torch.dtype]=None):
         if output_dtype is None:
@@ -165,11 +178,11 @@ if os.environ.get('RWKV_CUDA_ON') == '1' and not DISABLE_CUBLAS_GEMM:
         else:
             return (a @ b).to(output_dtype)
 
-else:
+else:       # xzl: generic, slow path
     def matmul_float(a, b, output_dtype: Optional[torch.dtype]=None):
         return (a @ b).to(output_dtype)
 
-
+# xzl: pytorch on MSFT directX...
 if os.environ.get('RWKV_DML_ON') == '1':
     import torch_directml
     print("PyTorch with DirectML Enabled")
@@ -207,7 +220,7 @@ class RWKV(MyModule):
             self.RESCALE_LAYER = 6 if 'fp16' in strategy else 0
         prxxx(f'RWKV_JIT_ON {os.environ["RWKV_JIT_ON"]} RWKV_CUDA_ON {os.environ["RWKV_CUDA_ON"]} RESCALE_LAYER {self.RESCALE_LAYER}\n')
 
-        # xzl: load model... and convert params (eg fp16) per "strategy"
+        # xzl: load model... and convert params (saved as bf16 default) per "strategy"
         args.MODEL_NAME = args.MODEL_NAME.strip()
         if not args.MODEL_NAME.endswith('.pth'):
             args.MODEL_NAME += '.pth'
@@ -235,7 +248,7 @@ class RWKV(MyModule):
             # args.n_ffn = w['blocks.0.ffn.key.weight'].shape[0] # note: transposed matrix
             args.n_layer = 0
             keys = list(w.keys())
-            # xzl: detect model version, 
+            # xzl: guess model version, 
             self.version = 4
             for x in keys:
                 layer_id = int(x.split('.')[1]) if ('blocks.' in x) else 0
@@ -289,6 +302,19 @@ class RWKV(MyModule):
                 self.token2cls = torch.tensor(token2cls, device='cuda')
                 self.clusters = clusters
 
+                # sanity chk: plot histogram statistics of cluster sizes... 
+                '''
+                import matplotlib.pyplot as plt
+                data = [len(sublist) for sublist in clusters]
+                # plt.hist(data, bins=20, edgecolor='black')
+                plt.hist(data, bins=range(min(data), max(data) + 2), edgecolor='black')
+                plt.title('Histogram of cluster sizes')
+                plt.xlabel('Cluster size bins')
+                plt.ylabel('# of clusters')
+                plt.savefig('cluster-size-histogram.jpg', format='jpg', dpi=300)
+                breakpoint()
+                '''
+
                 self.clusters_tensor = [] # also save as list of tensors
                 for ccc in self.clusters:
                     self.clusters_tensor.append(
@@ -307,7 +333,7 @@ class RWKV(MyModule):
                 self.occurrence = {}  
 
             ####################### Compute strategy   
-            # xzl: & print out "strategy" for each layer... (quant weight? activation??
+            # xzl: & print out "strategy" for each layer... (NB quant weight, no activation)
 
             s = [x.strip().split(' ') for x in strategy.split('->')]
             plan = [0] * len(s)
@@ -378,7 +404,7 @@ class RWKV(MyModule):
             prxxx()
 
             ####################### Load weights to self.w
-
+            # xzl: below - convert weights per layer strategy...
             if not ALREADY_CONVERTED:
                 try: # precompute embedding         xzl: fuse layers?? (emb + ln0?
                     w['emb.weight'] = F.layer_norm(w['emb.weight'], (args.n_embd,), weight=w['blocks.0.ln0.weight'], bias=w['blocks.0.ln0.bias'])
@@ -452,7 +478,7 @@ class RWKV(MyModule):
                         if (len(w[x].shape) == 2) and ('emb' not in x) and ('_w1' not in x) and ('_w2' not in x):
                             if WTYPE != torch.uint8:  # xzl: (default weight) cast to WTYPE
                                 w[x] = w[x].to(dtype=WTYPE)
-                            else:   # xzl: cast to uint8 (?), compute min/max, then scale..
+                            else:   # xzl: cast to torch.uint8, compute min/max, then scale..
                                 w[x] = w[x].float()
 
                                 if w[x].shape[0] > w[x].shape[1]:

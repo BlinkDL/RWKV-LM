@@ -31,7 +31,15 @@ shall init as scale=1 (norm
 
 ---------------------------------------------------------------
 
-WORKFLOW: clustserd cls head    8/28/2024
+clustserd cls head    8/28/2024
+
+TODO: 
+- 0.1B: try it on: a newer x59 chkpt, e.g. one that can achieve higher accuracy
+- 0.4B: try it out on: x59
+- play with [minK, maxK, probs] and see how sensitive they are 
+
+
+WORKFLOW: 
 
 * create a workdir, e.g. out/01b-cls-mine/    <---- use my version as the template
 

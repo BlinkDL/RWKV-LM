@@ -82,11 +82,13 @@ from lm_eval.api.model import TemplateLM
 
 #Only head.l1 tuned, KL loss
 # acc: .331 (openai). minK=3, maxK=100, minProb=.95 <--- NEED TO CAREFULLY VERIFY
-MODEL_NAME='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
+# MODEL_NAME='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
 
 # 01B --- 01b-pre-x59
-# acc .37 (openai) 
+# acc .37 (openai) 8x (default)
 # MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
+# 16x 
+MODEL_NAME = '/data/models/01b-pre-x59-16x-901'
 
 # 04B --- official 
 # MODEL_NAME = "/data/models/RWKV-5-World-0.4B-v2-20231113-ctx4096"
@@ -392,9 +394,10 @@ def do_eval(model_path, isverbose=False):
     # {'results': {'hellaswag': {'acc': 0.2921728739294961, 'acc_stderr': 0.004538319464111977, 'acc_norm': 0.31955785700059747, 'acc_norm_stderr': 0.0046535230383693855}}, 'versions': {'hellaswag': 0}}
     # print(results['results'])
 
-    print(f"stats: runs: {model.stat_runs} \
-      cls/run {model.stat_loaded_cls/model.stat_runs:.2f} \
-      tokens/run {model.state_loaded_tokens/model.stat_runs/65535:.2f}")
+    if model.stat_runs != 0: 
+        print(f"stats: runs: {model.stat_runs} \
+        cls/run {model.stat_loaded_cls/model.stat_runs:.2f} \
+        tokens/run {model.state_loaded_tokens/model.stat_runs/65535:.2f}")
     
     return results['results']
 
