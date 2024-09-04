@@ -82,13 +82,19 @@ from lm_eval.api.model import TemplateLM
 
 #Only head.l1 tuned, KL loss
 # acc: .331 (openai). minK=3, maxK=100, minProb=.95 <--- NEED TO CAREFULLY VERIFY
-# MODEL_NAME='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
+MODEL_NAME='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
+#MODEL_NAME='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
+#MODEL_NAME='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/04b-pre-x59-8x-cls/rwkv-30'
 
 # 01B --- 01b-pre-x59
 # acc .37 (openai) 8x (default)
 # MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
 # 16x 
 MODEL_NAME = '/data/models/01b-pre-x59-16x-901'
+
+# MODEL_NAME = "/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-cls/from-hpc/0.1b-offical"
+# MODEL_NAME = "/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x52/rwkv-1455"
+# MODEL_NAME = "/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-cls/from-hpc/rwkv-1366"
 
 # 04B --- official 
 # MODEL_NAME = "/data/models/RWKV-5-World-0.4B-v2-20231113-ctx4096"
@@ -186,7 +192,6 @@ MODEL_NAME = '/data/models/01b-pre-x59-16x-901'
 
 eval_tasks = [
         'lambada_openai',
-        
         # 'lambada_standard',
         # 'piqa',
         # 'hellaswag',
