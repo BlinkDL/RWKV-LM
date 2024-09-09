@@ -250,7 +250,9 @@ class RWKV(MyModule):
             keys = list(w.keys())
             # xzl: guess model version, 
             self.version = 4
+            total_parameter_size = 0
             for x in keys:
+                parameter_size = 0
                 layer_id = int(x.split('.')[1]) if ('blocks.' in x) else 0
                 args.n_layer = max(args.n_layer, layer_id+1)
                 if 'ln_x' in x:
@@ -537,11 +539,16 @@ class RWKV(MyModule):
 
                 # xzl: dump per layer info...
                 shape = [i for i in w[x].shape if i != 1]
+                nelement = 0
+
                 if len(shape) > 2:
+                    nelement = shape[0] * shape[1] * shape[2]
                     shape = f" {str(shape[0]).rjust(5)} {str(shape[1]).rjust(5)} {str(shape[2]).rjust(5)}"
                 elif len(shape) > 1:
+                    nelement = shape[0] * shape[1]
                     shape = f" {str(shape[0]).rjust(5)} {str(shape[1]).rjust(5)}      "
                 else:
+                    nelement = shape[0]
                     shape = f" {str(shape[0]).rjust(5)}            "
                 if layer_id == 0 or layer_id >= args.n_layer-1:
                     if print_need_newline:
@@ -549,10 +556,21 @@ class RWKV(MyModule):
                         print_need_newline = False
                     dt = str(w[x].dtype).replace('torch.', '')
                     dt = dt.replace('float32', 'f32').replace('bfloat16', 'bf16').replace('float16', 'f16').replace('uint8', 'i8')
+
+                    if dt == "bf16" or dt == "f16":
+                        parameter_size = nelement * 4
+                    if dt == "f32":
+                        parameter_size = nelement * 8
+
+                    total_parameter_size += parameter_size
+
                     prxxx(x.ljust(32), dt.rjust(4), str(w[x].device).rjust(8), shape, ' (pinned)' if w[x].is_pinned() else '')
                 else:
                     print_need_newline = True
                     prxxx('.', end = '', flush = True)
+
+            GiB = 1024 * 1024 * 1024
+            prxxx("parameter size: ", f"{total_parameter_size / GiB:.3f} GB")
             
             if convert_and_save_and_exit:
                 w['_strategy'] = args.strategy_string
