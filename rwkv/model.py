@@ -266,6 +266,8 @@ class RWKV(MyModule):
                     self.version = max(5.8, self.version)
                 if 'key_diag' in x:  # xzl
                     self.version = max(5.9, self.version)
+                if 'ffn.key_diag' in x:
+                    self.version = max(5.95, self.version)
                 if 'time_maa' in x:
                     self.version = max(6, self.version)
                 if int(self.version) == 6 and 'time_faaaa' in x:
@@ -275,8 +277,10 @@ class RWKV(MyModule):
             if self.version in [5.8, 5.9]: # our mod
                 # xzl: is this right? 
                 args.n_att = w['blocks.0.att.key2.weight'].shape[0] # note: transposed matrix
-                #args.n_ffn = w['blocks.0.ffn.key.weight'].shape[0] # unchanged
-                args.n_ffn = w['blocks.0.ffn.key2.weight'].shape[0] # unchanged
+                args.n_ffn = w['blocks.0.ffn.key.weight'].shape[0] # unchanged
+            elif self.version in [5.95]:
+                args.n_att = w['blocks.0.att.key2.weight'].shape[0] # note: transposed matrix
+                args.n_ffn = w['blocks.0.ffn.key2.weight'].shape[0]
             else: # official model
                 args.n_att = w['blocks.0.att.key.weight'].shape[0] # note: transposed matrix
                 args.n_ffn = w['blocks.0.ffn.key.weight'].shape[0] # note: transposed matrix
@@ -462,7 +466,7 @@ class RWKV(MyModule):
                             w[x] = -torch.exp(w[x].float())
                         elif int(self.version) == 5:
                             w[x] = torch.exp(-torch.exp(w[x].float())).reshape(-1,1,1)
-                            if self.version in [5.2, 5.8, 5.9]:
+                            if self.version in [5.2, 5.8, 5.9, 5.95]:
                                 w[x] = w[x].reshape(args.n_head, -1, 1)
                         elif self.version == 6.0:
                             w[x] = w[x].float().reshape(args.n_head, -1, 1)
@@ -474,7 +478,7 @@ class RWKV(MyModule):
                                 w[x] = w[x].float().reshape(-1,1,1)
                             else:
                                 w[x] = torch.exp(w[x].float()).reshape(-1,1,1)
-                            if self.version in [5.2, 5.8, 5.9, 6.0]:
+                            if self.version in [5.2, 5.8, 5.9, 5.95, 6.0]:
                                 w[x] = w[x].reshape(args.n_head, -1, 1)
                     elif '.ln_x' in x: # need fp32 for group_norm
                         w[x] = w[x].float()
@@ -705,8 +709,9 @@ class RWKV(MyModule):
     
     # xzl: ours, based on above
     @MyFunction
-    def ffn_one_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, 
-                     kw1, kw2, vw1, vw2,
+    def ffn_one_v5_95(self, x, sx, ln_w, ln_b, k_mix, r_mix, 
+                     kw1, kw2, kwdiag,
+                     vw1, vw2, vwdiag,
                      rw1, rw2, rwdiag, 
                      kmx, krx, kmy, kry, vmx, vrx, vmy, vry, 
                      rmx1, rrx1, rmy1, rry1,
@@ -726,11 +731,49 @@ class RWKV(MyModule):
         k = matmul(kx, kw1, kmx, krx, kmy, kry)
         k = torch.relu(k) ** 2
         k = matmul(k, kw2, kmx, krx, kmy, kry)
+        k1 = kx @ torch.diag(kwdiag)
+        k += F.pad(k1,(0, k.shape[-1] - k1.shape[-1]))
 
         vx = torch.relu(k) ** 2
         v = matmul(vx, vw1, vmx, vrx, vmy, vry)
         v = torch.relu(v) ** 2
         v = matmul(v, vw2, vmx, vrx, vmy, vry)
+        v1 = k @ torch.diag(vwdiag)
+        
+        if len(v1.shape) == 1:
+            v1_trunc = v1[:v.shape[-1]]
+        elif len(v1.shape) == 2:
+            v1_trunc = v1[:, :v.shape[-1]]
+        else:
+            v1_trunc = v1[:, :, :v.shape[-1]]
+
+        v += v1_trunc
+
+        out = r * v
+        return x + out, xx
+
+    @MyFunction
+    def ffn_one_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw,
+                         rw1, rw2, rwdiag, 
+                         kmx, krx, kmy, kry, vmx, vrx, vmy, vry, 
+                         rmx1, rrx1, rmy1, rry1,
+                         rmx2, rrx2, rmy2, rry2,
+                         ):
+        xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
+        kx = xx * k_mix + sx * (1 - k_mix)
+        rx = xx * r_mix + sx * (1 - r_mix)
+
+        # r = torch.sigmoid(matmul(rx, rw, rmx, rrx, rmy, rry)) # orig
+        r = matmul(rx, rw1, rmx1, rrx1, rmy1, rry1) 
+        r = torch.relu(r) ** 2
+        r = matmul(r, rw2, rmx2, rrx2, rmy2, rry2)
+        r += rx @ torch.diag(rwdiag)   # xzl: should use matmul??
+        r = torch.sigmoid(r)
+
+        k = matmul(kx, kw, kmx, krx, kmy, kry)
+
+        vx = torch.relu(k) ** 2
+        v = matmul(vx, vw, vmx, vrx, vmy, vry)
 
         out = r * v
         return x + out, xx
@@ -770,8 +813,7 @@ class RWKV(MyModule):
     
     # xzl: ours, based on above
     @MyFunction
-    def ffn_seq_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, 
-                     kw1, kw2, vw1, vw2,
+    def ffn_seq_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix,  kw, vw,
                      rw1, rw2, rwdiag, 
                      kmx, krx, kmy, kry, 
                      vmx, vrx, vmy, vry, 
@@ -790,14 +832,55 @@ class RWKV(MyModule):
         r += rx @ torch.diag(rwdiag)   # xzl: use matmul??
         r = torch.sigmoid(r)        
 
+        k = matmul(kx, kw, kmx, krx, kmy, kry)
+
+        vx = torch.relu(k) ** 2
+        v = matmul(vx, vw, vmx, vrx, vmy, vry)
+
+        out = r * v
+        return x + out, xx[-1,:]
+
+    @MyFunction
+    def ffn_seq_v5_95(self, x, sx, ln_w, ln_b, k_mix, r_mix, 
+                         kw1, kw2, kwdiag,
+                         vw1, vw2, vwdiag,
+                         rw1, rw2, rwdiag, 
+                         kmx, krx, kmy, kry, 
+                         vmx, vrx, vmy, vry, 
+                         rmx1, rrx1, rmy1, rry1,
+                         rmx2, rrx2, rmy2, rry2,
+                         ):
+        xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
+        sx = torch.cat((sx.unsqueeze(0), xx[:-1,:]))
+        kx = xx * k_mix + sx * (1 - k_mix)
+        rx = xx * r_mix + sx * (1 - r_mix)
+
+        # r = torch.sigmoid(matmul(rx, rw, rmx, rrx, rmy, rry)) # orig
+        r = matmul(rx, rw1, rmx1, rrx1, rmy1, rry1) 
+        r = torch.relu(r) ** 2
+        r = matmul(r, rw2, rmx2, rrx2, rmy2, rry2)
+        r += rx @ torch.diag(rwdiag)   # xzl: use matmul??
+        r = torch.sigmoid(r)        
+
         k = matmul(kx, kw1, kmx, krx, kmy, kry)
         k = torch.relu(k) ** 2
         k = matmul(k, kw2, kmx, krx, kmy, kry)
+        k1 = kx @ torch.diag(kwdiag)
+        k += F.pad(k1,(0, k.shape[-1] - k1.shape[-1]))
 
         vx = torch.relu(k) ** 2
         v = matmul(vx, vw1, vmx, vrx, vmy, vry)
         v = torch.relu(v) ** 2
         v = matmul(v, vw2, vmx, vrx, vmy, vry)
+        v1 = k @ torch.diag(vwdiag)
+
+        if len(v1.shape) == 1:
+            v1_trunc = v1[:v.shape[-1]]
+        elif len(v1.shape) == 2:
+            v1_trunc = v1[:, :v.shape[-1]]
+        else:
+            v1_trunc = v1[:, :, :v.shape[-1]]
+        v += v1_trunc
 
         out = r * v
         return x + out, xx[-1,:]
@@ -1538,7 +1621,7 @@ class RWKV(MyModule):
                             ATT = self.cuda_att_seq_v5_2
                     elif self.version == 5.8:
                         ATT = self.att_seq_v5_8
-                    elif self.version == 5.9:
+                    elif self.version == 5.9 or self.version == 5.95:
                         ATT = self.att_seq_v5_9
                     elif self.version == 6.0:
                         ATT = self.att_seq_v6_0
@@ -1551,6 +1634,8 @@ class RWKV(MyModule):
                         FFN = self.ffn_seq_v5_8
                     elif self.version == 5.9:
                         FFN = self.ffn_seq_v5_9
+                    elif self.version == 5.95:
+                        FFN = self.ffn_seq_v5_95
                 else:
                     ATT = self.att_one
                     if self.version == 5:
@@ -1561,7 +1646,7 @@ class RWKV(MyModule):
                         ATT = self.att_one_v5_1 # same as v5.1
                     elif self.version == 5.8:
                         ATT = self.att_one_v5_8
-                    elif self.version == 5.9:
+                    elif self.version == 5.9 or self.version == 5.95:
                         ATT = self.att_one_v5_9
                     elif self.version == 6.0:
                         ATT = self.att_one_v6_0
@@ -1572,16 +1657,19 @@ class RWKV(MyModule):
                         FFN = self.ffn_one_v5_8
                     elif self.version == 5.9:
                         FFN = self.ffn_one_v5_9
+                    elif self.version == 5.95:
+                        FFN = self.ffn_one_v5_95
 
                 x = x.to(dtype=atype, device=dev) #xzl:x input
 
-                if self.version in [5.8, 5.9]:
+                if self.version in [5.8, 5.9, 5.95]:
                     kw1 = w[f'{att}key1.weight']
                     kw2 = w[f'{att}key2.weight']                    
                     vw1 = w[f'{att}value1.weight']
                     vw2 = w[f'{att}value2.weight']
                     rw1 = w[f'{att}receptance1.weight']
                     rw2 = w[f'{att}receptance2.weight']                    
+
 
                     kmx1 = w[f'{att}key1.weight_mx'] if wtype == torch.uint8 else x
                     krx1 = w[f'{att}key1.weight_rx'] if wtype == torch.uint8 else x
@@ -1613,7 +1701,7 @@ class RWKV(MyModule):
                     rmy2 = w[f'{att}receptance2.weight_my'] if wtype == torch.uint8 else x
                     rry2 = w[f'{att}receptance2.weight_ry'] if wtype == torch.uint8 else x
 
-                    if self.version == 5.9:
+                    if self.version == 5.9 or self.version == 5.95:
                         kwdiag = w[f'{att}key_diag']
                         vwdiag = w[f'{att}value_diag']
                         rwdiag = w[f'{att}receptance_diag']
@@ -1657,10 +1745,10 @@ class RWKV(MyModule):
                     grx = w[f'{att}gate.weight_rx'] if wtype == torch.uint8 else x
                     gmy = w[f'{att}gate.weight_my'] if wtype == torch.uint8 else x
                     gry = w[f'{att}gate.weight_ry'] if wtype == torch.uint8 else x
-                elif self.version in [5.8, 5.9]:
+                elif self.version in [5.8, 5.9, 5.95]:
                     gw1 = w[f'{att}gate1.weight']
                     gw2 = w[f'{att}gate2.weight']
-                    if self.version ==5.9:
+                    if self.version ==5.9 or self.version == 5.95:
                         gwdiag = w[f'{att}gate_diag']
                     
                     gmx1 = w[f'{att}gate1.weight_mx'] if wtype == torch.uint8 else x
@@ -1729,7 +1817,7 @@ class RWKV(MyModule):
                         gmx, grx, gmy, gry,
                         omx, orx, omy, ory,
                         )                    
-                elif self.version in [5.9]:
+                elif self.version in [5.9, 5.95]:
                     x, state[i*3+0], state[i*3+1] = ATT(
                         x, state[i*3+0], state[i*3+1],
                         w[f'{bbb}ln1.weight'], w[f'{bbb}ln1.bias'],
@@ -1771,11 +1859,12 @@ class RWKV(MyModule):
 
                     #kw = w[f'{ffn}key.weight']
                     #vw = w[f'{ffn}value.weight']
-                if self.version in [5.8, 5.9]:
-                    kw1 = w[f'{ffn}key1.weight']
-                    kw2 = w[f'{ffn}key2.weight']
-                    vw1 = w[f'{ffn}value1.weight']
-                    vw2 = w[f'{ffn}value2.weight']
+                if self.version in [5.8, 5.9, 5.95]:
+                    if self.version in [5.95]:
+                        kw1 = w[f'{ffn}key1.weight']
+                        kw2 = w[f'{ffn}key2.weight']
+                        vw1 = w[f'{ffn}value1.weight']
+                        vw2 = w[f'{ffn}value2.weight']
 
                     rw1 = w[f'{ffn}receptance1.weight']
                     rw2 = w[f'{ffn}receptance2.weight']
@@ -1792,6 +1881,10 @@ class RWKV(MyModule):
 
                     if self.version == 5.9:
                         rwdiag = w[f'{ffn}receptance_diag']
+                    if self.version == 5.95:
+                        kwdiag = w[f'{ffn}key_diag']
+                        vwdiag = w[f'{ffn}value_diag']
+
                 else: 
                     rw = w[f'{ffn}receptance.weight']
                     rmx = w[f'{ffn}receptance.weight_mx'] if wtype == torch.uint8 else x
@@ -1828,6 +1921,20 @@ class RWKV(MyModule):
                         rmx1, rrx1, rmy1, rry1,
                         rmx2, rrx2, rmy2, rry2,
                         )
+                elif self.version in [5.95]:
+                    x, state[offset] = FFN(
+                        x, state[offset],
+                        w[f'{bbb}ln2.weight'], w[f'{bbb}ln2.bias'],
+                        w[f'{ffn}time_mix_k'], w[f'{ffn}time_mix_r'],
+                        kw1, kw2, kwdiag,
+                        vw1, vw2, vwdiag,
+                        rw1, rw2, rwdiag, 
+                        kmx, krx, kmy, kry,
+                        vmx, vrx, vmy, vry,
+                        rmx1, rrx1, rmy1, rry1,
+                        rmx2, rrx2, rmy2, rry2,
+                        )
+
                 elif self.version in [5.8]:
                     x, state[offset] = FFN(
                         x, state[offset],
