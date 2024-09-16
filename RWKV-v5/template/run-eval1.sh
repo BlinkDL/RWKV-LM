@@ -24,8 +24,8 @@ nvidia-smi
 
 # recent_file=$(find "." -regex ".*[0-9].pth" -type f -printf '%T+ %p\n' | sort -r | head -n 1 | awk '{print $2}')
 
-# sort in ascending time
-chkpts=$(find "." -regex ".*[0-9].pth" -type f -printf '%T+ %p\n' | sort | awk '{print $2}')
+# sort in ascending time. NB: dont recurse into sub dirs
+chkpts=$(find "." -maxdepth 1 -regex ".*[0-9].pth" -type f -printf '%T+ %p\n' | sort | awk '{print $2}')
 
 for chkpt in $chkpts; do
     bname=`basename $chkpt`

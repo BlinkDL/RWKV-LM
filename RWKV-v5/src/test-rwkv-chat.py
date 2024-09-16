@@ -53,7 +53,7 @@ model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run
 
 print(f'Loading model - {model_path}')
 
-# xzl: for strategy, cf: https://pypi.org/project/rwkv/
+# xzl: for strategy, cf: https://pypi.org/project/rwkv/ for more ex
 #
 # Strategy Examples: (device = cpu/cuda/cuda:0/cuda:1/...)
 # 'cpu fp32' = all layers cpu fp32
@@ -62,16 +62,22 @@ print(f'Loading model - {model_path}')
 # 'cuda fp16i8 *10 -> cpu fp32' = first 10 layers cuda fp16i8, then cpu fp32 (increase 10 for better speed)
 # 'cuda:0 fp16 *10 -> cuda:1 fp16 *8 -> cpu fp32' = first 10 layers cuda:0 fp16, then 8 layers cuda:1 fp16, then cpu fp32
 #
+# Use '+' for STREAM mode, which can save VRAM too, and it is sometimes faster
+# 'cuda fp16i8 *10+' = first 10 layers cuda fp16i8, then fp16i8 stream the rest to it (increase 10 for better speed)
+# 'cuda fp16i8 *0+ -> cpu fp32 *1' = stream all layers cuda fp16i8, last 1 layer [ln_out+head] cpu fp32
+
 
 model = RWKV(model=model_path, 
              strategy='cuda fp16', 
-            # strategy='cuda fp16i8',       # xzl: TBD
+            # strategy='cuda fp16i8',
              verbose=True)
 #              head_K=200, load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy')
 
 pipeline = PIPELINE(model, "rwkv_vocab_v20230424")
 
-ctx = "\nElon Musk has"
+# ctx = "\nElon Musk has"
+# ex prompt from paper: https://arxiv.org/pdf/2305.07759
+ctx = "\nAlice was so tired when she got back home so she went"
 print(ctx, end='')
 
 def my_print(s):

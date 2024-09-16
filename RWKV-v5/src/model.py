@@ -1294,7 +1294,7 @@ class RWKV_CMix_x0595_rkv(MyModule):
             - more compute + memory (which is against our rule)
 
         '''
-        k1 = x * self.key_diag             
+        k1 = xk * self.key_diag             
         k1 = k1.sum(dim=-1, keepdim=True)  
         k += k1
 

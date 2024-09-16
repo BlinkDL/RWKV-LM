@@ -8,7 +8,9 @@ IMPORTANT: use Python3.10
 
 ## to train (step1, one time)
 
-to train a new model: cr a subdir with the name as the training, e.g. 
+cr the result dir, e.g. name it as 01b-pre-x52. note the dir name, which 
+will automaticaly become SLURM job name -- easier to find 
+
 
 ```
 cd RWKV-LM/RWKV-v5/out
@@ -21,18 +23,22 @@ cd 01b-pretrain-x52
 cp ../../template/*.sh . 
 ```
 
-modify model-config.sh to set model variant, # of layers, etc. 
+Files to change: 
 
-modify run-train.sh to change training hyperparams, etc
+* model-config.sh to set model variant, # of layers, etc. 
+* submit-train.sh for slurm configs, e.g. # and types of gpus 
+* run-train.sh to change training hyperparams, e.g. learning rate, etc
+* run-eval1.sh to change evaluation hyperparams, etc
 
-modify run-eval1.sh to change evaluation hyperparams, etc
+init the model weights, 
+grab a GPU node with interactive console: 
 
-## to train (step2, repeat)
-
-init the model weights, can execute from non-GPU instance
+ijob -A xsel -p interactive --time=0-00:30:00 --gres=gpu:1 --mem=128G 
 ```
 ./prep.sh  
 ```
+
+## to train (step2, repeat)
 
 submit training job
 ```
