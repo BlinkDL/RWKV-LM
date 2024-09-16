@@ -284,8 +284,8 @@ class RWKV(MyModule):
             if 'head_l1.weight' in w: # use compressed cls heads                
                 import numpy as np
                 args.head_K = 200    # XXX
-                #args.load_token_cls='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/04b-pre-x59-8x-cls/from-hpc/rwkv-2405-cls.npy'
-                args.load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
+                args.load_token_cls='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/04b-pre-x59-8x-cls/from-hpc/rwkv-2405-cls.npy'
+                #args.load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
 
                 K=args.head_K
                 labels = np.load(args.load_token_cls)
@@ -427,7 +427,9 @@ class RWKV(MyModule):
             
             # xzl: below - convert weights per layer strategy...
             keys = list(w.keys())
+            total_parameter_size = 0
             for x in keys:
+                parameter_size = 0
                 w[x].requires_grad = False
                 layer_id = int(x.split('.')[1]) if ('blocks.' in x) else 0
                 if ('ln_out.' in x) or ('head.' in x):
@@ -503,7 +505,7 @@ class RWKV(MyModule):
 
                                 w[x] = torch.clip(torch.floor(w[x] * 256), min=0, max=255).to(dtype=torch.uint8)
                                 w[x+'_mx'] = w[x+'_mx'].to(dtype=ATYPE).contiguous()
-                                # 16 might be further quantization ro storage efficiency
+                                # 16 might be further quantization for storage efficiency
                                 w[x+'_rx'] = (w[x+'_rx'] / 16).to(dtype=ATYPE).contiguous()
                                 w[x+'_my'] = w[x+'_my'].to(dtype=ATYPE).contiguous()
                                 w[x+'_ry'] = (w[x+'_ry'] / 16).to(dtype=ATYPE).contiguous()
@@ -537,22 +539,44 @@ class RWKV(MyModule):
 
                 # xzl: dump per layer info...
                 shape = [i for i in w[x].shape if i != 1]
+                nelement = 0
+
                 if len(shape) > 2:
+                    nelement = shape[0] * shape[1] * shape[2]
                     shape = f" {str(shape[0]).rjust(5)} {str(shape[1]).rjust(5)} {str(shape[2]).rjust(5)}"
                 elif len(shape) > 1:
+                    nelement = shape[0] * shape[1]
                     shape = f" {str(shape[0]).rjust(5)} {str(shape[1]).rjust(5)}      "
                 else:
+                    nelement = shape[0]
                     shape = f" {str(shape[0]).rjust(5)}            "
+
+                dt = str(w[x].dtype).replace('torch.', '')
+                dt = dt.replace('float32', 'f32').replace('bfloat16', 'bf16').replace('float16', 'f16').replace('uint8', 'i8')
+
+                if dt == "bf16" or dt == "f16":
+                    parameter_size = nelement * 2
+                elif dt == "f32":
+                    parameter_size = nelement * 4
+                elif dt == "i8":
+                    parameter_size = nelement * 1
+
+                total_parameter_size += parameter_size
+
+                MiB = 1024 * 1024
+
                 if layer_id == 0 or layer_id >= args.n_layer-1:
                     if print_need_newline:
                         prxxx('\n', end = '')
                         print_need_newline = False
-                    dt = str(w[x].dtype).replace('torch.', '')
-                    dt = dt.replace('float32', 'f32').replace('bfloat16', 'bf16').replace('float16', 'f16').replace('uint8', 'i8')
-                    prxxx(x.ljust(32), dt.rjust(4), str(w[x].device).rjust(8), shape, ' (pinned)' if w[x].is_pinned() else '')
+
+                    prxxx(x.ljust(32), dt.rjust(4), str(w[x].device).rjust(8), shape,
+                            parameter_size / MiB, ' (pinned)' if w[x].is_pinned() else '')
                 else:
                     print_need_newline = True
                     prxxx('.', end = '', flush = True)
+
+            prxxx("parameter size: ", f"{total_parameter_size / MiB:.3f} MB")
             
             if convert_and_save_and_exit:
                 w['_strategy'] = args.strategy_string

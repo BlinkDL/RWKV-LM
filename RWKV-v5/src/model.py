@@ -149,7 +149,7 @@ if 'x060' in os.environ["RWKV_MY_TESTING"]:
         def RUN_CUDA_RWKV6(B, T, C, H, r, k, v, w, u):
             return WKV_6.apply(B, T, C, H, r, k, v, w, u)
 
-elif os.environ["RWKV_MY_TESTING"] in ['x052', 'x058', 'x059']:
+elif os.environ["RWKV_MY_TESTING"] in ['x052', 'x058', 'x059', 'x0595']:
     import platform
     if platform.system() == 'Darwin':
         wkv5_gpu = load(name='wkv5', sources=['metal/wkv5_op.mm'], 
@@ -1226,6 +1226,95 @@ class RWKV_CMix_x059_rkv(MyModule):
             r = torch.relu(r) ** 2
         r = self.receptance2(r)
         return torch.sigmoid(r) * kv
+
+class RWKV_CMix_x0595_rkv(MyModule):
+    # pretrain: decomposed='rkv'
+    # (cf comments below
+    def __init__(self, args, layer_id, decomposed='r'):
+        super().__init__()
+        self.args = args
+        self.layer_id = layer_id
+        self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
+        self.decomposed = decomposed
+
+        self.hasrelu = True
+        if self.args.NoReLu:
+            self.hasrelu = False
+
+        with torch.no_grad():  # fancy init of time_mix
+            ratio_1_to_almost0 = 1.0 - (layer_id / args.n_layer)  # 1 to ~0
+            ddd = torch.ones(1, 1, args.n_embd)
+            for i in range(args.n_embd):
+                ddd[0, 0, i] = i / args.n_embd
+            self.time_mix_k = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))
+            self.time_mix_r = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))
+        
+        # xzl: May 2024 below upper projection n_embd->(3.5x)n_embed is different than 
+        # others, i.e. n_embd->n_embd projection
+        # 1. if we follow the theory of svd for finetuning, it's gonna be         
+        # n_embd -> n_embd//svdfac ->dim_ffn (b/c the svd rank) which creates a very narrow 
+        # bottleneck. this seems to be at odds with the rationale of upper projection
+        #
+        # 2. if we do n_embd -> dim_ffn//svdfac ->dim_ffn, it seems not warranted
+        # by svd theory (i.e. the left/right matrix rank must < n_embd). this 
+        # may be ok for pretraining (tested to work), but not finetuning?
+
+        # orig scale 1.0
+        self.key1 = nn.Linear(args.n_embd, args.dim_ffn//args.svdfac, bias=False)
+        self.key2 = nn.Linear(args.dim_ffn//args.svdfac, args.dim_ffn, bias=False)            
+        self.key_diag = nn.Parameter(torch.ones(args.n_embd))
+    
+        # orig scale 0
+        self.receptance1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
+        self.receptance2 = nn.Linear(args.n_embd//args.svdfac, args.n_embd, bias=False)
+        self.receptance_diag = nn.Parameter(torch.ones(args.n_embd))
+    
+        # cf self.key above, maybe ok for pretraining (to be tested again)
+        # orig scale 0
+        self.value1 = nn.Linear(args.dim_ffn, args.dim_ffn//args.svdfac, bias=False)
+        self.value2 = nn.Linear(args.dim_ffn//args.svdfac, args.n_embd, bias=False)
+        self.value_diag = nn.Parameter(torch.ones(args.dim_ffn))
+
+    @MyFunction
+    def forward(self, x):
+        xx = self.time_shift(x) # xzl: also, mix with prev timestep (not all the way to the beginning
+        xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)
+        xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)
+
+        k = self.key1(xk)
+        if self.hasrelu:
+            k = torch.relu(k) ** 2
+        k = self.key2(k)
+        '''
+        WC: ffn k & v have a higher-dim then diag, which differs from attn
+
+        solution 1: element-wise multiplication 
+            - less compute yet less capacity
+        solution 2: add a projection layer to match a dim
+            - more compute + memory (which is against our rule)
+
+        '''
+        k1 = x * self.key_diag             
+        k1 = k1.sum(dim=-1, keepdim=True)  
+        k += k1
+
+        k = torch.relu(k) ** 2  #xzl: sqr relu, in original design 
+
+        kv = self.value1(k)
+        if self.hasrelu:
+            kv = torch.relu(kv) ** 2        
+        kv = self.value2(kv)
+        v1 = k * self.value_diag
+        v1 = v1.sum(dim=-1, keepdim=True)
+        kv += v1
+
+        # Wr mod
+        r = self.receptance1(xr)
+        r = torch.relu(r) ** 2
+        r = self.receptance2(r)
+        r1 = xr @ torch.diag(self.receptance_diag)
+        r += r1
+        return torch.sigmoid(r) * kv
                     
 ########################################################################################################
 
@@ -1335,6 +1424,8 @@ class Block(nn.Module):
                 self.att = RWKV_Tmix_x058(args, layer_id)
             elif os.environ["RWKV_MY_TESTING"] in ['x059']:
                 self.att = RWKV_Tmix_x059(args, layer_id)                
+            elif os.environ["RWKV_MY_TESTING"] in ['x0595']:
+                self.att = RWKV_Tmix_x059(args, layer_id)                
             elif 'x052' == os.environ["RWKV_MY_TESTING"]:
                 self.att = RWKV_Tmix_x052(args, layer_id)
             elif 'mamba' in os.environ["RWKV_MY_TESTING"]:
@@ -1350,6 +1441,8 @@ class Block(nn.Module):
             self.ffn = RWKV_CMix_x058_r(args, layer_id)            
         elif os.environ["RWKV_MY_TESTING"] in ['x059']:
             self.ffn = RWKV_CMix_x059_r(args, layer_id)
+        elif os.environ["RWKV_MY_TESTING"] in ['x0595']:
+            self.ffn = RWKV_CMix_x0595_rkv(args, layer_id)
         elif 'x052' == os.environ["RWKV_MY_TESTING"]:
             self.ffn = RWKV_CMix_x052(args, layer_id)
         elif 'mamba' in os.environ["RWKV_MY_TESTING"]:
