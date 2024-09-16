@@ -1290,23 +1290,34 @@ class RWKV_CMix_x0595_rkv(MyModule):
 
         solution 1: element-wise multiplication 
             - less compute yet less capacity
+
+            k1 = xk * self.key_diag             
+            k1 = k1.sum(dim=-1, keepdim=True)  
+            k += k1
         solution 2: add a projection layer to match a dim
             - more compute + memory (which is against our rule)
 
         '''
-        k1 = xk * self.key_diag             
-        k1 = k1.sum(dim=-1, keepdim=True)  
-        k += k1
 
+        '''
+        solution 3: padding for up-proj & truncate for down-proj
+        '''
+        k1 = xk @ torch.diag(self.key_diag)
+
+        # padding (up projection)
+        kpad = F.pad(k1, (0, k.shape[-1] - k1.shape[-1]))
+        k += kpad
         k = torch.relu(k) ** 2  #xzl: sqr relu, in original design 
 
         kv = self.value1(k)
         if self.hasrelu:
             kv = torch.relu(kv) ** 2        
         kv = self.value2(kv)
-        v1 = k * self.value_diag
-        v1 = v1.sum(dim=-1, keepdim=True)
-        kv += v1
+
+        # truncate (down projection)
+        v1 = k @ torch.diag(self.value_diag)
+        v1_trunc = v1[:, :, :kv.shape[-1]]
+        kv += v1_trunc
 
         # Wr mod
         r = self.receptance1(xr)
