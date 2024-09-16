@@ -275,7 +275,8 @@ class RWKV(MyModule):
             if self.version in [5.8, 5.9]: # our mod
                 # xzl: is this right? 
                 args.n_att = w['blocks.0.att.key2.weight'].shape[0] # note: transposed matrix
-                args.n_ffn = w['blocks.0.ffn.key.weight'].shape[0] # unchanged
+                #args.n_ffn = w['blocks.0.ffn.key.weight'].shape[0] # unchanged
+                args.n_ffn = w['blocks.0.ffn.key2.weight'].shape[0] # unchanged
             else: # official model
                 args.n_att = w['blocks.0.att.key.weight'].shape[0] # note: transposed matrix
                 args.n_ffn = w['blocks.0.ffn.key.weight'].shape[0] # note: transposed matrix
@@ -704,7 +705,8 @@ class RWKV(MyModule):
     
     # xzl: ours, based on above
     @MyFunction
-    def ffn_one_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw, 
+    def ffn_one_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, 
+                     kw1, kw2, vw1, vw2,
                      rw1, rw2, rwdiag, 
                      kmx, krx, kmy, kry, vmx, vrx, vmy, vry, 
                      rmx1, rrx1, rmy1, rry1,
@@ -721,8 +723,16 @@ class RWKV(MyModule):
         r += rx @ torch.diag(rwdiag)   # xzl: should use matmul??
         r = torch.sigmoid(r)
 
-        vx = torch.relu(matmul(kx, kw, kmx, krx, kmy, kry)) ** 2
-        out = r * matmul(vx, vw, vmx, vrx, vmy, vry)
+        k = matmul(kx, kw1, kmx, krx, kmy, kry)
+        k = torch.relu(k) ** 2
+        k = matmul(k, kw2, kmx, krx, kmy, kry)
+
+        vx = torch.relu(k) ** 2
+        v = matmul(vx, vw1, vmx, vrx, vmy, vry)
+        v = torch.relu(v) ** 2
+        v = matmul(v, vw2, vmx, vrx, vmy, vry)
+
+        out = r * v
         return x + out, xx
     
     # xzl: this 
@@ -760,7 +770,8 @@ class RWKV(MyModule):
     
     # xzl: ours, based on above
     @MyFunction
-    def ffn_seq_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw, 
+    def ffn_seq_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, 
+                     kw1, kw2, vw1, vw2,
                      rw1, rw2, rwdiag, 
                      kmx, krx, kmy, kry, 
                      vmx, vrx, vmy, vry, 
@@ -779,8 +790,16 @@ class RWKV(MyModule):
         r += rx @ torch.diag(rwdiag)   # xzl: use matmul??
         r = torch.sigmoid(r)        
 
-        vx = torch.relu(matmul(kx, kw, kmx, krx, kmy, kry)) ** 2
-        out = r * matmul(vx, vw, vmx, vrx, vmy, vry)
+        k = matmul(kx, kw1, kmx, krx, kmy, kry)
+        k = torch.relu(k) ** 2
+        k = matmul(k, kw2, kmx, krx, kmy, kry)
+
+        vx = torch.relu(k) ** 2
+        v = matmul(vx, vw1, vmx, vrx, vmy, vry)
+        v = torch.relu(v) ** 2
+        v = matmul(v, vw2, vmx, vrx, vmy, vry)
+
+        out = r * v
         return x + out, xx[-1,:]
     
     @MyFunction
@@ -1750,9 +1769,14 @@ class RWKV(MyModule):
                     if self.version in [5.1, 5.2, 6.0]:
                         del gw
 
-                kw = w[f'{ffn}key.weight']
-                vw = w[f'{ffn}value.weight']
+                    #kw = w[f'{ffn}key.weight']
+                    #vw = w[f'{ffn}value.weight']
                 if self.version in [5.8, 5.9]:
+                    kw1 = w[f'{ffn}key1.weight']
+                    kw2 = w[f'{ffn}key2.weight']
+                    vw1 = w[f'{ffn}value1.weight']
+                    vw2 = w[f'{ffn}value2.weight']
+
                     rw1 = w[f'{ffn}receptance1.weight']
                     rw2 = w[f'{ffn}receptance2.weight']
 
@@ -1796,7 +1820,7 @@ class RWKV(MyModule):
                         x, state[offset],
                         w[f'{bbb}ln2.weight'], w[f'{bbb}ln2.bias'],
                         w[f'{ffn}time_mix_k'], w[f'{ffn}time_mix_r'],
-                        kw, vw, 
+                        kw1, kw2, vw1, vw2, 
                         # rw,
                         rw1, rw2, rwdiag, 
                         kmx, krx, kmy, kry,
