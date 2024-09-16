@@ -1262,6 +1262,7 @@ class RWKV_CMix_x0595_rkv(MyModule):
         # orig scale 1.0
         self.key1 = nn.Linear(args.n_embd, args.dim_ffn//args.svdfac, bias=False)
         self.key2 = nn.Linear(args.dim_ffn//args.svdfac, args.dim_ffn, bias=False)            
+        self.key_diag = nn.Parameter(torch.ones(args.n_embd))
     
         # orig scale 0
         self.receptance1 = nn.Linear(args.n_embd, args.n_embd//args.svdfac, bias=False)
@@ -1272,6 +1273,7 @@ class RWKV_CMix_x0595_rkv(MyModule):
         # orig scale 0
         self.value1 = nn.Linear(args.dim_ffn, args.dim_ffn//args.svdfac, bias=False)
         self.value2 = nn.Linear(args.dim_ffn//args.svdfac, args.n_embd, bias=False)
+        self.value_diag = nn.Parameter(torch.ones(args.dim_ffn))
 
     @MyFunction
     def forward(self, x):
@@ -1283,6 +1285,18 @@ class RWKV_CMix_x0595_rkv(MyModule):
         if self.hasrelu:
             k = torch.relu(k) ** 2
         k = self.key2(k)
+        '''
+        WC: ffn k & v have a higher-dim then diag, which differs from attn
+
+        solution 1: element-wise multiplication 
+            - less compute yet less capacity
+        solution 2: add a projection layer to match a dim
+            - more compute + memory (which is against our rule)
+
+        '''
+        k1 = x * self.key_diag             
+        k1 = k1.sum(dim=-1, keepdim=True)  
+        k += k1
 
         k = torch.relu(k) ** 2  #xzl: sqr relu, in original design 
 
@@ -1290,6 +1304,9 @@ class RWKV_CMix_x0595_rkv(MyModule):
         if self.hasrelu:
             kv = torch.relu(kv) ** 2        
         kv = self.value2(kv)
+        v1 = k * self.value_diag
+        v1 = v1.sum(dim=-1, keepdim=True)
+        kv += v1
 
         # Wr mod
         r = self.receptance1(xr)
