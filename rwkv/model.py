@@ -338,7 +338,7 @@ class RWKV(MyModule):
 
             s = [x.strip().split(' ') for x in strategy.split('->')]
             plan = [0] * len(s)
-            stream_i = -1       # xzl: stream -- layerwise loading
+            stream_i = -1       # xzl: stream -- layerwise loading. only DRAM->VRAM. needs mod for storage->DRAM
             stream_count = 0
             to_allocate = args.n_layer + 1
             allocated = 0
@@ -1599,7 +1599,7 @@ class RWKV(MyModule):
                 omy = w[f'{att}output.weight_my'] if wtype == torch.uint8 else x
                 ory = w[f'{att}output.weight_ry'] if wtype == torch.uint8 else x
 
-
+                # xzl: intended to move tensor DRAM->VRAM 
                 if dd.stream:
                     kw = kw.to(device=dev, non_blocking=True)
                     vw = vw.to(device=dev, non_blocking=True)
@@ -1721,7 +1721,7 @@ class RWKV(MyModule):
                         gmx, grx, gmy, gry,
                         omx, orx, omy, ory,
                         )
-                if dd.stream:
+                if dd.stream:       # xzl: release VRAM 
                     del kw, vw, rw, ow
                     if self.version in [5.1, 5.2, 6.0]:
                         del gw
