@@ -30,8 +30,6 @@ Files to change:
 * run-train.sh to change training hyperparams, e.g. learning rate, etc
 * run-eval1.sh to change evaluation hyperparams, etc
 
-## to train (step2, repeat)
-
 init the model weights, 
 grab a GPU node with interactive console: 
 
@@ -39,6 +37,8 @@ ijob -A xsel -p interactive --time=0-00:30:00 --gres=gpu:1 --mem=128G
 ```
 ./prep.sh  
 ```
+
+## to train (step2, repeat)
 
 submit training job
 ```

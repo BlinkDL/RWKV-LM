@@ -32,7 +32,7 @@ path='/scratch/xl6yq/data/models/RWKV-5-World-0.1B-v1-20230803-ctx4096'
 if __name__ == "__main__":
     if len(sys.argv)>1:
         path=sys.argv[1]
-    res = run_lm_eval.do_eval(path, isverbose=False)
+    res = run_lm_eval.do_eval(path, isverbose=False, benchmarks=["lambada_openai"])
     print(f"test-lm-eval {sys.argv[1]}")
     print(res)
 

@@ -306,13 +306,17 @@ class EvalHarnessAdapter(GPT2LM):
         # )
         return results
 
-def do_eval(model_path, isverbose=False):
+def do_eval(model_path, isverbose=False, benchmarks=[]):
     global eval_tasks
 
+    if benchmarks==[]:
+        benchmarks = eval_tasks
     # if isverbose: 
     print(f'Loading model - {model_path}')
 
-    rwkv_model = RWKV(model=model_path, strategy='cuda fp16', verbose=isverbose)
+    # 8/26/24: using fp16 will make some benchmarks (eg openai) nan... so use fp32
+    # rwkv_model = RWKV(model=model_path, strategy='cuda fp16', verbose=isverbose)
+    rwkv_model = RWKV(model=model_path, strategy='cuda fp32', verbose=isverbose)    
     pipeline = PIPELINE(rwkv_model, "rwkv_vocab_v20230424")
 
     RWKV_PAD = pipeline.tokenizer.encode('\n') # we will use '\n' as PAD
@@ -322,7 +326,7 @@ def do_eval(model_path, isverbose=False):
 
     adapter = EvalHarnessAdapter(rwkv_model, pipeline, RWKV_PAD)
     results = adapter.run_eval(
-        eval_tasks=eval_tasks,
+        eval_tasks=benchmarks,
         bootstrap_iters=10000,
     )
     # results ex: 
