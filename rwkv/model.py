@@ -25,8 +25,15 @@ else:
         return ob
     MyFunction = __nop
     MyStatic = __nop
+'''
+xzl: below implement key ops: 
+    wkv
+    matmul 
+        - mm8_seq  (torch/cuda variants
+        - mm8_one    (torch/cuda variants...
+        - matmul_float (specialized for fp16...
+'''
 
-# xzl compile cuda etc...
 if os.environ.get('RWKV_CUDA_ON') == '1':
     from torch.utils.cpp_extension import load
     try:
@@ -49,6 +56,9 @@ if os.environ.get('RWKV_CUDA_ON') == '1':
             is_python_module=False)
         DISABLE_CUBLAS_GEMM = True
 
+    # xzl: below - invoke custom cuda ops loaded above? 
+    #       e.g. torch.ops.rwkv.wkv_forward
+
     @MyStatic
     def cuda_wkv(T: int, C: int, w, u, k, v, aa, bb, pp):
         assert 1 * C % min(C, 32) == 0
@@ -61,6 +71,8 @@ if os.environ.get('RWKV_CUDA_ON') == '1':
         y = torch.empty((T, C), device=w.device, memory_format=torch.contiguous_format, dtype=k.dtype)
         torch.ops.rwkv.wkv_forward(1, T, C, w, u, k, v, y, aa, bb, pp)
         return y, aa, bb, pp
+
+    # xzl: below - int8 versions of mm (need to reimple this?
     @MyStatic
     def cuda_mm8_seq(B: int, N: int, M: int, x, w, mx, rx, my, ry):
         assert x.dtype == mx.dtype == rx.dtype == my.dtype == ry.dtype
@@ -88,7 +100,7 @@ if os.environ.get('RWKV_CUDA_ON') == '1':
 else:
     os.environ["RWKV_CUDA_ON"] = '0'
 
-
+# xzl: dispatch mm8_seq/one to cuda and "torch" variants (i.e. non cuda
 @MyStatic
 def torch_mm8_seq(x, w, mx, rx, my, ry):
     return x @ ((w.to(dtype=x.dtype) + 0.5) * ry * rx + my + mx)
@@ -142,7 +154,8 @@ def matmul(a, b, mx: Optional[torch.Tensor]=None, rx: Optional[torch.Tensor]=Non
         raise ValueError("Unsupported dtype")
 
 
-# xzl: speiclized matmul for certain shapes....
+# xzl: matmul_float
+#       speiclized matmul for CUDA, for fp16, for certain shapes....
 if os.environ.get('RWKV_CUDA_ON') == '1' and not DISABLE_CUBLAS_GEMM:
     def matmul_float(a, b, output_dtype: Optional[torch.dtype]=None):
         if output_dtype is None:
@@ -165,11 +178,11 @@ if os.environ.get('RWKV_CUDA_ON') == '1' and not DISABLE_CUBLAS_GEMM:
         else:
             return (a @ b).to(output_dtype)
 
-else:
+else:       # xzl: generic, slow path
     def matmul_float(a, b, output_dtype: Optional[torch.dtype]=None):
         return (a @ b).to(output_dtype)
 
-
+# xzl: pytorch on MSFT directX...
 if os.environ.get('RWKV_DML_ON') == '1':
     import torch_directml
     print("PyTorch with DirectML Enabled")
@@ -183,6 +196,11 @@ class RWKV(MyModule):
             prxxx = lambda *args, **kwargs: print(*args, **kwargs)
         else:
             prxxx = lambda *args, **kwargs: None
+
+        # xzl: dirty statistics for cls head....
+        self.stat_runs = 0    # num of fwd passes run
+        self.stat_loaded_cls = 0    # num of cls loaded 
+        self.state_loaded_tokens = 0  # num of token "cols" loaded
 
         # xzl: parse strategy... e.g. "cuda fp16"... and apply to layers 
         STRATEGY_REGEX = r"^(?:(?:^|->) *(?:cuda(?::[\d]+)?|cpu|mps|dml) (?:fp(?:16|32)|bf16)(?:i8|i4|i3)?(?: \*[\d]+\+?)? *)+$"
@@ -202,7 +220,7 @@ class RWKV(MyModule):
             self.RESCALE_LAYER = 6 if 'fp16' in strategy else 0
         prxxx(f'RWKV_JIT_ON {os.environ["RWKV_JIT_ON"]} RWKV_CUDA_ON {os.environ["RWKV_CUDA_ON"]} RESCALE_LAYER {self.RESCALE_LAYER}\n')
 
-        # xzl: load model... and convert params (eg fp16) per "strategy"
+        # xzl: load model... and convert params (saved as bf16 default) per "strategy"
         args.MODEL_NAME = args.MODEL_NAME.strip()
         if not args.MODEL_NAME.endswith('.pth'):
             args.MODEL_NAME += '.pth'
@@ -230,7 +248,7 @@ class RWKV(MyModule):
             # args.n_ffn = w['blocks.0.ffn.key.weight'].shape[0] # note: transposed matrix
             args.n_layer = 0
             keys = list(w.keys())
-            # xzl: detect model version, 
+            # xzl: guess model version, 
             self.version = 4
             for x in keys:
                 layer_id = int(x.split('.')[1]) if ('blocks.' in x) else 0
@@ -266,7 +284,8 @@ class RWKV(MyModule):
             if 'head_l1.weight' in w: # use compressed cls heads                
                 import numpy as np
                 args.head_K = 200    # XXX
-                args.load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
+                args.load_token_cls='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/04b-pre-x59-8x-cls/from-hpc/rwkv-2405-cls.npy'
+                #args.load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
 
                 K=args.head_K
                 labels = np.load(args.load_token_cls)
@@ -284,16 +303,42 @@ class RWKV(MyModule):
                 self.token2cls = torch.tensor(token2cls, device='cuda')
                 self.clusters = clusters
 
+                # sanity chk: plot histogram statistics of cluster sizes... 
+                '''
+                import matplotlib.pyplot as plt
+                data = [len(sublist) for sublist in clusters]
+                # plt.hist(data, bins=20, edgecolor='black')
+                plt.hist(data, bins=range(min(data), max(data) + 2), edgecolor='black')
+                plt.title('Histogram of cluster sizes')
+                plt.xlabel('Cluster size bins')
+                plt.ylabel('# of clusters')
+                plt.savefig('cluster-size-histogram.jpg', format='jpg', dpi=300)
+                breakpoint()
+                '''
+
+                self.clusters_tensor = [] # also save as list of tensors
+                for ccc in self.clusters:
+                    self.clusters_tensor.append(
+                        torch.tensor(ccc, device='cuda'))
+
+                # build head_l2, but by splitting the original cls head weights
+                for cls in range(0, len(clusters)):
+                    orghead = w['head.weight']
+                    idx = torch.tensor(clusters[cls], device=orghead.device)
+                    # ww = torch.gather(input=orghead,dim=0,index=idx)
+                    ww = orghead[idx]
+                    w[f'head_l2org.{cls}.weight'] = ww # save it 
+
                 # cf rwkv/utils.py generate()
                 # XXX move it out of "model", to "pipeline"
                 self.occurrence = {}  
 
             ####################### Compute strategy   
-            # xzl: & print out "strategy" for each layer... (quant weight? activation??
+            # xzl: & print out "strategy" for each layer... (NB quant weight, no activation)
 
             s = [x.strip().split(' ') for x in strategy.split('->')]
             plan = [0] * len(s)
-            stream_i = -1       # xzl: stream -- layerwise loading
+            stream_i = -1       # xzl: stream -- layerwise loading. only DRAM->VRAM. needs mod for storage->DRAM
             stream_count = 0
             to_allocate = args.n_layer + 1
             allocated = 0
@@ -360,7 +405,7 @@ class RWKV(MyModule):
             prxxx()
 
             ####################### Load weights to self.w
-
+            # xzl: below - convert weights per layer strategy...
             if not ALREADY_CONVERTED:
                 try: # precompute embedding         xzl: fuse layers?? (emb + ln0?
                     w['emb.weight'] = F.layer_norm(w['emb.weight'], (args.n_embd,), weight=w['blocks.0.ln0.weight'], bias=w['blocks.0.ln0.bias'])
@@ -382,7 +427,9 @@ class RWKV(MyModule):
             
             # xzl: below - convert weights per layer strategy...
             keys = list(w.keys())
+            total_parameter_size = 0
             for x in keys:
+                parameter_size = 0
                 w[x].requires_grad = False
                 layer_id = int(x.split('.')[1]) if ('blocks.' in x) else 0
                 if ('ln_out.' in x) or ('head.' in x):
@@ -403,7 +450,7 @@ class RWKV(MyModule):
                         w[x] = w[x].squeeze()
                     if 'key.weight' in x or 'value.weight' in x or 'receptance.weight' in x or 'gate.weight' in x or 'output.weight' in x or 'head.weight' in x:
                         w[x] = w[x].t()     # xzl transposed (b/c of linear layer
-                    if 'head_l1.weight' in x or ('head_l2' in x and '.weight' in x): 
+                    if ('head_l1' in x and '.weight' in x) or ('head_l2' in x and '.weight' in x): 
                         w[x] = w[x].t()   # for compressed cls head. same spirit as above. 
                     #xzl: mimic above 
                     if 'key1.weight' in x or 'value1.weight' in x or 'receptance1.weight' in x or 'gate1.weight' in x \
@@ -434,7 +481,7 @@ class RWKV(MyModule):
                         if (len(w[x].shape) == 2) and ('emb' not in x) and ('_w1' not in x) and ('_w2' not in x):
                             if WTYPE != torch.uint8:  # xzl: (default weight) cast to WTYPE
                                 w[x] = w[x].to(dtype=WTYPE)
-                            else:   # xzl: cast to uint8 (?), compute min/max, then scale..
+                            else:   # xzl: cast to torch.uint8, compute min/max, then scale..
                                 w[x] = w[x].float()
 
                                 if w[x].shape[0] > w[x].shape[1]:
@@ -458,6 +505,7 @@ class RWKV(MyModule):
 
                                 w[x] = torch.clip(torch.floor(w[x] * 256), min=0, max=255).to(dtype=torch.uint8)
                                 w[x+'_mx'] = w[x+'_mx'].to(dtype=ATYPE).contiguous()
+                                # 16 might be further quantization for storage efficiency
                                 w[x+'_rx'] = (w[x+'_rx'] / 16).to(dtype=ATYPE).contiguous()
                                 w[x+'_my'] = w[x+'_my'].to(dtype=ATYPE).contiguous()
                                 w[x+'_ry'] = (w[x+'_ry'] / 16).to(dtype=ATYPE).contiguous()
@@ -491,22 +539,44 @@ class RWKV(MyModule):
 
                 # xzl: dump per layer info...
                 shape = [i for i in w[x].shape if i != 1]
+                nelement = 0
+
                 if len(shape) > 2:
+                    nelement = shape[0] * shape[1] * shape[2]
                     shape = f" {str(shape[0]).rjust(5)} {str(shape[1]).rjust(5)} {str(shape[2]).rjust(5)}"
                 elif len(shape) > 1:
+                    nelement = shape[0] * shape[1]
                     shape = f" {str(shape[0]).rjust(5)} {str(shape[1]).rjust(5)}      "
                 else:
+                    nelement = shape[0]
                     shape = f" {str(shape[0]).rjust(5)}            "
+
+                dt = str(w[x].dtype).replace('torch.', '')
+                dt = dt.replace('float32', 'f32').replace('bfloat16', 'bf16').replace('float16', 'f16').replace('uint8', 'i8')
+
+                if dt == "bf16" or dt == "f16":
+                    parameter_size = nelement * 2
+                elif dt == "f32":
+                    parameter_size = nelement * 4
+                elif dt == "i8":
+                    parameter_size = nelement * 1
+
+                total_parameter_size += parameter_size
+
+                MiB = 1024 * 1024
+
                 if layer_id == 0 or layer_id >= args.n_layer-1:
                     if print_need_newline:
                         prxxx('\n', end = '')
                         print_need_newline = False
-                    dt = str(w[x].dtype).replace('torch.', '')
-                    dt = dt.replace('float32', 'f32').replace('bfloat16', 'bf16').replace('float16', 'f16').replace('uint8', 'i8')
-                    prxxx(x.ljust(32), dt.rjust(4), str(w[x].device).rjust(8), shape, ' (pinned)' if w[x].is_pinned() else '')
+
+                    prxxx(x.ljust(32), dt.rjust(4), str(w[x].device).rjust(8), shape,
+                            parameter_size / MiB, ' (pinned)' if w[x].is_pinned() else '')
                 else:
                     print_need_newline = True
                     prxxx('.', end = '', flush = True)
+
+            prxxx("parameter size: ", f"{total_parameter_size / MiB:.3f} MB")
             
             if convert_and_save_and_exit:
                 w['_strategy'] = args.strategy_string
@@ -636,15 +706,18 @@ class RWKV(MyModule):
     @MyFunction
     def ffn_one_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw, 
                      rw1, rw2, rwdiag, 
-                     kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry):
+                     kmx, krx, kmy, kry, vmx, vrx, vmy, vry, 
+                     rmx1, rrx1, rmy1, rry1,
+                     rmx2, rrx2, rmy2, rry2,
+                     ):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         kx = xx * k_mix + sx * (1 - k_mix)
         rx = xx * r_mix + sx * (1 - r_mix)
 
         # r = torch.sigmoid(matmul(rx, rw, rmx, rrx, rmy, rry)) # orig
-        r = matmul(rx, rw1) 
+        r = matmul(rx, rw1, rmx1, rrx1, rmy1, rry1) 
         r = torch.relu(r) ** 2
-        r = matmul(r, rw2)
+        r = matmul(r, rw2, rmx2, rrx2, rmy2, rry2)
         r += rx @ torch.diag(rwdiag)   # xzl: should use matmul??
         r = torch.sigmoid(r)
 
@@ -689,16 +762,20 @@ class RWKV(MyModule):
     @MyFunction
     def ffn_seq_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw, 
                      rw1, rw2, rwdiag, 
-                     kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry):
+                     kmx, krx, kmy, kry, 
+                     vmx, vrx, vmy, vry, 
+                     rmx1, rrx1, rmy1, rry1,
+                     rmx2, rrx2, rmy2, rry2,
+                     ):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         sx = torch.cat((sx.unsqueeze(0), xx[:-1,:]))
         kx = xx * k_mix + sx * (1 - k_mix)
         rx = xx * r_mix + sx * (1 - r_mix)
 
         # r = torch.sigmoid(matmul(rx, rw, rmx, rrx, rmy, rry)) # orig
-        r = matmul(rx, rw1) 
+        r = matmul(rx, rw1, rmx1, rrx1, rmy1, rry1) 
         r = torch.relu(r) ** 2
-        r = matmul(r, rw2)
+        r = matmul(r, rw2, rmx2, rrx2, rmy2, rry2)
         r += rx @ torch.diag(rwdiag)   # xzl: use matmul??
         r = torch.sigmoid(r)        
 
@@ -966,7 +1043,16 @@ class RWKV(MyModule):
     @MyFunction
     def att_one_v5_9(self, x, sx, s, ln_w, ln_b, lx_w, lx_b, k_mix, v_mix, r_mix, g_mix, t_decay, t_first, 
                      kw1, kw2, kwdiag, vw1, vw2, vwdiag, rw1, rw2, rwdiag, gw1, gw2, gwdiag,   # ours 
-                     ow, kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry, gmx, grx, gmy, gry, omx, orx, omy, ory):        
+                     ow, 
+                     kmx1, krx1, kmy1, kry1, 
+                     kmx2, krx2, kmy2, kry2, 
+                     vmx1, vrx1, vmy1, vry1, 
+                     vmx2, vrx2, vmy2, vry2, 
+                     rmx1, rrx1, rmy1, rry1, 
+                     rmx2, rrx2, rmy2, rry2, 
+                     gmx1, grx1, gmy1, gry1, 
+                     gmx2, grx2, gmy2, gry2, 
+                     omx, orx, omy, ory):        
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         kx = xx * k_mix + sx * (1 - k_mix)
         vx = xx * v_mix + sx * (1 - v_mix)
@@ -977,30 +1063,30 @@ class RWKV(MyModule):
         N = x.shape[-1] // H
 
         # r = matmul(rx, rw, rmx, rrx, rmy, rry, output_dtype=torch.float32).view(H, 1, N)  # orig
-        r = matmul(rx, rw1) 
+        r = matmul(rx, rw1, rmx1, rrx1, rmy1, rry1) 
         r = torch.relu(r) ** 2
-        r = matmul(r, rw2, output_dtype=torch.float32)     
+        r = matmul(r, rw2, rmx2, rrx2, rmy2, rry2, output_dtype=torch.float32)     
         r += rx @ torch.diag(rwdiag)   # xzl: should use matmul??
         r = r.view(H,1,N)
 
         # k = matmul(kx, kw, kmx, krx, kmy, kry, output_dtype=torch.float32).view(H, N, 1) # orig
-        k = matmul(kx, kw1) 
+        k = matmul(kx, kw1, kmx1, krx1, kmy1, kry1) 
         k = torch.relu(k) ** 2
-        k = matmul(k, kw2, output_dtype=torch.float32)
+        k = matmul(k, kw2, kmx2, krx2, kmy2, kry2, output_dtype=torch.float32)
         k += kx @ torch.diag(kwdiag)
         k = k.view(H,N,1)
 
         # v = matmul(vx, vw, vmx, vrx, vmy, vry, output_dtype=torch.float32).view(H, 1, N) # orig
-        v = matmul(vx, vw1) 
+        v = matmul(vx, vw1, vmx1, vrx1, vmy1, vry1) 
         v = torch.relu(v) ** 2
-        v = matmul(v, vw2, output_dtype=torch.float32)     
+        v = matmul(v, vw2, vmx2, vrx2, vmy2, vry2, output_dtype=torch.float32)     
         v += vx @ torch.diag(vwdiag)
         v = v.view(H,1,N)
 
         # g = F.silu(matmul(gx, gw, gmx, grx, gmy, gry))  @ orig
-        g = matmul(gx, gw1)
+        g = matmul(gx, gw1, gmx1, grx1, gmy1, gry1)
         g = torch.relu(g) ** 2
-        g = matmul(g, gw2) 
+        g = matmul(g, gw2, gmx2, grx2, gmy2, gry2) 
         g += gx @ torch.diag(gwdiag)
         g = F.silu(g) 
         
@@ -1068,7 +1154,16 @@ class RWKV(MyModule):
     @MyFunction
     def att_seq_v5_9(self, x, sx, s, ln_w, ln_b, lx_w, lx_b, k_mix, v_mix, r_mix, g_mix, t_decay, t_first, 
                      kw1, kw2, kwdiag, vw1, vw2, vwdiag, rw1, rw2, rwdiag, gw1, gw2, gwdiag, 
-                     ow, kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry, gmx, grx, gmy, gry, omx, orx, omy, ory):
+                     ow, 
+                     kmx1, krx1, kmy1, kry1,
+                     kmx2, krx2, kmy2, kry2,
+                     vmx1, vrx1, vmy1, vry1, 
+                     vmx2, vrx2, vmy2, vry2, 
+                     rmx1, rrx1, rmy1, rry1, 
+                     rmx2, rrx2, rmy2, rry2, 
+                     gmx1, grx1, gmy1, gry1, 
+                     gmx2, grx2, gmy2, gry2, 
+                     omx,  orx, omy, ory):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         sx = torch.cat((sx.unsqueeze(0), xx[:-1,:]))
         kx = xx * k_mix + sx * (1 - k_mix)
@@ -1081,30 +1176,30 @@ class RWKV(MyModule):
         T = x.shape[0]
 
         # r = matmul(rx, rw, rmx, rrx, rmy, rry, output_dtype=torch.float32).view(T, H, N).transpose(0, 1) # orig
-        r = matmul(rx, rw1) 
+        r = matmul(rx, rw1, rmx1, rrx1, rmy1, rry1) 
         r = torch.relu(r) ** 2
-        r = matmul(r, rw2, output_dtype=torch.float32)     
+        r = matmul(r, rw2, rmx2, rrx2, rmy2, rry2, output_dtype=torch.float32)     
         r += rx @ torch.diag(rwdiag)   # xzl: should use matmul??
         r = r.view(T,H,N).transpose(0, 1)
 
         # k = matmul(kx, kw, kmx, krx, kmy, kry, output_dtype=torch.float32).view(T, H, N).permute(1, 2, 0) # orig
-        k = matmul(kx, kw1) 
+        k = matmul(kx, kw1, kmx1, krx1, kmy1, kry1) 
         k = torch.relu(k) ** 2
-        k = matmul(k, kw2, output_dtype=torch.float32)     
+        k = matmul(k, kw2, kmx2, krx2, kmy2, kry2, output_dtype=torch.float32)     
         k += kx @ torch.diag(kwdiag)
         k = k.view(T,H,N).permute(1, 2, 0)
                 
         # v = matmul(vx, vw, vmx, vrx, vmy, vry, output_dtype=torch.float32).view(T, H, N).transpose(0, 1) # orig
-        v = matmul(vx, vw1) 
+        v = matmul(vx, vw1, vmx1, vrx1, vmy1, vry1) 
         v = torch.relu(v) ** 2
-        v = matmul(v, vw2, output_dtype=torch.float32)     
+        v = matmul(v, vw2, vmx2, vrx2, vmy2, vry2, output_dtype=torch.float32)     
         v += vx @ torch.diag(vwdiag)
         v = v.view(T,H,N).transpose(0, 1)
 
         # g = F.silu(matmul(gx, gw, gmx, grx, gmy, gry)) # orig
-        g = matmul(gx, gw1)
+        g = matmul(gx, gw1, gmx1, grx1, gmy1, gry1)
         g = torch.relu(g) ** 2
-        g = matmul(g, gw2) 
+        g = matmul(g, gw2, gmx2, grx2, gmy2, gry2)
         g += gx @ torch.diag(gwdiag)
         g = F.silu(g)
 
@@ -1468,6 +1563,37 @@ class RWKV(MyModule):
                     vw2 = w[f'{att}value2.weight']
                     rw1 = w[f'{att}receptance1.weight']
                     rw2 = w[f'{att}receptance2.weight']                    
+
+                    kmx1 = w[f'{att}key1.weight_mx'] if wtype == torch.uint8 else x
+                    krx1 = w[f'{att}key1.weight_rx'] if wtype == torch.uint8 else x
+                    kmy1 = w[f'{att}key1.weight_my'] if wtype == torch.uint8 else x
+                    kry1 = w[f'{att}key1.weight_ry'] if wtype == torch.uint8 else x
+
+                    kmx2 = w[f'{att}key2.weight_mx'] if wtype == torch.uint8 else x
+                    krx2 = w[f'{att}key2.weight_rx'] if wtype == torch.uint8 else x
+                    kmy2 = w[f'{att}key2.weight_my'] if wtype == torch.uint8 else x
+                    kry2 = w[f'{att}key2.weight_ry'] if wtype == torch.uint8 else x
+
+                    vmx1 = w[f'{att}value1.weight_mx'] if wtype == torch.uint8 else x
+                    vrx1 = w[f'{att}value1.weight_rx'] if wtype == torch.uint8 else x
+                    vmy1 = w[f'{att}value1.weight_my'] if wtype == torch.uint8 else x
+                    vry1 = w[f'{att}value1.weight_ry'] if wtype == torch.uint8 else x
+
+                    vmx2 = w[f'{att}value2.weight_mx'] if wtype == torch.uint8 else x
+                    vrx2 = w[f'{att}value2.weight_rx'] if wtype == torch.uint8 else x
+                    vmy2 = w[f'{att}value2.weight_my'] if wtype == torch.uint8 else x
+                    vry2 = w[f'{att}value2.weight_ry'] if wtype == torch.uint8 else x
+
+                    rmx1 = w[f'{att}receptance1.weight_mx'] if wtype == torch.uint8 else x
+                    rrx1 = w[f'{att}receptance1.weight_rx'] if wtype == torch.uint8 else x
+                    rmy1 = w[f'{att}receptance1.weight_my'] if wtype == torch.uint8 else x
+                    rry1 = w[f'{att}receptance1.weight_ry'] if wtype == torch.uint8 else x
+
+                    rmx2 = w[f'{att}receptance2.weight_mx'] if wtype == torch.uint8 else x
+                    rrx2 = w[f'{att}receptance2.weight_rx'] if wtype == torch.uint8 else x
+                    rmy2 = w[f'{att}receptance2.weight_my'] if wtype == torch.uint8 else x
+                    rry2 = w[f'{att}receptance2.weight_ry'] if wtype == torch.uint8 else x
+
                     if self.version == 5.9:
                         kwdiag = w[f'{att}key_diag']
                         vwdiag = w[f'{att}value_diag']
@@ -1476,29 +1602,34 @@ class RWKV(MyModule):
                     kw = w[f'{att}key.weight']
                     vw = w[f'{att}value.weight']
                     rw = w[f'{att}receptance.weight']
+
+                    # xzl: below, dequant int8 weight (why "else x?"
+                    kmx = w[f'{att}key.weight_mx'] if wtype == torch.uint8 else x
+                    krx = w[f'{att}key.weight_rx'] if wtype == torch.uint8 else x
+                    kmy = w[f'{att}key.weight_my'] if wtype == torch.uint8 else x
+                    kry = w[f'{att}key.weight_ry'] if wtype == torch.uint8 else x
+                    vmx = w[f'{att}value.weight_mx'] if wtype == torch.uint8 else x
+                    vrx = w[f'{att}value.weight_rx'] if wtype == torch.uint8 else x
+                    vmy = w[f'{att}value.weight_my'] if wtype == torch.uint8 else x
+                    vry = w[f'{att}value.weight_ry'] if wtype == torch.uint8 else x
+                    rmx = w[f'{att}receptance.weight_mx'] if wtype == torch.uint8 else x
+                    rrx = w[f'{att}receptance.weight_rx'] if wtype == torch.uint8 else x
+                    rmy = w[f'{att}receptance.weight_my'] if wtype == torch.uint8 else x
+                    rry = w[f'{att}receptance.weight_ry'] if wtype == torch.uint8 else x
+
                 ow = w[f'{att}output.weight']
+                omx = w[f'{att}output.weight_mx'] if wtype == torch.uint8 else x
+                orx = w[f'{att}output.weight_rx'] if wtype == torch.uint8 else x
+                omy = w[f'{att}output.weight_my'] if wtype == torch.uint8 else x
+                ory = w[f'{att}output.weight_ry'] if wtype == torch.uint8 else x
+
+                # xzl: intended to move tensor DRAM->VRAM 
                 if dd.stream:
                     kw = kw.to(device=dev, non_blocking=True)
                     vw = vw.to(device=dev, non_blocking=True)
                     rw = rw.to(device=dev, non_blocking=True)
                     ow = ow.to(device=dev, non_blocking=True)
-                # xzl: below, dequant int8 weight (why "else x?"
-                kmx = w[f'{att}key.weight_mx'] if wtype == torch.uint8 else x
-                krx = w[f'{att}key.weight_rx'] if wtype == torch.uint8 else x
-                kmy = w[f'{att}key.weight_my'] if wtype == torch.uint8 else x
-                kry = w[f'{att}key.weight_ry'] if wtype == torch.uint8 else x
-                vmx = w[f'{att}value.weight_mx'] if wtype == torch.uint8 else x
-                vrx = w[f'{att}value.weight_rx'] if wtype == torch.uint8 else x
-                vmy = w[f'{att}value.weight_my'] if wtype == torch.uint8 else x
-                vry = w[f'{att}value.weight_ry'] if wtype == torch.uint8 else x
-                rmx = w[f'{att}receptance.weight_mx'] if wtype == torch.uint8 else x
-                rrx = w[f'{att}receptance.weight_rx'] if wtype == torch.uint8 else x
-                rmy = w[f'{att}receptance.weight_my'] if wtype == torch.uint8 else x
-                rry = w[f'{att}receptance.weight_ry'] if wtype == torch.uint8 else x
-                omx = w[f'{att}output.weight_mx'] if wtype == torch.uint8 else x
-                orx = w[f'{att}output.weight_rx'] if wtype == torch.uint8 else x
-                omy = w[f'{att}output.weight_my'] if wtype == torch.uint8 else x
-                ory = w[f'{att}output.weight_ry'] if wtype == torch.uint8 else x
+
                 if self.version in [5.1, 5.2, 6.0]:
                     gw = w[f'{att}gate.weight']
                     if dd.stream:
@@ -1512,11 +1643,16 @@ class RWKV(MyModule):
                     gw2 = w[f'{att}gate2.weight']
                     if self.version ==5.9:
                         gwdiag = w[f'{att}gate_diag']
-                    # dummy, placeholders
-                    gmx = None
-                    grx = None
-                    gmy = None
-                    gry = None
+                    
+                    gmx1 = w[f'{att}gate1.weight_mx'] if wtype == torch.uint8 else x
+                    grx1 = w[f'{att}gate1.weight_rx'] if wtype == torch.uint8 else x
+                    gmy1 = w[f'{att}gate1.weight_my'] if wtype == torch.uint8 else x
+                    gry1 = w[f'{att}gate1.weight_ry'] if wtype == torch.uint8 else x
+
+                    gmx2 = w[f'{att}gate2.weight_mx'] if wtype == torch.uint8 else x
+                    grx2 = w[f'{att}gate2.weight_rx'] if wtype == torch.uint8 else x
+                    gmy2 = w[f'{att}gate2.weight_my'] if wtype == torch.uint8 else x
+                    gry2 = w[f'{att}gate2.weight_ry'] if wtype == torch.uint8 else x
 
                 # --- xzl: below, run att (one or seq) --- # 
                 if self.version == 4:
@@ -1584,10 +1720,14 @@ class RWKV(MyModule):
                         # kw, vw, rw, gw, 
                         kw1,kw2,kwdiag,vw1,vw2,vwdiag,rw1,rw2,rwdiag,gw1,gw2,gwdiag, 
                         ow,
-                        kmx, krx, kmy, kry,
-                        vmx, vrx, vmy, vry,
-                        rmx, rrx, rmy, rry,
-                        gmx, grx, gmy, gry,
+                        kmx1, krx1, kmy1, kry1,
+                        kmx2, krx2, kmy2, kry2,
+                        vmx1, vrx1, vmy1, vry1,
+                        vmx2, vrx2, vmy2, vry2,
+                        rmx1, rrx1, rmy1, rry1,
+                        rmx2, rrx2, rmy2, rry2,
+                        gmx1, grx1, gmy1, gry1,
+                        gmx2, grx2, gmy2, gry2,
                         omx, orx, omy, ory,
                         )
                 elif self.version == 6.0:
@@ -1605,7 +1745,7 @@ class RWKV(MyModule):
                         gmx, grx, gmy, gry,
                         omx, orx, omy, ory,
                         )
-                if dd.stream:
+                if dd.stream:       # xzl: release VRAM 
                     del kw, vw, rw, ow
                     if self.version in [5.1, 5.2, 6.0]:
                         del gw
@@ -1615,10 +1755,25 @@ class RWKV(MyModule):
                 if self.version in [5.8, 5.9]:
                     rw1 = w[f'{ffn}receptance1.weight']
                     rw2 = w[f'{ffn}receptance2.weight']
+
+                    rmx1 = w[f'{ffn}receptance1.weight_mx'] if wtype == torch.uint8 else x
+                    rrx1 = w[f'{ffn}receptance1.weight_rx'] if wtype == torch.uint8 else x
+                    rmy1 = w[f'{ffn}receptance1.weight_my'] if wtype == torch.uint8 else x
+                    rry1 = w[f'{ffn}receptance1.weight_ry'] if wtype == torch.uint8 else x
+
+                    rmx2 = w[f'{ffn}receptance2.weight_mx'] if wtype == torch.uint8 else x
+                    rrx2 = w[f'{ffn}receptance2.weight_rx'] if wtype == torch.uint8 else x
+                    rmy2 = w[f'{ffn}receptance2.weight_my'] if wtype == torch.uint8 else x
+                    rry2 = w[f'{ffn}receptance2.weight_ry'] if wtype == torch.uint8 else x
+
                     if self.version == 5.9:
                         rwdiag = w[f'{ffn}receptance_diag']
                 else: 
                     rw = w[f'{ffn}receptance.weight']
+                    rmx = w[f'{ffn}receptance.weight_mx'] if wtype == torch.uint8 else x
+                    rrx = w[f'{ffn}receptance.weight_rx'] if wtype == torch.uint8 else x
+                    rmy = w[f'{ffn}receptance.weight_my'] if wtype == torch.uint8 else x
+                    rry = w[f'{ffn}receptance.weight_ry'] if wtype == torch.uint8 else x
                 if dd.stream:
                     kw = kw.to(device=dev, non_blocking=True)
                     vw = vw.to(device=dev, non_blocking=True)
@@ -1631,10 +1786,6 @@ class RWKV(MyModule):
                 vrx = w[f'{ffn}value.weight_rx'] if wtype == torch.uint8 else x
                 vmy = w[f'{ffn}value.weight_my'] if wtype == torch.uint8 else x
                 vry = w[f'{ffn}value.weight_ry'] if wtype == torch.uint8 else x
-                rmx = w[f'{ffn}receptance.weight_mx'] if wtype == torch.uint8 else x
-                rrx = w[f'{ffn}receptance.weight_rx'] if wtype == torch.uint8 else x
-                rmy = w[f'{ffn}receptance.weight_my'] if wtype == torch.uint8 else x
-                rry = w[f'{ffn}receptance.weight_ry'] if wtype == torch.uint8 else x
                 if self.version == 4:
                     offset = i*5+4
                 elif int(self.version) in [5,6]:
@@ -1650,7 +1801,8 @@ class RWKV(MyModule):
                         rw1, rw2, rwdiag, 
                         kmx, krx, kmy, kry,
                         vmx, vrx, vmy, vry,
-                        rmx, rrx, rmy, rry,                    
+                        rmx1, rrx1, rmy1, rry1,
+                        rmx2, rrx2, rmy2, rry2,
                         )
                 elif self.version in [5.8]:
                     x, state[offset] = FFN(
@@ -1703,57 +1855,405 @@ class RWKV(MyModule):
             x = F.layer_norm(x, (args.n_embd,), weight=w['ln_out.weight'], bias=w['ln_out.bias'])
 
             if 'head_l1.weight' in w: # use compressed cls heads
-            # if False:
-                '''
-                Current design: greedy sampling cls (L1).
-                cal logits over all clusters. find the cls with highest logit
-                (greedy); within this cls, compute logits over tokens 
-                return: computed logits (for tokens for cls); -inf for other
-                tokens
+                # version 0
+                # sample top1 cls. 
+                def _retrieve_value0(x, w):
+                    '''
+                    Current design: greedy sampling cls (L1).
+                    cal logits over all clusters. find the cls with highest logit
+                    (greedy); within this cls, compute logits over tokens 
+                    return: computed logits (for tokens for cls); -inf for other
+                    tokens
 
-                alternatively: TBD
-                cal logits over all clustres, return to the caller
-                the caller: sample a cluster (non greedy). the model: cal logits
-                within that cluster. caller: sample a token. 
-                '''
+                    alternatively: TBD
+                    cal logits over all clustres, return to the caller
+                    the caller: sample a cluster (non greedy). the model: cal logits
+                    within that cluster. caller: sample a token. 
+                    '''
 
-                args.alpha_frequency = 0.25
-                args.alpha_presence = 0.25
-                args.alpha_decay = 0.996 # gradually decay the penalty
-        
-                # x: shape D (regardless of seq_mode
-                # l1 projection
-                x1 = x @ w['head_l1.weight']  # shape D,K
-                # breakpoint()
-                # cls = x1.argmax(dim=-1)       # greedy
-                # sample_logits (cf test-rwkv-chat.py
-                for n in self.occurrence:
-                    x1[n] -= (args.alpha_presence + self.occurrence[n] * args.alpha_frequency)
-                cls = self.sample_logits(x1, temperature=1.0, top_p=0.7, top_k=100) 
-                for xxx in self.occurrence:
-                    self.occurrence[xxx] *= args.alpha_decay
-                www = 1
-                if cls not in self.occurrence:
-                    self.occurrence[cls] = www
+                    args.alpha_frequency = 0.25
+                    args.alpha_presence = 0.25
+                    args.alpha_decay = 0.996 # gradually decay the penalty
+
+                    # x: shape D (regardless of seq_mode
+                    # l1 projection
+                    x1 = x @ w['head_l1.weight']  # shape D,K
+
+                    # cls = x1.argmax(dim=-1)       # greedy sampling. bad results
+                    # below: sample 1 cls (i.e. get one cls out of all)
+                    # sample_logits (cf test-rwkv-chat.py
+                    for n in self.occurrence:       # penalize frequent cls (by reducing their logits...
+                        x1[n] -= (args.alpha_presence + self.occurrence[n] * args.alpha_frequency)
+                    cls, _ = self.sample_logits(x1, temperature=1.0, top_p=0.7, top_k=100, size=1) 
+                    cls = cls[0]
+                    # below: update "occrruence" statistics
+                    for xxx in self.occurrence:
+                        self.occurrence[xxx] *= args.alpha_decay
+                    www = 1
+                    if cls not in self.occurrence:
+                        self.occurrence[cls] = www
+                    else:
+                        self.occurrence[cls] += www
+
+                    #### now we've picked a cls. compute logits for all tokens within the cls
+                    # print(f">>>>>> # self.occurrence = {len(self.occurrence)}")
+                    # print(f"\t\t\t\t\t cls {cls} occur {self.occurrence[cls]:.2f} #tokens {len(self.clusters[cls])}")
+
+                    # l2 project x to: logits over all possible tokens within the cls
+                    x = x @ w[f'head_l2.{cls}.weight']
+                                    
+                    vocab = w['head.weight'].shape[1]   # shape D,vocab                
+                    # cls: cluster id, 
+                    # self.clusters[cls] list of token_ids in this cls (as scatter idx
+                    # x: logits over tokens inside cls, (as scatter src
+                    idx = torch.tensor(self.clusters[cls], device='cuda')
+                    # res: logits over all tokens (vocab). prefilled with -inf, used
+                    #   as scatter dest
+                    res = torch.full((vocab,),float('-inf'),device='cuda',dtype=x.dtype) \
+                        .scatter_(0, idx, x)
+                    return res
+
+                # version 1: sample N cls
+                # return: token logits (# = vocab)
+                def _retrieve_value1(x, w):
+                    args.alpha_frequency = 0.01     #.25
+                    args.alpha_presence = 0.01      #.25
+                    args.alpha_decay = 0.996 # gradually decay the penalty
+
+                    # N=100 # of cls we'll sample
+                    N=10 # of cls we'll sample
+
+                    # clsprob = .5 # idea: cumulatiev pros for the cls we'll sample
+
+                    # x: shape D (regardless of seq_mode
+                    # l1 projection
+                    x1 = x @ w['head_l1.weight']  # shape D,K
+                    # below: sample N cls (i.e. get N cls out of all)
+                    # sample_logits (cf test-rwkv-chat.py
+
+                    for n in self.occurrence:       # penalize frequent cls (by reducing their logits...
+                        x1[n] -= (args.alpha_presence + self.occurrence[n] * args.alpha_frequency)
+                    
+                    CLS, CLSPROBS = self.sample_logits(x1, temperature=1.0, top_p=0.85, top_k=N,
+                                             size=N, replace=False)                                         
+                    # breakpoint()                    
+
+                    # below: update "occrruence" statistics
+                    for xxx in self.occurrence:
+                        self.occurrence[xxx] *= args.alpha_decay
+                    www = 1
+                    for cls in CLS:
+                        if cls not in self.occurrence:
+                            self.occurrence[cls] = www
+                        else:
+                            self.occurrence[cls] += www
+
+                    #### now we've picked N cls. L2 projection.... ###
+
+                    vocab = w['head.weight'].shape[1]   # shape D,vocab                
+                    probs = torch.full((vocab,), 0.0, device='cuda', dtype=x.dtype)
+
+                    # project x to: probs over all possible tokens within each cls, 
+                    #           scaled by the cls prob
+                    ntokens=0
+                    for i in range(0, len(CLS)):
+                        cls = CLS[i]
+                        clsprob = CLSPROBS[i]
+                        x1 = x @ w[f'head_l2.{cls}.weight']
+                        x1 = F.softmax(x1, dim=-1)
+                        x1 = x1 * clsprob 
+                        ntokens += x1.shape[0]
+                        # cls: cluster id, 
+                        # self.clusters[cls] list of token_ids in this cls (as scatter idx
+                        # x: logits over tokens inside cls, (as scatter src
+                        idx = torch.tensor(self.clusters[cls], device='cuda')
+                        # breakpoint()    
+                        probs.scatter_(dim=0, index=idx, src=x1)
+
+                    if sum(CLSPROBS) < 0.3: 
+                        # print(f" CLSPROBS {CLSPROBS} ntokens {ntokens}")
+                        pass
+                        # idea: maybe we should fallback....
+                        breakpoint()
+
+                    # breakpoint()
+                    # invert all token probs to (fake) token logits, as expected by pipeline caller
+                    logits = torch.log(probs) - torch.logsumexp(torch.log(probs), dim=0)
+                    # NB: the probs calculated from these logits may != the probs
+                    # computed above, b/c probs from above do not add up to 1 (i.e. unsampled cls will have 
+                    # prob of 0
+                    return logits
+
+                # version 2
+                # return: token logits (# = vocab)
+                def _retrieve_value2(x, w):
+                    # orig
+                    # args.alpha_frequency = 0.25  # orig
+                    # args.alpha_presence = 0.25    # orig
+
+                    # need to test these
+                    args.alpha_frequency = 0.2  
+                    args.alpha_presence = 0.2   
+
+                    # -- kinda repeatitve ...
+                    # args.alpha_frequency = 0.1
+                    # args.alpha_presence = 0.1
+
+                    args.alpha_decay = 0.996 # gradually decay the penalty
+
+                    # N=200 # of cls we'll sample
+                    # N=80 # of cls we'll sample
+                    N=5 # of cls we'll sample
+
+                    # clsprob = .5 # idea: cumulatiev pros for the cls we'll sample
+
+                    # x: shape D (regardless of seq_mode
+                    # l1 projection
+                    x1 = x @ w['head_l1.weight']  # shape D,K
+                    # below: sample N cls (i.e. get N cls out of all)
+                    # sample_logits (cf test-rwkv-chat.py
+                    ## penalize frequent cls (by reducing their logits...  XXXX should do this???
+                    for n in self.occurrence:       
+                        x1[n] -= (args.alpha_presence + self.occurrence[n] * args.alpha_frequency)
+                    
+                    # CLS, CLSPROBS = self.sample_logits(x1, temperature=1.0, top_p=0.85, top_k=N,
+                    #                          size=N, replace=False)
+                    
+                    # --- select, not sampling --- # 
+                    CLS, CLSPROBS = self.select_logits(x1, minK=5, maxK=100, minProb=.75) 
+                    # CLS, CLSPROBS = self.select_logits(x1, minK=5, maxK=40, minProb=.5) 
+                    # CLS, CLSPROBS = self.select_logits(x1, minK=N, maxK=N, minProb=.5)  # seems quite good? (N=200
+
+                    # below: update "occrruence" statistics
+                    for xxx in self.occurrence:
+                        self.occurrence[xxx] *= args.alpha_decay
+                    www = 1
+                    for cls in CLS:
+                        if cls not in self.occurrence:
+                            self.occurrence[cls] = www
+                        else:
+                            self.occurrence[cls] += www
+
+                    #### now we've picked N cls. L2 projection.... ###
+
+                    vocab = w['head.weight'].shape[1]   # shape D,vocab                
+                    logits = torch.full((vocab,), float('-inf'), device='cuda', dtype=x.dtype) 
+
+                    # project x to: probs over all possible tokens within each cls, 
+                    #           scaled by the cls prob
+                    ntokens=0
+                    for i in range(0, len(CLS)):
+                        cls = CLS[i]
+                        clsprob = CLSPROBS[i]
+                        x1 = x @ w[f'head_l2org.{cls}.weight'] 
+
+                        ntokens += x1.shape[0]
+                        # cls: cluster id, 
+                        # self.clusters[cls] list of token_ids in this cl s (as scatter idx
+                        # x: logits over tokens inside cls, (as scatter src
+                        idx = torch.tensor(self.clusters[cls], device='cuda')
+                        #  ------ sanity check: if we use the org head.weight ------ # 
+                        if False:
+                            yyy=w[f'head_l2org.{cls}.weight']
+                            zzz=w['head.weight']
+                            for ii in range(len(idx)): 
+                                tokenid = idx[ii]
+                                if not torch.equal(yyy[:,ii], zzz[:,tokenid]): 
+                                    breakpoint()  
+                        # print("all good")                        
+                        # ---------------------------- # 
+
+                        # since we use the orig head weights, 
+                        #   it's ok to concat the raw logits from multi clusters
+                        logits.scatter_(dim=0, index=idx, src=x1)
+             
+                    # -- sanity check ---- ... expensive 
+                    if False: 
+                        reallogits = x @ w['head.weight']
+                        if N==200:
+                            # if not torch.equal(reallogits,logits):
+                            # XXX there might be a minor bug somewhere.... causing 
+                            # minor diff in the two logitgs...
+                            if not torch.allclose(reallogits,logits, rtol=0.01, atol=0.01):
+                                dif=reallogits-logits
+                                nzdifmask=dif!=0
+                                nzidx=torch.nonzero(nzdifmask, as_tuple=False)
+                                breakpoint()
+                        tokens, probs= self.select_logits(reallogits, 5, 20, 0.85)
+                        
+                        # useful CMP: our computed logits (others filled -inf) vs. true logits
+                        # if K==200, they shall equal 
+                        if True:
+                            print(reallogits[tokens])
+                            print(logits[tokens])
+                            breakpoint()
+
+                    return logits
+
+                # version 3. select the top K cls logits (no sampling) 
+                #   also NOT tracking cls "frequency" which is not useful to
+                #   lm_eval
+                #
+                #  can be problematic for "chat" output diversity b/c we are NOT sampling cls 
+                #  return: token logits (# = vocab)
+                def _retrieve_value3(x, w):
+                    # N=200 # of cls we'll sample
+                    # N=80 # of cls we'll sample
+                    N=5 # of cls we'll sample
+
+                    # x: shape D (regardless of seq_mode
+                    # l1 projection
+                    x1 = x @ w['head_l1.weight']  # shape D,K
+                    
+                    # CLS, CLSPROBS = self.sample_logits(x1, temperature=1.0, top_p=0.85, top_k=N,
+                    #                          size=N, replace=False)
+                    
+                    # --- select, not sampling --- # 
+                    # "minK" has a high impact on speed... 
+                    # CLS, CLSPROBS = self.select_logits(x1, minK=3, maxK=100, minProb=.95) # good
+                    CLS, CLSPROBS = self.select_logits(x1, minK=3, maxK=100, minProb=.95) # good
+                    # CLS, CLSPROBS = self.select_logits(x1, minK=5, maxK=40, minProb=.5) 
+                    # CLS, CLSPROBS = self.select_logits(x1, minK=N, maxK=N, minProb=.5)  # seems quite good? (N=200
+
+                    #### now we've picked N cls. L2 projection.... ###
+                    vocab = w['head.weight'].shape[1]   # shape D,vocab                
+                    logits = torch.full((vocab,), float('-inf'), device='cuda', dtype=x.dtype) 
+
+                    num_tokens=0
+                    # project x to logits
+                    for i in range(0, len(CLS)):
+                        cls = CLS[i]
+                        clsprob = CLSPROBS[i]
+                        x1 = x @ w[f'head_l2org.{cls}.weight'] 
+
+                        # cls: cluster id, 
+                        # self.clusters[cls] list of token_ids in this cl s (as scatter idx
+                        # x: logits over tokens inside cls, (as scatter src
+                        # idx = torch.tensor(self.clusters[cls], device='cuda')
+                        idx = self.clusters_tensor[cls]
+
+                        num_tokens += idx.shape[0]
+                        #  ------ sanity check: if we use the org head.weight ------ # 
+                        if False:
+                            yyy=w[f'head_l2org.{cls}.weight']
+                            zzz=w['head.weight']
+                            for ii in range(len(idx)): 
+                                tokenid = idx[ii]
+                                if not torch.equal(yyy[:,ii], zzz[:,tokenid]): 
+                                    breakpoint()  
+                        # print("all good")
+                        # ---------------------------- # 
+
+                        # since we use the orig head weights, 
+                        #   it's ok to concat the raw logits from multi clusters
+                        logits.scatter_(dim=0, index=idx, src=x1)
+                    
+                    # update statistics
+                    self.stat_runs += 1
+                    self.stat_loaded_cls += len(CLS)
+                    self.state_loaded_tokens += num_tokens
+
+                    # -- sanity check ---- ... expensive 
+                    if False: 
+                        reallogits = x @ w['head.weight']
+                        # if N==200:
+                        if False:
+                            # if not torch.equal(reallogits,logits):
+                            # XXX there might be a minor bug somewhere.... causing 
+                            # minor diff in the two logitgs...
+                            if not torch.allclose(reallogits,logits, rtol=0.01, atol=0.01):
+                                dif=reallogits-logits
+                                nzdifmask=dif!=0
+                                nzidx=torch.nonzero(nzdifmask, as_tuple=False)
+                                breakpoint()
+                        tokens, probs= self.select_logits(reallogits, 5, 20, 0.85)
+                        
+                        # useful CMP: our computed logits (others filled -inf) vs. true logits
+                        # if K==200, they shall equal 
+                        if True:
+                            print(reallogits[tokens])
+                            print(logits[tokens])
+                            breakpoint()
+
+                    return logits 
+
+                # same as value3, except that l1 project use MLP
+                def _retrieve_value4(x, w):
+                    # x: shape D (regardless of seq_mode
+                    # l1 projection
+                    # x1 = x @ w['head_l1.weight']  # shape D,K
+                    # >>>>>>>>>>> CHANGED HERE <<<<<<<<<<<<<<<<<<<<<
+                    x = F.relu(x @ w['head_l1fc1.weight'])
+                    x1 = x @ w['head_l1fc2.weight']
+                    
+                    # --- select, not sampling --- # 
+                    # "minK" has a high impact on speed... 
+                    CLS, CLSPROBS = self.select_logits(x1, minK=3, maxK=100, minProb=.95) 
+                    # CLS, CLSPROBS = self.select_logits(x1, minK=5, maxK=40, minProb=.5) 
+                    # CLS, CLSPROBS = self.select_logits(x1, minK=N, maxK=N, minProb=.5)  # seems quite good? (N=200
+
+                    #### now we've picked N cls. L2 projection.... ###
+                    vocab = w['head.weight'].shape[1]   # shape D,vocab                
+                    logits = torch.full((vocab,), float('-inf'), device='cuda', dtype=x.dtype) 
+
+                    # project x to logits
+                    for i in range(0, len(CLS)):
+                        cls = CLS[i]
+                        clsprob = CLSPROBS[i]
+                        x1 = x @ w[f'head_l2org.{cls}.weight'] 
+
+                        # cls: cluster id, 
+                        # self.clusters[cls] list of token_ids in this cl s (as scatter idx
+                        # x: logits over tokens inside cls, (as scatter src
+                        # idx = torch.tensor(self.clusters[cls], device='cuda')
+                        idx = self.clusters_tensor[cls]
+
+                        #  ------ sanity check: if we use the org head.weight ------ # 
+                        if False:
+                            yyy=w[f'head_l2org.{cls}.weight']
+                            zzz=w['head.weight']
+                            for ii in range(len(idx)): 
+                                tokenid = idx[ii]
+                                if not torch.equal(yyy[:,ii], zzz[:,tokenid]): 
+                                    breakpoint()  
+                        # print("all good")                        
+                        # ---------------------------- # 
+
+                        # since we use the orig head weights, 
+                        #   it's ok to concat the raw logits from multi clusters
+                        logits.scatter_(dim=0, index=idx, src=x1)
+
+                    # -- sanity check ---- ... expensive 
+                    if True: 
+                        reallogits = x @ w['head.weight']
+                        # if N==200:
+                        if False:
+                            # if not torch.equal(reallogits,logits):
+                            # XXX there might be a minor bug somewhere.... causing 
+                            # minor diff in the two logitgs...
+                            if not torch.allclose(reallogits,logits, rtol=0.01, atol=0.01):
+                                dif=reallogits-logits
+                                nzdifmask=dif!=0
+                                nzidx=torch.nonzero(nzdifmask, as_tuple=False)
+                                breakpoint()
+                        tokens, probs= self.select_logits(reallogits, 5, 20, 0.85)
+                        
+                        # useful CMP: our computed logits (others filled -inf) vs. true logits
+                        # if K==200, they shall equal 
+                        if True:
+                            print(reallogits[tokens])
+                            print(logits[tokens])
+                            breakpoint()
+
+                    return logits 
+                
+                if x.dim() > 1:
+                    new_x = []
+                    for row in x:
+                        new_x.append(_retrieve_value3(row, w))
+                    x = torch.stack(new_x)
                 else:
-                    self.occurrence[cls] += www
-
-                # print(f">>>>>> # self.occurrence = {len(self.occurrence)}")
-                # print(f"\t\t\t\t\t cls {cls} occur {self.occurrence[cls]:.2f} #tokens {len(self.clusters[cls])}")
-
-                # l2 project x to: logits over all possible tokens within the cls
-                x = x @ w[f'head_l2.{cls}.weight']
-                                
-                vocab = w['head.weight'].shape[1]   # shape D,vocab                
-                # cls: cluster id, 
-                # self.clusters[cls] list of token_ids in this cls (as scatter idx
-                # x: logits over tokens inside cls, (as scatter src
-                # res: logits over all tokens (vocab). prefilled with -inf, used
-                #   as scatter dest
-                idx = torch.tensor(self.clusters[cls], device='cuda')
-                res = torch.full((vocab,),float('-inf'),device='cuda',dtype=x.dtype) \
-                    .scatter_(0, idx, x)
-                x = res
+                    x = _retrieve_value3(x, w)
 
             elif w['head.weight'].dtype != torch.uint8:  # original cls head
                 x = x @ w['head.weight']
@@ -1766,13 +2266,21 @@ class RWKV(MyModule):
             return x.float(), state
         
     # copied from rwkv/utils.py 
-    def sample_logits(self, logits, temperature=1.0, top_p=0.85, top_k=0):
+
+    #  only sample among top items with accumulative probs > "top_p", and 
+    #   ranked higher than "top_k"
+    #   "size": returned sample size
+    #   xzl: "replace=False" forbids same item selected multiple times
+    #  return: [samples], [probs]
+    def sample_logits(self, logits, temperature=1.0, top_p=0.85, top_k=0, 
+                      size=1, replace=False):
         import numpy as np
         if temperature == 0:
             temperature = 1.0
             top_p = 0
         probs = F.softmax(logits.float(), dim=-1)
         top_k = int(top_k)
+
         # 'privateuseone' is the type of custom devices like `torch_directml.device()`
         if probs.device.type in ['cpu', 'privateuseone']:
             probs = probs.cpu().numpy()
@@ -1780,14 +2288,16 @@ class RWKV(MyModule):
             sorted_probs = probs[sorted_ids][::-1]
             cumulative_probs = np.cumsum(sorted_probs)
             cutoff = float(sorted_probs[np.argmax(cumulative_probs >= top_p)])
-            probs[probs < cutoff] = 0
+            probs[probs < cutoff] = 0           #xzl: suppress the probs
             if top_k < len(probs) and top_k > 0:
-                probs[sorted_ids[:-top_k]] = 0
+                probs[sorted_ids[:-top_k]] = 0    #xzl: just supress the probs
             if temperature != 1.0:
                 probs = probs ** (1.0 / temperature)
             probs = probs / np.sum(probs)
-            out = np.random.choice(a=len(probs), p=probs)
-            return int(out)
+            # xzl: here, still can choose from items with prob=0 (?
+            out = np.random.choice(a=len(probs), p=probs, size=size, replace=replace)
+            # return int(out)
+            return out, probs[out]
         else:
             sorted_ids = torch.argsort(probs)
             sorted_probs = probs[sorted_ids]
@@ -1799,5 +2309,30 @@ class RWKV(MyModule):
                 probs[sorted_ids[:-top_k]] = 0
             if temperature != 1.0:
                 probs = probs ** (1.0 / temperature)
-            out = torch.multinomial(probs, num_samples=1)[0]
-            return int(out)
+            # out = torch.multinomial(probs, num_samples=size, replacement=replace)[0]  # old
+            # breakpoint()
+            out = torch.multinomial(probs, num_samples=size, replacement=replace)
+            # TODO: complete cumulative probs
+            # return int(out)
+            if sum(probs[out]) < 0.3:
+                print(sum(probs[out]))
+                breakpoint()
+            return out, probs[out]
+        
+    def select_logits(self, logits, minK, maxK, minProb):
+        import numpy as np
+
+        probs = F.softmax(logits.float(), dim=-1)
+        sorted_ids = torch.argsort(probs)
+        sorted_ids = torch.flip(sorted_ids, dims=(0,)) 
+        sorted_probs = probs[sorted_ids]
+        # sorted_probs = torch.flip(sorted_probs, dims=(0,)) 
+        # now sorted_probs in descending order
+        cumulative_probs = torch.cumsum(sorted_probs, dim=-1).cpu().numpy()
+        cutoff_idx = np.argmax(cumulative_probs >= minProb) + 1 # idx in sorted_probs
+        # cutoff = float(sorted_probs[np.argmax(cumulative_probs >= minProb)])
+        if cutoff_idx<minK:
+            cutoff_idx=minK
+        elif cutoff_idx>maxK:
+            cutoff_idx=maxK
+        return sorted_ids[:cutoff_idx], sorted_probs[:cutoff_idx]

@@ -131,15 +131,22 @@ class train_callback(pl.Callback):
                 logstr += f"layer {ly} receptance.grad {nm.item()}\n"
                             
         if args.head_K>1:
-            param = pl_module.head_l1.weight
+            # param = pl_module.head_l1.weight
+            # nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
+            # lll[f"GRAD: head_l1 weight"] = nm.item()
+
+            param = pl_module.head_l1fc1.weight
             nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
-            lll[f"GRAD: head_l1 weight"] = nm.item()
+            lll[f"GRAD: head_l1fc1 weight"] = nm.item()
+            
+            '''
             # sample a few L2
             cls=[10,50,100,150]
             for c in cls: 
                 param = pl_module.head_l2[c].weight
                 nm = torch.linalg.matrix_norm(deepspeed.utils.safe_get_full_grad(param)) 
                 lll[f"GRAD: head_l2.{c} weight"] = nm.item()
+            '''
 
         # unchanged weight 
         param = pl_module.ln_out.weight
@@ -327,7 +334,11 @@ class train_callback(pl.Callback):
                     print('Error\n\n', e, '\n\n')
 
         if trainer.is_global_zero:  # logging
-            trainer.my_log.write(f"{args.epoch_begin + trainer.current_epoch} {trainer.my_epoch_loss:.6f} {math.exp(trainer.my_epoch_loss):.4f} {trainer.my_lr:.8f} {datetime.datetime.now()} {trainer.current_epoch}\n")
+            if trainer.my_epoch_loss < 10: # xzl, otherwise math.exp() below may cause math range err...
+                trainer.my_log.write(f"{args.epoch_begin + trainer.current_epoch} {trainer.my_epoch_loss:.6f} {math.exp(trainer.my_epoch_loss):.4f} {trainer.my_lr:.8f} {datetime.datetime.now()} {trainer.current_epoch}\n")
+            else: # loss too large, dont print out exp(loss)
+                trainer.my_log.write(f"{args.epoch_begin + trainer.current_epoch} {trainer.my_epoch_loss:.6f} ----- {trainer.my_lr:.8f} {datetime.datetime.now()} {trainer.current_epoch}\n")
+
             trainer.my_log.flush()
 
             # call lm_eval and log. 

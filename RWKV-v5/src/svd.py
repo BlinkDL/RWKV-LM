@@ -3,6 +3,9 @@
 '''
 # xzl: can do the following things: 
 
+##  WARNING WARNING WARNING MUST SET args.n_layers, n_embd, see line 400
+
+###################
 # decompse
 #       a pretrained model -->  svd decompose, and save to *.pth
 #       diff the recovered model vs. the original model 
@@ -18,11 +21,15 @@ python3 svd.py --svdfac 8 --decompose 1 --decompose_ffn 1   \
 python3 src/svd.py --svdfac 8 --decompose 1 --decompose_ffn 1   \
     --orig_model /data/models/RWKV-5-World-1B5-v2-20231025-ctx4096
 
+python3 src/svd.py --svdfac 8 --decompose 1 --decompose_ffn 1   \
+    --orig_model /data/models/RWKV-5-World-3B-v2-20231113-ctx4096
+
 ##############
 # strip diag:
 python3 src/svd.py --decompose 3 \
     --orig_model /sfs/weka/scratch/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x58/rwkv-410
 
+##############
 # recover: 
 #       our decmoposed model (finetuned) ---> a model in the original format, save to *pth 
 python3 svd.py --decompose 0 
@@ -35,6 +42,10 @@ python3 svd.py \
     --decompose 0  \
     --my_model /data/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/L24-D1024-F8-x052xzlTune/rwkv-90
         
+
+python3 svd.py \
+    --decompose 0  \
+    --my_model /data/models/RWKV-5-World-3B-v2-20231113-ctx4096-svd-F8
 
 # decompse emb
 python3 svd.py --decompose 2
@@ -339,7 +350,7 @@ def decompose_orig(args):
     print("model loaded")
 
     print("recover full model & cmp...")
-    w00 = svd_recover_to_full(w2,args) 
+    w00 = svd_recover_to_full(w2,args)   # w00: recovered
     compare(w0, w00)
 
     print(f"saved to {args.MODEL_NAME}-svd-F{args.svdfac}.pth")
@@ -352,8 +363,12 @@ def recover(args):
     print("model loaded")
 
     w00 = svd_recover_to_full(w0,args) 
+
     for k in w00.keys():
+        print(k)
         w00[k]=w00[k].to(dtype=torch.bfloat16) # still save as bfloat
+
+    breakpoint()
 
     if args.path_to == "":
         args.path_to = f"{args.MODEL_NAME}-recover"
@@ -398,12 +413,12 @@ if __name__ == '__main__':
     # args.n_embd = 1024
 
     # 1.5B
-    args.n_layer = 24   # xzl: so we cannot figure out automatically???
-    args.n_embd = 2048
+    # args.n_layer = 24   # xzl: so we cannot figure out automatically???
+    # args.n_embd = 2048
 
     # 3B
-    # args.n_layer = 32   # xzl: so we cannot figure out automatically???
-    # args.n_embd = 2560
+    args.n_layer = 32   # xzl: so we cannot figure out automatically???
+    args.n_embd = 2560
 
     args.vocab_size = 65536
 

@@ -54,7 +54,7 @@ from rwkv.model import RWKV
 from rwkv.utils import PIPELINE
 
 from lm_eval import tasks, evaluator
-from lm_eval.models.gpt2 import GPT2LM
+from lm_eval.api.model import TemplateLM
 
 ########################################################################################################
 
@@ -68,8 +68,33 @@ from lm_eval.models.gpt2 import GPT2LM
 # acc:  .33 (openai) .29(hellaswag) .51(winogrande) .624 (piqa) ??(storycloze_2016) .64 (copa) .639 (record, f1)
 # MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823'
 
+# 01B, 01b-pre-x52 + CLS 
+# baseline, .33 openai
+# MODEL_NAME='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/rwkv-init'  # unmodified model,  pretrained by us
+# MODEL_NAME='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run/rwkv-7'  #old bad
+
+#Only head.l1 tuned, CE loss
+# MODEL_NAME='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run2/rwkv-24'  
+# acc: .26 (openai)  minK=5, maxK=100, minProb=.75
+# acc: .305 (openai) minK=10, maxK=150, minProb=.85
+# acc: .313 (openai) minK=5, maxK=100, minProb=.95
+# acc: .310 (openai) minK=3, maxK=100, minProb=.95 <--- seems good
+
+#Only head.l1 tuned, KL loss
+# acc: .331 (openai). minK=3, maxK=100, minProb=.95 <--- NEED TO CAREFULLY VERIFY
+MODEL_NAME='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
+#MODEL_NAME='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
+#MODEL_NAME='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/04b-pre-x59-8x-cls/rwkv-30'
+
 # 01B --- 01b-pre-x59
-MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
+# acc .37 (openai) 8x (default)
+# MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
+# 16x 
+MODEL_NAME = '/data/models/01b-pre-x59-16x-901'
+
+# MODEL_NAME = "/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-cls/from-hpc/0.1b-offical"
+# MODEL_NAME = "/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x52/rwkv-1455"
+# MODEL_NAME = "/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-cls/from-hpc/rwkv-1366"
 
 # 04B --- official 
 # MODEL_NAME = "/data/models/RWKV-5-World-0.4B-v2-20231113-ctx4096"
@@ -165,12 +190,29 @@ MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x
 ########################################################################################################
 # select benchmarks below 
 
-eval_tasks = []
-eval_tasks += ['lambada_openai']  # OK, (10k
-eval_tasks += ['hellaswag'] # OK (40k
-eval_tasks += ['winogrande'] # ok, fast (2k
-eval_tasks += ['piqa']  # ok, fast (3k
-eval_tasks += ['copa']  # fast <1k
+eval_tasks = [
+        'lambada_openai',
+        # 'lambada_standard',
+        # 'piqa',
+        # 'hellaswag',
+        # 'winogrande',
+        # 'arc_easy',
+        # 'arc_challenge',
+        # 'openbookqa',
+        # 'sciq',
+
+        #'leaderboard_gpqa_main',
+        #'leaderboard_ifeval',
+        #'leaderboard_mmlu_pro',
+        #'leaderboard_musr_murder_mysteries',
+        #'leaderboard_musr_object_placements',
+        #'leaderboard_musr_team_allocation',
+        ]
+#eval_tasks += ['lambada_openai']  # OK, (10k
+#eval_tasks += ['hellaswag'] # OK (40k
+#eval_tasks += ['winogrande'] # ok, fast (2k
+#eval_tasks += ['piqa']  # ok, fast (3k
+#eval_tasks += ['copa']  # fast <1k
 # eval_tasks += ['record']  # slow 113K examples -- take long (even CUDA=1
 
 # eval_tasks += ['storycloze_2016']  # missing in our lm_eval version. TBD
@@ -210,11 +252,12 @@ class TokenizerWrapper:
     def decode(self, tokens):
         return self.tokenizer.decode(tokens)
 
-class EvalHarnessAdapter(GPT2LM):
-    def __init__(self, model, pipeline, pad):
-        self.tokenizer = TokenizerWrapper(pipeline.tokenizer)
-        self.model = model
+class EvalHarnessAdapter(TemplateLM):
+    def __init__(self, pretrained, pipeline, pad):
+        super().__init__()
         self.pad = pad
+        self.pretrained = pretrained
+        self.tokenizer = TokenizerWrapper(pipeline.tokenizer)
 
     # def greedy_until(self, requests): # designed for coqa
     #     res = []
@@ -245,7 +288,12 @@ class EvalHarnessAdapter(GPT2LM):
 
         res = []
 
-        # xzl: invoke forward() for each "request"... (no batching??
+        # xzl: invoke forward() for each "request"... 
+        # a request - a text sequent (like prompt?). eg openai benchmark has 
+        # ~5K requests
+        #
+        # below UNLIKE test-rwkv.chat.py: NOT using pipeline args for logits sampling 
+        #   just treat it as greedy decoder, for next token predict???
         for COUNTER in range(len(requests)):
             n = COUNTER
             raw_src = requests[n][0][0] + requests[n][0][1]
@@ -266,44 +314,66 @@ class EvalHarnessAdapter(GPT2LM):
                 logit = 0
                 
                 with torch.no_grad():
-                    # print("*",end='')
-                    outputs, _ = self.model.forward(src, None, full_output=True)
+                    print("*",end='',flush=True)   # show progress....
+                    # xzl: below forward. send one seq to the model (i.e. shape bsz=1,L,D)
+                    outputs, _ = self.pretrained.forward(src, None, full_output=True)
+                    # breakpoint()
+                    # xzl: for each token to be predicted... (q_len: prompt? 
                     for i in range(q_len-1, len(src)-1):
                         oo = outputs[i].detach().float()
-                        dst = src[i+1]
-                        logit += math.log(F.softmax(oo, dim=-1)[dst])
+                        dst = src[i+1]  # xzl: next token, from GT
+                        v = F.softmax(oo, dim=-1)[dst]
+                        if v == 0:
+                            v = 0.00000000000000000000000001
+                        logit += math.log(v)    # xzl: accmulate logits for the GT token ... why?
                         _, s_index = torch.sort(oo, descending=True)
-                        pred = s_index[0].item()
+                        pred = s_index[0].item()   # xzl: pred token with higehst prob? greedy?
                         if pred != dst:
                             correct = False
                     outputs = None
                     pred = None
-                logitBuf[sss] = logit
+                logitBuf[sss] = logit  # xzl: cache (accmulated) logit
                 correctBuf[sss] = correct
+                #clean_cache()
             
             res += [(logit, correct)]
             if n % 1000 == 0:
                 print(f'{n//1000}K/{len(requests)//1000}K', end = ' ', flush=True)
         return res
 
+    def loglikelihood_rolling():
+        pass
+
+    def generate_until():
+        pass
+
+    def tok_encode(self, string: str):
+        return self.tokenizer.encode(string, add_special_tokens=False)
+
+    @property
+    def eot_token_id(self):
+        # we use EOT because end of *text* is more accurate for what we're doing than end of *sentence*
+        return self.tokenizer.eos_token_id
+
+
     @torch.no_grad()
     def run_eval(self, eval_tasks=None, num_fewshot=0, bootstrap_iters=2):
         results = evaluator.evaluate(
             lm=self,
             task_dict=tasks.get_task_dict(eval_tasks),
-            provide_description=False,
-            num_fewshot=num_fewshot,
+            #provide_description=False,
+            #num_fewshot=num_fewshot,
             limit=None,
             bootstrap_iters=bootstrap_iters,
         )
-        # results = evaluator.simple_evaluate(
-        #     model=self,
-        #     tasks=eval_tasks,
-        #     num_fewshot=num_fewshot,
-        #     limit=None,
-        #     bootstrap_iters=bootstrap_iters,
-        #     no_cache=True
-        # )
+        #results = evaluator.simple_evaluate(
+        #    model=self,
+        #    tasks=eval_tasks,
+        #    num_fewshot=num_fewshot,
+        #    limit=None,
+        #    bootstrap_iters=bootstrap_iters,
+        #    #no_cache=True
+        #)
         return results
 
 def do_eval(model_path, isverbose=False, benchmarks=[]):
@@ -324,7 +394,7 @@ def do_eval(model_path, isverbose=False, benchmarks=[]):
     if isverbose:
         print('RWKV_PAD', RWKV_PAD)
 
-    adapter = EvalHarnessAdapter(rwkv_model, pipeline, RWKV_PAD)
+    adapter = EvalHarnessAdapter(model, pipeline, RWKV_PAD)
     results = adapter.run_eval(
         eval_tasks=benchmarks,
         bootstrap_iters=10000,
@@ -332,6 +402,12 @@ def do_eval(model_path, isverbose=False, benchmarks=[]):
     # results ex: 
     # {'results': {'hellaswag': {'acc': 0.2921728739294961, 'acc_stderr': 0.004538319464111977, 'acc_norm': 0.31955785700059747, 'acc_norm_stderr': 0.0046535230383693855}}, 'versions': {'hellaswag': 0}}
     # print(results['results'])
+
+    if model.stat_runs != 0: 
+        print(f"stats: runs: {model.stat_runs} \
+        cls/run {model.stat_loaded_cls/model.stat_runs:.2f} \
+        tokens/run {model.state_loaded_tokens/model.stat_runs/65535:.2f}")
+    
     return results['results']
 
 def clean_cache():
@@ -340,7 +416,8 @@ def clean_cache():
     correctBuf = {}
 
 if __name__ == "__main__":
-    results = do_eval(MODEL_NAME)
+    results = do_eval(MODEL_NAME, isverbose=False)
     # print(results)
     print(json.dumps(results, indent=4, sort_keys=False))
+
 

@@ -345,22 +345,37 @@ if __name__ == "__main__":
 
     # xzl: allow the ckpt file to lack certain params, in which case just 
     #   keep the model's params as is (what values???
-    # breakpoint()
     if args.load_partial == 1:
         load_keys = load_dict.keys()
         for k in model.state_dict():
             if k not in load_keys:
+                if "head_l2" in k:
+                    continue  # will process in "build head_l2" loop below
                 load_dict[k] = model.state_dict()[k]
-                if "head_l1" in k or "head_l2" in k:        # xzl: cls head
+                # if "head_l1" in k or "head_l2" in k:        # xzl: cls head
+                if "head_l1.weight" in k:
                     if args.vocab_size > args.n_embd:
                         scale = 0.5 * math.sqrt(args.vocab_size / args.n_embd)
                     else:
                         scale = 0.5
                     torch.nn.init.orthogonal_(load_dict[k], gain=scale)
+                if "head_l1fc" in k:
+                    torch.nn.init.kaiming_uniform_(load_dict[k], nonlinearity='relu')
                 if "diag" in k: 
                     scale = -1e-4
                     torch.nn.init.uniform_(load_dict[k], a=scale, b=-scale)
-
+        
+        # build head_l2, but by splitting the original cls head weights
+        orghead = load_dict['head.weight']   # must exist
+        for cls in range(0, args.head_K):
+            k = f'head_l2.{cls}.weight'
+            if k in load_keys:
+                continue
+            idx = torch.tensor(model.clusters[cls], device=orghead.device)
+            ww = orghead[idx]
+            load_dict[k] = ww  #save it 
+    
+    # below: load from state_dict (tensors) to model 
     # model.load_state_dict(load_dict, strict=False)
     model.load_state_dict(load_dict, strict=True)
 
@@ -419,7 +434,9 @@ if __name__ == "__main__":
                         "ln_out",   # must include this otherwise loss has no grad_fn (below).... 
                         ]
         if args.head_K > 1:
-            tunepara = ["head_l1", "head_l2"]
+            # tunepara = ["head_l1", "head_l2"]
+            tunepara = ["head_l1"]
+            #tunepara = ["head_l1fc"]
 
         model.requires_grad_(False)    #xzl this seems a must
         for pname, param in model.named_parameters():
@@ -440,5 +457,15 @@ if __name__ == "__main__":
     #             if pname.endswith('.time_state') and pname.startswith('blocks.'):
     #                 print(pname)
     #                 param.requires_grad = True
+
+    
+    # sanity check weights...
+    # param_tensor = model.head_l1fc1.weight
+    # l2_norm = torch.norm(param_tensor, p=2)
+    # print("head_l1fc1 L2 Norm:", l2_norm.item())
+    # param_tensor = model.head_l1fc2.weight
+    # l2_norm = torch.norm(param_tensor, p=2)
+    # print("head_l1fc2 L2 Norm:", l2_norm.item())
+    # breakpoint()
 
     trainer.fit(model, data_loader)
