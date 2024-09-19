@@ -149,7 +149,7 @@ if 'x060' in os.environ["RWKV_MY_TESTING"]:
         def RUN_CUDA_RWKV6(B, T, C, H, r, k, v, w, u):
             return WKV_6.apply(B, T, C, H, r, k, v, w, u)
 
-elif os.environ["RWKV_MY_TESTING"] in ['x052', 'x058', 'x059', 'x0595']:
+elif os.environ["RWKV_MY_TESTING"] in ['x052', 'x058', 'x059', 'x0594', 'x0595', 'x0596']:
     import platform
     if platform.system() == 'Darwin':
         wkv5_gpu = load(name='wkv5', sources=['metal/wkv5_op.mm'], 
@@ -1580,9 +1580,7 @@ class Block(nn.Module):
                     self.att = RWKV_Tmix_x060(args, layer_id)
             elif os.environ["RWKV_MY_TESTING"] in ['x058']:
                 self.att = RWKV_Tmix_x058(args, layer_id)
-            elif os.environ["RWKV_MY_TESTING"] in ['x059']:
-                self.att = RWKV_Tmix_x059(args, layer_id)                
-            elif os.environ["RWKV_MY_TESTING"] in ['x0595']:
+            elif os.environ["RWKV_MY_TESTING"] in ['x059', 'x0594', 'x0595', 'x0596']:
                 self.att = RWKV_Tmix_x059(args, layer_id)                
             elif 'x052' == os.environ["RWKV_MY_TESTING"]:
                 self.att = RWKV_Tmix_x052(args, layer_id)
@@ -1599,8 +1597,12 @@ class Block(nn.Module):
             self.ffn = RWKV_CMix_x058_r(args, layer_id)            
         elif os.environ["RWKV_MY_TESTING"] in ['x059']:
             self.ffn = RWKV_CMix_x059_r(args, layer_id)
+        elif os.environ["RWKV_MY_TESTING"] in ['x0594']:
+            self.ffn = RWKV_CMix_x0594_rkv(args, layer_id)
         elif os.environ["RWKV_MY_TESTING"] in ['x0595']:
             self.ffn = RWKV_CMix_x0595_rkv(args, layer_id)
+        elif os.environ["RWKV_MY_TESTING"] in ['x0596']:
+            self.ffn = RWKV_CMix_x0596_rkv(args, layer_id)
         elif 'x052' == os.environ["RWKV_MY_TESTING"]:
             self.ffn = RWKV_CMix_x052(args, layer_id)
         elif 'mamba' in os.environ["RWKV_MY_TESTING"]:
