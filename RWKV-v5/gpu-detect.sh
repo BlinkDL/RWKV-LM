@@ -1,8 +1,9 @@
 # https://developer.download.nvidia.com/compute/DCGM/docs/nvidia-smi-367.38.pdf
 # https://enterprise-support.nvidia.com/s/article/Useful-nvidia-smi-Queries-2
 
-# goal: set two env vars: 
-# VRAM_MB, NGPUS
+# goal: set env vars: 
+# VRAM_MB, NGPUS, GPU0_NAME
+#   GPUID is a known valid GPU, for detecting VRAM size
 
 if [ $HOSTNAME = "xsel01" ]; then
     NGPUS=1; GPUID=0
