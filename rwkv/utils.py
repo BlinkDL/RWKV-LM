@@ -104,8 +104,8 @@ class PIPELINE():
                 out, state, token_mask = self.model.forward(tokens[:args.chunk_len], state)
                 tokens = tokens[args.chunk_len:]
 
-            if token_mask[0] is not None:
-                token_masks.append(torch.stack(token_mask))
+            #if token_mask[0] is not None:
+            #    token_masks.append(torch.stack(token_mask))
                 
             # xzl: out: logits over all possible tokens
             for n in args.token_ban:
@@ -142,61 +142,61 @@ class PIPELINE():
                 out_str += tmp
                 out_last = i + 1
 
-        def _plot_and_save_weights(data, token_index, layer_name, output_dir="weights_plots"):
-            # Ensure output directory exists
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-           
-            #print(data)
-            #print(data.shape)
-            plt.imshow(data, aspect='auto', cmap='magma', interpolation='none')
+        #def _plot_and_save_weights(data, token_index, layer_name, output_dir="weights_plots"):
+        #    # Ensure output directory exists
+        #    if not os.path.exists(output_dir):
+        #        os.makedirs(output_dir)
+        #   
+        #    #print(data)
+        #    #print(data.shape)
+        #    plt.imshow(data, aspect='auto', cmap='magma', interpolation='none')
 
-            plt.colorbar(label="True/False")
-            #plt.title(f"Weights for Token {token_index} in {layer_name}")
-            plt.xlabel("Column")
-            plt.ylabel("Layer")
-            
-            # Save the figure
-            plot_filename = f"{output_dir}/token_{token_index}_{layer_name}.png"
-            plt.savefig(plot_filename, dpi=300)
-            plt.close()
+        #    plt.colorbar(label="True/False")
+        #    #plt.title(f"Weights for Token {token_index} in {layer_name}")
+        #    plt.xlabel("Column")
+        #    plt.ylabel("Layer")
+        #    
+        #    # Save the figure
+        #    plot_filename = f"{output_dir}/token_{token_index}_{layer_name}.png"
+        #    plt.savefig(plot_filename, dpi=300)
+        #    plt.close()
 
-        def _plot_cdf_for_each_row(tensor):
-            output_dir = "cdf_plots"
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
+        #def _plot_cdf_for_each_row(tensor):
+        #    output_dir = "cdf_plots"
+        #    if not os.path.exists(output_dir):
+        #        os.makedirs(output_dir)
 
-            for row_idx in range(tensor.shape[0]):
-                plt.figure(figsize=(6, 4))
-                num_cols = tensor.shape[1]
-                row_data = tensor[row_idx, :num_cols]
+        #    for row_idx in range(tensor.shape[0]):
+        #        plt.figure(figsize=(6, 4))
+        #        num_cols = tensor.shape[1]
+        #        row_data = tensor[row_idx, :num_cols]
 
 
-                np.savetxt(f"{row_idx}.csv", row_data, delimiter=",")
-                row_data = np.sort(row_data)
-                1/0
-                    
-                cdf = np.cumsum(row_data / row_data.sum())
-                 
-                # Sort the data to compute the CDF
-                plt.plot(np.arange(num_cols), cdf, alpha=0.75, color='blue')
+        #        np.savetxt(f"{row_idx}.csv", row_data, delimiter=",")
+        #        row_data = np.sort(row_data)
+        #        1/0
+        #            
+        #        cdf = np.cumsum(row_data / row_data.sum())
+        #         
+        #        # Sort the data to compute the CDF
+        #        plt.plot(np.arange(num_cols), cdf, alpha=0.75, color='blue')
 
-                plt.title(f"Layer {row_idx}")
-                plt.ylabel("Cumulative probability")
-                plt.xlabel("# of Columns")
-                plt.legend(loc='best')
-                plt.grid(True)
-                filename = f"{output_dir}/{row_idx}.png"
-                plt.savefig(filename, dpi=300)
-                plt.close()  # Close the plot to free memory
+        #        plt.title(f"Layer {row_idx}")
+        #        plt.ylabel("Cumulative probability")
+        #        plt.xlabel("# of Columns")
+        #        plt.legend(loc='best')
+        #        plt.grid(True)
+        #        filename = f"{output_dir}/{row_idx}.png"
+        #        plt.savefig(filename, dpi=300)
+        #        plt.close()  # Close the plot to free memory
 
 
         #for n, layer_masks in enumerate(token_masks):
         #    _plot_and_save_weights(layer_masks.cpu().numpy(), n, f"FFN") 
-        new_tensor = torch.zeros(token_masks[0].shape[0], token_masks[1].shape[1])
+        #new_tensor = torch.zeros(token_masks[0].shape[0], token_masks[1].shape[1])
 
-        for t in token_masks:
-            new_tensor += t.cpu()
+        #for t in token_masks:
+        #    new_tensor += t.cpu()
 
         #output_dir = "unimpt_layers"
         #for i, row in enumerate(new_tensor):
@@ -206,6 +206,6 @@ class PIPELINE():
 
 
         #_plot_and_save_weights(new_tensor.cpu().numpy(), "ALL", "FFN") 
-        _plot_cdf_for_each_row(new_tensor.cpu())
+        #_plot_cdf_for_each_row(new_tensor.cpu())
 
         return out_str
