@@ -3,10 +3,13 @@
 ########################################################################################################
 
 from typing import Optional
+import numpy as np
 import types, gc, os, time, re
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+import matplotlib.pyplot as plt
+
 torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.allow_tf32 = True
 torch.backends.cuda.matmul.allow_tf32 = True
@@ -153,6 +156,12 @@ def matmul(a, b, mx: Optional[torch.Tensor]=None, rx: Optional[torch.Tensor]=Non
     else:
         raise ValueError("Unsupported dtype")
 
+def matmul_sparsity(a, b):
+    if len(a.shape) == 1:
+        return torch.sparse.mm(a.unsqueeze(0), b.to_sparse()).squeeze()
+    else:
+        return torch.sparse.mm(a, b.to_sparse())
+
 
 # xzl: matmul_float
 #       speiclized matmul for CUDA, for fp16, for certain shapes....
@@ -270,7 +279,7 @@ class RWKV(MyModule):
                     self.version = max(5.94, self.version)
                 if 'ffn.key_diag' in x:
                     #self.version = max(5.95, self.version)
-                    self.version = max(5.96, self.version)
+                    self.version = max(5.95, self.version)
                 if 'time_maa' in x:
                     print("SISIXIXIX")
                     self.version = max(6, self.version)
@@ -731,11 +740,39 @@ class RWKV(MyModule):
 
         k = matmul(kx, kw, kmx, krx, kmy, kry)
 
+        # true if k <= 0
+        #k_zero_mask = (k <= 0)
+        #
+        #if len(kx.shape) == 1:
+        #    kw_related_zero_mask = kx.view(-1, 1) * k_zero_mask.to(torch.float16)
+        #else:
+        #    kw_related_zero_mask = torch.matmul(kx.t(), k_zero_mask.to(torch.float16))
+        #
+        #k = matmul_sparsity(kx.to(torch.float32), kw.to(torch.float32)).to(torch.float16)
+
         vx = torch.relu(k) ** 2
+
+        # which neuron is activated? if 0 = inactive, else active
+        mask = (vx != 0).half()
+        #used_weight = kx.unsqueeze(1) @ mask.unsqueeze(0)
+
+        # check # of zeroes
+        #num_zeros = torch.sum(vx == 0).item()
+        #total_elements = vx.numel()
+        #zero_ratio = num_zeros / total_elements
+        #print(zero_ratio)
+
+
+        # sparsification
+        flattened = vx.to(torch.float32).view(-1)
+        th = torch.quantile(flattened, .9)
+        # spartified vx
+        #vx = torch.where(vx < th.to(vx.dtype), torch.tensor(0.0, dtype=vx.dtype), vx)
+
         v = matmul(vx, vw, vmx, vrx, vmy, vry)
 
         out = r * v
-        return x + out, xx
+        return x + out, xx, mask
 
     # xzl: ours, based on above
     @MyFunction
@@ -918,11 +955,37 @@ class RWKV(MyModule):
 
         k = matmul(kx, kw, kmx, krx, kmy, kry)
 
+        
+        # true if k <= 0
+        #k_zero_mask = (k <= 0)
+
+        #if len(kx.shape) == 1:
+        #    kw_related_zero_mask = kx.view(-1, 1) * k_zero_mask.to(torch.float16)
+        #else:
+        #    kw_related_zero_mask = torch.matmul(kx.t(), k_zero_mask.to(torch.float16))
+
+        #kw[kw_related_zero_mask > 0] = 0
+
+        #k = matmul_sparsity(kx.to(torch.float32), kw.to(torch.float32)).to(torch.float16)
+
         vx = torch.relu(k) ** 2
+
+        # check # of zeroes
+        #num_zeros = torch.sum(vx == 0).item()
+        #total_elements = vx.numel()
+        #zero_ratio = num_zeros / total_elements
+        #print(zero_ratio)
+
+        # sparsification
+        flattened = vx.to(torch.float32).view(-1)
+        th = torch.quantile(flattened, .9)
+        # spartified vx
+        #vx = torch.where(vx < th.to(vx.dtype), torch.tensor(0.0, dtype=vx.dtype), vx)
+
         v = matmul(vx, vw, vmx, vrx, vmy, vry)
 
         out = r * v
-        return x + out, xx[-1,:]
+        return x + out, xx[-1,:], None
 
     @MyFunction
     def ffn_seq_v5_94(self, x, sx, ln_w, ln_b, k_mix, r_mix, 
@@ -1766,6 +1829,7 @@ class RWKV(MyModule):
 
             # xzl: below- assemble layers (each layer)
             #  use custom cuda impl if available, otherwise fall back to torch
+            layer_masks = []
             for i in range(args.n_layer):
                 bbb = f'blocks.{i}.'
                 att = f'blocks.{i}.att.'
@@ -1790,7 +1854,7 @@ class RWKV(MyModule):
                             ATT = self.cuda_att_seq_v5_2
                     elif self.version == 5.8:
                         ATT = self.att_seq_v5_8
-                    elif self.version in [5.9, 5.94, 5.95]:
+                    elif self.version in [5.9, 5.94, 5.95, 5.96]:
                         ATT = self.att_seq_v5_9
                     elif self.version == 6.0:
                         ATT = self.att_seq_v6_0
@@ -1819,7 +1883,7 @@ class RWKV(MyModule):
                         ATT = self.att_one_v5_1 # same as v5.1
                     elif self.version == 5.8:
                         ATT = self.att_one_v5_8
-                    elif self.version in [5.94, 5.95, 5.96]:
+                    elif self.version in [5.9, 5.94, 5.95, 5.96]:
                         ATT = self.att_one_v5_9
                     elif self.version == 6.0:
                         ATT = self.att_one_v6_0
@@ -2044,6 +2108,10 @@ class RWKV(MyModule):
                         kw = w[f'{ffn}key.weight']
                         vw = w[f'{ffn}value.weight']
 
+                    # zero out unimportant layers
+                    #kw_mask_indice = np.load(f"unimpt_layers/{i}_layer.npy")
+                    #kw[:, kw_mask_indice] = 0
+
                     rw1 = w[f'{ffn}receptance1.weight']
                     rw2 = w[f'{ffn}receptance2.weight']
 
@@ -2087,7 +2155,7 @@ class RWKV(MyModule):
                     offset = i*3+2
                 # ---- xzl: below, run FFN ----- #
                 if self.version in [5.9]:
-                    x, state[offset] = FFN(
+                    x, state[offset], mask = FFN(
                         x, state[offset],
                         w[f'{bbb}ln2.weight'], w[f'{bbb}ln2.bias'],
                         w[f'{ffn}time_mix_k'], w[f'{ffn}time_mix_r'],
@@ -2098,6 +2166,7 @@ class RWKV(MyModule):
                         rmx1, rrx1, rmy1, rry1,
                         rmx2, rrx2, rmy2, rry2,
                         )
+                    layer_masks.append(mask)
                 elif self.version in [5.94]:
                     x, state[offset] = FFN(
                         x, state[offset],
@@ -2586,7 +2655,7 @@ class RWKV(MyModule):
                 else:
                     x = mm8_one(x, w['head.weight'], w['head.weight_mx'], w['head.weight_rx'], w['head.weight_my'], w['head.weight_ry'])
 
-            return x.float(), state
+            return x.float(), state, layer_masks
         
     # copied from rwkv/utils.py 
 
