@@ -750,7 +750,7 @@ class RWKV(MyModule):
         #
         #k = matmul_sparsity(kx.to(torch.float32), kw.to(torch.float32)).to(torch.float16)
 
-        vx = torch.relu(k) ** 2
+        vx = torch.relu(k) ** 2     # sparse actiavtion
 
         # which neuron is activated? if 0 = inactive, else active
         mask = (vx != 0).half()
@@ -955,7 +955,6 @@ class RWKV(MyModule):
 
         k = matmul(kx, kw, kmx, krx, kmy, kry)
 
-        
         # true if k <= 0
         #k_zero_mask = (k <= 0)
 
@@ -968,7 +967,7 @@ class RWKV(MyModule):
 
         #k = matmul_sparsity(kx.to(torch.float32), kw.to(torch.float32)).to(torch.float16)
 
-        vx = torch.relu(k) ** 2
+        vx = torch.relu(k) ** 2   # sparse actiavtion
 
         # check # of zeroes
         #num_zeros = torch.sum(vx == 0).item()
@@ -1860,6 +1859,7 @@ class RWKV(MyModule):
                         ATT = self.att_seq_v6_0
                         if cuda_applicable:
                             ATT = self.cuda_att_seq_v6_0
+
                     FFN = self.ffn_seq
                     if self.version >= 6.0:
                         FFN = self.ffn_seq_v6
@@ -1887,6 +1887,7 @@ class RWKV(MyModule):
                         ATT = self.att_one_v5_9
                     elif self.version == 6.0:
                         ATT = self.att_one_v6_0
+                    
                     FFN = self.ffn_one
                     if self.version >= 6.0:
                         FFN = self.ffn_one_v6
