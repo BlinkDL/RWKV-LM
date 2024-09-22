@@ -731,7 +731,7 @@ class RWKV(MyModule):
 
         k = matmul(kx, kw, kmx, krx, kmy, kry)
 
-        vx = torch.relu(k) ** 2
+        vx = torch.relu(k) ** 2     # sparse actiavtion
         v = matmul(vx, vw, vmx, vrx, vmy, vry)
 
         out = r * v
@@ -918,7 +918,7 @@ class RWKV(MyModule):
 
         k = matmul(kx, kw, kmx, krx, kmy, kry)
 
-        vx = torch.relu(k) ** 2
+        vx = torch.relu(k) ** 2   # sparse actiavtion
         v = matmul(vx, vw, vmx, vrx, vmy, vry)
 
         out = r * v
@@ -1796,6 +1796,7 @@ class RWKV(MyModule):
                         ATT = self.att_seq_v6_0
                         if cuda_applicable:
                             ATT = self.cuda_att_seq_v6_0
+
                     FFN = self.ffn_seq
                     if self.version >= 6.0:
                         FFN = self.ffn_seq_v6
@@ -1819,10 +1820,11 @@ class RWKV(MyModule):
                         ATT = self.att_one_v5_1 # same as v5.1
                     elif self.version == 5.8:
                         ATT = self.att_one_v5_8
-                    elif self.version in [5.94, 5.95, 5.96]:
+                    elif self.version in [5.9, 5.94, 5.95, 5.96]:
                         ATT = self.att_one_v5_9
                     elif self.version == 6.0:
                         ATT = self.att_one_v6_0
+                    
                     FFN = self.ffn_one
                     if self.version >= 6.0:
                         FFN = self.ffn_one_v6
