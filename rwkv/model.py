@@ -1055,11 +1055,11 @@ class RWKV(MyModule):
 
         # simulate the pred ... mask the activations
         # can check how much norm we lose?  sum0=vx.sum() then sum1=vx.sum()
-        if layer_id < 999:       # all layers on
-        # if layer_id < 12:      # only 50% layers on
-        # if layer_id % 5 != 0:   # off every 5 layers
+        # if layer_id < 999:       # all layers sparse
+        # if layer_id < 12:      # only 50% layers sparse
+        if layer_id % 5 != 0:   # dense every other layers
             # breakpoint()            
-            vx = vx * pred      
+            vx = vx * pred
 
         v = matmul(vx, vw, vmx, vrx, vmy, vry)
 

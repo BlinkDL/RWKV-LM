@@ -126,17 +126,18 @@ from lm_eval.api.model import TemplateLM
 # + mlp
 #   winogrande
 #                                                    ACC
-#   - pred off:                                     .515
-#   - pred on for all layers:                       .517 (??
-#   - pred on for 1st half layers (0-11):           .531 (higher!       
-#   - pred off every 5 layers (start from 0):       .509
+#   - all dense:                                     .515
+#   - dense every 5 layers (start from 0)           .509
+#   - 1st half layers (0-11) sparse:                .531 (higher!       
+#   - all sparse:                                   .517 (??
 #
 #   openAI
-#                                                    ACC
-#   - pred off:                                     .??
-#   - pred on for all layers:                       .33
-#   - pred on for 1st half layers (0-11):           .35
-#   - pred off every 5 layers (start from 0):       .
+#                                                   ACC
+#   - all dense                                    .47
+#   - dense every 2 layers (start from 0):         .46
+#   - dense every 5 layers (start from 0):         .38
+#   - 1st half layers (0-11) sparse:               .35
+#   - all sparse:                                  .33
 
 MODEL_NAME='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860-mlp'
 
