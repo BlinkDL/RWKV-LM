@@ -13,7 +13,8 @@ This will load RWKV-7 "Goose" x070.rc2-2409-2r7a-b0b4a and inference in GPT-mode
 
 args = types.SimpleNamespace()
 
-MODEL_PATH = "/mnt/e/rwkv-600.pth"
+# model download: https://huggingface.co/BlinkDL/temp-latest-training-models/tree/main
+MODEL_PATH = "/mnt/e/rwkv-x070-rc2-172m-pile-30%trained-20240922-ctx4k.pth"
 args.n_layer = 12
 args.ctx_len = 4096
 args.n_embd = 768
