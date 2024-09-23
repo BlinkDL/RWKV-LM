@@ -464,7 +464,7 @@ class RWKV(MyModule):
                     #xzl: mimic above 
                     if 'key1.weight' in x or 'value1.weight' in x or 'receptance1.weight' in x or 'gate1.weight' in x \
                         or 'key2.weight' in x or 'value2.weight' in x or 'receptance2.weight' in x or 'gate2.weight' in x:
-                        w[x] = w[x].t()     # xzl transposed 
+                        w[x] = w[x].t()     # xzl transposed                         
                     if '.time_decay' in x and '_w' not in x: # need fp32 for this
                         if self.version == 4:
                             w[x] = -torch.exp(w[x].float())
@@ -486,6 +486,10 @@ class RWKV(MyModule):
                                 w[x] = w[x].reshape(args.n_head, -1, 1)
                     elif '.ln_x' in x: # need fp32 for group_norm
                         w[x] = w[x].float()
+                    elif 'mlp' in x: # sparse predictor                        
+                        w[x] = w[x].t()     # transpose once
+                        w[x] = w[x].half()
+                        pass
                     else:
                         if (len(w[x].shape) == 2) and ('emb' not in x) and ('_w1' not in x) and ('_w2' not in x):
                             if WTYPE != torch.uint8:  # xzl: (default weight) cast to WTYPE
@@ -754,13 +758,15 @@ class RWKV(MyModule):
         torch.save(tensor_list, file_path)
         # print(f"Appended a tensor. Now there are {len(tensor_list)} tensors saved in {file_path}")
 
+    #  ---- dump FFN weights & inputs ---- 
     # @MyFunction
-    def ffn_one_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw,
+    def ffn_one_v5_9_dump(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw,
                          rw1, rw2, rwdiag, 
                          kmx, krx, kmy, kry, vmx, vrx, vmy, vry, 
                          rmx1, rrx1, rmy1, rry1,
                          rmx2, rrx2, rmy2, rry2,
-                         layer_id       # xzl
+                         layer_id,       # xzl
+                         mlpfc1, mlpfc2  # sparsity predictor
                          ):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         kx = xx * k_mix + sx * (1 - k_mix)
@@ -797,6 +803,63 @@ class RWKV(MyModule):
         out = r * v
         return x + out, xx
 
+    # --- mlp test ---- 
+    # @MyFunction
+    def ffn_one_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw,
+                         rw1, rw2, rwdiag, 
+                         kmx, krx, kmy, kry, vmx, vrx, vmy, vry, 
+                         rmx1, rrx1, rmy1, rry1,
+                         rmx2, rrx2, rmy2, rry2,
+                         layer_id,       # xzl
+                         mlpfc1, mlpfc2  # sparsity predictor
+                         ):
+        xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
+        kx = xx * k_mix + sx * (1 - k_mix)
+        rx = xx * r_mix + sx * (1 - r_mix)
+
+        # r = torch.sigmoid(matmul(rx, rw, rmx, rrx, rmy, rry)) # orig
+        r = matmul(rx, rw1, rmx1, rrx1, rmy1, rry1) 
+        r = torch.relu(r) ** 2
+        r = matmul(r, rw2, rmx2, rrx2, rmy2, rry2)
+        r += rx @ torch.diag(rwdiag)   # xzl: should use matmul??
+        r = torch.sigmoid(r)
+
+        # ------ FFN core ----------
+        # pred: 
+        pred = mlpfc2 @ torch.relu(mlpfc1 @ kx)   # logits
+        pred = torch.sigmoid(pred) 
+        # pred = (pred > 0.5)  # threshold
+        pred = (pred > 0.5).half()
+        
+        # actual compute
+        k = matmul(kx, kw, kmx, krx, kmy, kry)  
+        vx = torch.relu(k) ** 2     # xzl: vx sparse activation.
+
+        # simulate the pred ... 
+        # can check how much norm we lose?  sum0=vx.sum() then sum1=vx.sum()
+        if layer_id < 32:
+            vx = vx * pred 
+
+        # check out pred: --- sanity check, looks ok ---- 
+        if False:  
+            labels = (vx > 0) 
+            pred = pred.float()
+            true_positives = (pred * labels).sum()  # Count of TP
+            false_negatives = ((1 - pred) * labels).sum()  # Count of FN
+            recall = true_positives / (true_positives + false_negatives + 1e-10)  # Add epsilon to avoid division by zero
+
+            # print(f'layer {layer_id} sparsity: true {1-torch.sum(val_labels)/torch.numel(val_labels):.3f} pred {1-torch.sum(predicted)/torch.numel(predicted):.3f}')
+            print(f'layer {layer_id}:' \
+                f'sparsity true {1-torch.sum(labels)/torch.numel(labels):.3f} '  \
+                f'sparsity pred {1-torch.sum(pred)/torch.numel(pred):.3f} '    \
+                f'recall {recall:.3f} '
+                )
+            breakpoint()
+
+        v = matmul(vx, vw, vmx, vrx, vmy, vry)
+        out = r * v
+        return x + out, xx
+    
     # xzl: ours, based on above
     @MyFunction
     def ffn_one_v5_94(self, x, sx, ln_w, ln_b, k_mix, r_mix, 
@@ -963,7 +1026,8 @@ class RWKV(MyModule):
                      vmx, vrx, vmy, vry, 
                      rmx1, rrx1, rmy1, rry1,
                      rmx2, rrx2, rmy2, rry2,
-                     layer_id    # xzl, hacking
+                     layer_id,      # xzl 
+                     mlpfc1, mlpfc2  # sparsity predictor 
                      ):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         sx = torch.cat((sx.unsqueeze(0), xx[:-1,:]))
@@ -977,10 +1041,26 @@ class RWKV(MyModule):
         r += rx @ torch.diag(rwdiag)   # xzl: use matmul??
         r = torch.sigmoid(r)        
 
-        k = matmul(kx, kw, kmx, krx, kmy, kry)
+        # ------ FFN core ----------
+        # pred: 
+        # pred = mlpfc2 @ torch.relu(mlpfc1 @ kx)   # logits ... wont work for seq mode
+        pred = torch.relu(kx @ mlpfc1) @ mlpfc2  # logits
+        pred = torch.sigmoid(pred) 
+        # pred = (pred > 0.5)  # threshold
+        pred = (pred > 0.5).half()
 
+        # actual compute: 
+        k = matmul(kx, kw, kmx, krx, kmy, kry)
         vx = torch.relu(k) ** 2        # xzl: vx sparse activation.
-        # breakpoint()
+
+        # simulate the pred ... mask the activations
+        # can check how much norm we lose?  sum0=vx.sum() then sum1=vx.sum()
+        if layer_id < 999:       # all layers on
+        # if layer_id < 12:      # only 50% layers on
+        # if layer_id % 5 != 0:   # off every 5 layers
+            # breakpoint()            
+            vx = vx * pred      
+
         v = matmul(vx, vw, vmx, vrx, vmy, vry)
 
         out = r * v
@@ -1822,6 +1902,7 @@ class RWKV(MyModule):
                         state[i*3+2] = torch.zeros(args.n_embd, dtype=atype, requires_grad=False, device=dev).contiguous()
 
             # xzl: seq_mode=True for prompt encoding; =False for autoregression
+            #   eval also uses seq_mode
             seq_mode = len(tokens) > 1
 
             x = w['emb.weight'][tokens if seq_mode else tokens[0]] # xzl: 'x'-input
@@ -1873,6 +1954,7 @@ class RWKV(MyModule):
                     elif self.version == 5.96:
                         FFN = self.ffn_seq_v5_96
                 else:
+                    breakpoint()
                     ATT = self.att_one
                     if self.version == 5:
                         ATT = self.att_one_v5
@@ -2149,7 +2231,7 @@ class RWKV(MyModule):
                     offset = i*5+4
                 elif int(self.version) in [5,6]:
                     offset = i*3+2
-                # ---- xzl: below, run FFN ----- #
+                # ---- xzl: below, run FFN ----- #                
                 if self.version in [5.9]:
                     x, state[offset] = FFN(
                         x, state[offset],
@@ -2161,7 +2243,9 @@ class RWKV(MyModule):
                         vmx, vrx, vmy, vry,
                         rmx1, rrx1, rmy1, rry1,
                         rmx2, rrx2, rmy2, rry2,
-                        i   # xzl, layer_id
+                        i,   # xzl, layer_id
+                        w[f'{bbb}mlp.fc1.weight'],  # xzl, sparsity pred
+                        w[f'{bbb}mlp.fc2.weight']
                         )
                 elif self.version in [5.94]:
                     x, state[offset] = FFN(

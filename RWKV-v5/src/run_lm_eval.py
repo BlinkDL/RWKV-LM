@@ -82,7 +82,7 @@ from lm_eval.api.model import TemplateLM
 
 #Only head.l1 tuned, KL loss
 # acc: .331 (openai). minK=3, maxK=100, minProb=.95 <--- NEED TO CAREFULLY VERIFY
-MODEL_NAME='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
+# MODEL_NAME='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
 #MODEL_NAME='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
 #MODEL_NAME='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/04b-pre-x59-8x-cls/rwkv-30'
 
@@ -90,7 +90,7 @@ MODEL_NAME='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run
 # acc .37 (openai) 8x (default)
 # MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
 # 16x 
-MODEL_NAME = '/data/models/01b-pre-x59-16x-901'
+# MODEL_NAME = '/data/models/01b-pre-x59-16x-901'
 
 # MODEL_NAME = "/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-cls/from-hpc/0.1b-offical"
 # MODEL_NAME = "/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x52/rwkv-1455"
@@ -121,6 +121,24 @@ MODEL_NAME = '/data/models/01b-pre-x59-16x-901'
 'copa': {'acc': 0.68, 'acc_stderr': 0.046882617226215034}}
 '''
 # MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59/from-hpc/rwkv-860'
+
+
+# + mlp
+#   winogrande
+#                                                    ACC
+#   - pred off:                                     .515
+#   - pred on for all layers:                       .517 (??
+#   - pred on for 1st half layers (0-11):           .531 (higher!       
+#   - pred off every 5 layers (start from 0):       .509
+#
+#   openAI
+#                                                    ACC
+#   - pred off:                                     .??
+#   - pred on for all layers:                       .33
+#   - pred on for 1st half layers (0-11):           .35
+#   - pred off every 5 layers (start from 0):       .
+
+MODEL_NAME='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860-mlp'
 
 # 1B5 -- official
 # MODEL_NAME = "/data/models/RWKV-5-World-1B5-v2-20231025-ctx4096"
@@ -195,7 +213,7 @@ eval_tasks = [
         # 'lambada_standard',
         # 'piqa',
         # 'hellaswag',
-        # 'winogrande',
+        # 'winogrande',       # fast
         # 'arc_easy',
         # 'arc_challenge',
         # 'openbookqa',
@@ -385,9 +403,9 @@ def do_eval(model_path, isverbose=False, benchmarks=[]):
     print(f'Loading model - {model_path}')
 
     # 8/26/24: using fp16 will make some benchmarks (eg openai) nan... so use fp32
-    # rwkv_model = RWKV(model=model_path, strategy='cuda fp16', verbose=isverbose)
-    rwkv_model = RWKV(model=model_path, strategy='cuda fp32', verbose=isverbose)    
-    pipeline = PIPELINE(rwkv_model, "rwkv_vocab_v20230424")
+    model = RWKV(model=model_path, strategy='cuda fp16', verbose=isverbose)
+    # model = RWKV(model=model_path, strategy='cuda fp32', verbose=isverbose)    # nneded for cls
+    pipeline = PIPELINE(model, "rwkv_vocab_v20230424")
 
     RWKV_PAD = pipeline.tokenizer.encode('\n') # we will use '\n' as PAD
     # RWKV_PAD = [0] # you can try using [0] as pad

@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 # --- res: cf end of file --- 
+in_model_file=None
 
 # .1b
 # outpath='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pre-x59-SPARSITY-EXP'
@@ -15,6 +16,9 @@ import torch.optim as optim
 # .4b
 outpath='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP'
 NLAYERS=24
+# save mlp to...  
+in_model_file = '/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860.pth'
+out_model_file = '/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860-mlp.pth'
 
 # Define a simple 2-layer MLP
 class MLP(nn.Module):
@@ -24,9 +28,9 @@ class MLP(nn.Module):
         # self.ddd = 256   # no much better
         self.ddd = 64  # balanced
         # self.ddd = 32       # no much worse than 32
-        # Two fully connected layers
-        self.fc1 = nn.Linear(input_dim, self.ddd)  # First layer with 64 units
-        self.fc2 = nn.Linear(self.ddd, output_dim)  # Second layer with output_dim units
+        # Two fully connected layers, bias=None as in dejavu
+        self.fc1 = nn.Linear(input_dim, self.ddd, bias=None)  
+        self.fc2 = nn.Linear(self.ddd, output_dim, bias=None) 
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))  # ReLU activation after first layer
@@ -42,7 +46,7 @@ def weights_init(m):
 
 
 def train_layer(layer_id):
-    global weights, inputs, labels
+    global weights, inputs, labels, model_dict
 
     # weights[0] (D,3.5xD)
     D1 = weights[layer_id].shape[0]
@@ -131,6 +135,15 @@ def train_layer(layer_id):
 
     # print("Training complete.")
 
+    # ---  save this MLP to an existing model file ---- # 
+    if model_dict:         
+        # model_dict[f'blocks.{layer_id}.mlp'] = model.state_dict()
+        # RWKV convention.... 
+        model_dict[f'blocks.{layer_id}.mlp.fc1.weight'] = model.state_dict()['fc1.weight']
+        model_dict[f'blocks.{layer_id}.mlp.fc2.weight'] = model.state_dict()['fc2.weight']
+
+        torch.save(model_dict, out_model_file)   # OK to overwrite
+        print(f'>>>>>>>>>> saved blocks.{layer_id}.mlp to:' + out_model_file)
 
     # --- final ----- #
     model.eval()  # Set model to evaluation mode
@@ -185,8 +198,13 @@ if __name__ == '__main__':
     weights={}  # dict:layer_id->ffnkey (D,3.5xD)
     inputs={}   # dict: layer_id -> 2D tensors, (# inputs, D)
     labels={}   # dict: layer_id -> 2D tensors (# inputs, D) True/False
-    # for layer_id in range(0,NLAYERS):
-    for layer_id in [0]:
+
+    model_dict=None
+    if in_model_file != None:
+        model_dict = torch.load(in_model_file)
+
+    for layer_id in range(0,NLAYERS):
+    # for layer_id in [0]:
         outpath_query=f'{outpath}/FFN.key-layer{layer_id}-query.npy'
         outpath_weights=f'{outpath}/FFN.key-layer{layer_id}-weights.npy'
 
@@ -219,6 +237,8 @@ if __name__ == '__main__':
         # train mlp    
         train_layer(layer_id)
 
+    # if model_dict:
+    #     print(f'saved to:' + out_model_file)
 
 '''
 .1b, train 100 epochs, MLP d=64

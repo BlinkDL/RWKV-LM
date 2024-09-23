@@ -39,10 +39,12 @@ from rwkv.utils import PIPELINE, PIPELINE_ARGS
 # model_path='/data-xsel02/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run2/rwkv-24'  #Only head.l1 tuned
 
 # model_path='/data/models/0.1b-pre-x59-16x-1451'
-model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
+# model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
 
 #.4b, x59
-model_path='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860'
+# model_path='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860'
+## + mlp
+model_path='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860-mlp'
 
 # #Only head.l1 tuned. KL loss (good
 # model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
@@ -83,8 +85,8 @@ pipeline = PIPELINE(model, "rwkv_vocab_v20230424")
 
 # ex prompt from paper: https://arxiv.org/pdf/2305.07759
 # ctx = "\nWhat is the sum of 123 and 456"
-# ctx = "\nElon Musk has"
-ctx = "\nAlice was so tired when she got back home so she went"
+ctx = "\nElon Musk has"
+# ctx = "\nAlice was so tired when she got back home so she went"
 # ctx = "\nLily likes cats and dogs. She asked her mom for a dog and her mom said no, so instead she asked"
 # ctx = "\nOnce upon a time there was a little girl named Lucy"
 print(ctx, end='')
