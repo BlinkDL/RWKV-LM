@@ -2133,6 +2133,8 @@ class RWKV(MyModule):
                         vwdiag = w[f'{ffn}value_diag']
 
                 else: 
+                    kw = w[f'{ffn}key.weight']
+                    vw = w[f'{ffn}value.weight']
                     rw = w[f'{ffn}receptance.weight']
                     rmx = w[f'{ffn}receptance.weight_mx'] if wtype == torch.uint8 else x
                     rrx = w[f'{ffn}receptance.weight_rx'] if wtype == torch.uint8 else x
