@@ -302,7 +302,7 @@ class RWKV(MyModule):
             if 'head_l1.weight' in w: # use compressed cls heads                
                 import numpy as np
                 args.head_K = 200    # XXX
-                args.load_token_cls='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/04b-pre-x59-8x-cls/from-hpc/rwkv-2405-cls.npy'
+                args.load_token_cls='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-cls/from-hpc/rwkv-823-cls.npy'
                 #args.load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
 
                 K=args.head_K
@@ -2508,9 +2508,33 @@ class RWKV(MyModule):
                     # CLS, CLSPROBS = self.select_logits(x1, minK=5, maxK=40, minProb=.5) 
                     CLS, CLSPROBS = self.select_logits(x1, minK=N, maxK=N, minProb=.5)  # seems quite good? (N=200
 
+                    # find minimum
+                    total_cls, total_clsprobs = self.select_logits(x1, minK=200, maxK=200, minProb=0)
+                    min_cls = total_cls[-1]
+
+                    min_x1 = x @ w[f'head_l2org.{min_cls}.weight']
+                    min_logit = torch.min(min_x1)
+                        
+                    # WC: the lowest cls prob does not mean that the cluster has 
+                    # the lowest logit. The code below is to check this
+                    if False:
+                        x_min_logit = 0
+                        for i in range(0, len(total_cls)):
+                            cls = total_cls[i]
+                            x1 = x @ w[f'head_l2org.{cls}.weight'] 
+                            temp = torch.min(x1)
+                            if temp <= x_min_logit:
+                                x_min_logit = temp
+                                print("check")
+                                print(cls)
+                                print(temp)
+                                print(total_clsprobs[i])
+                        print(x_min_logit)
+                        print(min_logit)
+                        
                     #### now we've picked N cls. L2 projection.... ###
                     vocab = w['head.weight'].shape[1]   # shape D,vocab                
-                    logits = torch.full((vocab,), float('-inf'), device='cuda', dtype=x.dtype) 
+                    logits = torch.full((vocab,), float("-inf"), device='cuda', dtype=x.dtype) 
                     #logits = torch.zeros((vocab,), device='cuda', dtype=x.dtype) 
 
                     num_tokens=0
