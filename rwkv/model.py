@@ -711,12 +711,56 @@ class RWKV(MyModule):
         out = r * matmul(vx, vw, vmx, vrx, vmy, vry)
         return x + out, xx
 
-    @MyFunction
+    # def load_tensors(file_path):
+    #     """
+    #     Load the list of tensors from the file.
+    #     """
+    #     try:
+    #         data = torch.load(file_path)
+    #         if isinstance(data, list):
+    #             return data
+    #     except FileNotFoundError:
+    #         print("File not found.")
+    #         return []
+        
+    def save_tensor_if_not_exists(self, tensor, file_path):
+        """
+        Save the tensor to the file only if the file does not exist.
+        """
+        if not os.path.exists(file_path):
+            # File does not exist, so save the tensor
+            torch.save(tensor, file_path)
+            print(f"Tensor saved to {file_path}")
+        else:
+            pass
+            # print(f"File {file_path} already exists. Tensor was not saved.")
+
+    def save_single_tensor(self, new_tensor, file_path):
+        """
+        Save a single tensor to the file, appending it to the existing list of tensors.
+        """
+        # Step 1: Load existing data (if any)
+        try:
+            tensor_list = torch.load(file_path, weights_only=True)
+            if not isinstance(tensor_list, list):
+                tensor_list = [tensor_list]  # Ensure it's a list if not already
+        except FileNotFoundError:
+            tensor_list = []  # If file does not exist, initialize an empty list
+        
+        # Step 2: Append the new tensor to the list
+        tensor_list.append(new_tensor)
+        
+        # Step 3: Save the updated list of tensors back to the file
+        torch.save(tensor_list, file_path)
+        # print(f"Appended a tensor. Now there are {len(tensor_list)} tensors saved in {file_path}")
+
+    # @MyFunction
     def ffn_one_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw,
                          rw1, rw2, rwdiag, 
                          kmx, krx, kmy, kry, vmx, vrx, vmy, vry, 
                          rmx1, rrx1, rmy1, rry1,
                          rmx2, rrx2, rmy2, rry2,
+                         layer_id       # xzl
                          ):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         kx = xx * k_mix + sx * (1 - k_mix)
@@ -729,10 +773,24 @@ class RWKV(MyModule):
         r += rx @ torch.diag(rwdiag)   # xzl: should use matmul??
         r = torch.sigmoid(r)
 
-        k = matmul(kx, kw, kmx, krx, kmy, kry)
+        # xzl: below: FFN core
+        outpath='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pre-x59-SPARSITY-EXP'
+        outpath_query=f'{outpath}/FFN.key-layer{layer_id}-query.npy'
+        outpath_weights=f'{outpath}/FFN.key-layer{layer_id}-weights.npy'
 
-        vx = torch.relu(k) ** 2     # sparse actiavtion
+        k = matmul(kx, kw, kmx, krx, kmy, kry)  
+        vx = torch.relu(k) ** 2     # xzl: vx sparse activation.
+        # count zeros... 
+        '''
+        zero_mask = torch.eq(vx, 0)
+        num_zeros = torch.sum(zero_mask)
+        print(num_zeros)
+        breakpoint()
+        '''
         v = matmul(vx, vw, vmx, vrx, vmy, vry)
+
+        self.save_tensor_if_not_exists(kw, outpath_weights)
+        self.save_single_tensor(kx, outpath_query)
 
         out = r * v
         return x + out, xx
@@ -896,13 +954,14 @@ class RWKV(MyModule):
         return x + out, xx[-1,:]
     
     # xzl: ours, based on above
-    @MyFunction
+    # @MyFunction
     def ffn_seq_v5_9(self, x, sx, ln_w, ln_b, k_mix, r_mix, kw, vw,
                      rw1, rw2, rwdiag, 
                      kmx, krx, kmy, kry, 
                      vmx, vrx, vmy, vry, 
                      rmx1, rrx1, rmy1, rry1,
                      rmx2, rrx2, rmy2, rry2,
+                     layer_id    # xzl, hacking
                      ):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         sx = torch.cat((sx.unsqueeze(0), xx[:-1,:]))
@@ -918,7 +977,8 @@ class RWKV(MyModule):
 
         k = matmul(kx, kw, kmx, krx, kmy, kry)
 
-        vx = torch.relu(k) ** 2   # sparse actiavtion
+        vx = torch.relu(k) ** 2        # xzl: vx sparse activation.
+        # breakpoint()
         v = matmul(vx, vw, vmx, vrx, vmy, vry)
 
         out = r * v
@@ -2099,6 +2159,7 @@ class RWKV(MyModule):
                         vmx, vrx, vmy, vry,
                         rmx1, rrx1, rmy1, rry1,
                         rmx2, rrx2, rmy2, rry2,
+                        i   # xzl, layer_id
                         )
                 elif self.version in [5.94]:
                     x, state[offset] = FFN(

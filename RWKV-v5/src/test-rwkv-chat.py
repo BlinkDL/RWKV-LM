@@ -78,9 +78,12 @@ model = RWKV(model=model_path,
 
 pipeline = PIPELINE(model, "rwkv_vocab_v20230424")
 
-# ctx = "\nElon Musk has"
 # ex prompt from paper: https://arxiv.org/pdf/2305.07759
-ctx = "\nAlice was so tired when she got back home so she went"
+# ctx = "\nElon Musk has"
+# ctx = "\nAlice was so tired when she got back home so she went"
+# ctx = "\nLily likes cats and dogs. She asked her mom for a dog and her mom said no, so instead she asked"
+# ctx = "\nOnce upon a time there was a little girl named Lucy"
+ctx = "\nWhat is the sum of 123 and 456"
 print(ctx, end='')
 
 def my_print(s):
@@ -97,7 +100,9 @@ args = PIPELINE_ARGS(temperature = 1.0, top_p = 0.7, top_k = 100, # top_k = 0 th
                      token_stop = [], # stop generation whenever you see any token here
                      chunk_len = 256) # split input into chunks to save VRAM (shorter -> slower)
 
-pipeline.generate(ctx, token_count=200, args=args, callback=my_print)
+# pipeline.generate(ctx, token_count=200, args=args, callback=my_print)
+# xzl: gen 500 tokens for collecting sparsity training data 
+pipeline.generate(ctx, token_count=500, args=args, callback=my_print)
 print('\n')
 
 if model.stat_runs != 0:
