@@ -6,7 +6,7 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 
-# --- res: cf end of file
+# --- res: cf end of file --- 
 
 # .1b
 # outpath='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pre-x59-SPARSITY-EXP'
@@ -20,7 +20,10 @@ NLAYERS=24
 class MLP(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(MLP, self).__init__()
-        self.ddd = 32       # hidden dim, too low?? (deja vu 1024)
+        # hidden dim
+        # self.ddd = 256   # no much better
+        self.ddd = 64  # balanced
+        # self.ddd = 32       # no much worse than 32
         # Two fully connected layers
         self.fc1 = nn.Linear(input_dim, self.ddd)  # First layer with 64 units
         self.fc2 = nn.Linear(self.ddd, output_dim)  # Second layer with output_dim units
@@ -65,6 +68,8 @@ def train_layer(layer_id):
 
     model = MLP(D1, D2).to(torch.float32).to('cuda') 
     class_weight = torch.tensor([1.0, www])  # Higher weight for the minority class
+    # class_weight = torch.tensor([1.0, 1.0])  # no weight -- balanced classes, should be BAD (skewed classes)
+    # class_weight = torch.tensor([www, 1.0])  # sanity check -- should be VERY bad
     # class_weight = torch.tensor([1.0, 5.0])  # fixed weight
     # loss_fn = nn.BCELoss(weight=class_weights.to('cuda'))  # Binary Cross-Entropy Loss for binary classification
     loss_fn = nn.BCELoss(reduction='none')  # Use no reduction initially to apply per-sample weights
@@ -105,11 +110,29 @@ def train_layer(layer_id):
         loss.backward()  # Compute gradients
         optimizer.step()  # Update weights
         
+        if epoch % 5 ==0: 
+            model.eval()  # Set model to evaluation mode
+            with torch.no_grad():  # Disable gradient computation for validation
+                val_outputs = model(val_inputs)
+
+                # Compute accuracy (considering outputs > 0.5 as True, else False)
+                predicted = (val_outputs > 0.5).float()
+                # predicted = (val_outputs > 0.35).float()          # xzl: can play with this 
+
+                # Compute recall
+                true_positives = (predicted * val_labels).sum()  # Count of TP
+                false_negatives = ((1 - predicted) * val_labels).sum()  # Count of FN
+                recall = true_positives / (true_positives + false_negatives + 1e-10)  # Add epsilon to avoid division by zero
+
+                print(f'epoch {epoch:03d}: layer {layer_id} sparsity: true {1-torch.sum(val_labels)/torch.numel(val_labels):.3f} pred {1-torch.sum(predicted)/torch.numel(predicted):.3f}')
+                print(f"    Validation Recall: {recall.item() * 100:.2f}%")
+
         # print(f"Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}")
 
     # print("Training complete.")
 
 
+    # --- final ----- #
     model.eval()  # Set model to evaluation mode
     with torch.no_grad():  # Disable gradient computation for validation
         val_outputs = model(val_inputs)
@@ -162,7 +185,8 @@ if __name__ == '__main__':
     weights={}  # dict:layer_id->ffnkey (D,3.5xD)
     inputs={}   # dict: layer_id -> 2D tensors, (# inputs, D)
     labels={}   # dict: layer_id -> 2D tensors (# inputs, D) True/False
-    for layer_id in range(0,NLAYERS):
+    # for layer_id in range(0,NLAYERS):
+    for layer_id in [0]:
         outpath_query=f'{outpath}/FFN.key-layer{layer_id}-query.npy'
         outpath_weights=f'{outpath}/FFN.key-layer{layer_id}-weights.npy'
 
