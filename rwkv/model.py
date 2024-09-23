@@ -774,7 +774,9 @@ class RWKV(MyModule):
         r = torch.sigmoid(r)
 
         # xzl: below: FFN core
-        outpath='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pre-x59-SPARSITY-EXP'
+        # outpath='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pre-x59-SPARSITY-EXP'
+        outpath='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP'
+
         outpath_query=f'{outpath}/FFN.key-layer{layer_id}-query.npy'
         outpath_weights=f'{outpath}/FFN.key-layer{layer_id}-weights.npy'
 
