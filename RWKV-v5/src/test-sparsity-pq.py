@@ -102,7 +102,7 @@ if __name__ == '__main__':
         largest_k_indices = np.argpartition(dists, -K)[-K:]
         largest_k_items = dists[largest_k_indices]
 
-        # print(largest_k_items)
+        print(largest_k_items)
         largest = torch.from_numpy(largest_k_indices)
 
         #     check distances agains the actual output vx ... 

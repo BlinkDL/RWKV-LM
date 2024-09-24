@@ -135,6 +135,7 @@ from lm_eval.api.model import TemplateLM
 #                                                   ACC
 #   - all dense                                    .47
 #   - dense every 2 layers (start from 0):         .46
+#   - denser(but not dense) every 2 layers         .44 (has potential)
 #   - dense every 5 layers (start from 0):         .38
 #   - 1st half layers (0-11) sparse:               .35
 #   - all sparse:                                  .33

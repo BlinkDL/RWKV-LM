@@ -11,14 +11,24 @@ in_model_file=None
 
 # .1b
 # outpath='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pre-x59-SPARSITY-EXP'
-# NLAYERS=12
+# outpath='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-sparsity'
+outpath='/data/tmp/01b-pre-x59-8x-sparsity'
+NLAYERS=12
 
 # .4b
-outpath='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP'
-NLAYERS=24
+# outpath='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP'
+# NLAYERS=24
 # save mlp to...  
-in_model_file = '/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860.pth'
-out_model_file = '/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860-mlp.pth'
+# in_model_file = '/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860.pth'
+# out_model_file = '/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860-mlp.pth'
+
+###############################################
+# TEST_LAYERS = range(0,NLAYERS)
+TEST_LAYERS = [0, NLAYERS//2, NLAYERS-1]   # sample
+###############################################
+TEST_THR = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+# TEST_THR = [0.5]
+###############################################
 
 # Define a simple 2-layer MLP
 class MLP(nn.Module):
@@ -44,6 +54,20 @@ def weights_init(m):
         if m.bias is not None:
             nn.init.zeros_(m.bias)  # Initialize biases to zero
 
+# return: pq, X_code
+def train_layer_pq(layer_id): 
+    global weights, inputs, labels, model_dict
+
+    # XXXX only takes 80% of it 
+    X = weights[layer_id].cpu().numpy().T.astype(np.float32)         # (3.5D, D)
+    Xt = X  # training data
+    pq = nanopq.PQ(M=8, # sub-spaces
+                   Ks=256, verbose=False, metric='dot')    
+    # Train codewords
+    pq.fit(Xt)
+    # Encode to PQ-codes
+    X_code = pq.encode(X)
+    return pq, X_code
 
 def train_layer(layer_id):
     global weights, inputs, labels, model_dict
@@ -114,22 +138,24 @@ def train_layer(layer_id):
         loss.backward()  # Compute gradients
         optimizer.step()  # Update weights
         
-        if epoch % 5 ==0: 
-            model.eval()  # Set model to evaluation mode
-            with torch.no_grad():  # Disable gradient computation for validation
-                val_outputs = model(val_inputs)
+        # check progress
+        if False: 
+            if epoch % 5 ==0: 
+                model.eval()  # Set model to evaluation mode
+                with torch.no_grad():  # Disable gradient computation for validation
+                    val_outputs = model(val_inputs)
 
-                # Compute accuracy (considering outputs > 0.5 as True, else False)
-                predicted = (val_outputs > 0.5).float()
-                # predicted = (val_outputs > 0.35).float()          # xzl: can play with this 
+                    # Compute accuracy (considering outputs > 0.5 as True, else False)
+                    predicted = (val_outputs > 0.5).float()
+                    # predicted = (val_outputs > 0.35).float()          # xzl: can play with this 
 
-                # Compute recall
-                true_positives = (predicted * val_labels).sum()  # Count of TP
-                false_negatives = ((1 - predicted) * val_labels).sum()  # Count of FN
-                recall = true_positives / (true_positives + false_negatives + 1e-10)  # Add epsilon to avoid division by zero
+                    # Compute recall
+                    true_positives = (predicted * val_labels).sum()  # Count of TP
+                    false_negatives = ((1 - predicted) * val_labels).sum()  # Count of FN
+                    recall = true_positives / (true_positives + false_negatives + 1e-10)  # Add epsilon to avoid division by zero
 
-                print(f'epoch {epoch:03d}: layer {layer_id} sparsity: true {1-torch.sum(val_labels)/torch.numel(val_labels):.3f} pred {1-torch.sum(predicted)/torch.numel(predicted):.3f}')
-                print(f"    Validation Recall: {recall.item() * 100:.2f}%")
+                    print(f'epoch {epoch:03d}: layer {layer_id} sparsity: true {1-torch.sum(val_labels)/torch.numel(val_labels):.3f} pred {1-torch.sum(predicted)/torch.numel(predicted):.3f}')
+                    print(f"    Validation Recall: {recall.item() * 100:.2f}%")
 
         # print(f"Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}")
 
@@ -148,26 +174,42 @@ def train_layer(layer_id):
     # --- final ----- #
     model.eval()  # Set model to evaluation mode
     with torch.no_grad():  # Disable gradient computation for validation
-        val_outputs = model(val_inputs)
-        # val_loss = loss_fn(val_outputs, val_labels)
-        val_loss = loss_fn(val_outputs, val_labels).mean()
+        for thr in TEST_THR:
+            val_outputs = model(val_inputs)
+            # val_loss = loss_fn(val_outputs, val_labels)
+            val_loss = loss_fn(val_outputs, val_labels).mean()
 
-        # Compute accuracy (considering outputs > 0.5 as True, else False)
-        predicted = (val_outputs > 0.5).float()
-        # predicted = (val_outputs > 0.35).float()          # xzl: can play with this 
-        correct = (predicted == val_labels).float().sum()
-        val_accuracy = correct / (val_labels.numel())
+            # Compute accuracy (considering outputs > 0.5 as True, else False)
+            predicted = (val_outputs > thr).float()         # xzl: can play with this 
+            correct = (predicted == val_labels).float().sum()
+            val_accuracy = correct / (val_labels.numel())
 
-        # Compute recall
-        true_positives = (predicted * val_labels).sum()  # Count of TP
-        false_negatives = ((1 - predicted) * val_labels).sum()  # Count of FN
-        recall = true_positives / (true_positives + false_negatives + 1e-10)  # Add epsilon to avoid division by zero
+            # Compute recall
+            true_positives = (predicted * val_labels).sum()  # Count of TP
+            false_negatives = ((1 - predicted) * val_labels).sum()  # Count of FN
+            recall = true_positives / (true_positives + false_negatives + 1e-10)  # Add epsilon to avoid division by zero
 
-        print(f'layer {layer_id} sparsity: true {1-torch.sum(val_labels)/torch.numel(val_labels)} pred {1-torch.sum(predicted)/torch.numel(predicted)}')
-        # breakpoint()
+            print(f'layer {layer_id} thr {thr} sparsity: true {1-torch.sum(val_labels)/torch.numel(val_labels):.3f} pred {1-torch.sum(predicted)/torch.numel(predicted):.3f}')
+            # breakpoint()
 
-        # print(f"Validation Loss: {val_loss.item():.4f}, Validation Accuracy: {val_accuracy.item() * 100:.2f}%")
-        print(f"Validation Loss: {val_loss.item():.4f}, Validation Accuracy: {val_accuracy.item() * 100:.2f}%, Recall: {recall.item() * 100:.2f}%")
+            print(f"Validation Loss: {val_loss.item():.4f}, Validation Accuracy: {val_accuracy.item() * 100:.2f}%, Recall: {recall.item() * 100:.2f}%")
+
+        # --- add on: try pq ---- #
+        if False: 
+            pq, X_code = train_layer_pq(layer_id)
+            # query = val_inputs.cpu().numpy().astype(np.float32) # can only do float32
+            query = val_inputs.cpu().numpy().astype(np.float32)     
+            dists = pq.dtable(query[0][0]).adist(X_code) # can only query single vector
+            predicted = predicted[0][0]
+            val_labels = val_labels[0][0]
+
+            for K in [50, 100, 200, 400, 800]:
+                largest_k_indices = np.argpartition(dists, -K)[-K:]
+                # largest_k_items = dists[largest_k_indices]
+                largest = torch.from_numpy(largest_k_indices)
+                over = predicted[largest]
+                comp = ((1 - predicted) * val_labels)[largest]   # select from false negative
+                print(f'K {K} overlapped {over.sum()} complementary {comp.sum()}')
 
 
 def load_a_tensor(file_path):
@@ -203,8 +245,7 @@ if __name__ == '__main__':
     if in_model_file != None:
         model_dict = torch.load(in_model_file)
 
-    for layer_id in range(0,NLAYERS):
-    # for layer_id in [0]:
+    for layer_id in TEST_LAYERS:    
         outpath_query=f'{outpath}/FFN.key-layer{layer_id}-query.npy'
         outpath_weights=f'{outpath}/FFN.key-layer{layer_id}-weights.npy'
 
@@ -224,7 +265,7 @@ if __name__ == '__main__':
         # num_zeros = nz_mask.shape[-1] - num_nzeros
         labels[layer_id] = (vx>0)  # one hot
 
-        print(f"layer {layer_id} #inputs {len(q)}")
+        print(f"layer {layer_id} #inputs {len(q)} ========= ")
 
         # ------------ check for sparsity ....
         # kx = inputs[layer_id]

@@ -1043,11 +1043,14 @@ class RWKV(MyModule):
 
         # ------ FFN core ----------
         # pred: 
+        thr = 0.5 # default 
+        if layer_id % 2 == 0:
+            thr = 0.2   # denser, but not dense
+
         # pred = mlpfc2 @ torch.relu(mlpfc1 @ kx)   # logits ... wont work for seq mode
         pred = torch.relu(kx @ mlpfc1) @ mlpfc2  # logits
         pred = torch.sigmoid(pred) 
-        # pred = (pred > 0.5)  # threshold
-        pred = (pred > 0.5).half()
+        pred = (pred > thr).half()
 
         # actual compute: 
         k = matmul(kx, kw, kmx, krx, kmy, kry)
@@ -1055,9 +1058,9 @@ class RWKV(MyModule):
 
         # simulate the pred ... mask the activations
         # can check how much norm we lose?  sum0=vx.sum() then sum1=vx.sum()
-        # if layer_id < 999:       # all layers sparse
+        if layer_id < 999:       # all layers sparse
         # if layer_id < 12:      # only 50% layers sparse
-        if layer_id % 5 != 0:   # dense every other layers
+        # if layer_id % 5 != 0:   # dense every other layers
             # breakpoint()            
             vx = vx * pred
 
