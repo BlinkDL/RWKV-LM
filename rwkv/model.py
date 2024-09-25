@@ -525,7 +525,7 @@ class RWKV(MyModule):
                         else:
                             w[x] = w[x].to(dtype=ATYPE)
                 
-                if convert_and_save_and_exit == None:    # xzl: force weight to be contig in cpu mem... TBD for stream mode
+                if convert_and_save_and_exit == None:    # xzl: force weight to be contig in cpu mem... TBD for stream mode (why needed? pin in cpu memory??
                     if 'emb.' in x:
                         w[x] = w[x].contiguous()
                     elif (dd.stream) and (x.endswith('key.weight') or x.endswith('value.weight') or x.endswith('receptance.weight') or x.endswith('output.weight')):
