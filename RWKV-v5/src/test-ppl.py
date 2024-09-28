@@ -30,7 +30,7 @@ torch.backends.cuda.matmul.allow_tf32 = True
 from torch.nn import functional as F
 
 # xzl: use our own version of lm_eval, rwkv
-#sys.path.append('/home/xl6yq/workspace-rwkv/RWKV-LM')
+sys.path.append('/home/xl6yq/workspace-rwkv/RWKV-LM')
 
 os.environ["RWKV_JIT_ON"] = '1'
 
@@ -92,13 +92,14 @@ class EvalHarnessAdapter(TemplateLM):
             raw_src = '\n' + raw_src
             src = self.pad + src
 
-            sss = str(src)
+            sss = str(src)      # xzl: "src" entire sentence 
             correct = True
-            if sss in logitBuf: # xzl: cache...
-                logit = logitBuf[sss]
-                correct = correctBuf[sss]
+            # xzl cache... 
+            if sss in logitBuf: # sss: a prompt processed before (cached
+                logit = logitBuf[sss]       # xzl: logit for the "next token" of sss
+                correct = correctBuf[sss]  # xzl: True/False for next token prediction of sss
             else:
-                q_len = len(requests[n][1])
+                q_len = len(requests[n][1]) # xzl: q_len: prompt length (??) - out of the entire sentence
                 q_len += len(self.pad)
                 logit = 0
                 
@@ -107,7 +108,7 @@ class EvalHarnessAdapter(TemplateLM):
                     # xzl: below forward. send one seq to the model (i.e. shape bsz=1,L,D)
                     outputs, _, _ = self.pretrained.forward(src, None, full_output=True)
                     # breakpoint()
-                    # xzl: for each token to be predicted... (q_len: prompt? 
+                    # xzl: for each token to be predicted... (q_len: prompt length?)
                     for i in range(q_len-1, len(src)-1):
                         oo = outputs[i].detach().float()
                         dst = src[i+1]  # xzl: next token, from GT
@@ -141,18 +142,20 @@ class EvalHarnessAdapter(TemplateLM):
                                     ppl is affected by other probs...
                         """
 
-                        logit += math.log(v)    # xzl: accmulate logits for the GT token ... why?
+                        # xzl: logit for the GT token. and accmulate over all preidcted tokens
+                        #       for this generation process (a 'reqesut') 
+                        logit += math.log(v)    
                         _, s_index = torch.sort(oo, descending=True)
-                        pred = s_index[0].item()   # xzl: pred token with higehst prob? greedy?
+                        pred = s_index[0].item()   # xzl: pred token with higehst prob...
                         if pred != dst:
-                            correct = False
+                            correct = False     # xzl: if one token is wrong, the entire prediction is wrong
                     outputs = None
                     pred = None
-                logitBuf[sss] = logit  # xzl: cache (accmulated) logit
-                correctBuf[sss] = correct
+                logitBuf[sss] = logit  # xzl: cache (sumed) logits for this prompt
+                correctBuf[sss] = correct   # xzl: cache yes/no for this prompt
                 #clean_cache()
             
-            res += [(logit, correct)]
+            res += [(logit, correct)]   # xzl: return summed logit
             if n % 1000 == 0:
                 print(f'{n//1000}K/{len(requests)//1000}K', end = ' ', flush=True)
         return res
@@ -214,8 +217,13 @@ def do_eval(model_path, isverbose=False, benchmarks=[]):
         print(s, end='', flush=True)
 
     pipeline.generate(ctx, token_count=200, args=args, callback=my_print)
-    print("\n========================================================================")
-    print("\n========================================================================")
+
+    print("========================================================================")
+    if model.stat_runs != 0:    # if model has collected any stat? print it
+        print(f"stats: runs: {model.stat_runs} \
+        cls/run {model.stat_loaded_cls/model.stat_runs:.2f} \
+        avg %loaded {model.state_loaded_tokens/model.stat_runs/65535:.2f}")
+    print("========================================================================")
 
     print("Start benchmark...")
     RWKV_PAD = pipeline.tokenizer.encode('\n') # we will use '\n' as PAD
@@ -229,10 +237,12 @@ def do_eval(model_path, isverbose=False, benchmarks=[]):
         bootstrap_iters=10000,
     )
 
+    print("========================================================================")
     if model.stat_runs != 0: 
         print(f"stats: runs: {model.stat_runs} \
         cls/run {model.stat_loaded_cls/model.stat_runs:.2f} \
         tokens/run {model.state_loaded_tokens/model.stat_runs/65535:.2f}")
+    print("========================================================================")
     
     return results['results']
 

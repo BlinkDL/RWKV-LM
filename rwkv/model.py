@@ -302,8 +302,9 @@ class RWKV(MyModule):
             if 'head_l1.weight' in w: # use compressed cls heads                
                 import numpy as np
                 args.head_K = 200    # XXX
-                args.load_token_cls='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-cls/from-hpc/rwkv-823-cls.npy'
-                #args.load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
+                # md5sum: 1ba8dc5e...
+                # args.load_token_cls='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-cls/from-hpc/rwkv-823-cls.npy'
+                args.load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
 
                 K=args.head_K
                 labels = np.load(args.load_token_cls)
@@ -2484,7 +2485,7 @@ class RWKV(MyModule):
                     return logits
 
                 # version 3. select the top K cls logits (no sampling) 
-                #   also NOT tracking cls "frequency" which is not useful to
+                #   NOT tracking cls "frequency" which is not useful to
                 #   lm_eval
                 #
                 #  can be problematic for "chat" output diversity b/c we are NOT sampling cls 
@@ -2504,16 +2505,18 @@ class RWKV(MyModule):
                     # --- select, not sampling --- # 
                     # "minK" has a high impact on speed... 
                     # CLS, CLSPROBS = self.select_logits(x1, minK=3, maxK=100, minProb=.95) # good
-                    #CLS, CLSPROBS = self.select_logits(x1, minK=3, maxK=100, minProb=.95) # good
+                    CLS, CLSPROBS, CLS_OTHER, CLSPROBS_OTHER = \
+                        self.select_logits(x1, minK=3, maxK=100, minProb=.95) # good
                     # CLS, CLSPROBS = self.select_logits(x1, minK=5, maxK=40, minProb=.5) 
-                    CLS, CLSPROBS = self.select_logits(x1, minK=N, maxK=N, minProb=.5)  # seems quite good? (N=200
+                    # CLS, CLSPROBS, CLS_OTHER, CLSPROBS_OTHER = \
+                    #     self.select_logits(x1, minK=N, maxK=N, minProb=.5)  # seems quite good? (N=200
 
                     # find minimum
-                    total_cls, total_clsprobs = self.select_logits(x1, minK=200, maxK=200, minProb=0)
-                    min_cls = total_cls[-1]
+                    # total_cls, total_clsprobs = self.select_logits(x1, minK=200, maxK=200, minProb=0)
+                    # min_cls = total_cls[-1]
 
-                    min_x1 = x @ w[f'head_l2org.{min_cls}.weight']
-                    min_logit = torch.min(min_x1)
+                    # min_x1 = x @ w[f'head_l2org.{min_cls}.weight']
+                    # min_logit = torch.min(min_x1)
                         
                     # WC: the lowest cls prob does not mean that the cluster has 
                     # the lowest logit. The code below is to check this
@@ -2538,14 +2541,17 @@ class RWKV(MyModule):
                     #logits = torch.zeros((vocab,), device='cuda', dtype=x.dtype) 
 
                     num_tokens=0
-                    # project x to logits
+                    # all "known clusters": project x to logits
+                    sum_known_logits_exp = 0  # sum of exp(logits) for all "known" clusters
+
                     for i in range(0, len(CLS)):
                         cls = CLS[i]
                         clsprob = CLSPROBS[i]
                         x1 = x @ w[f'head_l2org.{cls}.weight'] 
+                        sum_known_logits_exp += torch.sum(torch.exp(x1)).float()
 
                         # cls: cluster id, 
-                        # self.clusters[cls] list of token_ids in this cl s (as scatter idx
+                        # self.clusters[cls] list of token_ids in this cls (as scatter idx
                         # x: logits over tokens inside cls, (as scatter src
                         # idx = torch.tensor(self.clusters[cls], device='cuda')
                         idx = self.clusters_tensor[cls]
@@ -2564,8 +2570,49 @@ class RWKV(MyModule):
 
                         # since we use the orig head weights, 
                         #   it's ok to concat the raw logits from multi clusters
-                        logits.scatter_(dim=0, index=idx, src=x1)
+                        logits.scatter_(dim=0, index=idx, src=x1)                    
                     
+                    # breakpoint()
+
+                    if True:
+                        # all "other clusters": pseudo logits 
+                        Q = sum_known_logits_exp                    
+                        for i in range(0, len(CLS_OTHER)):
+                            cls = CLS_OTHER[i]
+                            clsprob = CLSPROBS_OTHER[i]
+
+                            # cls: cluster id, 
+                            # self.clusters[cls] list of token_ids in this cls (as scatter idx
+                            idx = self.clusters_tensor[cls]
+                            num_t = idx.shape[0]
+
+                            # x1: pseudo logits over tokens inside cls, (as scatter src
+                            # S_j: sum of exp logits for the cluster
+                            S_j  = Q * (clsprob / CLSPROBS.sum())
+                            x1 = (S_j / num_t).log() * torch.ones(num_t, device='cuda', dtype=x.dtype)
+                            logits.scatter_(dim=0, index=idx, src=x1)
+                        
+                    # -- sanity check: we should have overwritten all prefilled 'inf' ----- #
+                    assert not torch.isinf(logits).any(), "Tensor logits contains -inf values"
+
+                    # -- sanity check: pseudo probs vs. known probs ---- #
+                    #   accmulated cls probs may diff a bit ... bug or just precision issues??
+                    #       (bc cls probs are sum of many token probs....)
+                    if False: 
+                        pseu_token_probs = torch.softmax(logits, dim=0)                    
+                        for i in range(0, len(CLS)):
+                            cls = CLS[i]
+                            idx = self.clusters_tensor[cls]
+                            cls_prob = sum(pseu_token_probs[idx])
+                            print(f"{cls_prob}, {CLSPROBS[i]}")
+                            # assert(cls_prob == CLSPROBS[i])
+                        for i in range(0, len(CLS_OTHER)):
+                            cls = CLS_OTHER[i]
+                            idx = self.clusters_tensor[cls]
+                            cls_prob = sum(pseu_token_probs[idx])
+                            # assert(cls_prob == CLSPROBS_OTHER[i])
+                        breakpoint()
+
                     # update statistics
                     self.stat_runs += 1
                     self.stat_loaded_cls += len(CLS)
@@ -2738,6 +2785,9 @@ class RWKV(MyModule):
                 breakpoint()
             return out, probs[out]
         
+    # from logits, select:
+    #  at least minK, at most maxK, and stop when accmu prob > minProb
+    #  return: [selected_ids], [selected_probs], [rest_ids], [rest_probs]
     def select_logits(self, logits, minK, maxK, minProb):
         import numpy as np
 
@@ -2754,4 +2804,5 @@ class RWKV(MyModule):
             cutoff_idx=minK
         elif cutoff_idx>maxK:
             cutoff_idx=maxK
-        return sorted_ids[:cutoff_idx], sorted_probs[:cutoff_idx]
+        return sorted_ids[:cutoff_idx], sorted_probs[:cutoff_idx], \
+            sorted_ids[cutoff_idx:], sorted_probs[cutoff_idx:],
