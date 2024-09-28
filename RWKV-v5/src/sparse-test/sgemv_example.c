@@ -340,4 +340,6 @@ int main(int argc, char *argv[]) {
     4K,1k       A          -mmap            5.75ms      -- the OS is doing some kind of async page fault? 
     4K,1k       A          -fread            6.55ms        (fread time: 50ms)
     4K,1k       A          -sparse            4.3ms        (20% faster than dense, in-mem)
+
+    2k,1k       A          -in-mem         ????  (what will happen??? -- TBD
 */
