@@ -28,6 +28,20 @@ else:
         return ob
     MyFunction = __nop
     MyStatic = __nop
+
+# by xzl 
+def is_raspberry_pi():
+    try:
+        with open("/proc/cpuinfo", "r") as f:
+            cpuinfo = f.read().lower()
+        # Check for common Raspberry Pi hardware identifiers
+        if "raspberry" in cpuinfo or any(model in cpuinfo for model in ["bcm2835", "bcm2836", "bcm2837", "bcm2711"]):
+            return True
+    except FileNotFoundError:
+        # /proc/cpuinfo might not exist on non-Linux systems
+        return False
+    return False
+    
 '''
 xzl: below implement key ops: 
     wkv
@@ -209,7 +223,12 @@ class RWKV(MyModule):
         # xzl: dirty statistics for cls head....
         self.stat_runs = 0    # num of fwd passes run
         self.stat_loaded_cls = 0    # num of cls loaded 
-        self.state_loaded_tokens = 0  # num of token "cols" loaded
+        self.stat_loaded_tokens = 0  # num of token "cols" loaded
+        # exec time stats, all in sec
+        self.stat_time_fwd = 0.0   # total fwd time
+        self.stat_time_att = 0.0   
+        self.stat_time_ffn = 0.0   
+        self.stat_time_cls = 0.0   
 
         # xzl: parse strategy... e.g. "cuda fp16"... and apply to layers 
         STRATEGY_REGEX = r"^(?:(?:^|->) *(?:cuda(?::[\d]+)?|cpu|mps|dml) (?:fp(?:16|32)|bf16)(?:i8|i4|i3)?(?: \*[\d]+\+?)? *)+$"
@@ -235,7 +254,7 @@ class RWKV(MyModule):
             args.MODEL_NAME += '.pth'
         prxxx(f'Loading {args.MODEL_NAME} ...')
         with torch.no_grad():
-            self.w = torch.load(args.MODEL_NAME, map_location='cpu') # load model to CPU first
+            self.w = torch.load(args.MODEL_NAME, map_location='cpu', weights_only=True) # load model to CPU first
             gc.collect()
             w = self.w
 
@@ -303,9 +322,12 @@ class RWKV(MyModule):
                 import numpy as np
                 args.head_K = 200    # XXX
                 # md5sum: 1ba8dc5e...
-                # args.load_token_cls='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-cls/from-hpc/rwkv-823-cls.npy'
-                args.load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
-
+                if is_raspberry_pi():
+                    args.load_token_cls='/data/models/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
+                else: 
+                    # args.load_token_cls='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-cls/from-hpc/rwkv-823-cls.npy'
+                    args.load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
+                
                 K=args.head_K
                 labels = np.load(args.load_token_cls)
                 # idx: cls id, element: list of token_id inside the cls
@@ -319,7 +341,7 @@ class RWKV(MyModule):
                     token2cls.append((c,len(clusters[c])))
                     clusters[c].append(i)
                 
-                self.token2cls = torch.tensor(token2cls, device='cuda')
+                # self.token2cls = torch.tensor(token2cls, device='cuda')  # unused as of now....
                 self.clusters = clusters
 
                 # sanity chk: plot histogram statistics of cluster sizes... 
@@ -336,9 +358,11 @@ class RWKV(MyModule):
                 '''
 
                 self.clusters_tensor = [] # also save as list of tensors
+                # each tensor: 1D (#tokens_per_cls). for tensor computation later .
                 for ccc in self.clusters:
                     self.clusters_tensor.append(
-                        torch.tensor(ccc, device='cuda'))
+                        # torch.tensor(ccc, device='cuda'))
+                        torch.tensor(ccc, device='cpu'))   # convert later? 
 
                 # build head_l2, but by splitting the original cls head weights
                 for cls in range(0, len(clusters)):
@@ -1796,6 +1820,13 @@ class RWKV(MyModule):
             w = self.w
             args = self.args
 
+            time_measure = {} 
+            time_measure['att_dispatch'] = 0
+            time_measure['ffn_dispatch'] = 0
+            time_measure['att_exec'] = 0
+            time_measure['ffn_exec'] = 0
+            time_measure['fwd_start'] = time.time()
+
             # xzl: init state
             if state == None:
                 if self.version == 4:
@@ -1827,10 +1858,11 @@ class RWKV(MyModule):
 
             x = w['emb.weight'][tokens if seq_mode else tokens[0]] # xzl: 'x'-input
 
-            # xzl: below- assemble layers (each layer)
+            ##### xzl: below- assemble & run layers (each layer)
             #  use custom cuda impl if available, otherwise fall back to torch
+            #  XXX: doing this for each token, each layer ... isnt that slow? 
             layer_masks = []
-            for i in range(args.n_layer):
+            for i in range(args.n_layer):            
                 bbb = f'blocks.{i}.'
                 att = f'blocks.{i}.att.'
                 ffn = f'blocks.{i}.ffn.'
@@ -1838,6 +1870,9 @@ class RWKV(MyModule):
                 dev = dd.device
                 atype = dd.atype
                 wtype = dd.wtype
+
+                ############# ---- xzl: below, dispatch ATT ----- #
+                time_measure[f'layer{i}_att_dispatch_start'] = time.time()
                 if seq_mode:
                     cuda_applicable = os.environ["RWKV_CUDA_ON"] == '1' and 'cuda' in str(dev)
                     if cuda_applicable:
@@ -2004,7 +2039,8 @@ class RWKV(MyModule):
                     gmy2 = w[f'{att}gate2.weight_my'] if wtype == torch.uint8 else x
                     gry2 = w[f'{att}gate2.weight_ry'] if wtype == torch.uint8 else x
 
-                # --- xzl: below, run att (one or seq) --- # 
+                ############# --- xzl: below, run ATT (one or seq) --- # 
+                time_measure[f'layer{i}_att_exec_start'] = time.time()
                 if self.version == 4:
                     x, state[i*5+0], state[i*5+1], state[i*5+2], state[i*5+3] = ATT(
                         x, state[i*5+0], state[i*5+1], state[i*5+2], state[i*5+3],
@@ -2100,6 +2136,8 @@ class RWKV(MyModule):
                     if self.version in [5.1, 5.2, 6.0]:
                         del gw
 
+                ############# ---- xzl: below, dispatch FFN ----- #
+                time_measure[f'layer{i}_ffn_dispatch_start'] = time.time()
                 if self.version in [5.8, 5.9, 5.94, 5.95, 5.96]:
                     if self.version in [5.94, 5.95, 5.96]:
                         kw1 = w[f'{ffn}key1.weight']
@@ -2157,7 +2195,9 @@ class RWKV(MyModule):
                     offset = i*5+4
                 elif int(self.version) in [5,6]:
                     offset = i*3+2
-                # ---- xzl: below, run FFN ----- #
+
+                ############# ---- xzl: below, run FFN ----- #
+                time_measure[f'layer{i}_ffn_exec_start'] = time.time()
                 if self.version in [5.9]:
                     x, state[offset], mask = FFN(
                         x, state[offset],
@@ -2236,7 +2276,13 @@ class RWKV(MyModule):
                 if self.RESCALE_LAYER > 0:
                     if (i+1) % self.RESCALE_LAYER == 0:
                         x = x / 2
-            
+                time_measure[f'layer{i}_ffn_exec_end'] = time.time()
+
+                time_measure['att_exec'] += \
+                    time_measure[f'layer{i}_ffn_exec_start'] - time_measure[f'layer{i}_att_exec_start']
+                time_measure['ffn_exec'] += \
+                    time_measure[f'layer{i}_ffn_exec_end'] - time_measure[f'layer{i}_ffn_exec_start']
+
             dd = self.strategy[args.n_layer]
             # xzl: below, take last token ONLY even if seq_mode==True, 
             # means that prompt stage only update state. no need to materialize
@@ -2246,6 +2292,9 @@ class RWKV(MyModule):
             x = x[-1,:] if (seq_mode and (not full_output)) else x
             x = x.to(dtype=dd.atype, device=dd.device)
             
+            ############# xzl: all layers done 
+            ############# xzl: below: layer norm, cls head...
+            time_measure['cls_start'] = time.time()
             x = F.layer_norm(x, (args.n_embd,), weight=w['ln_out.weight'], bias=w['ln_out.bias'])
 
             if 'head_l1.weight' in w: # use compressed cls heads
@@ -2490,6 +2539,7 @@ class RWKV(MyModule):
                 #
                 #  can be problematic for "chat" output diversity b/c we are NOT sampling cls 
                 #  return: token logits (# = vocab)
+                # @MyStatic
                 def _retrieve_value3(x, w):
                     # N=200 # of cls we'll sample
                     # N=80 # of cls we'll sample
@@ -2537,7 +2587,8 @@ class RWKV(MyModule):
                         
                     #### now we've picked N cls. L2 projection.... ###
                     vocab = w['head.weight'].shape[1]   # shape D,vocab                
-                    logits = torch.full((vocab,), float("-inf"), device='cuda', dtype=x.dtype) 
+                    # logits = torch.full((vocab,), float("-inf"), device='cuda', dtype=x.dtype) 
+                    logits = torch.full((vocab,), float("-inf"), device=x.device, dtype=x.dtype) 
                     #logits = torch.zeros((vocab,), device='cuda', dtype=x.dtype) 
 
                     num_tokens=0
@@ -2589,7 +2640,7 @@ class RWKV(MyModule):
                             # x1: pseudo logits over tokens inside cls, (as scatter src
                             # S_j: sum of exp logits for the cluster
                             S_j  = Q * (clsprob / CLSPROBS.sum())
-                            x1 = (S_j / num_t).log() * torch.ones(num_t, device='cuda', dtype=x.dtype)
+                            x1 = (S_j / num_t).log() * torch.ones(num_t, device=x.device, dtype=x.dtype)
                             logits.scatter_(dim=0, index=idx, src=x1)
                         
                     # -- sanity check: we should have overwritten all prefilled 'inf' ----- #
@@ -2616,8 +2667,8 @@ class RWKV(MyModule):
                     # update statistics
                     self.stat_runs += 1
                     self.stat_loaded_cls += len(CLS)
-                    self.state_loaded_tokens += num_tokens
-
+                    self.stat_loaded_tokens += num_tokens
+                    
                     # -- sanity check ---- ... expensive 
                     if False: 
                         reallogits = x @ w['head.weight']
@@ -2729,6 +2780,21 @@ class RWKV(MyModule):
                 else:
                     x = mm8_one(x, w['head.weight'], w['head.weight_mx'], w['head.weight_rx'], w['head.weight_my'], w['head.weight_ry'])
 
+            time_measure['cls_end'] = time.time()
+            time_measure['cls_exec'] = time_measure['cls_end'] - time_measure['cls_start']
+
+            time_measure['fwd_end'] = time.time()
+            print(f'fwd time: {time_measure["fwd_end"] - time_measure["fwd_start"]:.2f} sec')
+            print(f'att time: {time_measure["att_exec"]:.2f} sec')
+            print(f'ffn time: {time_measure["ffn_exec"]:.2f} sec')
+            print(f'cls time: {time_measure["cls_exec"]:.2f} sec')
+
+            # update global stat: 
+            self.stat_time_fwd += time_measure["fwd_end"] - time_measure["fwd_start"]
+            self.stat_time_att += time_measure["att_exec"]
+            self.stat_time_ffn += time_measure["ffn_exec"]
+            self.stat_time_cls += time_measure["cls_exec"]
+            
             return x.float(), state, layer_masks
         
     # copied from rwkv/utils.py 

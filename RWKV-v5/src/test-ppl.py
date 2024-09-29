@@ -29,8 +29,8 @@ torch.backends.cudnn.allow_tf32 = True
 torch.backends.cuda.matmul.allow_tf32 = True
 from torch.nn import functional as F
 
-# xzl: use our own version of lm_eval, rwkv
-sys.path.append('/home/xl6yq/workspace-rwkv/RWKV-LM')
+# xzl: use our own version of lm_eval, rwkv (update: do it in env-XXX.sh)
+# sys.path.append('/home/xl6yq/workspace-rwkv/RWKV-LM')
 
 os.environ["RWKV_JIT_ON"] = '1'
 
@@ -40,8 +40,24 @@ if os.environ.get('RWKV_CUDA_ON') != '0':
 from rwkv.model import RWKV
 from rwkv.utils import PIPELINE, PIPELINE_ARGS
 
-from lm_eval import tasks, evaluator
-from lm_eval.api.model import TemplateLM
+
+def is_raspberry_pi():
+    try:
+        with open("/proc/cpuinfo", "r") as f:
+            cpuinfo = f.read().lower()
+        # Check for common Raspberry Pi hardware identifiers
+        if "raspberry" in cpuinfo or any(model in cpuinfo for model in ["bcm2835", "bcm2836", "bcm2837", "bcm2711"]):
+            return True
+    except FileNotFoundError:
+        # /proc/cpuinfo might not exist on non-Linux systems
+        return False
+    return False
+
+# only do lm_eval if not pri
+if not is_raspberry_pi():
+    from lm_eval import tasks, evaluator
+    from lm_eval.api.model import TemplateLM
+
 
 ########################################################################################################
 MODEL_NAME = '/data/models/01b-pre-x59-CLS-TEST'
@@ -222,7 +238,7 @@ def do_eval(model_path, isverbose=False, benchmarks=[]):
     if model.stat_runs != 0:    # if model has collected any stat? print it
         print(f"stats: runs: {model.stat_runs} \
         cls/run {model.stat_loaded_cls/model.stat_runs:.2f} \
-        avg %loaded {model.state_loaded_tokens/model.stat_runs/65535:.2f}")
+        avg %loaded {model.stat_loaded_tokens/model.stat_runs/65535:.2f}")
     print("========================================================================")
 
     print("Start benchmark...")
@@ -241,7 +257,7 @@ def do_eval(model_path, isverbose=False, benchmarks=[]):
     if model.stat_runs != 0: 
         print(f"stats: runs: {model.stat_runs} \
         cls/run {model.stat_loaded_cls/model.stat_runs:.2f} \
-        tokens/run {model.state_loaded_tokens/model.stat_runs/65535:.2f}")
+        tokens/run {model.stat_loaded_tokens/model.stat_runs/65535:.2f}")
     print("========================================================================")
     
     return results['results']
