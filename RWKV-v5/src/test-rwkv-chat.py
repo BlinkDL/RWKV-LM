@@ -145,14 +145,18 @@ print('\n')
 speed test 
 (careful: vscode-server will take quite some cpu time)
 
-rpi4
-        
-x52     01b-pre-x52-1455
-                                        5.1 tok/sec
-x59     01b-pre-x59-976
-                                        3.06
+rpi5
+                                tok/sec
+x52     01b-pre-x52-1455        15.3                
+    fp16i8                        1 (very slow)
+x59     01b-pre-x59-976         10.5
 
-
+rpi4  
+                                tok/sec
+x52     01b-pre-x52-1455        5.1      
+    fp16i8                       .4 (very slow)
+x59     01b-pre-x59-976         3.1                                
+    fp16i8                      .45 (very slow)
 
     
 '''
