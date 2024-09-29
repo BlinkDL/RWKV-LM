@@ -3,6 +3,8 @@ test rwkv inference engine
 cf: https://pypi.org/project/rwkv/
 
 speed benchmark res - see of file
+full res: 
+https://myuva.sharepoint.com/:x:/r/sites/XSEL-RWKV/Shared%20Documents/RWKV/results_rwkv.xlsx?d=wbf0bd61c5429469a8c039df4d8d4f46a&csf=1&web=1&e=0dyjUv
 '''
 import sys, os
 import time
@@ -85,7 +87,7 @@ if os.environ["RWKV_CUDA_ON"] == '1':
     # strategy='cuda fp16i8',
 else:
     strategy='cpu fp16'
-    #strategy='cpu fp16i8'
+    #strategy='cpu fp16i8'   # very slow... TBD
 
 t0 = time.time()
 
@@ -146,14 +148,25 @@ print('\n')
 speed test 
 (careful: vscode-server will take quite some cpu time)
 
-rpi4
-        
-x52     01b-pre-x52-1455
+rpi5 (4GB DRAM
+                                tok/sec
+x52     01b-pre-x52-1455        15.3                
+    fp16i8                        1 (very slow)
+x59     01b-pre-x59-976         10.5
 
-x59     01b-pre-x59-976
-    model build: 13.67 sec, exec 200 tokens in 80.35 sec, 2.49 tok/sec
+04b    x59                    3.36 (not too bad
 
+1b5        OOM
 
+--------------
+rpi4  
+                                tok/sec
+x52     01b-pre-x52-1455        5.1      
+    fp16i8                       .4 (very slow)
+x59     01b-pre-x59-976         3.1                                
+    fp16i8                      .45 (very slow)
+
+    1b5                          .26 (slow)
 
     
 '''
