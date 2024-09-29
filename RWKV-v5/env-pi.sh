@@ -15,3 +15,5 @@ source ${HOME}/workspace-rwkv/myenv/bin/activate
 #export PATH=$PATH:${HOME}/.local/bin
 
 export RWKVDATA=/data/rwkv-data
+
+export RWKV_CUDA_ON=0
