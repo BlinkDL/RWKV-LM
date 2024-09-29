@@ -47,8 +47,10 @@ from rwkv.utils import PIPELINE, PIPELINE_ARGS
 
 # model_path='/data/models/0.1b-pre-x59-16x-1451'
 # model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
-model_path='/data/models/01b-pre-x52-1455'
-# model_path='/data/models/01b-pre-x59-976'
+#model_path='/data/models/01b-pre-x52-1455'
+#model_path='/data/models/01b-pre-x59-976'
+model_path='/data/models/04b-pre-x59-2405'
+#model_path='/data/models/1b5-pre-x59-929'
 
 # #Only head.l1 tuned. KL loss (good
 # model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
@@ -83,6 +85,7 @@ if os.environ["RWKV_CUDA_ON"] == '1':
     # strategy='cuda fp16i8',
 else:
     strategy='cpu fp16'
+    #strategy='cpu fp16i8'
 
 t0 = time.time()
 
