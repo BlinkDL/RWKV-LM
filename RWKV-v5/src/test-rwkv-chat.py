@@ -3,6 +3,8 @@ test rwkv inference engine
 cf: https://pypi.org/project/rwkv/
 
 speed benchmark res - see of file
+full res: 
+https://myuva.sharepoint.com/:x:/r/sites/XSEL-RWKV/Shared%20Documents/RWKV/results_rwkv.xlsx?d=wbf0bd61c5429469a8c039df4d8d4f46a&csf=1&web=1&e=0dyjUv
 '''
 import sys, os
 import time
