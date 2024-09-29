@@ -48,7 +48,7 @@ from rwkv.utils import PIPELINE, PIPELINE_ARGS
 # model_path='/data/models/0.1b-pre-x59-16x-1451'
 # model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
 model_path='/data/models/01b-pre-x52-1455'
-# model_path='/data/models/01b-pre-x59-976'
+#model_path='/data/models/01b-pre-x59-976'
 
 # #Only head.l1 tuned. KL loss (good
 # model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
@@ -146,9 +146,9 @@ speed test
 rpi4
         
 x52     01b-pre-x52-1455
-
+                                        5.1 tok/sec
 x59     01b-pre-x59-976
-    model build: 13.67 sec, exec 200 tokens in 80.35 sec, 2.49 tok/sec
+                                        3.06
 
 
 
