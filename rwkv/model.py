@@ -42,6 +42,18 @@ def is_raspberry_pi():
         return False
     return False
     
+# cf above    
+def is_odroid():
+    try:
+        with open("/proc/cpuinfo", "r") as f:
+            cpuinfo = f.read().lower()
+        if "odroid" in cpuinfo or any(model in cpuinfo for model in []):
+            return True
+    except FileNotFoundError:
+        # /proc/cpuinfo might not exist on non-Linux systems
+        return False
+    return False
+    
 '''
 xzl: below implement key ops: 
     wkv
@@ -566,8 +578,8 @@ class RWKV(MyModule):
                 import numpy as np
                 args.head_K = 200    # XXX
                 # md5sum: 1ba8dc5e...
-                if is_raspberry_pi():
-                    args.load_token_cls='/data/models/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
+                if is_raspberry_pi() or is_odroid():
+                    args.load_token_cls='/data/models/pi-deployment/rwkv-823-cls.npy'
                 else: 
                     # args.load_token_cls='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-cls/from-hpc/rwkv-823-cls.npy'
                     args.load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
