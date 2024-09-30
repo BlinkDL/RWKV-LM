@@ -317,65 +317,6 @@ class RWKV(MyModule):
                 args.n_att = w['blocks.0.att.key.weight'].shape[0] # note: transposed matrix
                 args.n_ffn = w['blocks.0.ffn.key.weight'].shape[0] # note: transposed matrix
 
-            ##### xzl: load & build cls lookup table
-            if 'head_l1.weight' in w: # use compressed cls heads                
-                import numpy as np
-                args.head_K = 200    # XXX
-                # md5sum: 1ba8dc5e...
-                if is_raspberry_pi():
-                    args.load_token_cls='/data/models/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
-                else: 
-                    # args.load_token_cls='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-cls/from-hpc/rwkv-823-cls.npy'
-                    args.load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
-                
-                K=args.head_K
-                labels = np.load(args.load_token_cls)
-                # idx: cls id, element: list of token_id inside the cls
-                clusters = []
-                # idx: token_id, element: (cls_id, token id within the cls)
-                token2cls = []  
-                for i in range(K):
-                    clusters.append([])
-                for i in range(len(labels)):
-                    c = labels[i]
-                    token2cls.append((c,len(clusters[c])))
-                    clusters[c].append(i)
-                
-                # self.token2cls = torch.tensor(token2cls, device='cuda')  # unused as of now....
-                self.clusters = clusters
-
-                # sanity chk: plot histogram statistics of cluster sizes... 
-                '''
-                import matplotlib.pyplot as plt
-                data = [len(sublist) for sublist in clusters]
-                # plt.hist(data, bins=20, edgecolor='black')
-                plt.hist(data, bins=range(min(data), max(data) + 2), edgecolor='black')
-                plt.title('Histogram of cluster sizes')
-                plt.xlabel('Cluster size bins')
-                plt.ylabel('# of clusters')
-                plt.savefig('cluster-size-histogram.jpg', format='jpg', dpi=300)
-                breakpoint()
-                '''
-
-                self.clusters_tensor = [] # also save as list of tensors
-                # each tensor: 1D (#tokens_per_cls). for tensor computation later .
-                for ccc in self.clusters:
-                    self.clusters_tensor.append(
-                        # torch.tensor(ccc, device='cuda'))
-                        torch.tensor(ccc, device='cpu'))   # convert later? 
-
-                # build head_l2, but by splitting the original cls head weights
-                for cls in range(0, len(clusters)):
-                    orghead = w['head.weight']
-                    idx = torch.tensor(clusters[cls], device=orghead.device)
-                    # ww = torch.gather(input=orghead,dim=0,index=idx)
-                    ww = orghead[idx]
-                    w[f'head_l2org.{cls}.weight'] = ww # save it 
-
-                # cf rwkv/utils.py generate()
-                # XXX move it out of "model", to "pipeline"
-                self.occurrence = {}  
-
             ####################### Compute strategy   
             # xzl: & print out "strategy" for each layer... (NB quant weight, no activation)
 
@@ -618,6 +559,75 @@ class RWKV(MyModule):
                 else:
                     print_need_newline = True
                     prxxx('.', end = '', flush = True)
+
+            ##### xzl: load & build cls lookup table. do it AFTER all weights are transposed, converted
+            # self.head_l2org_weight: List[torch.Tensor] = []
+            if 'head_l1.weight' in w: # use compressed cls heads                
+                import numpy as np
+                args.head_K = 200    # XXX
+                # md5sum: 1ba8dc5e...
+                if is_raspberry_pi():
+                    args.load_token_cls='/data/models/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
+                else: 
+                    # args.load_token_cls='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-cls/from-hpc/rwkv-823-cls.npy'
+                    args.load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy'
+                
+                K=args.head_K
+                labels = np.load(args.load_token_cls)
+                # idx: cls id, element: list of token_id inside the cls
+                clusters = []
+                # idx: token_id, element: (cls_id, token id within the cls)
+                token2cls = []  
+                for i in range(K):
+                    clusters.append([])
+                for i in range(len(labels)):
+                    c = labels[i]
+                    token2cls.append((c,len(clusters[c])))
+                    clusters[c].append(i)
+                
+                # self.token2cls = torch.tensor(token2cls, device='cuda')  # unused as of now....
+                self.clusters = clusters
+
+                # sanity chk: plot histogram statistics of cluster sizes... 
+                '''
+                import matplotlib.pyplot as plt
+                data = [len(sublist) for sublist in clusters]
+                # plt.hist(data, bins=20, edgecolor='black')
+                plt.hist(data, bins=range(min(data), max(data) + 2), edgecolor='black')
+                plt.title('Histogram of cluster sizes')
+                plt.xlabel('Cluster size bins')
+                plt.ylabel('# of clusters')
+                plt.savefig('cluster-size-histogram.jpg', format='jpg', dpi=300)
+                breakpoint()
+                '''
+
+                self.clusters_tensor = [] # also save as list of tensors
+                # each tensor: 1D (#tokens_per_cls). for tensor computation later .
+                for ccc in self.clusters:
+                    self.clusters_tensor.append(
+                        # torch.tensor(ccc, device='cuda'))
+                        torch.tensor(ccc, device='cpu'))   # convert later? 
+
+                # build head_l2, but by splitting the original cls head weights
+                self.head_l2org_weight = []
+
+                for cls in range(0, len(clusters)):
+                    # NB: w['head.weight'] shape (D,vocab), already transposed
+                    orghead = w['head.weight'].T  # orghead shape (vocab, D)
+                    idx = torch.tensor(clusters[cls], device=orghead.device)
+                    # ww = torch.gather(input=orghead,dim=0,index=idx)
+                    ww = orghead[idx]
+                    w[f'head_l2org.{cls}.weight'] = ww # save it in dict
+                    self.head_l2org_weight.append(ww.t())   # alternatively, save in list  
+
+                # cf rwkv/utils.py generate()
+                # XXX move it out of "model", to "pipeline"
+                self.occurrence = {}  
+
+                # avoid indexing "w" (the model state dict) inside _retrieve_value3(), which 
+                # prevents it from using torch.script... 
+                self.head_l1_weight = w['head_l1.weight']
+                self.vocab = w['head.weight'].shape[1]   # shape D,vocab                    
 
             prxxx("parameter size: ", f"{total_parameter_size / MiB:.3f} MB")
             
@@ -1714,6 +1724,193 @@ class RWKV(MyModule):
 
         return x + out, xx[-1,:], s
 
+    # version 3, ***torchscript friendly***
+    #  select the top K cls logits (no sampling) 
+    #   NOT tracking cls "frequency" which is not useful to
+    #   lm_eval
+    #
+    #  can be problematic for "chat" output diversity b/c we are NOT sampling cls 
+    #  return: token logits (# = vocab)
+    from typing import List
+
+    # def _retrieve_value3(self, x, w, head_l1_weight, head_l2org_weight):
+    # @MyFunction
+    def _retrieve_value3_jit(self, x, head_l1_weight, head_l2org_weight: List[torch.Tensor]):
+        # N=200 # of cls we'll sample
+        # N=80 # of cls we'll sample
+        N=5 # of cls we'll sample
+
+        t0 = time.time()
+
+        # l1 projection, x: shape (1,D) (regardless of seq_mode
+        # x1 = x @ w['head_l1.weight']  # shape (D,#total_cls(200))
+        x1 = x @ head_l1_weight
+        
+        # CLS, CLSPROBS = self.sample_logits(x1, temperature=1.0, top_p=0.85, top_k=N,
+        #                          size=N, replace=False)
+        
+        # --- select, not sampling --- # 
+        # "minK" has a high impact on speed... 
+        # CLS, CLSPROBS = self.select_logits_jit(x1, minK=3, maxK=100, minProb=.95) # good
+        CLS, CLSPROBS, CLS_OTHER, CLSPROBS_OTHER = \
+            self.select_logits_jit(x1, minK=3, maxK=100, minProb=.95) # good
+        # CLS, CLSPROBS = self.select_logits_jit(x1, minK=5, maxK=40, minProb=.5) 
+        # CLS, CLSPROBS, CLS_OTHER, CLSPROBS_OTHER = \
+        #     self.select_logits_jit(x1, minK=N, maxK=N, minProb=.5)  # seems quite good? (N=200
+            
+        t1 = time.time()
+
+        #### now we've picked N cls. L2 projection.... ###
+        # vocab = w['head.weight'].shape[1]   # shape D,vocab
+        vocab = self.vocab
+        # logits = torch.full((vocab,), float("-inf"), device='cuda', dtype=x.dtype) 
+        logits = torch.full((vocab,), float("-inf"), device=x.device, dtype=x.dtype) 
+        #logits = torch.zeros((vocab,), device='cuda', dtype=x.dtype) 
+
+        t2 = time.time()
+
+        # ---- the "known" logits (from predicted clusters): project x to logits
+        # XXX scatter_known_time > proj_known_time (~1.5x-2x), to optimize. ridiculous
+        # XXX idea: since the # of predicted CLS is likely small, we may bundle them in one tensor
+        # (with padding), do projection & scatter in one go.
+        num_tokens=0
+        sum_known_logits_exp = torch.tensor(0.0)  # sum of exp(logits) for all "known" clusters
+
+        proj_known_time = 0.0 
+        scatter_known_time = 0.0
+
+        for i in range(0, len(CLS)):
+            cls = CLS[i]
+            clsprob = CLSPROBS[i]
+
+            tt0 = time.time()
+
+            # x1 = x @ w[f'head_l2org.{cls}.weight'] 
+            x1 = x @ head_l2org_weight[cls]
+            sum_known_logits_exp += torch.sum(torch.exp(x1)).float()
+
+            tt1 = time.time()
+
+            # cls: cluster id, 
+            # self.clusters[cls] list of token_ids in this cls (as scatter idx
+            # x: logits over tokens inside cls, (as scatter src
+            # idx = torch.tensor(self.clusters[cls], device='cuda')
+            idx = self.clusters_tensor[cls]
+
+            num_tokens += idx.shape[0]
+            #  ------ sanity check: if we use the org head.weight ------ # 
+            if False:
+                yyy=w[f'head_l2org.{cls}.weight']
+                zzz=w['head.weight']
+                for ii in range(len(idx)): 
+                    tokenid = idx[ii]
+                    if not torch.equal(yyy[:,ii], zzz[:,tokenid]): 
+                        breakpoint()  
+            # print("all good")
+            # ---------------------------- # 
+
+            # since we use the orig head weights, 
+            #   it's ok to concat the raw logits from multi clusters
+            logits.scatter_(dim=0, index=idx, src=x1)
+            tt2 = time.time()
+
+            proj_known_time += (tt1-tt0)
+            scatter_known_time += (tt2-tt1)
+        
+        t3 = time.time()
+
+        # breakpoint()
+        # --- the "unknown" logits. fill them with pseduo values  --- #
+        if True:
+            scatter_time = 0.0
+            # all "other clusters": pseudo logits 
+            Q = sum_known_logits_exp                    
+            for i in range(0, len(CLS_OTHER)):
+                tt0 = time.time()
+
+                cls = CLS_OTHER[i]
+                clsprob = CLSPROBS_OTHER[i]
+
+                # cls: cluster id, 
+                # self.clusters[cls] list of token_ids in this cls (as scatter idx
+                idx = self.clusters_tensor[cls]
+                num_t = idx.shape[0]
+
+                tt1 = time.time()
+
+                # x1: pseudo logits over tokens inside cls, (as scatter src
+                # S_j: sum of exp logits for the cluster
+                S_j  = Q * (clsprob / CLSPROBS.sum())
+                vvv = (S_j / num_t).log()
+                # x1 = vvv * torch.ones(num_t, device=x.device, dtype=x.dtype)
+
+                tt2 = time.time()
+                # idx: 1D tensor, src: 1D tensor                
+                # logits.scatter_(dim=0, index=idx, src=x1)
+                logits.index_fill_(dim=0, index=idx, value=vvv)
+                tt3 = time.time()
+
+
+                scatter_time += (tt3-tt2)
+                # print(f"cls: {cls}, {tt1-tt0}, {tt2-tt1}, {tt3-tt2}")
+            # breakpoint()
+            
+        t4 = time.time()
+
+        # -- sanity check: we should have overwritten all prefilled 'inf' ----- #
+        assert not torch.isinf(logits).any(), "Tensor logits contains -inf values"
+
+        # -- sanity check: pseudo probs vs. known probs ---- #
+        #   accmulated cls probs may diff a bit ... bug or just precision issues??
+        #       (bc cls probs are sum of many token probs....)
+        if False: 
+            pseu_token_probs = torch.softmax(logits, dim=0)                    
+            for i in range(0, len(CLS)):
+                cls = CLS[i]
+                idx = self.clusters_tensor[cls]
+                cls_prob = sum(pseu_token_probs[idx])
+                print(f"{cls_prob}, {CLSPROBS[i]}")
+                # assert(cls_prob == CLSPROBS[i])
+            for i in range(0, len(CLS_OTHER)):
+                cls = CLS_OTHER[i]
+                idx = self.clusters_tensor[cls]
+                cls_prob = sum(pseu_token_probs[idx])
+                # assert(cls_prob == CLSPROBS_OTHER[i])
+            breakpoint()
+
+        # update statistics
+        self.stat_runs += 1
+        self.stat_loaded_cls += len(CLS)
+        self.stat_loaded_tokens += num_tokens
+        
+        # -- sanity check ---- ... expensive 
+        if False: 
+            reallogits = x @ w['head.weight']
+            # if N==200:
+            if False:
+                # if not torch.equal(reallogits,logits):
+                # XXX there might be a minor bug somewhere.... causing 
+                # minor diff in the two logitgs...
+                if not torch.allclose(reallogits,logits, rtol=0.01, atol=0.01):
+                    dif=reallogits-logits
+                    nzdifmask=dif!=0
+                    nzidx=torch.nonzero(nzdifmask, as_tuple=False)
+                    breakpoint()
+            tokens, probs= self.select_logits(reallogits, 5, 20, 0.85)
+            
+            # useful CMP: our computed logits (others filled -inf) vs. true logits
+            # if K==200, they shall equal 
+            if True:
+                print(reallogits[tokens])
+                print(logits[tokens])
+                breakpoint()
+
+        t5 = time.time()
+        print(f"cls breakdown time: l1proj {t1-t0:.2f}, logits init {t2-t1:.2f}, logits known {t3-t2:.2f}, logits unknown {t4-t3:.2f}, misc {t5-t4:.2f}")
+        print(f"proj_known_time: {proj_known_time:.2f} scatter_known_time: {scatter_known_time:.2f} scatter_unknown_time: {scatter_time:.2f}")        
+
+        return logits 
+
     ########################################################################################################
     # xzl: cuda versions...
     if os.environ["RWKV_CUDA_ON"] == '1':
@@ -2345,7 +2542,7 @@ class RWKV(MyModule):
                     # l2 project x to: logits over all possible tokens within the cls
                     x = x @ w[f'head_l2.{cls}.weight']
                                     
-                    vocab = w['head.weight'].shape[1]   # shape D,vocab                
+                    vocab = w['head.weight'].shape[1]   # shape D,vocab
                     # cls: cluster id, 
                     # self.clusters[cls] list of token_ids in this cls (as scatter idx
                     # x: logits over tokens inside cls, (as scatter src
@@ -2767,10 +2964,10 @@ class RWKV(MyModule):
                     new_x = []
                     self.cached_orgx = x
                     for row in x:
-                        new_x.append(_retrieve_value3(row, w))
+                        new_x.append(self._retrieve_value3_jit(row, self.head_l1_weight, self.head_l2org_weight))
                     x = torch.stack(new_x)
                 else:
-                    x = _retrieve_value3(x, w)
+                    x = self._retrieve_value3_jit(x, self.head_l1_weight, self.head_l2org_weight)
 
             elif w['head.weight'].dtype != torch.uint8:  # original cls head
                 x = x @ w['head.weight']
@@ -2795,6 +2992,8 @@ class RWKV(MyModule):
             self.stat_time_ffn += time_measure["ffn_exec"]
             self.stat_time_cls += time_measure["cls_exec"]
             
+            breakpoint()
+
             return x.float(), state, layer_masks
         
     # copied from rwkv/utils.py 
@@ -2866,6 +3065,36 @@ class RWKV(MyModule):
         cumulative_probs = torch.cumsum(sorted_probs, dim=-1).cpu().numpy()
         cutoff_idx = np.argmax(cumulative_probs >= minProb) + 1 # idx in sorted_probs
         # cutoff = float(sorted_probs[np.argmax(cumulative_probs >= minProb)])
+        if cutoff_idx<minK:
+            cutoff_idx=minK
+        elif cutoff_idx>maxK:
+            cutoff_idx=maxK
+        return sorted_ids[:cutoff_idx], sorted_probs[:cutoff_idx], \
+            sorted_ids[cutoff_idx:], sorted_probs[cutoff_idx:],
+
+    # same as above, but **cpu jit friendly**
+    @MyFunction
+    def select_logits_jit(self, logits, minK: int, maxK: int, minProb: float):
+        probs = F.softmax(logits.float(), dim=-1)
+        sorted_ids = torch.argsort(probs)
+        sorted_ids = torch.flip(sorted_ids, dims=(0,)) 
+        sorted_probs = probs[sorted_ids]
+        # sorted_probs = torch.flip(sorted_probs, dims=(0,)) 
+        # now sorted_probs in descending order
+
+        # below: works unless using torch script (.numpy() unsupported)
+        '''
+        cumulative_probs = torch.cumsum(sorted_probs, dim=-1).cpu().numpy()
+        cutoff_idx = np.argmax(cumulative_probs >= minProb) + 1 # idx in sorted_probs        
+        ### cutoff = float(sorted_probs[np.argmax(cumulative_probs >= minProb)])
+        '''        
+        ###### torchscript (cpu) friendly version....
+        cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
+        # cutoff_idx = torch.argmax(cumulative_probs >= minProb).item() + 1  # idx in sorted_probs
+        condition = cumulative_probs >= minProb
+        indices = torch.nonzero(condition)
+        cutoff_idx = indices[0].item() + 1 if indices.numel() > 0 else 0  # idx in sorted_probs
+
         if cutoff_idx<minK:
             cutoff_idx=minK
         elif cutoff_idx>maxK:
