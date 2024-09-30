@@ -1746,8 +1746,8 @@ class RWKV(MyModule):
     from typing import List
 
     # def _retrieve_value3(self, x, w, head_l1_weight, head_l2org_weight):
-    # @MyFunction
-    def _retrieve_value3_jit(self, x, head_l1_weight, head_l2org_weight: List[torch.Tensor]):
+    # @MyFunction   # does not matter much???
+    def _retrieve_value3_jit(self, x, head_l1_weight, head_l2org_weight: List[torch.Tensor], verbose=False):
         # N=200 # of cls we'll sample
         # N=80 # of cls we'll sample
         N=5 # of cls we'll sample
@@ -1782,14 +1782,18 @@ class RWKV(MyModule):
         t2 = time.time()
 
         # ---- the "known" logits (from predicted clusters): project x to logits
-        # XXX scatter_known_time > proj_known_time (~1.5x-2x), to optimize. ridiculous
-        # XXX idea: since the # of predicted CLS is likely small, we may bundle them in one tensor
+        # (done) scatter_known_time > proj_known_time (~1.5x-2x), to optimize
+        #   idea: since the # of predicted CLS is likely small, we may bundle them in one tensor
         # (with padding), do projection & scatter in one go.
         num_tokens=0
         sum_known_logits_exp = torch.tensor(0.0)  # sum of exp(logits) for all "known" clusters
 
         proj_known_time = 0.0 
         scatter_known_time = 0.0
+
+        # Collect all indices and corresponding logits
+        all_idx = []
+        all_x1 = []
 
         for i in range(0, len(CLS)):
             cls = CLS[i]
@@ -1810,31 +1814,29 @@ class RWKV(MyModule):
             idx = self.clusters_tensor[cls]
 
             num_tokens += idx.shape[0]
-            #  ------ sanity check: if we use the org head.weight ------ # 
-            if False:
-                yyy=w[f'head_l2org.{cls}.weight']
-                zzz=w['head.weight']
-                for ii in range(len(idx)): 
-                    tokenid = idx[ii]
-                    if not torch.equal(yyy[:,ii], zzz[:,tokenid]): 
-                        breakpoint()  
-            # print("all good")
-            # ---------------------------- # 
 
-            # since we use the orig head weights, 
-            #   it's ok to concat the raw logits from multi clusters
-            logits.scatter_(dim=0, index=idx, src=x1)
-            tt2 = time.time()
+            # Collect indices and logits
+            all_idx.append(idx)
+            all_x1.append(x1)
 
             proj_known_time += (tt1-tt0)
-            scatter_known_time += (tt2-tt1)
+
+        # Concatenate all indices and logits
+        all_idx = torch.cat(all_idx)
+        all_x1 = torch.cat(all_x1)
+
+        # Scatter in one shot
+        logits.scatter_(dim=0, index=all_idx, src=all_x1)
+        scatter_known_time += (time.time() - tt1)
         
         t3 = time.time()
 
         # breakpoint()
-        # --- the "unknown" logits. fill them with pseduo values  --- #
+
+        # --- the "unknown" logits. fill them with pseduo values  --- #        
         if True:
             scatter_time = 0.0
+            cls_log_time = 0.0
             # all "other clusters": pseudo logits 
             Q = sum_known_logits_exp                    
             for i in range(0, len(CLS_OTHER)):
@@ -1862,10 +1864,24 @@ class RWKV(MyModule):
                 logits.index_fill_(dim=0, index=idx, value=vvv)
                 tt3 = time.time()
 
-
                 scatter_time += (tt3-tt2)
+                cls_log_time += (tt2-tt1)
                 # print(f"cls: {cls}, {tt1-tt0}, {tt2-tt1}, {tt3-tt2}")
             # breakpoint()
+
+        '''
+        FL 9/30/24: 
+        above: a possible speed up to scatter (in the spirit of computing "known" logits ) would be: 
+         1. iterate over all CLS_OTHER, compute pseudo logits
+              cat the idx, cat the pseudo logits (as tensors filled with same value)
+              e.g. 
+              idx_list.append(idx)
+              vvv_list.append(torch.full((num_t,), vvv, device=idx.device, dtype=idx.dtype))
+         2. scatter them in one go (as a tensor)
+              e.g. 
+              logits.index_fill_(dim=0, index=idx_cat, value=vvv_cat[0])
+         the speed benefit seems insignificant... over index_fill_
+        '''
             
         t4 = time.time()
 
@@ -1888,7 +1904,7 @@ class RWKV(MyModule):
                 idx = self.clusters_tensor[cls]
                 cls_prob = sum(pseu_token_probs[idx])
                 # assert(cls_prob == CLSPROBS_OTHER[i])
-            breakpoint()
+            # breakpoint()
 
         # update statistics
         self.stat_runs += 1
@@ -1918,8 +1934,9 @@ class RWKV(MyModule):
                 breakpoint()
 
         t5 = time.time()
-        print(f"cls breakdown time: l1proj {t1-t0:.2f}, logits init {t2-t1:.2f}, logits known {t3-t2:.2f}, logits unknown {t4-t3:.2f}, misc {t5-t4:.2f}")
-        print(f"proj_known_time: {proj_known_time:.2f} scatter_known_time: {scatter_known_time:.2f} scatter_unknown_time: {scatter_time:.2f}")        
+        if verbose:
+            print(f"\n cls breakdown time: l1proj {t1-t0:.2f}, logits init {t2-t1:.2f}, logits known {t3-t2:.2f}, logits unknown {t4-t3:.2f}, misc {t5-t4:.2f}")
+            print(f"proj_known_time: {proj_known_time:.2f} scatter_known_time: {scatter_known_time:.2f} scatter_unknown_time: {scatter_time:.2f} cls_log_time: {cls_log_time:.2f}")
 
         return logits 
 
@@ -2993,10 +3010,12 @@ class RWKV(MyModule):
             time_measure['cls_exec'] = time_measure['cls_end'] - time_measure['cls_start']
 
             time_measure['fwd_end'] = time.time()
-            print(f'fwd time: {time_measure["fwd_end"] - time_measure["fwd_start"]:.2f} sec')
-            print(f'att time: {time_measure["att_exec"]:.2f} sec')
-            print(f'ffn time: {time_measure["ffn_exec"]:.2f} sec')
-            print(f'cls time: {time_measure["cls_exec"]:.2f} sec')
+
+            if False:    # for debugging
+                print(f'fwd time: {time_measure["fwd_end"] - time_measure["fwd_start"]:.2f} sec')
+                print(f'att time: {time_measure["att_exec"]:.2f} sec')
+                print(f'ffn time: {time_measure["ffn_exec"]:.2f} sec')
+                print(f'cls time: {time_measure["cls_exec"]:.2f} sec')
 
             # update global stat: 
             self.stat_time_fwd += time_measure["fwd_end"] - time_measure["fwd_start"]
@@ -3004,7 +3023,7 @@ class RWKV(MyModule):
             self.stat_time_ffn += time_measure["ffn_exec"]
             self.stat_time_cls += time_measure["cls_exec"]
             
-            breakpoint()
+            # breakpoint()
 
             return x.float(), state, layer_masks
         
