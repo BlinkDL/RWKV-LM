@@ -9,7 +9,6 @@ import random
 import torch.autograd.profiler as profiler
 
 
-
 # Parameters of the tensor
 D=1024
 dtype = torch.float16  # Data type of the tensor elements
@@ -44,7 +43,7 @@ def load_mmap_tensor(file_path, tensor_shape):
     70      7
     99      2
     '''
-    # for sparsity in [50, 70, 95, 99]:   # cannot do this
+    # for sparsity in [50, 70, 95, 99]:   # cannot do this; will cache prevoius loaded pages
     # for sparsity in [10]:
     for sparsity in [30]:
     # for sparsity in [50]:
@@ -129,7 +128,7 @@ def test_matmul(dtype=torch.float32):
 
 '''
 rpi4
-(4k,1k) x (1k)      8ms     # no much diff from in-mem matmul?? async underhood?
+(4k,1k) x (1k)      8ms     # no much diff from in-mem matmul?? async paging under the hood?
 '''
 # dense, mmap and matvec
 #  4k,1k mat loaded from disk, mmap'd

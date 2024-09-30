@@ -83,6 +83,7 @@ float* load_matrix_from_file_mmap(const char *filename, int M, int N) {
 }
 
 // do mmap, then madvise() to mark sparse regions
+// --- bad. use _overlay instead
 float* load_matrix_from_file_mmap_madvise(const char *filename, int M, int N) {
     int fd = open(filename, O_RDONLY);
     if (fd == -1) {
