@@ -1,0 +1,35 @@
+Goal: to run "chat" on arm devices
+Non-goal: training; batch inference (e.g. lm-eval)
+
+tested: rpi4, rpi5, odroid-n2
+
+Ubuntu 22.04
+
+mkdir ~/workspace-rwkv
+cd ~/workspace-rwkv
+git clone https://github.com/fxlin/RWKV-LM.git
+
+
+sudo apt update
+sudo apt install -y python3-pip python3-venv 
+sudo apt install -y ninja-build
+
+cd ~/workspace-rwkv
+python3 -m venv myenv
+# make sure path is right
+which pip
+which python3
+# --- should point to myvenv
+
+# ---- deploy models --- #
+sudo mkdir -p /data/models/
+sudo chown $USER -r /data/models
+# ... cp models from another machine ...
+
+# --- every time ----- #
+cd ~/workspace-rwkv/RWKV-LM/RWKV-v5
+source env-pi.sh
+
+# ------ python packages ---- #
+cd RWKV-v5
+pip install -r requirements-pi.txt
