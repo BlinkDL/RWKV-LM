@@ -49,9 +49,11 @@ from rwkv.utils import PIPELINE, PIPELINE_ARGS
 
 # model_path='/data/models/0.1b-pre-x59-16x-1451'
 # model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
-#model_path='/data/models/01b-pre-x52-1455'
-#model_path='/data/models/01b-pre-x59-976'
-model_path='/data/models/1b5-pre-x59-929'
+# model_path='/data/models/pi-deployment/01b-pre-x52-1455'
+# model_path='/data/models/pi-deployment/01b-pre-x59-976'
+# model_path='/data/models/pi-deployment/1b5-pre-x59-929'
+model_path='/data/models/pi-deployment/01b-pre-x59-CLS-TEST'
+
 
 # #Only head.l1 tuned. KL loss (good
 # model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
@@ -129,7 +131,7 @@ print(f"model build: {(t1-t0):.2f} sec, exec {TOKEN_CNT} tokens in {(t2-t1):.2f}
 if model.stat_runs != 0:
     print(f"stats: runs: {model.stat_runs} \
         cls/run {model.stat_loaded_cls/model.stat_runs:.2f} \
-        tokens/run {model.state_loaded_tokens/model.stat_runs/65535:.2f}")
+        tokens/run {model.stat_loaded_tokens/model.stat_runs/65535:.2f}")
       
 '''
 # xzl: what are thsse for??? demo cut a long prompt into pieces and feed??
@@ -166,6 +168,4 @@ x59     01b-pre-x59-976         3.1
     fp16i8                      .45 (very slow)
 
     1b5                          .26 (slow)
-
-    
 '''
