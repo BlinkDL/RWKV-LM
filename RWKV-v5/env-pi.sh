@@ -17,5 +17,5 @@ source ${HOME}/workspace-rwkv/myenv/bin/activate
 export RWKVDATA=/data/rwkv-data
 
 export RWKV_CUDA_ON=0
-
 export PYTHONPATH=$PYTHONPATH:${HOME}/workspace-rwkv/RWKV-LM
+

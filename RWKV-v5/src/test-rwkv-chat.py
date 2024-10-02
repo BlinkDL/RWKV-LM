@@ -54,6 +54,7 @@ from rwkv.utils import PIPELINE, PIPELINE_ARGS
 # model_path='/data/models/pi-deployment/1b5-pre-x59-929'
 model_path='/data/models/pi-deployment/01b-pre-x59-CLS-TEST'
 
+
 # #Only head.l1 tuned. KL loss (good
 # model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
 
