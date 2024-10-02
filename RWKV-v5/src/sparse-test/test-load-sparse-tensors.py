@@ -399,11 +399,12 @@ def test_matmul(dtype=torch.float32):
     xxx = ffn @ input     # test: matvec, dense
     # xxx = input@ffn2     # test: matvec, sparse
     end_time = time.perf_counter()
+    # breakpoint()
     # print(f"xxx {xxx[0]}")
     # breakpoint()
     # print(extracted_columns.shape) 
     execution_time = end_time - start_time
-    print(f"matvec compute time: {execution_time*1000:.2f} ms")
+    print(f"test_matmul: matvec compute time: {execution_time*1000:.2f} ms")
 
 '''
 rpi4
@@ -436,11 +437,12 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--save-tensor":
         create_random_tensor_and_save(file_path, tensor_shape, dtype)
     else:
-        test_matmul()
+        test_matmul(dtype=torch.float16)
+        test_matmul(dtype=torch.float32)
         # load_and_matmul(file_path, (D,4*D), dtype)
         
         # load_mmap_tensor(file_path, tensor_shape)
-        load_mmap_tensor_matmul(file_path, tensor_shape)
+        # load_mmap_tensor_matmul(file_path, tensor_shape)
 
         # load_tensor_with_anonymous_mapping(file_path, tensor_shape)
         # load_tensor_with_anonymous_mapping2(file_path, tensor_shape)
