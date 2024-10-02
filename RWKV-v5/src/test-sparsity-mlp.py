@@ -82,7 +82,6 @@ def quantize_4bit(tensor):
 def dequantize_4bit(quantized, scale, zero_point):
     return quantized.to(torch.half) * scale + zero_point
 
-
 # Custom 2-bit quantization function
 def quantize_2bit(tensor):
     min_val, max_val = tensor.min(), tensor.max()
@@ -314,7 +313,6 @@ def train_layer(layer_id):
                 kw_4bit_dequant = dequantize_4bit(kw_4bit, scale_kw_4bit, zero_kw_4bit)
                 kx_4bit_dequant = dequantize_4bit(kx_4bit, scale_kx_4bit, zero_kx_4bit)
                 result_4bit = kx_4bit_dequant @ kw_4bit_dequant
-
 
                 # --- 2-bit quantization
                 kw_2bit, scale_kw_2bit, zero_kw_2bit = quantize_2bit(kw)

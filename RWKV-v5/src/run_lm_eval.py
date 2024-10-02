@@ -211,11 +211,11 @@ MODEL_NAME='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-
 # select benchmarks below 
 
 eval_tasks = [
-        'lambada_openai',
+        'lambada_openai',  # 5k tests
         # 'lambada_standard',
         # 'piqa',
         # 'hellaswag',
-        # 'winogrande',       # fast
+        # 'winogrande',       # 2k tests, fast
         # 'arc_easy',
         # 'arc_challenge',
         # 'openbookqa',
@@ -439,5 +439,6 @@ if __name__ == "__main__":
     results = do_eval(MODEL_NAME, isverbose=False)
     # print(results)
     print(json.dumps(results, indent=4, sort_keys=False))
+    print("\a")   # audiable alert when done -- works on linux & Mac terminals.
 
 

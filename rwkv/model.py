@@ -12,6 +12,31 @@ torch.backends.cudnn.allow_tf32 = True
 torch.backends.cuda.matmul.allow_tf32 = True
 current_path = os.path.dirname(os.path.abspath(__file__))
 
+###############################################################################
+
+# Define the quantization configuration for 4-bit
+def quantize_4bit(tensor):
+    min_val, max_val = tensor.min(), tensor.max()
+    scale = (max_val - min_val) / 15  # 2^4 - 1 = 15
+    zero_point = min_val
+    quantized = ((tensor - zero_point) / scale).round().clamp(0, 15).to(torch.int8)
+    return quantized, scale, zero_point
+
+def dequantize_4bit(quantized, scale, zero_point):
+    return quantized.to(torch.half) * scale + zero_point
+
+# Custom 2-bit quantization function
+def quantize_2bit(tensor):
+    min_val, max_val = tensor.min(), tensor.max()
+    scale = (max_val - min_val) / 3  # 2^2 - 1 = 3
+    zero_point = min_val
+    quantized = ((tensor - zero_point) / scale).round().clamp(0, 3).to(torch.int8)
+    return quantized, scale, zero_point
+
+# Custom 2-bit dequantization function
+def dequantize_2bit(quantized, scale, zero_point):
+    return quantized.to(torch.half) * scale + zero_point
+
 ########################################################################################################
 
 if os.environ.get('RWKV_JIT_ON') != '0':
@@ -437,16 +462,21 @@ class RWKV(MyModule):
             # xzl: below - convert weights per layer strategy...
             keys = list(w.keys())
             total_parameter_size = 0
-            for x in keys:
+            for x in keys:      # xzl: iterate over all weights...  
                 parameter_size = 0
                 w[x].requires_grad = False
                 layer_id = int(x.split('.')[1]) if ('blocks.' in x) else 0
                 if ('ln_out.' in x) or ('head.' in x):
-                    layer_id = args.n_layer
+                    layer_id = args.n_layer     # xzl: revrse engineer ... to extract the layer_id
                 dd = strategy[layer_id]  
                 DEVICE = dd.device
                 ATYPE = dd.atype
                 WTYPE = dd.wtype
+
+                # xzl: quantize ffn.key... 
+                if 'ffn.key.weight' in x:
+                    w[x+'4b']   = quantize_4bit(w[x].t())   # a tuple
+                    w[x+'2b']   = quantize_2bit(w[x].t())   # a tuple
 
                 if not ALREADY_CONVERTED:
                     if self.RESCALE_LAYER > 0:  # xzl we didnt touch these..
@@ -486,7 +516,7 @@ class RWKV(MyModule):
                                 w[x] = w[x].reshape(args.n_head, -1, 1)
                     elif '.ln_x' in x: # need fp32 for group_norm
                         w[x] = w[x].float()
-                    elif 'mlp' in x: # sparse predictor                        
+                    elif 'mlp' in x: # sparse predictor
                         w[x] = w[x].t()     # transpose once
                         w[x] = w[x].half()
                         pass
@@ -811,7 +841,8 @@ class RWKV(MyModule):
                          rmx1, rrx1, rmy1, rry1,
                          rmx2, rrx2, rmy2, rry2,
                          layer_id,       # xzl
-                         mlpfc1, mlpfc2  # sparsity predictor
+                         mlpfc1, mlpfc2,  # sparsity predictor,
+                         kw4b, kw2b   # xzl: quantized weights
                          ):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         kx = xx * k_mix + sx * (1 - k_mix)
@@ -823,35 +854,76 @@ class RWKV(MyModule):
         r = matmul(r, rw2, rmx2, rrx2, rmy2, rry2)
         r += rx @ torch.diag(rwdiag)   # xzl: should use matmul??
         r = torch.sigmoid(r)
-
+        
         # ------ FFN core ----------
-        # pred: 
-        pred = mlpfc2 @ torch.relu(mlpfc1 @ kx)   # logits
-        pred = torch.sigmoid(pred) 
-        # pred = (pred > 0.5)  # threshold
-        pred = (pred > 0.5).half()
+
+        # hyperpara
+        #  --- default --- 
+        thr = 0.7 # MLP threshold
+        percent = .85 # percentile, we use to take quant as activated
+        if (layer_id <= 4): 
+            percent = .95
+        if (layer_id >= 9): 
+            percent = .80
+
+        # MLP predictor        
+        # pred = mlpfc2 @ torch.relu(mlpfc1 @ kx)   # logits
+        mlp_pred = torch.relu(kx @ mlpfc1) @ mlpfc2  # logits
+        mlp_pred = torch.sigmoid(mlp_pred) 
+        mlp_pred = (mlp_pred > thr).int()
+
+        # --- quant pred, 4 bit    
+        # kw_4bit, scale_kw_4bit, zero_kw_4bit = kw4b
+        # kw_4bit_dequant = dequantize_4bit(kw_4bit, scale_kw_4bit, zero_kw_4bit)
+        # result_4bit = kx @ kw_4bit_dequant.to(kx.device)
+        # result=result_4bit.float()
+
+        # --- quant pred, 2 bit
+        kw_2bit, scale_kw_2bit, zero_kw_2bit = kw2b
+        kw_2bit_dequant = dequantize_2bit(kw_2bit, scale_kw_2bit, zero_kw_2bit)
+        result_2bit = kx @ kw_2bit_dequant.to(kx.device)
+        result=result_2bit.float()
+
+        # --- predict percentile as "activated"
+        percentile = torch.quantile(result, percent).item()
+        quant_pred = (result > percentile).int()
+
+        pred = mlp_pred | quant_pred    # ensemble 
         
         # actual compute
         k = matmul(kx, kw, kmx, krx, kmy, kry)  
         vx = torch.relu(k) ** 2     # xzl: vx sparse activation.
 
+        # check pred accuracy
+        gt_labels = (vx>0).int()
+        # true_positives = (pred * gt_labels).sum()  # Count of TP
+        false_negatives = ((1 - pred) * gt_labels).sum()
+        gt_sparsity = 1-torch.sum(gt_labels)/torch.numel(gt_labels)
+        pred_sparsity = 1-torch.sum(pred)/torch.numel(pred)
+        print(f'layer {layer_id}:' \
+            f'sparsity true {gt_sparsity:.3f} '  \
+            f'sparsity pred {pred_sparsity:.3f} '    \
+            f'false_negatives {false_negatives} '
+            )
+
         # simulate the pred ... 
-        # can check how much norm we lose?  sum0=vx.sum() then sum1=vx.sum()
-        if layer_id < 32:
-            vx = vx * pred 
+        if layer_id < 999:
+            vx = vx * pred
+
+        breakpoint()
 
         # check out pred: --- sanity check, looks ok ---- 
         if False:  
             labels = (vx > 0) 
-            pred = pred.float()
-            true_positives = (pred * labels).sum()  # Count of TP
-            false_negatives = ((1 - pred) * labels).sum()  # Count of FN
+            mlp_pred = mlp_pred.float()
+            true_positives = (mlp_pred * labels).sum()  # Count of TP
+            false_negatives = ((1 - mlp_pred) * labels).sum()  # Count of FN
             recall = true_positives / (true_positives + false_negatives + 1e-10)  # Add epsilon to avoid division by zero
 
             # print(f'layer {layer_id} sparsity: true {1-torch.sum(val_labels)/torch.numel(val_labels):.3f} pred {1-torch.sum(predicted)/torch.numel(predicted):.3f}')
             print(f'layer {layer_id}:' \
                 f'sparsity true {1-torch.sum(labels)/torch.numel(labels):.3f} '  \
-                f'sparsity pred {1-torch.sum(pred)/torch.numel(pred):.3f} '    \
+                f'sparsity pred {1-torch.sum(mlp_pred)/torch.numel(mlp_pred):.3f} '    \
                 f'recall {recall:.3f} '
                 )
             breakpoint()
@@ -1027,7 +1099,8 @@ class RWKV(MyModule):
                      rmx1, rrx1, rmy1, rry1,
                      rmx2, rrx2, rmy2, rry2,
                      layer_id,      # xzl 
-                     mlpfc1, mlpfc2  # sparsity predictor 
+                     mlpfc1, mlpfc2,  # sparsity predictor 
+                     kw4b, kw2b   # xzl: quantized weights, 4bits/2bits
                      ):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         sx = torch.cat((sx.unsqueeze(0), xx[:-1,:]))
@@ -1042,26 +1115,61 @@ class RWKV(MyModule):
         r = torch.sigmoid(r)        
 
         # ------ FFN core ----------
-        # pred: 
-        thr = 0.5 # default 
-        if layer_id % 2 == 0:
-            thr = 0.2   # denser, but not dense
 
+        # hyperpara
+        #  --- default --- 
+        thr = 0.7 # MLP threshold
+        percent = .90 # percentile, we use to take quant as activated
+        if (layer_id <= 8): 
+            percent = .95
+        if (layer_id >= 16): 
+            percent = .90
+
+        # MLP predictor        
         # pred = mlpfc2 @ torch.relu(mlpfc1 @ kx)   # logits ... wont work for seq mode
-        pred = torch.relu(kx @ mlpfc1) @ mlpfc2  # logits
-        pred = torch.sigmoid(pred) 
-        pred = (pred > thr).half()
+        mlp_pred = torch.relu(kx @ mlpfc1) @ mlpfc2  # logits
+        mlp_pred = torch.sigmoid(mlp_pred) 
+        mlp_pred = (mlp_pred > thr).int()
+
+        # --- quant pred, 4 bit    
+        # kw_4bit, scale_kw_4bit, zero_kw_4bit = kw4b
+        # kw_4bit_dequant = dequantize_4bit(kw_4bit, scale_kw_4bit, zero_kw_4bit)
+        # result_4bit = kx @ kw_4bit_dequant.to(kx.device)
+        # result=result_4bit.float()
+
+        # --- quant pred, 2 bit
+        kw_2bit, scale_kw_2bit, zero_kw_2bit = kw2b
+        kw_2bit_dequant = dequantize_2bit(kw_2bit, scale_kw_2bit, zero_kw_2bit)
+        result_2bit = kx @ kw_2bit_dequant.to(kx.device)
+        result=result_2bit.float()
+
+        # --- predict percentile as "activated"
+        percentile = torch.quantile(result, percent).item()
+        quant_pred = (result > percentile).int()
+
+        pred = mlp_pred | quant_pred    # ensemble
 
         # actual compute: 
         k = matmul(kx, kw, kmx, krx, kmy, kry)
         vx = torch.relu(k) ** 2        # xzl: vx sparse activation.
 
-        # simulate the pred ... mask the activations
-        # can check how much norm we lose?  sum0=vx.sum() then sum1=vx.sum()
+        # sanity check -- pred accuracy
+        gt_labels = (vx>0).int()
+        # true_positives = (pred * gt_labels).sum()  # Count of TP
+        false_negatives = ((1 - pred) * gt_labels).sum()
+        recall = (1 - false_negatives / (gt_labels.sum() + 1e-10))  # Add epsilon to avoid division by zero
+        gt_sparsity = 1-torch.sum(gt_labels)/torch.numel(gt_labels)
+        pred_sparsity = 1-torch.sum(pred)/torch.numel(pred)
+        print(f'layer {layer_id}:' \
+            f'sparsity true {gt_sparsity:.3f} '  \
+            f'sparsity pred {pred_sparsity:.3f} '    \
+            f'false_negatives {false_negatives} '   \
+            f'recall {recall:.3f} '
+            )
+        breakpoint()
+
+        # simulate the pred ...
         if layer_id < 999:       # all layers sparse
-        # if layer_id < 12:      # only 50% layers sparse
-        # if layer_id % 5 != 0:   # dense every other layers
-            # breakpoint()            
             vx = vx * pred
 
         v = matmul(vx, vw, vmx, vrx, vmy, vry)
@@ -1957,7 +2065,7 @@ class RWKV(MyModule):
                     elif self.version == 5.96:
                         FFN = self.ffn_seq_v5_96
                 else:
-                    breakpoint()
+                    # breakpoint()
                     ATT = self.att_one
                     if self.version == 5:
                         ATT = self.att_one_v5
@@ -2248,7 +2356,9 @@ class RWKV(MyModule):
                         rmx2, rrx2, rmy2, rry2,
                         i,   # xzl, layer_id
                         w[f'{bbb}mlp.fc1.weight'],  # xzl, sparsity pred
-                        w[f'{bbb}mlp.fc2.weight']
+                        w[f'{bbb}mlp.fc2.weight'], 
+                        w[f'{ffn}key.weight4b'], # xzl quant versions
+                        w[f'{ffn}key.weight2b'], # xzl quant versions
                         )
                 elif self.version in [5.94]:
                     x, state[offset] = FFN(
