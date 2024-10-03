@@ -552,4 +552,24 @@ mmapped 819 rowsin 23.24 ms(0.0284 ms per row) <<<<<<<< slow
 row0 tensor([1., 1., 1.,  ..., 1., 1., 1.], dtype=torch.float16)
 rowN tensor([0., 0., 0.,  ..., 0., 0., 0.], dtype=torch.float16)
 matvec compute time: 4.38 ms
+
+odroid N2 
+odroid@odroid (sparsity-exp)[sparse-test]$ python3 test-load-sparse-tensors.py -bench2
+Memory mapped at: 0x7f4fc70000
+mmapped 819 rowsin 10.55 ms(0.0129 ms per row)
+row0 tensor([1., 1., 1.,  ..., 1., 1., 1.], dtype=torch.float16)
+rowN tensor([0., 0., 0.,  ..., 0., 0., 0.], dtype=torch.float16)
+matvec compute time: 3.90 ms
+
+
+(myenv) odroid@odroid (sparsity-exp)[sparse-test]$ python3 test-load-sparse-tensors.py -bench3
+Memory mapped at: 0x7f83660000
+mmapped 819 rowsin 2.31 ms(0.0028 ms per row)
+row0 tensor([1., 1., 1.,  ..., 1., 1., 1.], dtype=torch.float16)
+rowN tensor([0., 0., 0.,  ..., 0., 0., 0.], dtype=torch.float16)
+matvec compute time: 8.04 ms
+
+OBS: mmap() overhead is 2-3ms, matvec compute time is 5-6ms. (VARIES)   
+    mmap(0 overhead does not scale with cpu speed? 
+
 '''        

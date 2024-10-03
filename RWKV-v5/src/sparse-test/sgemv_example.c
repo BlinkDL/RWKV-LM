@@ -352,4 +352,13 @@ int main(int argc, char *argv[]) {
     4K,1k       A          -sparse            4.3ms        (20% faster than dense, in-mem)
 
     2k,1k       A          -in-mem         ????  (what will happen??? -- TBD
+
+
+    odroid 
+    ./sgemv_example -in-mem
+    (myenv) odroid@odroid (sparsity-exp)[sparse-test]$ ./sgemv_example -in-mem
+    creation A. time: 134.94 ms
+    cblas_sgemv time of cblas_sgemv: 2.47 ms <<<<< this 
+
+    ./sgemv_example -mmap
 */

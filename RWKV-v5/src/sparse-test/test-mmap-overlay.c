@@ -1,6 +1,8 @@
-// dd if=/dev/random of=/tmp/existing_file.bin bs=1M count=4
+/* 
 
-/* When you create an anonymous mapping on top of an existing memory-mapped
+dd if=/dev/random of=/tmp/existing_file.bin iflag=fullblock bs=1M count=4
+
+When you create an anonymous mapping on top of an existing memory-mapped
 region (such as one backed by a file), you essentially replace the original
 mapping with the new one */
 
@@ -87,7 +89,7 @@ void mmap_and_anonymous_mappings(const char *file_path, int N) {
 
     // Calculate the total time taken
     double time_taken = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
-    printf("Total time taken for %d anonymous mappings: %.2f ms %.2f ms per page\n", N, 1000*time_taken, 1000*time_taken/N);
+    printf("Total time taken for %d anonymous mappings: %.2f ms %.3f ms per page\n", N, 1000*time_taken, 1000*time_taken/N);
 
     // Cleanup
     if (munmap(map, file_size) == -1) {
@@ -253,8 +255,11 @@ int main(int argc, char *argv[]) {
     rpi4
 
     (myenv) robot@rpi4:~/workspace-rwkv/RWKV-LM/RWKV-v5/src/sparse-test$ ./test-mmap-overlay -bench
-
     Total time taken for 800 anonymous mappings: 7.73 ms 0.01 ms per page
     (about 3x faster than pytorch)
+
+    odroid n2
+    (myenv) odroid@odroid (sparsity-exp)[sparse-test]$ ./test-mmap-overlay -bench
+    Total time taken for 800 anonymous mappings: 2.13 ms 0.003 ms per page
 
 */
