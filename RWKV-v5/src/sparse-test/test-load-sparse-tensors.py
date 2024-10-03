@@ -1,6 +1,10 @@
 '''
 load only certain columns of a tensor file (mmap)
 and measure overhead etc
+
+e.g
+python3 test-load-sparse-tensors.py -bench3
+
 '''
 
 import sys
@@ -211,6 +215,32 @@ def custom_mmap_python(addr, length, prot, flags, fd=-1, offset=0):
     # Return a memoryview, which is a buffer-like object
     return memoryview(ctypes_array), result 
 
+###############################################################################
+
+libhelper = ctypes.CDLL('./mmap_helper.so')
+# Define the function argument and return types
+libhelper.mmap_addresses.argtypes = [
+    ctypes.POINTER(ctypes.c_void_p),  # addresses
+    ctypes.c_size_t,                  # num_addresses
+    ctypes.c_size_t,                  # length
+    ctypes.c_int,                     # prot
+    ctypes.c_int,                     # flags
+    ctypes.POINTER(ctypes.c_long),    # offsets
+    ctypes.c_int                      # fd
+]
+libhelper.mmap_addresses.restype = ctypes.c_int  # Return int (0 for success, -1 for failure)
+
+def custom_mmap_batch(addrlist, size, prot, flags, offsetlist, fd):
+    # breakpoint()
+    # Convert the list of addresses to a ctypes array
+    addr_array = (ctypes.c_void_p * len(addrlist))(*addrlist)
+    offset_array = (ctypes.c_long * len(offsetlist))(*offsetlist)
+
+    # Call the helper function
+    libhelper.mmap_addresses(addr_array, len(addrlist), size, prot, flags, offset_array, fd)
+
+###############################################################################
+
 # try mmap single memory region (a row)
 # first mmap the tensor file, then mmap anon region
 def load_tensor_with_anonymous_mapping2(file_path, tensor_shape):
@@ -307,7 +337,7 @@ def load_tensor_with_anonymous_mapping_bench(file_path, tensor_shape):
 # benchmark2 --- create a big anon mapping, atop it, mmap the tensor file
 # first mmap the big anon region, then mmap regions from the tensor file 
 def load_tensor_with_anonymous_mapping_bench2(file_path, tensor_shape):
-    for sparsity in [50]:
+    for sparsity in [80]:
         # Memory-map the tensor file
         with open(file_path, "r+b") as f:
 
@@ -352,6 +382,52 @@ def load_tensor_with_anonymous_mapping_bench2(file_path, tensor_shape):
             execution_time = end_time - start_time
             print(f"matvec compute time: {execution_time*1000:.2f} ms")            
 
+# same as bench2 but use batch mmap 
+def load_tensor_with_anonymous_mapping_bench3(file_path, tensor_shape):
+    for sparsity in [80]:
+        # Memory-map the tensor file
+        with open(file_path, "r+b") as f:
+
+            # Define memory mapping parameters
+            row_size_bytes = torch._utils._element_size(dtype) * tensor_shape[1]
+            length = row_size_bytes * tensor_shape[0]
+
+            prot = PROT_READ | PROT_WRITE
+            flags = MAP_PRIVATE | MAP_ANONYMOUS
+            # Create one large anonymous mmap area
+            anon_mmap_py, anon_mmap = custom_mmap_python(-1, length, prot, flags)
+            print(f"Memory mapped at: {hex(anon_mmap)}")
+
+            #### Map parts of the file to the anonymous mmap area
+            indices = gen_index(tensor_shape[0], 100-sparsity)
+
+            start_time = time.perf_counter()
+            custom_mmap_batch([anon_mmap + row_size_bytes * i for i in indices[:-1]], 
+                              row_size_bytes, prot, MAP_FIXED | MAP_PRIVATE, 
+                              [row_size_bytes * i for i in indices[:-1]], 
+                              f.fileno())
+            end_time = time.perf_counter()
+            print(f"mmapped {len(indices)} rows"
+            f"in {1000*(end_time-start_time):.2f} ms"
+            f"({1000*(end_time-start_time)/len(indices):.4f} ms per row)")
+
+            # Create a tensor from the anonymous mmap area
+            mapped_tensor = torch.frombuffer(anon_mmap_py, dtype=dtype, count=tensor_shape[0] * tensor_shape[1])
+            mapped_tensor = mapped_tensor.view(tensor_shape)  # Reshape to the original tensor shape
+
+            # --- sanity check 
+            row0 = mapped_tensor[indices[0], :]
+            print(f"row0 {row0}")   # should read nonzero
+            rowN = mapped_tensor[-1, :]
+            print(f"rowN {rowN}")   # should read 0 
+
+            # --- matvec on the sparse tensor 
+            input = torch.randn(tensor_shape[1], dtype=dtype)
+            start_time = time.perf_counter()
+            xxx = mapped_tensor @ input
+            end_time = time.perf_counter()
+            execution_time = end_time - start_time
+            print(f"matvec compute time: {execution_time*1000:.2f} ms")          
 
 def create_random_tensor_and_save(file_path, shape, dtype=torch.float32):
     """
@@ -434,11 +510,17 @@ def load_and_matmul(file_path, tensor_shape, dtype=torch.float32):
     print(f"creation: {t1*1000:.2f} ms, matmul (pg fault): {t2*1000:.2f} ms")    
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--save-tensor":
+    if len(sys.argv) > 1 and sys.argv[1] == "-save-tensor":
         create_random_tensor_and_save(file_path, tensor_shape, dtype)
+    elif len(sys.argv) > 1 and sys.argv[1] == "-bench2":
+        load_tensor_with_anonymous_mapping_bench2(file_path, tensor_shape)
+    elif len(sys.argv) > 1 and sys.argv[1] == "-bench3":
+        load_tensor_with_anonymous_mapping_bench3(file_path, tensor_shape)
     else:
-        test_matmul(dtype=torch.float16)
-        test_matmul(dtype=torch.float32)
+        # AMD -- fp16 20x slower than fp32
+        # test_matmul(dtype=torch.float16)
+        # test_matmul(dtype=torch.float32)
+
         # load_and_matmul(file_path, (D,4*D), dtype)
         
         # load_mmap_tensor(file_path, tensor_shape)
@@ -446,5 +528,28 @@ if __name__ == "__main__":
 
         # load_tensor_with_anonymous_mapping(file_path, tensor_shape)
         # load_tensor_with_anonymous_mapping2(file_path, tensor_shape)
-        # load_tensor_with_anonymous_mapping_bench(file_path, tensor_shape)
+        load_tensor_with_anonymous_mapping_bench(file_path, tensor_shape)
         # load_tensor_with_anonymous_mapping_bench2(file_path, tensor_shape)
+        # load_tensor_with_anonymous_mapping_bench3(file_path, tensor_shape)
+
+'''
+10/2/24
+using batch mmap (bench3), mapping ~800 rows take 10ms, close to 7ms in "./test-mmap-overlay -bench"
+good enough as of now. 
+further improve: don't pass in both addresses & offsets, just pass in the base address, and the offsets
+
+(myenv) robot@rpi4:~/workspace-rwkv/RWKV-LM/RWKV-v5/src/sparse-test$ python3 test-load-sparse-tensors.py -bench3
+Memory mapped at: 0xffff81200000
+mmapped 819 rowsin 9.28 ms(0.0113 ms per row)
+row0 tensor([1., 1., 1.,  ..., 1., 1., 1.], dtype=torch.float16)
+rowN tensor([0., 0., 0.,  ..., 0., 0., 0.], dtype=torch.float16)
+matvec compute time: 5.45 ms
+
+
+(myenv) robot@rpi4:~/workspace-rwkv/RWKV-LM/RWKV-v5/src/sparse-test$ python3 test-load-sparse-tensors.py -bench2
+Memory mapped at: 0xffff8d4e0000
+mmapped 819 rowsin 23.24 ms(0.0284 ms per row) <<<<<<<< slow 
+row0 tensor([1., 1., 1.,  ..., 1., 1., 1.], dtype=torch.float16)
+rowN tensor([0., 0., 0.,  ..., 0., 0., 0.], dtype=torch.float16)
+matvec compute time: 4.38 ms
+'''        

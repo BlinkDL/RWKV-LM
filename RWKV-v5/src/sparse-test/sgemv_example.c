@@ -72,11 +72,21 @@ float* load_matrix_from_file_mmap(const char *filename, int M, int N) {
         exit(1);
     }
 
+    // Advise the kernel that the mapped region will be needed
+    // in theory would help, but in practice, not much diff 
+#if 0    
+    if (madvise(mapped_A, size, MADV_WILLNEED) == -1) {
+        perror("Error with madvise");
+        munmap(mapped_A, size);
+        close(fd);
+        exit(1);
+    }
+#endif
+
     printf("%s\n", __func__); 
     for (int i = 0; i < 10; i++) {
         printf("%f ", mapped_A[i]);
     }
-
 
     close(fd);
     return mapped_A;
