@@ -130,6 +130,8 @@ else:
     os.environ["RWKV_CUDA_ON"] = '0'
 
 # xzl: dispatch mm8_seq/one to cuda and "torch" variants (i.e. non cuda
+# below: basically x @ w, x-input, w-weights
+#   ry,rx: scaling factors; my,mx: biases
 @MyStatic
 def torch_mm8_seq(x, w, mx, rx, my, ry):
     return x @ ((w.to(dtype=x.dtype) + 0.5) * ry * rx + my + mx)
