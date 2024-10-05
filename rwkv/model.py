@@ -168,7 +168,7 @@ def mm8(x: torch.Tensor, w: torch.Tensor, mx: torch.Tensor, rx: torch.Tensor, my
         return mm8_one(x, w, mx, rx, my, ry)
     return mm8_seq(x, w, mx, rx, my, ry)
 
-# xzl: matmul with optional quant (for mm8 above)
+# xzl: "the" matmul, dispatch to float and quant (for mm8 above). called by rwkv model below
 def matmul(a, b, mx: Optional[torch.Tensor]=None, rx: Optional[torch.Tensor]=None, my: Optional[torch.Tensor]=None, ry: Optional[torch.Tensor]=None, output_dtype: Optional[torch.dtype]=None) -> torch.Tensor:
     if output_dtype is None:
         output_dtype = a.dtype
@@ -3002,7 +3002,7 @@ class RWKV(MyModule):
 
             elif w['head.weight'].dtype != torch.uint8:  # original cls head
                 x = x @ w['head.weight']
-            else:
+            else:   # orig cls head, but int8
                 if seq_mode and full_output:
                     x = mm8_seq(x, w['head.weight'], w['head.weight_mx'], w['head.weight_rx'], w['head.weight_my'], w['head.weight_ry'])
                 else:
@@ -3013,7 +3013,8 @@ class RWKV(MyModule):
 
             time_measure['fwd_end'] = time.time()
 
-            if False:    # for debugging
+            # if False:    # for debugging
+            if True:    # for debugging
                 print(f'fwd time: {time_measure["fwd_end"] - time_measure["fwd_start"]:.2f} sec')
                 print(f'att time: {time_measure["att_exec"]:.2f} sec')
                 print(f'ffn time: {time_measure["ffn_exec"]:.2f} sec')
@@ -3025,7 +3026,7 @@ class RWKV(MyModule):
             self.stat_time_ffn += time_measure["ffn_exec"]
             self.stat_time_cls += time_measure["cls_exec"]
             
-            # breakpoint()
+            breakpoint()
 
             return x.float(), state, layer_masks
         
