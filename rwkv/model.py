@@ -158,6 +158,16 @@ elif config_neon_fp16: # neon, and native fp16 support
     # @MyStatic
     @torch.jit.ignore
     def mm8_one(x, w, mx, rx, my, ry):
+        # tt0=time.time()
+        # xxx= mm8_neon.mm_one_fp16i8(x, w, mx, rx, my, ry, 3) # ver3
+        # tt1=time.time()
+        # # if tt1-tt0>0.1:
+        # if tt1-tt0>0.005:
+        #     print(f"\n mm_one_fp16i8: {time.time()-tt0:.2f} sec")   #why slow??
+        #     print(f"\n w.shape: {w.shape}, x.shape: {x.shape}")
+        #     breakpoint()
+        # return xxx
+
         return mm8_neon.mm_one_fp16i8(x, w, mx, rx, my, ry, 3) # ver3
 elif config_has_neon:  # neon, but no fp16 native support, fallback to fp32
     # @MyStatic
@@ -536,6 +546,7 @@ class RWKV(MyModule):
                                     w[x] = w[x] / w[x+'_ry']
 
                                 w[x] = torch.clip(torch.floor(w[x] * 256), min=0, max=255).to(dtype=torch.uint8)
+                                # xzl: all scales, biases contig....by default contig in mem                    
                                 w[x+'_mx'] = w[x+'_mx'].to(dtype=ATYPE).contiguous()
                                 # 16 might be further quantization for storage efficiency
                                 w[x+'_rx'] = (w[x+'_rx'] / 16).to(dtype=ATYPE).contiguous()
@@ -544,7 +555,9 @@ class RWKV(MyModule):
                         else:
                             w[x] = w[x].to(dtype=ATYPE)
                 
-                if convert_and_save_and_exit == None:    # xzl: force weight to be contig in cpu mem... TBD for stream mode
+                # xzl: below, policy for deciding weights contig in cpu mem. 
+                #   special treatment for "stream" mode (cpu->gpu)
+                if convert_and_save_and_exit == None:
                     if 'emb.' in x:
                         w[x] = w[x].contiguous()
                     elif (dd.stream) and (x.endswith('key.weight') or x.endswith('value.weight') or x.endswith('receptance.weight') or x.endswith('output.weight')):
@@ -552,10 +565,12 @@ class RWKV(MyModule):
                             w[x] = w[x].contiguous().pin_memory() # if you see "CUDA error: out of memory" here, that's out of CPU RAM, not VRAM. Get more RAM :)
                         except:
                             print('Note: You are running out of RAM. Get more CPU RAM. Now this will run much slower.')
-                    elif DEVICE != 'cpu':
+                    elif DEVICE != 'cpu':   # xzl: if gpu, make it contig immediately
                         w[x] = w[x].to(device=DEVICE).contiguous()
-                    
-                    if (dd.stream) or (DEVICE != 'cpu'):
+                    elif config_has_neon or config_neon_fp16: # neon mm8 -- all weights contig in mem, otherwise performance tanks
+                        assert DEVICE == 'cpu'
+                        w[x] = w[x].contiguous()                    
+                    if (dd.stream) or (DEVICE != 'cpu'):        # move quant scale/bias to GPU now
                         try:
                             w[x+'_mx'] = w[x+'_mx'].to(device=DEVICE).contiguous()
                             w[x+'_rx'] = w[x+'_rx'].to(device=DEVICE).contiguous()
@@ -3037,18 +3052,20 @@ class RWKV(MyModule):
             elif w['head.weight'].dtype != torch.uint8:  # original cls head
                 x = x @ w['head.weight']
             else:   # orig cls head, but int8
-                if seq_mode and full_output:
+                if seq_mode and full_output:                    
                     x = mm8_seq(x, w['head.weight'], w['head.weight_mx'], w['head.weight_rx'], w['head.weight_my'], w['head.weight_ry'])
                 else:
+                    # tt0=time.time()
                     x = mm8_one(x, w['head.weight'], w['head.weight_mx'], w['head.weight_rx'], w['head.weight_my'], w['head.weight_ry'])
+                    # print(f"mm8_one time: {time.time()-tt0:.2f} sec")
 
             time_measure['cls_end'] = time.time()
             time_measure['cls_exec'] = time_measure['cls_end'] - time_measure['cls_start']
 
             time_measure['fwd_end'] = time.time()
 
-            # if False:    # for debugging
-            if True:    # for debugging
+            if False:    # for debugging
+            # if True:    # for debugging
                 print(f'fwd time: {time_measure["fwd_end"] - time_measure["fwd_start"]:.2f} sec')
                 print(f'att time: {time_measure["att_exec"]:.2f} sec')
                 print(f'ffn time: {time_measure["ffn_exec"]:.2f} sec')
@@ -3058,9 +3075,8 @@ class RWKV(MyModule):
             self.stat_time_fwd += time_measure["fwd_end"] - time_measure["fwd_start"]
             self.stat_time_att += time_measure["att_exec"]
             self.stat_time_ffn += time_measure["ffn_exec"]
-            self.stat_time_cls += time_measure["cls_exec"]
-            
-            breakpoint()
+            self.stat_time_cls += time_measure["cls_exec"]        
+            # breakpoint()
 
             return x.float(), state, layer_masks
         

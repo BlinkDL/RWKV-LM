@@ -8,10 +8,8 @@
 #include <torch/extension.h>
 #include <ATen/ATen.h>
 
-// #include <arm_neon.h>
-// #include <torch/extension.h>
-// #include <omp.h>
-// #include <cstring>
+
+// #define DEBUG_KERNEL 1 //uncomment to enable debug prints
 
 // cf: rwkv/cuda/operators.cu kernel_mm_one_fp16i8
 // omp, not caring much about memory locality
@@ -743,6 +741,10 @@ torch::Tensor mm_one_fp16i8(
     torch::Tensor ry_fp16,
     int version /*0,1,2,3..*/)
 {
+#if DEBUG_KERNEL
+    auto start = std::chrono::high_resolution_clock::now();
+#endif
+
     // Ensure tensors are contiguous
     x_fp16 = x_fp16.contiguous();
     w_uint8 = w_uint8.contiguous();
@@ -759,6 +761,10 @@ torch::Tensor mm_one_fp16i8(
     int w_stride = M; // Since w is row-major and contiguous
 
     torch::Tensor y = torch::zeros({M}, torch::dtype(torch::kFloat32));
+
+#if DEBUG_KERNEL
+    auto start1 = std::chrono::high_resolution_clock::now();
+#endif
 
     switch (version)
     {
@@ -800,9 +806,17 @@ torch::Tensor mm_one_fp16i8(
         break;
     }
 
+#if DEBUG_KERNEL
+    auto end  = std::chrono::high_resolution_clock::now();
+    printf(">>>>>> %s total: %.2f ms, convert: %.2f ms, kernel %.2f \n", __func__, 
+        std::chrono::duration<float, std::milli>(end - start).count(),
+        std::chrono::duration<float, std::milli>(start1 - start).count(),
+        std::chrono::duration<float, std::milli>(end - start1).count()
+        );
+#endif
+
     return y;
 }
-
 
 /*
     x: Shape (B, N)

@@ -3,11 +3,6 @@ import mm8_neon
 import inspect
 import time
 
-# Print all attributes in module mm8_neon
-attributes = inspect.getmembers(mm8_neon)
-for attribute in attributes:
-    print(attribute[0])
-
 # below: basically x @ w, x-input, w-weights
 #   ry,rx: scaling factors; 
 #       rx: liekly applied to input matrix x
@@ -236,11 +231,10 @@ print(">here")
 # time benchmark ... mm8_one
 # x (N) w (N,M) (768,768*3.5)  mx (M) rx (M) my (N,1) ry (N,1)
 # Example data
-N = 1024
-# N = 10
-# N = 40
-M = int(N * 3.5)
-# M=10
+# N = 1024
+# M = int(N * 3.5)
+N = 768
+M = 65536
 
 x_fp16 = torch.randn(N, dtype=torch.float16)
 w_uint8 = torch.randint(0, 256, (N, M), dtype=torch.uint8)
@@ -284,6 +278,7 @@ ry_fp16 = torch.rand((N,1), dtype=torch.float16) * 0.49 + 0.01
 # breakpoint()
 
 
+print(f"N = {N}, M = {M}")
 # Measure execution time for torch_mm8_one
 start_time = time.time()
 y = torch_mm8_one(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
@@ -305,6 +300,7 @@ start_time = time.time()
 yy3 = mm8_neon.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 3)
 end_time = time.time()
 print(f"Execution time for mm_one_fp16i8    v3: {(end_time - start_time) * 1000:.3f} ms")
+print(f"shape w: {w_uint8.shape} x_fp16: {x_fp16.shape} mx_fp16: {mx_fp16.shape} rx_fp16: {rx_fp16.shape} my_fp16: {my_fp16.shape} ry_fp16: {ry_fp16.shape}")
 
 # fp32
 start_time = time.time()
@@ -457,6 +453,13 @@ Execution time for mm_one_fp16i8    v1: 8.664 ms
 Execution time for mm_one_fp16i8    v2: 2.563 ms
 Execution time for mm_one_fp16i8    v3: 0.723 ms   (~30x improvement)
 Execution time for mm_one_fp32i8:   4.964 ms
+
+N = 768, M = 65536
+Execution time for torch_mm8_one: 379.489 ms
+Execution time for mm_one_fp16i8    v1: 1472.164 ms
+Execution time for mm_one_fp16i8    v2: 36.555 ms
+Execution time for mm_one_fp16i8    v3: 21.941 ms
+Execution time for mm_one_fp32i8: 1323.456 ms       ???
 
 "seq" (batch)
 ---------------
