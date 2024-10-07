@@ -87,6 +87,7 @@ void kernel_mm_seq_fp16i8(
 #include <cstring>
 
 // cf: rwkv/cuda/operators.cu kernel_mm_one_fp16i8
+#if 0 // still bad
 void kernel_mm_one_fp16i8(
     int N, int M,
     const at::Half* x_fp16,
@@ -170,6 +171,98 @@ void kernel_mm_one_fp16i8(
         y_fp[k] = y_local;
     }
 }
+#endif
+
+// cf: rwkv/cuda/operators.cu kernel_mm_one_fp16i8
+// works
+void kernel_mm_one_fp16i8(
+    int N, int M,
+    const at::Half* x_fp16,
+    const uint8_t* w, int w_stride,
+    const at::Half* mx_fp16,
+    const at::Half* rx_fp16,
+    const at::Half* my_fp16,
+    const at::Half* ry_fp16,
+    float* y_fp)
+{
+    // Parallelize over the M dimension using OpenMP
+    #pragma omp parallel for schedule(static)
+    for (int k = 0; k < M; ++k) {
+        // Load rx[k] and mx[k]
+        float16_t rx_k = static_cast<float16_t>(rx_fp16[k]);
+        float16_t mx_k = static_cast<float16_t>(mx_fp16[k]);
+
+        // Broadcast rx_k and mx_k into NEON vectors
+        float16x8_t rx_k_vec = vdupq_n_f16(rx_k);
+        float16x8_t mx_k_vec = vdupq_n_f16(mx_k);
+
+        // Initialize NEON accumulators
+        float32x4_t y_acc_low = vdupq_n_f32(0.0f);
+        float32x4_t y_acc_high = vdupq_n_f32(0.0f);
+
+        int j = 0;
+        for (; j <= N - 8; j += 8) {
+            // Load x_fp16[j:j+7], ry_fp16[j:j+7], my_fp16[j:j+7]
+            float16x8_t x_vec_fp16 = vld1q_f16(reinterpret_cast<const float16_t*>(&x_fp16[j]));
+            float16x8_t ry_vec_fp16 = vld1q_f16(reinterpret_cast<const float16_t*>(&ry_fp16[j]));
+            float16x8_t my_vec_fp16 = vld1q_f16(reinterpret_cast<const float16_t*>(&my_fp16[j]));
+
+            // Load w[j:j+7, k]
+            uint8_t w_vals_u8[8];
+            for (int l = 0; l < 8; ++l) {
+                w_vals_u8[l] = w[(j + l) * w_stride + k];
+            }
+            uint8x8_t w_u8 = vld1_u8(w_vals_u8);
+            uint16x8_t w_u16 = vmovl_u8(w_u8);
+
+            // Convert w_u16 to float16x8_t and add 0.5
+            float16x8_t w_vec_fp16 = vcvtq_f16_u16(w_u16);
+            float16x8_t half_vec_fp16 = vdupq_n_f16(0.5f);
+            w_vec_fp16 = vaddq_f16(w_vec_fp16, half_vec_fp16);
+
+            // Compute temp_fp16 = (w_vec_fp16 * ry_vec_fp16 * rx_k_vec) + my_vec_fp16 + mx_k_vec
+            float16x8_t temp_fp16 = vmulq_f16(w_vec_fp16, ry_vec_fp16);
+            temp_fp16 = vmulq_f16(temp_fp16, rx_k_vec);
+            temp_fp16 = vaddq_f16(temp_fp16, my_vec_fp16);
+            temp_fp16 = vaddq_f16(temp_fp16, mx_k_vec);
+
+            // Multiply x_vec_fp16 * temp_fp16
+            float16x8_t prod_fp16 = vmulq_f16(x_vec_fp16, temp_fp16);
+
+            // Convert prod_fp16 to float32 for accumulation
+            float32x4_t prod_low = vcvt_f32_f16(vget_low_f16(prod_fp16));
+            float32x4_t prod_high = vcvt_f32_f16(vget_high_f16(prod_fp16));
+
+            // Accumulate
+            y_acc_low = vaddq_f32(y_acc_low, prod_low);
+            y_acc_high = vaddq_f32(y_acc_high, prod_high);
+        }
+
+        // Sum accumulators into y_local
+        float y_local = vaddvq_f32(y_acc_low) + vaddvq_f32(y_acc_high);
+
+        // Handle remaining elements
+        for (; j < N; ++j) {
+            float16_t x_j = static_cast<float16_t>(x_fp16[j]);
+            float16_t ry_j = static_cast<float16_t>(ry_fp16[j]);
+            float16_t my_j = static_cast<float16_t>(my_fp16[j]);
+
+            float16_t w_val = static_cast<float16_t>(w[j * w_stride + k]) + 0.5f;
+
+            float16_t temp_fp16 = (w_val * ry_j * rx_k) + my_j + mx_k;
+
+            // Convert to float32 for accumulation
+            float x_j_f32 = static_cast<float>(x_j);
+            float temp_f32 = static_cast<float>(temp_fp16);
+
+            y_local += x_j_f32 * temp_f32;
+        }
+
+        // Store the result
+        y_fp[k] = y_local;
+    }
+}
+
 
 // same as kernel_mm_one_fp16i8, but all intermediate results are in FP32
 void kernel_mm_one_fp16i8_fp32(
@@ -366,7 +459,7 @@ void kernel_mm_one_fp32i8_nosimd(
     }
 }
 
-// simd version 
+// simd version. checked, good 
 void kernel_mm_one_fp32i8(
     int N, int M,
     const float* x_fp32,

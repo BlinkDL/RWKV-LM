@@ -228,7 +228,7 @@ print(">here")
 ############################################################
 # x (N) w (N,M) (768,768*3.5)  mx (M) rx (M) my (N,1) ry (N,1)
 # Example data
-N = 256
+N = 1024
 # N = 10
 # N = 40
 M = int(N * 3.5)
@@ -281,12 +281,12 @@ print(f"yyy: {yyy[:10]}")
 start_time = time.time()
 y = torch_mm8_one(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
 end_time = time.time()
-print(f"Execution time for torch_mm8_one: {end_time - start_time} seconds")
+print(f"Execution time for torch_mm8_one: {(end_time - start_time) * 1000:.3f} ms")
 
 start_time = time.time()
-# yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
+yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
 end_time = time.time()
-print(f"Execution time for mm_one_fp16i8: {end_time - start_time} seconds")
+print(f"Execution time for mm_one_fp16i8: {(end_time - start_time) * 1000:.3f} ms")
 
 # Measure execution time for mm_fp16i8.mm_one_fp16i8
 start_time = time.time()
@@ -299,7 +299,7 @@ yyy = mm_fp16i8.mm_one_fp32i8(
     ry_fp16.to(torch.float)
 )
 end_time = time.time()
-print(f"Execution time for mm_one_fp32i8: {end_time - start_time} seconds")
+print(f"Execution time for mm_one_fp32i8: {(end_time - start_time) * 1000:.3f} ms")
 
 # Compare if yy and y are close enough
 if torch.allclose(yy, y, atol=1e-1):
