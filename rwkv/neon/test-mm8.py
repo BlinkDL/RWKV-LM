@@ -58,7 +58,7 @@ y1 = torch_mm8_one(
     ry_fp16.to(torch.float)
 )
 
-yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
+yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 1)
 yyy = mm_fp16i8.mm_one_fp32i8(
     x_fp16.to(torch.float), 
     w_uint8, 
@@ -105,7 +105,7 @@ y1 = torch_mm8_one(
     ry_fp16.to(torch.float)
 )
 
-yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
+yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 1)
 yyy = mm_fp16i8.mm_one_fp32i8(
     x_fp16.to(torch.float), 
     w_uint8, 
@@ -146,7 +146,7 @@ y1 = torch_mm8_one(
     ry_fp16.to(torch.float)
 )
 
-yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
+yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 1)
 yyy = mm_fp16i8.mm_one_fp32i8(
     x_fp16.to(torch.float), 
     w_uint8, 
@@ -213,7 +213,7 @@ y1 = torch_mm8_one(
     ry_fp16.to(torch.float)
 )
 
-yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
+yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 1)
 yyy = mm_fp16i8.mm_one_fp32i8(
     x_fp16.to(torch.float), 
     w_uint8, 
@@ -249,29 +249,29 @@ my_fp16 = torch.linspace(0.001, 0.002, N, dtype=torch.float16).unsqueeze(1)
 ry_fp16 = torch.rand((N,1), dtype=torch.float16) * 0.49 + 0.01
 
 
-y = torch_mm8_one(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
+# y = torch_mm8_one(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
 
-y1 = torch_mm8_one(
-    x_fp16.to(torch.float), 
-    w_uint8, 
-    mx_fp16.to(torch.float), 
-    rx_fp16.to(torch.float), 
-    my_fp16.to(torch.float), 
-    ry_fp16.to(torch.float)
-)
+# y1 = torch_mm8_one(
+#     x_fp16.to(torch.float), 
+#     w_uint8, 
+#     mx_fp16.to(torch.float), 
+#     rx_fp16.to(torch.float), 
+#     my_fp16.to(torch.float), 
+#     ry_fp16.to(torch.float)
+# )
 
-yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
-yyy = mm_fp16i8.mm_one_fp32i8(
-    x_fp16.to(torch.float), 
-    w_uint8, 
-    mx_fp16.to(torch.float), 
-    rx_fp16.to(torch.float), 
-    my_fp16.to(torch.float), 
-    ry_fp16.to(torch.float)
-)
-print(f"y: {y[:10]}")
-print(f"yy: {yy[:10]}")
-print(f"yyy: {yyy[:10]}")
+# yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
+# yyy = mm_fp16i8.mm_one_fp32i8(
+#     x_fp16.to(torch.float), 
+#     w_uint8, 
+#     mx_fp16.to(torch.float), 
+#     rx_fp16.to(torch.float), 
+#     my_fp16.to(torch.float), 
+#     ry_fp16.to(torch.float)
+# )
+# print(f"y: {y[:10]}")
+# print(f"yy: {yy[:10]}")
+# print(f"yyy: {yyy[:10]}")
 
 # breakpoint()
 
@@ -283,17 +283,23 @@ y = torch_mm8_one(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
 end_time = time.time()
 print(f"Execution time for torch_mm8_one: {(end_time - start_time) * 1000:.3f} ms")
 
+# fp16, different tries 
 start_time = time.time()
-yy1 = mm_fp16i8.mm_one_fp16i8_v1(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
+yy1 = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 1)
 end_time = time.time()
-print(f"Execution time for mm_one_fp16i8_v1: {(end_time - start_time) * 1000:.3f} ms")
+print(f"Execution time for mm_one_fp16i8    v1: {(end_time - start_time) * 1000:.3f} ms")
 
 start_time = time.time()
-yy2 = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
+yy2 = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 2)
 end_time = time.time()
-print(f"Execution time for mm_one_fp16i8: {(end_time - start_time) * 1000:.3f} ms")
+print(f"Execution time for mm_one_fp16i8    v2: {(end_time - start_time) * 1000:.3f} ms")
 
-# Measure execution time for mm_fp16i8.mm_one_fp16i8
+start_time = time.time()
+yy3 = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 3)
+end_time = time.time()
+print(f"Execution time for mm_one_fp16i8    v3: {(end_time - start_time) * 1000:.3f} ms")
+
+# fp32
 start_time = time.time()
 yyy = mm_fp16i8.mm_one_fp32i8(
     x_fp16.to(torch.float), 
@@ -305,6 +311,12 @@ yyy = mm_fp16i8.mm_one_fp32i8(
 )
 end_time = time.time()
 print(f"Execution time for mm_one_fp32i8: {(end_time - start_time) * 1000:.3f} ms")
+
+print(f"torch y: {y[:10]}")
+print(f"fp16i8 v1 yy1: {yy1[:10]}")
+print(f"fp16i8 v2 yy2: {yy2[:10]}")
+print(f"fp16i8 v3 yy3: {yy3[:10]}")
+print(f"fp32i8 yyy: {yyy[:10]}")
 
 # Compare if yy and y are close enough
 if torch.allclose(yy2, y, atol=1e-1):
@@ -318,9 +330,10 @@ else:
 rpi5, 4GB. cortexa76 has fp16 native support 
 N = 1024
 M = int(N * 3.5), 
-Execution time for torch_mm8_one: 28.646 ms
-Execution time for mm_one_fp16i8_v1: 2.526 ms   <<< 10x faster than torch
-Execution time for mm_one_fp16i8: 2.548 ms  <<<< slightly faster than v1. probably not worth the effort
-Execution time for mm_one_fp32i8: 4.407 ms
+Execution time for torch_mm8_one: 26.366 ms
+Execution time for mm_one_fp16i8    v1: 8.664 ms
+Execution time for mm_one_fp16i8    v2: 2.563 ms
+Execution time for mm_one_fp16i8    v3: 0.723 ms
+Execution time for mm_one_fp32i8: 4.964 ms
 
 '''    
