@@ -1,10 +1,10 @@
 import torch
-import mm_fp16i8
+import mm8_neon
 import inspect
 import time
 
-# Print all attributes in module mm_fp16i8
-attributes = inspect.getmembers(mm_fp16i8)
+# Print all attributes in module mm8_neon
+attributes = inspect.getmembers(mm8_neon)
 for attribute in attributes:
     print(attribute[0])
 
@@ -61,8 +61,8 @@ y1 = torch_mm8_one(
     ry_fp16.to(torch.float)
 )
 
-yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 1)
-yyy = mm_fp16i8.mm_one_fp32i8(
+yy = mm8_neon.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 1)
+yyy = mm8_neon.mm_one_fp32i8(
     x_fp16.to(torch.float), 
     w_uint8, 
     mx_fp16.to(torch.float), 
@@ -72,7 +72,7 @@ yyy = mm_fp16i8.mm_one_fp32i8(
 )
 # seq
 yseq = torch_mm8_seq(xseq_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
-yseq1 = mm_fp16i8.mm_seq_fp16i8(xseq_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
+yseq1 = mm8_neon.mm_seq_fp16i8(xseq_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
 
 ############################################################
 # correctness test mm8_one
@@ -111,8 +111,8 @@ y1 = torch_mm8_one(
     ry_fp16.to(torch.float)
 )
 
-yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 1)
-yyy = mm_fp16i8.mm_one_fp32i8(
+yy = mm8_neon.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 1)
+yyy = mm8_neon.mm_one_fp32i8(
     x_fp16.to(torch.float), 
     w_uint8, 
     mx_fp16.to(torch.float), 
@@ -153,8 +153,8 @@ y1 = torch_mm8_one(
     ry_fp16.to(torch.float)
 )
 
-yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 1)
-yyy = mm_fp16i8.mm_one_fp32i8(
+yy = mm8_neon.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 1)
+yyy = mm8_neon.mm_one_fp32i8(
     x_fp16.to(torch.float), 
     w_uint8, 
     mx_fp16.to(torch.float), 
@@ -220,8 +220,8 @@ y1 = torch_mm8_one(
     ry_fp16.to(torch.float)
 )
 
-yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 1)
-yyy = mm_fp16i8.mm_one_fp32i8(
+yy = mm8_neon.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 1)
+yyy = mm8_neon.mm_one_fp32i8(
     x_fp16.to(torch.float), 
     w_uint8, 
     mx_fp16.to(torch.float), 
@@ -268,8 +268,8 @@ ry_fp16 = torch.rand((N,1), dtype=torch.float16) * 0.49 + 0.01
 #     ry_fp16.to(torch.float)
 # )
 
-# yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
-# yyy = mm_fp16i8.mm_one_fp32i8(
+# yy = mm8_neon.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
+# yyy = mm8_neon.mm_one_fp32i8(
 #     x_fp16.to(torch.float), 
 #     w_uint8, 
 #     mx_fp16.to(torch.float), 
@@ -292,23 +292,23 @@ print(f"Execution time for torch_mm8_one: {(end_time - start_time) * 1000:.3f} m
 
 # fp16, different tries 
 start_time = time.time()
-yy1 = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 1)
+yy1 = mm8_neon.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 1)
 end_time = time.time()
 print(f"Execution time for mm_one_fp16i8    v1: {(end_time - start_time) * 1000:.3f} ms")
 
 start_time = time.time()
-yy2 = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 2)
+yy2 = mm8_neon.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 2)
 end_time = time.time()
 print(f"Execution time for mm_one_fp16i8    v2: {(end_time - start_time) * 1000:.3f} ms")
 
 start_time = time.time()
-yy3 = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 3)
+yy3 = mm8_neon.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 3)
 end_time = time.time()
 print(f"Execution time for mm_one_fp16i8    v3: {(end_time - start_time) * 1000:.3f} ms")
 
 # fp32
 start_time = time.time()
-yyy = mm_fp16i8.mm_one_fp32i8(
+yyy = mm8_neon.mm_one_fp32i8(
     x_fp16.to(torch.float), 
     w_uint8, 
     mx_fp16.to(torch.float), 
@@ -375,7 +375,7 @@ print(f"Execution time for torch_mm8_seq: {(end_time - start_time) * 1000:.3f} m
 
 # Measure execution time for mm_seq_fp16i8
 start_time = time.time()
-y_cpp = mm_fp16i8.mm_seq_fp16i8(
+y_cpp = mm8_neon.mm_seq_fp16i8(
     x_fp16,
     w_uint8,
     mx_fp16,
@@ -386,31 +386,59 @@ y_cpp = mm_fp16i8.mm_seq_fp16i8(
 end_time = time.time()
 print(f"Execution time for mm_seq_fp16i8: {(end_time - start_time) * 1000:.3f} ms")
 
+# Measure execution time for mm_seq_fp32i8
+start_time = time.time()
+y_cpp32 = mm8_neon.mm_seq_fp32i8(
+    x_fp16.to(torch.float),
+    w_uint8,
+    mx_fp16.to(torch.float),
+    rx_fp16.to(torch.float),
+    my_fp16.to(torch.float),
+    ry_fp16.to(torch.float)
+)
+end_time = time.time()
+print(f"Execution time for mm_seq_fp32i8: {(end_time - start_time) * 1000:.3f} ms")
+
 y_torch_f32 = y_torch.to(torch.float32)
 # Compute the relative differences
 relative_differences = torch.abs(y_torch_f32 - y_cpp) / torch.abs(y_torch_f32)
+# Compute the relative differences between y_cpp32 and y_torch_f32
+relative_differences_cpp32 = torch.abs(y_torch_f32 - y_cpp32) / torch.abs(y_torch_f32)
+
+# Find the maximum relative difference
+max_relative_difference_cpp32 = torch.max(relative_differences_cpp32).item()
+print(f"Maximum Relative Difference (y_cpp32 vs y_torch_f32): {max_relative_difference_cpp32}")
+
+# # Get the top 5 values with the highest relative differences
+# top_k_cpp32 = 5
+# top_k_indices_cpp32 = torch.topk(relative_differences_cpp32.view(-1), top_k_cpp32).indices
+
+# print(f"Top {top_k_cpp32} values with the highest relative differences (y_cpp32 vs y_torch_f32):")
+# for idx in top_k_indices_cpp32:
+#     print(f"Index: {idx.item()}, Relative Difference: {relative_differences_cpp32.view(-1)[idx].item()}")
+#     print(f"Value in y_torch_f32: {y_torch_f32.view(-1)[idx].item()}")
+#     print(f"Value in y_cpp32: {y_cpp32.view(-1)[idx].item()}")
+
+# # Find the index of the item in y_torch_f32 that results in the maximum difference
+# max_diff_index_cpp32 = torch.argmax(relative_differences_cpp32).item()
+# print(f"Index of the item with the maximum difference (y_cpp32 vs y_torch_f32): {max_diff_index_cpp32}")
+
+# # Print the values at max_diff_index
+# print(f"Value in y_torch_f32 at max_diff_index: {y_torch_f32.view(-1)[max_diff_index_cpp32]}")
+# print(f"Value in y_cpp32 at max_diff_index: {y_cpp32.view(-1)[max_diff_index_cpp32]}")
 
 # Find the maximum relative difference
 max_relative_difference = torch.max(relative_differences).item()
-print(f"Maximum Relative Difference: {max_relative_difference}")
-
-# Get the top 5 values with the highest relative differences
-top_k = 5
-top_k_indices = torch.topk(relative_differences.view(-1), top_k).indices
-
-print(f"Top {top_k} values with the highest relative differences:")
-for idx in top_k_indices:
-    print(f"Index: {idx.item()}, Relative Difference: {relative_differences.view(-1)[idx].item()}")
-    print(f"Value in y_torch_f32: {y_torch_f32.view(-1)[idx].item()}")
-    print(f"Value in y_cpp: {y_cpp.view(-1)[idx].item()}")
+print(f"Maximum Relative Difference y_cpp16 vs y_torch_f32: {max_relative_difference}")
 
 # Find the index of the item in y_torch_f32 that results in the maximum difference
 max_diff_index = torch.argmax(relative_differences).item()
-print(f"Index of the item with the maximum difference: {max_diff_index}")
+# print(f"Index of the item with the maximum difference: {max_diff_index}")
 
 # Print the values at max_diff_index
 print(f"Value in y_torch_f32 at max_diff_index: {y_torch_f32.view(-1)[max_diff_index]}")
 print(f"Value in y_cpp at max_diff_index: {y_cpp.view(-1)[max_diff_index]}")
+print(f"Value in y_cpp32 at max_diff_index: {y_cpp32.view(-1)[max_diff_index]}")
 
 # print(f"torch y: {y_torch[:10]}")
 # print(f"fp16i8 : {y_cpp[:10]}")
@@ -428,12 +456,23 @@ Execution time for torch_mm8_one: 26.366 ms
 Execution time for mm_one_fp16i8    v1: 8.664 ms
 Execution time for mm_one_fp16i8    v2: 2.563 ms
 Execution time for mm_one_fp16i8    v3: 0.723 ms   (~30x improvement)
-Execution time for mm_one_fp32i8: 4.964 ms
+Execution time for mm_one_fp32i8:   4.964 ms
+
+"seq" (batch)
+---------------
 
 B = 16
 N = 1024
 M = int(N * 3.5), 
-Execution time for torch_mm8_seq: 309.142 ms
-Execution time for mm_seq_fp16i8: 11.269 ms
+Execution time for torch_mm8_seq: 313.865 ms
+Execution time for mm_seq_fp16i8: 10.758 ms (only marginally faster than fp32. shader cores not fully utilized??
+Execution time for mm_seq_fp32i8: 13.444 ms  
 
+
+B = 128
+N = 1024
+M = int(N * 3.5), 
+Execution time for torch_mm8_seq: 2656.040 ms
+Execution time for mm_seq_fp16i8: 83.366 ms     (same trend as above. 
+Execution time for mm_seq_fp32i8: 107.051 ms
 '''    

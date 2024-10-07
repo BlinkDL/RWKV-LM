@@ -604,6 +604,85 @@ void kernel_mm_seq_fp16i8(
     }
 }
 
+void kernel_mm_seq_fp32i8(
+    const int B, const int N, const int M,
+    const float* x_fp32, const int x_stride,
+    const uint8_t* w, const int w_stride,
+    const float* mx_fp32,
+    const float* rx_fp32,
+    const float* my_fp32,
+    const float* ry_fp32,
+    float* y_fp, const int y_stride)
+{
+    // Parallelize over the batch dimension B
+    #pragma omp parallel for schedule(static)
+    for (int b = 0; b < B; ++b) {
+        // Pointers to the current batch in x and y
+        const float* x_batch = x_fp32 + b * x_stride;
+        float* y_batch = y_fp + b * y_stride;
+
+        // Initialize y_batch to zero
+        std::fill(y_batch, y_batch + M, float(0.0f));
+
+        // Loop over N dimension
+        for (int j = 0; j < N; ++j) {
+            float x_j = x_batch[j];
+            float ry_j = ry_fp32[j];
+            float my_j = my_fp32[j];
+
+            // Broadcast x_j, ry_j, my_j into NEON vectors
+            float32x4_t x_j_vec = vdupq_n_f32(x_j);
+            float32x4_t ry_j_vec = vdupq_n_f32(ry_j);
+            float32x4_t my_j_vec = vdupq_n_f32(my_j);
+
+            // Pointer to the start of the current row in w
+            const uint8_t* w_row_ptr = &w[j * w_stride];
+
+            int k = 0;
+            int k_unroll = 4; // Process 4 elements at a time
+            for (; k <= M - k_unroll; k += k_unroll) {
+                // Load w[j, k:k+3]
+                uint8x8_t w_u8 = vld1_u8(&w_row_ptr[k]); // Load 8 bytes
+                uint16x8_t w_u16 = vmovl_u8(w_u8);       // Expand to uint16x8_t
+                uint16x4_t w_u16_low = vget_low_u16(w_u16); // Lower 4 elements
+                uint32x4_t w_u32 = vmovl_u16(w_u16_low); // Expand to uint32x4_t
+                float32x4_t w_vec = vcvtq_f32_u32(w_u32); // Convert to float32
+                float32x4_t half_vec = vdupq_n_f32(0.5f);
+                w_vec = vaddq_f32(w_vec, half_vec); // w_vec = w_vec + 0.5
+
+                // Load rx_fp32[k:k+3] and mx_fp32[k:k+3]
+                float32x4_t rx_k_vec = vld1q_f32(&rx_fp32[k]);
+                float32x4_t mx_k_vec = vld1q_f32(&mx_fp32[k]);
+
+                // Compute temp = (w_vec * ry_j_vec * rx_k_vec) + my_j_vec + mx_k_vec
+                float32x4_t temp = vmulq_f32(w_vec, ry_j_vec); // temp = (w + 0.5) * ry_j
+                temp = vmulq_f32(temp, rx_k_vec);              // temp = temp * rx_k
+                temp = vaddq_f32(temp, my_j_vec);              // temp = temp + my_j
+                temp = vaddq_f32(temp, mx_k_vec);              // temp = temp + mx_k
+
+                // Multiply x_j_vec * temp
+                float32x4_t prod = vmulq_f32(x_j_vec, temp);
+
+                // Accumulate into y_batch[k:k+3]
+                float32x4_t y_vec = vld1q_f32(&y_batch[k]);
+                y_vec = vaddq_f32(y_vec, prod);
+                vst1q_f32(&y_batch[k], y_vec);
+            }
+
+            // Handle remaining elements
+            for (; k < M; ++k) {
+                float w_val = static_cast<float>(w_row_ptr[k]) + 0.5f;
+                float rx_k = rx_fp32[k];
+                float mx_k = mx_fp32[k];
+
+                float temp = (w_val * ry_j * rx_k) + my_j + mx_k;
+                y_batch[k] += x_j * temp;
+            }
+        }
+    }
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 // Python binding
 // Prepares the data and calls the kernel, ensuring proper tensor shapes and data types
@@ -786,9 +865,65 @@ torch::Tensor mm_seq_fp16i8(
     return y;
 }
 
+torch::Tensor mm_seq_fp32i8(
+    torch::Tensor x_fp32,
+    torch::Tensor w_uint8,
+    torch::Tensor mx_fp32,
+    torch::Tensor rx_fp32,
+    torch::Tensor my_fp32,
+    torch::Tensor ry_fp32)
+{
+    // Ensure tensors are contiguous and on CPU
+    x_fp32 = x_fp32.contiguous();
+    w_uint8 = w_uint8.contiguous();
+    mx_fp32 = mx_fp32.contiguous();
+    rx_fp32 = rx_fp32.contiguous();
+    my_fp32 = my_fp32.contiguous().view(-1); // Ensure shape is (N,)
+    ry_fp32 = ry_fp32.contiguous().view(-1); // Ensure shape is (N,)
+
+    // Validate tensor data types
+    TORCH_CHECK(x_fp32.dtype() == torch::kFloat32, "x_fp32 must be Float32");
+    TORCH_CHECK(w_uint8.dtype() == torch::kUInt8, "w_uint8 must be UInt8");
+    TORCH_CHECK(mx_fp32.dtype() == torch::kFloat32, "mx_fp32 must be Float32");
+    TORCH_CHECK(rx_fp32.dtype() == torch::kFloat32, "rx_fp32 must be Float32");
+    TORCH_CHECK(my_fp32.dtype() == torch::kFloat32, "my_fp32 must be Float32");
+    TORCH_CHECK(ry_fp32.dtype() == torch::kFloat32, "ry_fp32 must be Float32");
+
+    // Get dimensions
+    int B = x_fp32.size(0);
+    int N = x_fp32.size(1);
+    int M = w_uint8.size(1);
+
+    // Strides
+    int x_stride = x_fp32.stride(0);
+    int y_stride = M; // Output y will have shape (B, M)
+    int w_stride = M; // Assuming w is row-major and contiguous
+
+    // Ensure that w is contiguous along the columns
+    TORCH_CHECK(w_uint8.stride(1) == 1, "w_uint8 must be contiguous along the inner dimension");
+
+    // Allocate output tensor y
+    torch::Tensor y = torch::empty({B, M}, torch::dtype(torch::kFloat32));
+
+    // Call the kernel function
+    kernel_mm_seq_fp32i8(
+        B, N, M,
+        x_fp32.data_ptr<float>(), x_stride,
+        w_uint8.data_ptr<uint8_t>(), w_stride,
+        mx_fp32.data_ptr<float>(),
+        rx_fp32.data_ptr<float>(),
+        my_fp32.data_ptr<float>(),
+        ry_fp32.data_ptr<float>(),
+        y.data_ptr<float>(), y_stride
+    );
+
+    return y;
+}
+
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("mm_one_fp16i8", &mm_one_fp16i8, "Matrix multiplication with int8 weights and float16 inputs (ARM Cortex-A76 optimized)");
     m.def("mm_one_fp32i8", &mm_one_fp32i8, "Matrix multiplication with int8 weights and float32 inputs (ARM Cortex-A76 optimized)");
     m.def("mm_seq_fp16i8", &mm_seq_fp16i8, "Sequential matrix multiplication with int8 weights and float16 inputs (ARM Cortex-A76 optimized)");
+    m.def("mm_seq_fp32i8", &mm_seq_fp32i8, "Sequential matrix multiplication with int8 weights and float32 inputs (ARM Cortex-A76 optimized)");
 }

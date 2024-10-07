@@ -2,11 +2,11 @@ from setuptools import setup
 from torch.utils.cpp_extension import BuildExtension, CppExtension
 
 setup(
-    name='mm_fp16i8',
+    name='mm8_neon',
     ext_modules=[
         CppExtension(
-            'mm_fp16i8',
-            ['mm_fp16i8.cpp'],
+            'mm8_neon',
+            ['mm8_neon.cpp'],
             extra_compile_args=[
                 '-O3',
                 '-mcpu=cortex-a76',
