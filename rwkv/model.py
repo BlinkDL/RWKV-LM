@@ -10,6 +10,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 # import matplotlib.pyplot as plt
 
+
 torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.allow_tf32 = True
 torch.backends.cuda.matmul.allow_tf32 = True
@@ -29,31 +30,26 @@ else:
     MyFunction = __nop
     MyStatic = __nop
 
-# by xzl 
-def is_raspberry_pi():
-    try:
-        with open("/proc/cpuinfo", "r") as f:
-            cpuinfo = f.read().lower()
-        # Check for common Raspberry Pi hardware identifiers
-        if "raspberry" in cpuinfo or any(model in cpuinfo for model in ["bcm2835", "bcm2836", "bcm2837", "bcm2711"]):
-            return True
-    except FileNotFoundError:
-        # /proc/cpuinfo might not exist on non-Linux systems
-        return False
-    return False
-    
-# cf above    
-def is_odroid():
-    try:
-        with open("/proc/cpuinfo", "r") as f:
-            cpuinfo = f.read().lower()
-        if "odroid" in cpuinfo or any(model in cpuinfo for model in []):
-            return True
-    except FileNotFoundError:
-        # /proc/cpuinfo might not exist on non-Linux systems
-        return False
-    return False
-    
+# check NEON
+# import sys
+# sys.path.insert(0, current_path)
+from .arm_plat import is_raspberry_pi, is_odroid
+# import arm_plat
+
+config_has_neon = False
+config_neon_fp16 = False
+
+if os.environ.get('RWKV_NEON_ON') == '1':
+    config_has_neon = True  
+    from rwkv.neon import mm8_neon
+    # from .neon.mm8_neon import *
+    # import .neon.mm8_neon as mm8_neon
+  
+    rpiver = is_raspberry_pi()
+    if rpiver and '5' in rpiver:
+        config_neon_fp16 = True
+    # TBD: orange pi, Apple silicon 
+
 '''
 xzl: below implement key ops: 
     wkv
@@ -62,7 +58,6 @@ xzl: below implement key ops:
         - mm8_one    (torch/cuda variants...
         - matmul_float (specialized for fp16...
 '''
-
 if os.environ.get('RWKV_CUDA_ON') == '1':
     from torch.utils.cpp_extension import load
     try:
@@ -155,7 +150,45 @@ if os.environ.get('RWKV_CUDA_ON') == '1':
             return cuda_mm8_one(N, M, x, w, mx, rx, my, ry)
         else:
             return torch_mm8_one(x, w, mx, rx, my, ry)
-else:
+elif config_neon_fp16: # neon, and native fp16 support
+    # @MyStatic -- wont work for c++ ext -- treated as "built-in"
+    @torch.jit.ignore
+    def mm8_seq(x, w, mx, rx, my, ry):
+        return mm8_neon.mm_seq_fp16i8(x, w, mx, rx, my, ry)
+    # @MyStatic
+    @torch.jit.ignore
+    def mm8_one(x, w, mx, rx, my, ry):
+        return mm8_neon.mm_one_fp16i8(x, w, mx, rx, my, ry, 3) # ver3
+elif config_has_neon:  # neon, but no fp16 native support, fallback to fp32
+    # @MyStatic
+    @torch.jit.ignore
+    def mm8_seq(x, w, mx, rx, my, ry):
+        if x.dtype==torch.float32: #assume all other tensors (but w) are fp32. no conversion 
+            return mm8_neon.mm_seq_fp32i8(x, w, mx, rx, my, ry)
+        else:
+            return mm8_neon.mm_seq_fp32i8(
+                x.to(torch.float),
+                w,
+                mx.to(torch.float),
+                rx.to(torch.float),
+                my.to(torch.float),
+                ry.to(torch.float)
+            )
+    # @MyStatic
+    @torch.jit.ignore
+    def mm8_one(x, w, mx, rx, my, ry):        
+        if x.dtype==torch.float32:
+            return mm8_neon.mm_one_fp32i8(x, w, mx, rx, my, ry)
+        else: 
+            return mm8_neon.mm_one_fp32i8(
+                x.to(torch.float),
+                w,
+                mx.to(torch.float),
+                rx.to(torch.float),
+                my.to(torch.float),
+                ry.to(torch.float)
+            )
+else: # fall back to torch (cpu), naive. slow 
     @MyStatic
     def mm8_seq(x, w, mx, rx, my, ry):
         return torch_mm8_seq(x, w, mx, rx, my, ry)
@@ -215,7 +248,7 @@ if os.environ.get('RWKV_CUDA_ON') == '1' and not DISABLE_CUBLAS_GEMM:
         else:
             return (a @ b).to(output_dtype)
 
-else:       # xzl: generic, slow path
+else:       # xzl: generic BLAS, slow path
     def matmul_float(a, b, output_dtype: Optional[torch.dtype]=None):
         return (a @ b).to(output_dtype)
 
@@ -261,6 +294,7 @@ class RWKV(MyModule):
         except:
             self.RESCALE_LAYER = 6 if 'fp16' in strategy else 0
         prxxx(f'RWKV_JIT_ON {os.environ["RWKV_JIT_ON"]} RWKV_CUDA_ON {os.environ["RWKV_CUDA_ON"]} RESCALE_LAYER {self.RESCALE_LAYER}\n')
+        prxxx(f'NEON {config_has_neon} NEON_FP16 {config_neon_fp16}\n')
 
         # xzl: load model... and convert params (saved as bf16 default) per "strategy"
         args.MODEL_NAME = args.MODEL_NAME.strip()

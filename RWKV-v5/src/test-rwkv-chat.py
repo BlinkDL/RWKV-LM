@@ -49,8 +49,8 @@ from rwkv.utils import PIPELINE, PIPELINE_ARGS
 
 # model_path='/data/models/0.1b-pre-x59-16x-1451'
 # model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
-# model_path='/data/models/pi-deployment/01b-pre-x52-1455'
-model_path='/data/models/pi-deployment/01b-pre-x59-976'
+model_path='/data/models/pi-deployment/01b-pre-x52-1455'
+# model_path='/data/models/pi-deployment/01b-pre-x59-976'
 # model_path='/data/models/pi-deployment/1b5-pre-x59-929'
 # model_path='/data/models/pi-deployment/01b-pre-x59-CLS-TEST'
 
@@ -87,8 +87,8 @@ if os.environ["RWKV_CUDA_ON"] == '1':
     strategy='cuda fp16'
     # strategy='cuda fp16i8',
 else:
-    strategy='cpu fp16'
-    #strategy='cpu fp16i8'   # very slow... TBD
+    # strategy='cpu fp16'
+    strategy='cpu fp16i8'
 
 t0 = time.time()
 
@@ -152,7 +152,8 @@ speed test
 rpi5 (4GB DRAM, supports fp16 in neon)
                                 tok/sec
 x52     01b-pre-x52-1455        15.3                
-    fp16i8                        1 (very slow)     ->> guess: 30 tok/sec
+    fp16i8                        1 (very slow)     ->> guess: 30 tok/sec??
+                                 2 tok/sec (still slow
 x59     01b-pre-x59-976         10.5
 
 04b    x59                    3.36 (not too bad

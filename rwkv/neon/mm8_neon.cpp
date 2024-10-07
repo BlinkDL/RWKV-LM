@@ -1,3 +1,5 @@
+// by FL Oct 7 2024
+
 #include <cstdint>
 #include <vector>
 #include <arm_neon.h> // For NEON intrinsics
