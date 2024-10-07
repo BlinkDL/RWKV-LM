@@ -151,3 +151,5 @@ dmypy.json
 RWKV-v5/out/L12-D768-x052
 
 .vscode/settings.json
+rwkv/neon/build-err.txt
+rwkv/neon/build-log.txt
