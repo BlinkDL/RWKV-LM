@@ -175,7 +175,7 @@ void kernel_mm_one_fp16i8(
 
 // cf: rwkv/cuda/operators.cu kernel_mm_one_fp16i8
 // works
-void kernel_mm_one_fp16i8(
+void kernel_mm_one_fp16i8_v1(
     int N, int M,
     const at::Half* x_fp16,
     const uint8_t* w, int w_stride,
@@ -260,6 +260,99 @@ void kernel_mm_one_fp16i8(
 
         // Store the result
         y_fp[k] = y_local;
+    }
+}
+
+// v2
+void kernel_mm_one_fp16i8(
+    int N, int M,
+    const at::Half* x_fp16,
+    const uint8_t* w, int w_stride,
+    const at::Half* mx_fp16,
+    const at::Half* rx_fp16,
+    const at::Half* my_fp16,
+    const at::Half* ry_fp16,
+    float* y_fp)
+{
+    // Initialize y to zero
+    std::fill(y_fp, y_fp + M, float(0.0));
+
+    // Convert mx_fp16 and rx_fp16 to float16 arrays for vectorization
+    const float16_t* mx_fp16_data = reinterpret_cast<const float16_t*>(mx_fp16);
+    const float16_t* rx_fp16_data = reinterpret_cast<const float16_t*>(rx_fp16);
+
+    // Process in chunks of 8 (assuming M is a multiple of 8)
+    int k_unroll = 8;
+
+    // Loop over N dimension
+    for (int j = 0; j < N; ++j) {
+        float16_t x_j = static_cast<float16_t>(x_fp16[j]);
+        float16_t ry_j = static_cast<float16_t>(ry_fp16[j]);
+        float16_t my_j = static_cast<float16_t>(my_fp16[j]);
+
+        // Broadcast x_j, ry_j, my_j into NEON vectors
+        float16x8_t x_j_vec = vdupq_n_f16(x_j);
+        float16x8_t ry_j_vec = vdupq_n_f16(ry_j);
+        float16x8_t my_j_vec = vdupq_n_f16(my_j);
+
+        // Pointer to the start of the current row in w
+        const uint8_t* w_row_ptr = &w[j * w_stride];
+
+        int k = 0;
+        for (; k <= M - k_unroll; k += k_unroll) {
+            // Load w[j, k:k+7]
+            uint8x8_t w_u8 = vld1_u8(&w_row_ptr[k]);
+
+            // Convert w_u8 to float16_t and add 0.5
+            uint16x8_t w_u16 = vmovl_u8(w_u8);
+            float16x8_t w_vec_fp16 = vcvtq_f16_u16(w_u16);
+            float16x8_t half_vec_fp16 = vdupq_n_f16(0.5f);
+            w_vec_fp16 = vaddq_f16(w_vec_fp16, half_vec_fp16);
+
+            // Load rx_fp16[k:k+7] and mx_fp16[k:k+7]
+            float16x8_t rx_k_vec = vld1q_f16(&rx_fp16_data[k]);
+            float16x8_t mx_k_vec = vld1q_f16(&mx_fp16_data[k]);
+
+            // Compute temp_fp16 = (w_vec_fp16 * ry_j_vec * rx_k_vec) + my_j_vec + mx_k_vec
+            float16x8_t temp_fp16 = vmulq_f16(w_vec_fp16, ry_j_vec); // (w + 0.5) * ry_j
+            temp_fp16 = vmulq_f16(temp_fp16, rx_k_vec);              // * rx_k
+            temp_fp16 = vaddq_f16(temp_fp16, my_j_vec);              // + my_j
+            temp_fp16 = vaddq_f16(temp_fp16, mx_k_vec);              // + mx_k
+
+            // Multiply x_j_vec * temp_fp16
+            float16x8_t prod_fp16 = vmulq_f16(x_j_vec, temp_fp16);
+
+            // Convert to float32 for accumulation
+            float32x4_t prod_low = vcvt_f32_f16(vget_low_f16(prod_fp16));
+            float32x4_t prod_high = vcvt_f32_f16(vget_high_f16(prod_fp16));
+
+            // Accumulate into y_fp[k:k+7]
+            float* y_ptr = &y_fp[k];
+            float32x4_t y_vec_low = vld1q_f32(y_ptr);
+            float32x4_t y_vec_high = vld1q_f32(y_ptr + 4);
+
+            y_vec_low = vaddq_f32(y_vec_low, prod_low);
+            y_vec_high = vaddq_f32(y_vec_high, prod_high);
+
+            // Store the results back to y_fp
+            vst1q_f32(y_ptr, y_vec_low);
+            vst1q_f32(y_ptr + 4, y_vec_high);
+        }
+
+        // Handle remaining elements
+        for (; k < M; ++k) {
+            float16_t w_val = static_cast<float16_t>(w_row_ptr[k]) + 0.5f;
+            float16_t rx_k = static_cast<float16_t>(rx_fp16[k]);
+            float16_t mx_k = static_cast<float16_t>(mx_fp16[k]);
+
+            float16_t temp_fp16 = (w_val * ry_j * rx_k) + my_j + mx_k;
+
+            // Convert to float32 for accumulation
+            float x_j_f32 = static_cast<float>(x_j);
+            float temp_f32 = static_cast<float>(temp_fp16);
+
+            y_fp[k] += x_j_f32 * temp_f32;
+        }
     }
 }
 
@@ -575,7 +668,7 @@ torch::Tensor mm_one_fp32i8(
     return y;
 }
 
-torch::Tensor mm_one_fp16i8(
+torch::Tensor mm_one_fp16i8_v1(
     torch::Tensor x_fp16,
     torch::Tensor w_uint8,
     torch::Tensor mx_fp16,
@@ -619,6 +712,47 @@ torch::Tensor mm_one_fp16i8(
 
     return y;
 }
+
+// v2. 
+torch::Tensor mm_one_fp16i8(
+    torch::Tensor x_fp16,
+    torch::Tensor w_uint8,
+    torch::Tensor mx_fp16,
+    torch::Tensor rx_fp16,
+    torch::Tensor my_fp16,
+    torch::Tensor ry_fp16)
+{
+    // Ensure tensors are contiguous
+    x_fp16 = x_fp16.contiguous();
+    w_uint8 = w_uint8.contiguous();
+    mx_fp16 = mx_fp16.contiguous();
+    rx_fp16 = rx_fp16.contiguous();
+    my_fp16 = my_fp16.contiguous().view(-1);
+    ry_fp16 = ry_fp16.contiguous().view(-1);
+
+    // Validate that w is contiguous in the inner dimension
+    TORCH_CHECK(w_uint8.stride(1) == 1, "w_uint8 must be contiguous in the inner dimension");
+
+    int N = x_fp16.size(0);
+    int M = w_uint8.size(1);
+    int w_stride = M; // Since w is row-major and contiguous
+
+    torch::Tensor y = torch::zeros({M}, torch::dtype(torch::kFloat32));
+
+    kernel_mm_one_fp16i8(
+        N, M,
+        reinterpret_cast<const at::Half*>(x_fp16.data_ptr<at::Half>()),
+        w_uint8.data_ptr<uint8_t>(), w_stride,
+        reinterpret_cast<const at::Half*>(mx_fp16.data_ptr<at::Half>()),
+        reinterpret_cast<const at::Half*>(rx_fp16.data_ptr<at::Half>()),
+        reinterpret_cast<const at::Half*>(my_fp16.data_ptr<at::Half>()),
+        reinterpret_cast<const at::Half*>(ry_fp16.data_ptr<at::Half>()),
+        y.data_ptr<float>()
+    );
+
+    return y;
+}
+
 
 #if 1
 // xzl: to inspect... XXX
@@ -665,5 +799,6 @@ torch::Tensor mm_seq_fp16i8(
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("mm_one_fp16i8", &mm_one_fp16i8, "Matrix multiplication with int8 weights and float16 inputs (ARM Cortex-A76 optimized)");
+    m.def("mm_one_fp16i8_v1", &mm_one_fp16i8_v1, "Matrix multiplication with int8 weights and float16 inputs (ARM Cortex-A76 optimized)");
     m.def("mm_one_fp32i8", &mm_one_fp32i8, "Matrix multiplication with int8 weights and float32 inputs (ARM Cortex-A76 optimized)");
 }

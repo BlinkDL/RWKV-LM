@@ -284,7 +284,12 @@ end_time = time.time()
 print(f"Execution time for torch_mm8_one: {(end_time - start_time) * 1000:.3f} ms")
 
 start_time = time.time()
-yy = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
+yy1 = mm_fp16i8.mm_one_fp16i8_v1(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
+end_time = time.time()
+print(f"Execution time for mm_one_fp16i8_v1: {(end_time - start_time) * 1000:.3f} ms")
+
+start_time = time.time()
+yy2 = mm_fp16i8.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
 end_time = time.time()
 print(f"Execution time for mm_one_fp16i8: {(end_time - start_time) * 1000:.3f} ms")
 
@@ -302,7 +307,20 @@ end_time = time.time()
 print(f"Execution time for mm_one_fp32i8: {(end_time - start_time) * 1000:.3f} ms")
 
 # Compare if yy and y are close enough
-if torch.allclose(yy, y, atol=1e-1):
+if torch.allclose(yy2, y, atol=1e-1):
     print("The results are close enough.")
 else:
     print("The results are not close enough.")
+
+
+
+'''
+rpi5, 4GB. cortexa76 has fp16 native support 
+N = 1024
+M = int(N * 3.5), 
+Execution time for torch_mm8_one: 28.646 ms
+Execution time for mm_one_fp16i8_v1: 2.526 ms   <<< 10x faster than torch
+Execution time for mm_one_fp16i8: 2.548 ms  <<<< slightly faster than v1. probably not worth the effort
+Execution time for mm_one_fp32i8: 4.407 ms
+
+'''    
