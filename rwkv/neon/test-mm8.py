@@ -27,9 +27,12 @@ def torch_mm8_seq(x, w, mx, rx, my, ry):
 # mini test case
 N = 2
 M = 2
+B = 2
 
 # Input vector x_fp16 of size N
 x_fp16 = torch.tensor([1.0, 2.0], dtype=torch.float16)
+# Input matrix xseq_fp16 of size B x N
+xseq_fp16 = torch.tensor([[1.0, 2.0], [3.0, 4.0]], dtype=torch.float16)
 
 # Weight matrix w_uint8 of size N x M
 w_uint8 = torch.tensor([[10, 20], [30, 40]], dtype=torch.uint8)
@@ -67,9 +70,12 @@ yyy = mm_fp16i8.mm_one_fp32i8(
     my_fp16.to(torch.float), 
     ry_fp16.to(torch.float)
 )
-# breakpoint()
+# seq
+yseq = torch_mm8_seq(xseq_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
+yseq1 = mm_fp16i8.mm_seq_fp16i8(xseq_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
 
 ############################################################
+# correctness test mm8_one
 N = 10
 M = 20
 
@@ -115,6 +121,7 @@ yyy = mm_fp16i8.mm_one_fp32i8(
     ry_fp16.to(torch.float)
 )
 ############################################################
+# correctness test mm8_one
 N = 50
 M = 100
 
@@ -158,7 +165,7 @@ yyy = mm_fp16i8.mm_one_fp32i8(
 # breakpoint()
 
 ############################################################
-# neg test case
+# correctness (test case -- known bad), mm8_one
 x_fp16 = torch.tensor([-8.7786e-04, -2.4207e-01, -1.0859e+00,  1.0625e+00, -3.5840e-01,
                        2.9316e+00,  1.3037e+00,  4.5337e-01,  5.3760e-01, -1.4478e-01],
                       dtype=torch.float16)
@@ -226,6 +233,7 @@ print(">here")
 # breakpoint()
 
 ############################################################
+# time benchmark ... mm8_one
 # x (N) w (N,M) (768,768*3.5)  mx (M) rx (M) my (N,1) ry (N,1)
 # Example data
 N = 1024
@@ -275,7 +283,6 @@ ry_fp16 = torch.rand((N,1), dtype=torch.float16) * 0.49 + 0.01
 
 # breakpoint()
 
-############################################################
 
 # Measure execution time for torch_mm8_one
 start_time = time.time()
@@ -318,22 +325,115 @@ print(f"fp16i8 v2 yy2: {yy2[:10]}")
 print(f"fp16i8 v3 yy3: {yy3[:10]}")
 print(f"fp32i8 yyy: {yyy[:10]}")
 
+
+y_torch_f32 = y.to(torch.float32)
+y_cpp = yy2.to(torch.float32)
+# Compute the relative differences
+relative_differences = torch.abs(y_torch_f32 - y_cpp) / torch.abs(y_torch_f32)
+
+# Find the maximum relative difference
+max_relative_difference = torch.max(relative_differences).item()
+print(f"Maximum Relative Difference: {max_relative_difference}")
+
+# Find the index of the item in y_torch_f32 that results in the maximum difference
+max_diff_index = torch.argmax(relative_differences).item()
+print(f"Index of the item with the maximum difference: {max_diff_index}")
+
+# Print the values at max_diff_index
+print(f"Value in y_torch_f32 at max_diff_index: {y_torch_f32[max_diff_index]}")
+print(f"Value in y_cpp at max_diff_index: {y_cpp[max_diff_index]}")
+print(f"Value in yyy at max_diff_index: {yyy[max_diff_index]}")
+
+# breakpoint()
+
 # Compare if yy and y are close enough
-if torch.allclose(yy2, y, atol=1e-1):
+if torch.allclose(yy2.to(y.dtype), y, rtol=1e-1):
     print("The results are close enough.")
 else:
     print("The results are not close enough.")
 
 
+############################################################
+#       correctness check for mm8_seq
+# Prepare test inputs
+B = 16
+N = 1024
+M = int(N * 3.5)
+
+x_fp16 = torch.randn(B, N, dtype=torch.float16)
+w_uint8 = torch.randint(0, 256, (N, M), dtype=torch.uint8)
+mx_fp16 = torch.randn(M, dtype=torch.float16)
+rx_fp16 = torch.randn(M, dtype=torch.float16)
+my_fp16 = torch.randn(N, 1, dtype=torch.float16)
+ry_fp16 = torch.randn(N, 1, dtype=torch.float16)
+
+# Measure execution time for torch_mm8_seq
+start_time = time.time()
+y_torch = torch_mm8_seq(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16)
+end_time = time.time()
+print(f"Execution time for torch_mm8_seq: {(end_time - start_time) * 1000:.3f} ms")
+
+# Measure execution time for mm_seq_fp16i8
+start_time = time.time()
+y_cpp = mm_fp16i8.mm_seq_fp16i8(
+    x_fp16,
+    w_uint8,
+    mx_fp16,
+    rx_fp16,
+    my_fp16,
+    ry_fp16
+)
+end_time = time.time()
+print(f"Execution time for mm_seq_fp16i8: {(end_time - start_time) * 1000:.3f} ms")
+
+y_torch_f32 = y_torch.to(torch.float32)
+# Compute the relative differences
+relative_differences = torch.abs(y_torch_f32 - y_cpp) / torch.abs(y_torch_f32)
+
+# Find the maximum relative difference
+max_relative_difference = torch.max(relative_differences).item()
+print(f"Maximum Relative Difference: {max_relative_difference}")
+
+# Get the top 5 values with the highest relative differences
+top_k = 5
+top_k_indices = torch.topk(relative_differences.view(-1), top_k).indices
+
+print(f"Top {top_k} values with the highest relative differences:")
+for idx in top_k_indices:
+    print(f"Index: {idx.item()}, Relative Difference: {relative_differences.view(-1)[idx].item()}")
+    print(f"Value in y_torch_f32: {y_torch_f32.view(-1)[idx].item()}")
+    print(f"Value in y_cpp: {y_cpp.view(-1)[idx].item()}")
+
+# Find the index of the item in y_torch_f32 that results in the maximum difference
+max_diff_index = torch.argmax(relative_differences).item()
+print(f"Index of the item with the maximum difference: {max_diff_index}")
+
+# Print the values at max_diff_index
+print(f"Value in y_torch_f32 at max_diff_index: {y_torch_f32.view(-1)[max_diff_index]}")
+print(f"Value in y_cpp at max_diff_index: {y_cpp.view(-1)[max_diff_index]}")
+
+# print(f"torch y: {y_torch[:10]}")
+# print(f"fp16i8 : {y_cpp[:10]}")
+
+# Compare the outputs
+print(torch.allclose(y_torch.to(torch.float32), y_cpp, rtol=1e-1))
+# breakpoint()
 
 '''
 rpi5, 4GB. cortexa76 has fp16 native support 
+---------------------------------------------
 N = 1024
 M = int(N * 3.5), 
 Execution time for torch_mm8_one: 26.366 ms
 Execution time for mm_one_fp16i8    v1: 8.664 ms
 Execution time for mm_one_fp16i8    v2: 2.563 ms
-Execution time for mm_one_fp16i8    v3: 0.723 ms
+Execution time for mm_one_fp16i8    v3: 0.723 ms   (~30x improvement)
 Execution time for mm_one_fp32i8: 4.964 ms
+
+B = 16
+N = 1024
+M = int(N * 3.5), 
+Execution time for torch_mm8_seq: 309.142 ms
+Execution time for mm_seq_fp16i8: 11.269 ms
 
 '''    

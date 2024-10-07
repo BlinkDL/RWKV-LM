@@ -149,10 +149,10 @@ print('\n')
 speed test 
 (careful: vscode-server will take quite some cpu time)
 
-rpi5 (4GB DRAM
+rpi5 (4GB DRAM, supports fp16 in neon)
                                 tok/sec
 x52     01b-pre-x52-1455        15.3                
-    fp16i8                        1 (very slow)
+    fp16i8                        1 (very slow)     ->> guess: 30 tok/sec
 x59     01b-pre-x59-976         10.5
 
 04b    x59                    3.36 (not too bad
@@ -160,7 +160,7 @@ x59     01b-pre-x59-976         10.5
 1b5        OOM
 
 --------------
-rpi4  
+rpi4  (only support fp32 in neon)
                                 tok/sec
 x52     01b-pre-x52-1455        5.1      
     fp16i8                       .4 (very slow)
