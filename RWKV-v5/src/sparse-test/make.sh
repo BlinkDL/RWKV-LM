@@ -1,0 +1,1 @@
+gcc -o sgemv_example sgemv_example.c -lopenblas -O2 -g

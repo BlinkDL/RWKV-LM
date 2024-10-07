@@ -1,0 +1,42 @@
+Goal: to run "chat" on arm devices
+Non-goal: training; batch inference (e.g. lm-eval)
+
+tested: rpi4 (4c A72), rpi5 (4c A76), odroid-n2 (6c, 4+2)
+
+Ubuntu 22.04
+
+mkdir ~/workspace-rwkv
+cd ~/workspace-rwkv
+git clone https://github.com/fxlin/RWKV-LM.git
+
+
+sudo apt update
+sudo apt install -y python3-pip python3-venv 
+sudo apt install -y ninja-build        # only needed for CUDA?
+
+cd ~/workspace-rwkv
+python3 -m venv myenv
+# make sure path is right
+which pip
+which python3
+# --- should point to myvenv
+
+# ---- deploy models --- #
+sudo mkdir -p /data/models/pi-deployment
+sudo chown $USER:$USER /data/models/pi-deployment
+# ... cp models from another machine ...
+# e.g. from my PC: 
+scp -3 amd2:/data/models/pi-deployment/* odroid:/data/models/pi-deployment/
+
+# --- every time ----- #
+cd ~/workspace-rwkv/RWKV-LM/RWKV-v5
+source env-pi.sh
+
+# ------ python packages ---- #
+cd RWKV-v5
+pip install -r requirements-pi.txt
+
+
+COMMON PROBLEMS....
+on non-cuda machines, complaining failing to build cuBLAS, CUDA, etc. 
+make sure envvar "RWKV_CUDA_ON" is 0, which is auto set in env-pi.sh

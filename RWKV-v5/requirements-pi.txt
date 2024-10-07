@@ -1,0 +1,4 @@
+# for "chat" inference only (e.g. on rpi). 
+torch
+numpy
+matplotlib

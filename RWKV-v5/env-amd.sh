@@ -15,3 +15,5 @@ export CUDA_HOME=/usr/local/cuda-12/
 #export PATH=$PATH:${HOME}/.local/bin
 
 export RWKVDATA=/data/rwkv-data
+
+export PYTHONPATH=$PYTHONPATH:${HOME}/workspace-rwkv/RWKV-LM
