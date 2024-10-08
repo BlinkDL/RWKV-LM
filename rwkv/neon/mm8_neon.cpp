@@ -1,4 +1,9 @@
 // by FL Oct 7 2024
+// rpi5: on avg, 20% (?) faster than fp16 unquant version, 10x faster than torch_one_mm8.
+//  the problem is multithreading overhead & stragglers -- attn involves multiple matmul, each taking <1 ms to run
+//       tuning # of threads can mitigate, but not eliminate.
+//  for this, on test-rwkv-chat with fp16i8 is 10%-20% slower than fp16. more pronounced on smaller models & matrices. 
+//  the upper bound of fp16i8 --- maybe 20% faster than fp16? TBD
 
 #include <cstdint>
 #include <vector>
@@ -1060,10 +1065,9 @@ torch::Tensor mm_seq_fp32i8(
     return y;
 }
 
-
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("mm_one_fp16i8", &mm_one_fp16i8, "Matrix multiplication with int8 weights and float16 inputs (ARM Cortex-A76 optimized)");
-    m.def("mm_one_fp32i8", &mm_one_fp32i8, "Matrix multiplication with int8 weights and float32 inputs (ARM Cortex-A76 optimized)");
+    m.def("mm_one_fp32i8", &mm_one_fp32i8, "Matrix multiplication with int8 weights and float32 inputs");
     m.def("mm_seq_fp16i8", &mm_seq_fp16i8, "Sequential matrix multiplication with int8 weights and float16 inputs (ARM Cortex-A76 optimized)");
-    m.def("mm_seq_fp32i8", &mm_seq_fp32i8, "Sequential matrix multiplication with int8 weights and float32 inputs (ARM Cortex-A76 optimized)");
+    m.def("mm_seq_fp32i8", &mm_seq_fp32i8, "Sequential matrix multiplication with int8 weights and float32 inputs");
 }
