@@ -60,7 +60,6 @@ model_path='/data/models/pi-deployment/01b-pre-x59-976'
 # model_path='/data/models/pi-deployment/1b5-pre-x59-929'
 # model_path='/data/models/pi-deployment/01b-pre-x59-CLS-TEST'
 
-
 # #Only head.l1 tuned. KL loss (good
 # model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
 
@@ -115,9 +114,12 @@ model = RWKV(model=model_path,
 
 pipeline = PIPELINE(model, "rwkv_vocab_v20230424")
 
-# ctx = "\nElon Musk has"
 # ex prompt from paper: https://arxiv.org/pdf/2305.07759
-ctx = "\nAlice was so tired when she got back home so she went"
+# ctx = "\nWhat is the sum of 123 and 456"
+ctx = "\nElon Musk has"
+# ctx = "\nAlice was so tired when she got back home so she went"
+# ctx = "\nLily likes cats and dogs. She asked her mom for a dog and her mom said no, so instead she asked"
+# ctx = "\nOnce upon a time there was a little girl named Lucy"
 print(ctx, end='')
 
 def my_print(s):
@@ -135,6 +137,7 @@ args = PIPELINE_ARGS(temperature = 1.0, top_p = 0.7, top_k = 100, # top_k = 0 th
                      token_ban = [0], # ban the generation of some tokens
                      token_stop = [], # stop generation whenever you see any token here
                      chunk_len = 256) # split input into chunks to save VRAM (shorter -> slower)
+
 
 TOKEN_CNT = 200 
 pipeline.generate(ctx, token_count=TOKEN_CNT, args=args, callback=my_print)

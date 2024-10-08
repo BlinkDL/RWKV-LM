@@ -82,7 +82,7 @@ from lm_eval.api.model import TemplateLM
 
 #Only head.l1 tuned, KL loss
 # acc: .331 (openai). minK=3, maxK=100, minProb=.95 <--- NEED TO CAREFULLY VERIFY
-MODEL_NAME='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
+# MODEL_NAME='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
 #MODEL_NAME='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
 #MODEL_NAME='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/04b-pre-x59-8x-cls/rwkv-30'
 
@@ -90,7 +90,7 @@ MODEL_NAME='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run
 # acc .37 (openai) 8x (default)
 # MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
 # 16x 
-MODEL_NAME = '/data/models/01b-pre-x59-16x-901'
+# MODEL_NAME = '/data/models/01b-pre-x59-16x-901'
 
 # MODEL_NAME = "/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-cls/from-hpc/0.1b-offical"
 # MODEL_NAME = "/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x52/rwkv-1455"
@@ -121,6 +121,26 @@ MODEL_NAME = '/data/models/01b-pre-x59-16x-901'
 'copa': {'acc': 0.68, 'acc_stderr': 0.046882617226215034}}
 '''
 # MODEL_NAME = '/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59/from-hpc/rwkv-860'
+
+
+# + mlp
+#   winogrande
+#                                                    ACC
+#   - all dense:                                     .515
+#   - dense every 5 layers (start from 0)           .509
+#   - 1st half layers (0-11) sparse:                .531 (higher!       
+#   - all sparse:                                   .517 (??
+#
+#   openAI
+#                                                   ACC
+#   - all dense                                    .47
+#   - dense every 2 layers (start from 0):         .46
+#   - denser(but not dense) every 2 layers         .44 (has potential)
+#   - dense every 5 layers (start from 0):         .38
+#   - 1st half layers (0-11) sparse:               .35
+#   - all sparse:                                  .33
+
+MODEL_NAME='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860-mlp'
 
 # 1B5 -- official
 # MODEL_NAME = "/data/models/RWKV-5-World-1B5-v2-20231025-ctx4096"
@@ -191,17 +211,15 @@ MODEL_NAME = '/data/models/01b-pre-x59-16x-901'
 # select benchmarks below 
 
 eval_tasks = [
-        'lambada_openai',
+        'lambada_openai',  # 5k tests
         # 'lambada_standard',
         # 'piqa',
         # 'hellaswag',
-        # 'winogrande',
+        # 'winogrande',       # 2k tests, fast
         # 'arc_easy',
         # 'arc_challenge',
         # 'openbookqa',
         # 'sciq',
-
-        #'leaderboard_gpqa_main',
         #'leaderboard_ifeval',
         #'leaderboard_mmlu_pro',
         #'leaderboard_musr_murder_mysteries',
@@ -323,8 +341,8 @@ class EvalHarnessAdapter(TemplateLM):
                         oo = outputs[i].detach().float()
                         dst = src[i+1]  # xzl: next token, from GT
                         v = F.softmax(oo, dim=-1)[dst]
-                        if v == 0:
-                            v = 0.00000000000000000000000001
+                        #if v == 0:
+                        #    v = 0.00000000000000000000000001
                         logit += math.log(v)    # xzl: accmulate logits for the GT token ... why?
                         _, s_index = torch.sort(oo, descending=True)
                         pred = s_index[0].item()   # xzl: pred token with higehst prob? greedy?
@@ -384,10 +402,15 @@ def do_eval(model_path, isverbose=False, benchmarks=[]):
     # if isverbose: 
     print(f'Loading model - {model_path}')
 
+    quant_bit = 2
+    quant_map = [0.85] * 24
+    mlp_map = [0.7] * 24
+
     # 8/26/24: using fp16 will make some benchmarks (eg openai) nan... so use fp32
-    # rwkv_model = RWKV(model=model_path, strategy='cuda fp16', verbose=isverbose)
-    rwkv_model = RWKV(model=model_path, strategy='cuda fp32', verbose=isverbose)    
-    pipeline = PIPELINE(rwkv_model, "rwkv_vocab_v20230424")
+    model = RWKV(model=model_path, strategy='cuda fp16', verbose=isverbose,
+                 quant_bit=quant_bit, quant_map=quant_map, mlp_map=mlp_map)
+    # model = RWKV(model=model_path, strategy='cuda fp32', verbose=isverbose)    # nneded for cls
+    pipeline = PIPELINE(model, "rwkv_vocab_v20230424")
 
     RWKV_PAD = pipeline.tokenizer.encode('\n') # we will use '\n' as PAD
     # RWKV_PAD = [0] # you can try using [0] as pad
@@ -419,5 +442,6 @@ if __name__ == "__main__":
     results = do_eval(MODEL_NAME, isverbose=False)
     # print(results)
     print(json.dumps(results, indent=4, sort_keys=False))
+    print("\a")   # audiable alert when done -- works on linux & Mac terminals.
 
 

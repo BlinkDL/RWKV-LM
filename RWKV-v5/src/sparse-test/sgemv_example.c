@@ -72,12 +72,20 @@ float* load_matrix_from_file_mmap(const char *filename, int M, int N) {
         exit(1);
     }
 
+    // Advise the kernel that the mapped region will be needed
+    // in theory would help, but in practice, not much diff 
+#if 0    
+    if (madvise(mapped_A, size, MADV_WILLNEED) == -1) {
+        perror("Error with madvise");
+        munmap(mapped_A, size);
+        close(fd);
+        exit(1);
+    }
+#endif
     printf("%s\n", __func__); 
     for (int i = 0; i < 10; i++) {
         printf("%f ", mapped_A[i]);
     }
-
-
     close(fd);
     return mapped_A;
 }
@@ -343,4 +351,12 @@ int main(int argc, char *argv[]) {
     4K,1k       A          -sparse            4.3ms        (20% faster than dense, in-mem)
 
     2k,1k       A          -in-mem         ????  (what will happen??? -- TBD
+
+    odroid 
+    ./sgemv_example -in-mem
+    (myenv) odroid@odroid (sparsity-exp)[sparse-test]$ ./sgemv_example -in-mem
+    creation A. time: 134.94 ms
+    cblas_sgemv time of cblas_sgemv: 2.47 ms <<<<< this 
+
+    ./sgemv_example -mmap
 */

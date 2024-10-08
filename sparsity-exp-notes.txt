@@ -1,0 +1,63 @@
+sparsity-exp-notes.txt
+
+
+#  about threshold.... 
+
+.4B
+layer 0 #inputs 1497
+layer 0 thr 0.1 sparsity: true 0.940 pred 0.503
+Validation Loss: 0.3362, Validation Accuracy: 55.46%, Recall: 92.79%
+layer 0 thr 0.2 sparsity: true 0.940 pred 0.630
+Validation Loss: 0.3362, Validation Accuracy: 67.41%, Recall: 86.88%
+layer 0 thr 0.3 sparsity: true 0.940 pred 0.712
+Validation Loss: 0.3362, Validation Accuracy: 74.93%, Recall: 81.25%
+layer 0 thr 0.4 sparsity: true 0.940 pred 0.774
+Validation Loss: 0.3362, Validation Accuracy: 80.37%, Recall: 75.20%
+layer 0 thr 0.5 sparsity: true 0.940 pred 0.824
+Validation Loss: 0.3362, Validation Accuracy: 84.59%, Recall: 68.63%
+layer 0 thr 0.6 sparsity: true 0.940 pred 0.867
+Validation Loss: 0.3362, Validation Accuracy: 88.00%, Recall: 61.27%
+
+layer 6 #inputs 1497
+layer 6 thr 0.1 sparsity: true 0.894 pred 0.286
+Validation Loss: 0.4583, Validation Accuracy: 38.59%, Recall: 97.26%
+layer 6 thr 0.2 sparsity: true 0.894 pred 0.437
+Validation Loss: 0.4583, Validation Accuracy: 52.92%, Recall: 93.36%
+layer 6 thr 0.3 sparsity: true 0.894 pred 0.550
+Validation Loss: 0.4583, Validation Accuracy: 63.16%, Recall: 88.43%
+layer 6 thr 0.4 sparsity: true 0.894 pred 0.643
+Validation Loss: 0.4583, Validation Accuracy: 71.11%, Recall: 82.30%
+layer 6 thr 0.5 sparsity: true 0.894 pred 0.722
+Validation Loss: 0.4583, Validation Accuracy: 77.43%, Recall: 74.66%
+layer 6 thr 0.6 sparsity: true 0.894 pred 0.793
+Validation Loss: 0.4583, Validation Accuracy: 82.55%, Recall: 65.43%
+
+
+layer 12 #inputs 1497
+layer 12 thr 0.1 sparsity: true 0.858 pred 0.271
+Validation Loss: 0.4699, Validation Accuracy: 40.49%, Recall: 97.34%
+layer 12 thr 0.2 sparsity: true 0.858 pred 0.415
+Validation Loss: 0.4699, Validation Accuracy: 53.78%, Recall: 93.19%
+layer 12 thr 0.3 sparsity: true 0.858 pred 0.525
+Validation Loss: 0.4699, Validation Accuracy: 63.22%, Recall: 87.78%
+layer 12 thr 0.4 sparsity: true 0.858 pred 0.618
+Validation Loss: 0.4699, Validation Accuracy: 70.62%, Recall: 81.26%
+layer 12 thr 0.5 sparsity: true 0.858 pred 0.699
+Validation Loss: 0.4699, Validation Accuracy: 76.55%, Recall: 73.29%
+layer 12 thr 0.6 sparsity: true 0.858 pred 0.774
+Validation Loss: 0.4699, Validation Accuracy: 81.21%, Recall: 63.52%
+
+
+layer 23 #inputs 1497
+layer 23 thr 0.1 sparsity: true 0.725 pred 0.399
+Validation Loss: 0.3596, Validation Accuracy: 65.75%, Recall: 96.88%
+layer 23 thr 0.2 sparsity: true 0.725 pred 0.497
+Validation Loss: 0.3596, Validation Accuracy: 73.77%, Recall: 93.66%
+layer 23 thr 0.3 sparsity: true 0.725 pred 0.563
+Validation Loss: 0.3596, Validation Accuracy: 78.43%, Recall: 90.20%
+layer 23 thr 0.4 sparsity: true 0.725 pred 0.616
+Validation Loss: 0.3596, Validation Accuracy: 81.55%, Recall: 86.24%
+layer 23 thr 0.5 sparsity: true 0.725 pred 0.663
+Validation Loss: 0.3596, Validation Accuracy: 83.71%, Recall: 81.63%
+layer 23 thr 0.6 sparsity: true 0.725 pred 0.707
+Validation Loss: 0.3596, Validation Accuracy: 85.10%, Recall: 76.11%

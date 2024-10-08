@@ -151,5 +151,7 @@ dmypy.json
 RWKV-v5/out/L12-D768-x052
 
 .vscode/settings.json
+RWKV-v5/src/sparse-test/sgemv_example
+RWKV-v5/src/sparse-test/test-mmap-overlay
 rwkv/neon/build-err.txt
 rwkv/neon/build-log.txt
