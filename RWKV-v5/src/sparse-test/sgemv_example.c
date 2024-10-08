@@ -82,17 +82,16 @@ float* load_matrix_from_file_mmap(const char *filename, int M, int N) {
         exit(1);
     }
 #endif
-
     printf("%s\n", __func__); 
     for (int i = 0; i < 10; i++) {
         printf("%f ", mapped_A[i]);
     }
-
     close(fd);
     return mapped_A;
 }
 
 // do mmap, then madvise() to mark sparse regions
+// --- bad. use _overlay instead
 float* load_matrix_from_file_mmap_madvise(const char *filename, int M, int N) {
     int fd = open(filename, O_RDONLY);
     if (fd == -1) {
@@ -352,7 +351,6 @@ int main(int argc, char *argv[]) {
     4K,1k       A          -sparse            4.3ms        (20% faster than dense, in-mem)
 
     2k,1k       A          -in-mem         ????  (what will happen??? -- TBD
-
 
     odroid 
     ./sgemv_example -in-mem

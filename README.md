@@ -60,7 +60,6 @@ submit eval job
 ```
 Results will be written to eval_log.txt, eval_log.png
 
-
 --------------------------------------------
 (the original README below)
 

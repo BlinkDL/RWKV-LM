@@ -1,0 +1,1 @@
+python3 setup.py build_ext --inplace --verbose > >(tee "./build-log.txt") 2> >(tee "./build-err.txt" >&2)

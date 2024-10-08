@@ -204,6 +204,7 @@ void cuda_mm8_one<float>(int N, int M,
         mx, rx, my, ry, y);
 }
 
+// xzl: NB: return y as a fp32 
 __global__ void kernel_mm_one_fp16i8(
     const int N, const int M,
     const __half *__restrict__ const x,

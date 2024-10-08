@@ -5,6 +5,8 @@
 import os, sys
 import numpy as np
 import torch
+import matplotlib.pyplot as plt
+
 from torch.nn import functional as F
 
 class PIPELINE_ARGS():
@@ -143,6 +145,7 @@ class PIPELINE():
                     callback(tmp)
                 out_str += tmp
                 out_last = i + 1
+                
         if collect_sparse_data:
             return out_str, data_tensors
         else:

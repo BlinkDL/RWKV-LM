@@ -1,8 +1,6 @@
-/* 
+// dd if=/dev/random of=/tmp/existing_file.bin bs=4K count=2
 
-dd if=/dev/random of=/tmp/existing_file.bin iflag=fullblock bs=1M count=4
-
-When you create an anonymous mapping on top of an existing memory-mapped
+/* When you create an anonymous mapping on top of an existing memory-mapped
 region (such as one backed by a file), you essentially replace the original
 mapping with the new one */
 

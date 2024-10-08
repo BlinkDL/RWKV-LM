@@ -21,7 +21,6 @@ NLAYERS=12
 
 # .4b
 # outpath='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP'
-
 #outpath='/home/bfr4xr/RWKV-LM/RWKV-v5/out/1b5-pre-x59-8x-sparsity'
 #outpath='/home/bfr4xr/RWKV-LM/RWKV-v5/out/04b-pre-x59-8x-sparsity'
 # save mlp to...  
@@ -50,7 +49,7 @@ class MLP(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(MLP, self).__init__()
         # hidden dim
-        #self.ddd = 256   # no much better
+        # self.ddd = 256   # no much better
         self.ddd = 64  # balanced
         # self.ddd = 32       # no much worse than 32
         # Two fully connected layers, bias=None as in dejavu
@@ -107,7 +106,7 @@ def train_layer(layer_id):
     # weights[0] (D,3.5xD)
     D1 = weights[layer_id].shape[0]
     D2 = weights[layer_id].shape[1]   # # of cols -- # of vectors to be indexed
-    batch_size = 4
+    batch_size = 16
 
     # train/val split 
     n_batches = labels[layer_id].shape[0] // batch_size
@@ -388,7 +387,6 @@ def train_layer(layer_id):
                 #     largest_k_items = dists[largest_k_indices]            
 
         #breakpoint()
-
         if False: 
             pq, X_code = train_layer_pq(layer_id)
             # query = val_inputs.cpu().numpy().astype(np.float32) # can only do float32
@@ -448,11 +446,8 @@ if __name__ == '__main__':
         w=load_a_tensor(outpath_weights)
         weights[layer_id]=w
 
-        print("##### ", layer_id)
         q=load_tensors(outpath_query)
-        #for row in q:
-        #    print(len(row))
-        #continue
+
         inputs[layer_id]=torch.stack(q)
 
         ## gen T/F labels by running the actual matmul
@@ -478,11 +473,9 @@ if __name__ == '__main__':
 
         # train mlp    
         train_layer(layer_id)
-        del q
-        del inputs[layer_id]
 
-    if model_dict:
-        print(f'saved to:' + out_model_file)
+    # if model_dict:
+    #     print(f'saved to:' + out_model_file)
 
 '''
 .1b, train 100 epochs, MLP d=64
@@ -675,5 +668,5 @@ Validation Loss: 0.4002, Validation Accuracy: 81.18%, Recall: 80.99%
 layer 23 #inputs 1497
 layer 23 sparsity: true 0.7246074080467224 pred 0.6535896062850952
 Validation Loss: 0.3877, Validation Accuracy: 82.07%, Recall: 80.33%
-
 '''
+

@@ -2,21 +2,32 @@
 test rwkv inference engine
 cf: https://pypi.org/project/rwkv/
 
+speed benchmark res - see of file
+full res: 
+https://myuva.sharepoint.com/:x:/r/sites/XSEL-RWKV/Shared%20Documents/RWKV/results_rwkv.xlsx?d=wbf0bd61c5429469a8c039df4d8d4f46a&csf=1&web=1&e=0dyjUv
 '''
 import sys, os
+import time
 
 # run chat app on the inference engine (rwkv), check for sanity 
 
 # xzl: use our own version of lm_eval, rwkv
-sys.path.append('/home/xl6yq/workspace-rwkv/RWKV-LM')
 
-os.environ["RWKV_JIT_ON"] = '1'
+home_dir = os.environ.get('HOME')
+if home_dir == None: 
+    home_dir = "/home/xl6yq"  # guessed
+home_dir += "/"
+
+sys.path.append(home_dir + 'workspace-rwkv/RWKV-LM')
+if os.environ.get("RWKV_JIT_ON") != '0':
+    os.environ["RWKV_JIT_ON"] = '1'
 
 if os.environ.get('RWKV_CUDA_ON') != '0':
     os.environ["RWKV_CUDA_ON"] = '1' #default
 
 from rwkv.model import RWKV
 from rwkv.utils import PIPELINE, PIPELINE_ARGS
+import os
 
 
 # rva
@@ -40,11 +51,14 @@ from rwkv.utils import PIPELINE, PIPELINE_ARGS
 
 # model_path='/data/models/0.1b-pre-x59-16x-1451'
 # model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
+# model_path='/data/models/pi-deployment/01b-pre-x52-1455'
+# model_path='/data/models/pi-deployment/01b-pre-x52-1455_fp16i8'     # can directly load quant model like this. cf "conversion" below
+model_path='/data/models/pi-deployment/01b-pre-x59-976'
 
-#.4b, x59
-# model_path='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860'
-## + mlp
-model_path='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860-mlp'
+# model_path='/data/models/pi-deployment/04b-pre-x59-2405'
+
+# model_path='/data/models/pi-deployment/1b5-pre-x59-929'
+# model_path='/data/models/pi-deployment/01b-pre-x59-CLS-TEST'
 
 # #Only head.l1 tuned. KL loss (good
 # model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/run3-KL-loss/rwkv-43'
@@ -74,12 +88,29 @@ print(f'Loading model - {model_path}')
 # 'cuda fp16i8 *10+' = first 10 layers cuda fp16i8, then fp16i8 stream the rest to it (increase 10 for better speed)
 # 'cuda fp16i8 *0+ -> cpu fp32 *1' = stream all layers cuda fp16i8, last 1 layer [ln_out+head] cpu fp32
 
+if os.environ["RWKV_CUDA_ON"] == '1':
+    strategy='cuda fp16'
+    # strategy='cuda fp16i8',
+else:
+    # strategy='cpu fp16'
+    strategy='cpu fp16i8'
 
+# use below to quantize model & save
+if False: 
+    strategy_token = strategy.split()[1]
+    basename, extension = os.path.splitext(os.path.basename(model_path))
+    save_path = os.path.join(os.path.dirname(model_path), f"{basename}_{strategy_token}{extension}")
+    print(f'Save path: {save_path}')
+    model = RWKV(model=model_path, strategy=strategy, verbose=True, convert_and_save_and_exit=save_path)
+    sys.exit(0)
+
+t0 = time.time()
 model = RWKV(model=model_path, 
-             strategy='cuda fp16', 
-            # strategy='cuda fp16i8',
+             strategy=strategy, 
              verbose=True)
 #              head_K=200, load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy')
+
+
 
 pipeline = PIPELINE(model, "rwkv_vocab_v20230424")
 
@@ -94,6 +125,8 @@ print(ctx, end='')
 def my_print(s):
     print(s, end='', flush=True)
 
+t1 = time.time()
+
 # For alpha_frequency and alpha_presence, see "Frequency and presence penalties":
 # https://platform.openai.com/docs/api-reference/parameter-details
 
@@ -105,15 +138,19 @@ args = PIPELINE_ARGS(temperature = 1.0, top_p = 0.7, top_k = 100, # top_k = 0 th
                      token_stop = [], # stop generation whenever you see any token here
                      chunk_len = 256) # split input into chunks to save VRAM (shorter -> slower)
 
-# pipeline.generate(ctx, token_count=200, args=args, callback=my_print)
-# xzl: gen 500 tokens for collecting sparsity training data 
-pipeline.generate(ctx, token_count=500, args=args, callback=my_print)
+
+TOKEN_CNT = 200 
+pipeline.generate(ctx, token_count=TOKEN_CNT, args=args, callback=my_print)
 print('\n')
+
+t2 = time.time()
+
+print(f"model build: {(t1-t0):.2f} sec, exec {TOKEN_CNT} tokens in {(t2-t1):.2f} sec, {TOKEN_CNT/(t2-t1):.2f} tok/sec")
 
 if model.stat_runs != 0:
     print(f"stats: runs: {model.stat_runs} \
         cls/run {model.stat_loaded_cls/model.stat_runs:.2f} \
-        tokens/run {model.state_loaded_tokens/model.stat_runs/65535:.2f}")
+        tokens/run {model.stat_loaded_tokens/model.stat_runs/65535:.2f}")
       
 '''
 # xzl: what are thsse for??? demo cut a long prompt into pieces and feed??
@@ -124,4 +161,35 @@ out, state = model.forward([1563], state)           # RNN has state (use deepcop
 out, state = model.forward([310, 247], state)
 print(out.detach().cpu().numpy())                   # same result as above
 print('\n')
+'''
+
+'''
+speed test 
+(careful: vscode-server will take quite some cpu time)
+
+rpi5 (4GB DRAM, supports fp16 in neon)
+                                tok/sec
+x52     01b-pre-x52-1455        15.3                
+    fp16i8 v3                       ~12 tok/sec  
+            (reason: openmp multithreading straggler?. occassionally, mm8 takes 3x-4x longer to finish)
+    fp16i8 v4                       ~10 tok/sec  
+            (even for M=N=768, 2t is still benefitical; better than 1t)
+                                 
+x59     01b-pre-x59-976         10.5
+        fp16i8 v3                  8.13                        
+
+04b    04b-pre-x59-2405        3.36 (not too bad
+    fp16i8 v3                  3.0 (not too bad)
+
+1b5        OOM
+
+--------------
+rpi4  (only support fp32 in neon)
+                                tok/sec
+x52     01b-pre-x52-1455        5.1      
+    fp16i8                       .4 (very slow)
+x59     01b-pre-x59-976         3.1                                
+    fp16i8                      .45 (very slow)
+
+    1b5                          .26 (slow)
 '''
