@@ -6,7 +6,16 @@
 #export CUDA_VISIBLE_DEVICES=1,2,3
 #export CUDA_VISIBLE_DEVICES=0
 
-source /home/xl6yq/workspace-rwkv/venv/bin/activate
+if [[ $USER == "bfr4xr" ]]; then
+    conda activate rwkv
+    RWKV_HOME=/home/bfr4xr/RWKV-LM
+elif [[ $USER == "xl6yq" ]]; then
+    source /home/xl6yq/workspace-rwkv/venv/bin/activate
+    RWKV_HOME=/home/xl6yq/workspace-rwkv/RWKV-LM
+fi
+
+export RWKV_HOME
+
 
 #expected by deepspeed installation 
 #export CUDA_HOME=/sw/ubuntu-22.04/cuda/12.4.0/

@@ -2,33 +2,47 @@ import torch
 import nanopq
 import statistics
 import numpy as np
+import io
+import argparse
+from time import time
 
 import torch.nn as nn
 import torch.optim as optim
 
+parser = argparse.ArgumentParser(description='Your script description here')
+parser.add_argument('--layer', default=0, type=int, help='An integer parameter')
+args = parser.parse_args()
+
 # --- res: cf end of file --- 
 in_model_file=None
-
 # .1b
 # outpath='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pre-x59-SPARSITY-EXP'
-# outpath='/data/home/bfr4xr/RWKV-LM/RWKV-v5/out/01b-pre-x59-8x-sparsity'
-outpath='/data/tmp/xly6q/01b-pre-x59-8x-sparsity'
 NLAYERS=12
 
 # .4b
 # outpath='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP'
-# NLAYERS=24
+
+#outpath='/home/bfr4xr/RWKV-LM/RWKV-v5/out/1b5-pre-x59-8x-sparsity'
+#outpath='/home/bfr4xr/RWKV-LM/RWKV-v5/out/04b-pre-x59-8x-sparsity'
 # save mlp to...  
+#in_model_file = '/home/bfr4xr/RWKV-LM/RWKV-v5/out/3b-official-sparsity/official.pth'
+#out_model_file = '/home/bfr4xr/RWKV-LM/RWKV-v5/out/3b-official-sparsity/official-mlp.pth'
+
+#in_model_file = '/home/bfr4xr/RWKV-LM/RWKV-v5/out/04b-pre-x59-8x-sparsity/rwkv-2405-mlp.pth'
+#out_model_file = '/home/bfr4xr/RWKV-LM/RWKV-v5/out/04b-pre-x59-8x-sparsity/rwkv-2405-mlp.pth'
+#in_model_file = f'{outpath}/rwkv-385-mlp.pth'
+#out_model_file = f'{outpath}/rwkv-385-mlp.pth'
 # in_model_file = '/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860.pth'
 # out_model_file = '/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860-mlp.pth'
 
 ###############################################
-# TEST_LAYERS = range(0,NLAYERS)
-TEST_LAYERS = [0, NLAYERS//2, NLAYERS-1]   # sample
+TEST_LAYERS = range(0, NLAYERS)
+#TEST_LAYERS = [0, NLAYERS//2, NLAYERS-1]   # sample
+#TEST_LAYERS = [args.layer]   # sample
 ###############################################
 # TEST_THR = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-TEST_THR = [0.5, 0.6, 0.7, 0.8]
-# TEST_THR = [0.3]
+#TEST_THR = [0.5, 0.6, 0.7, 0.8]
+TEST_THR = [0.7]
 ###############################################
 
 # Define a simple 2-layer MLP
@@ -36,7 +50,7 @@ class MLP(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(MLP, self).__init__()
         # hidden dim
-        # self.ddd = 256   # no much better
+        #self.ddd = 256   # no much better
         self.ddd = 64  # balanced
         # self.ddd = 32       # no much worse than 32
         # Two fully connected layers, bias=None as in dejavu
@@ -70,29 +84,21 @@ def train_layer_pq(layer_id):
     X_code = pq.encode(X)
     return pq, X_code
 
-
-# Define the quantization configuration for 4-bit
-def quantize_4bit(tensor):
+# Custom n-bit quantization function
+def quantize(tensor, bit):
+    factor = pow(2, bit) - 1
     min_val, max_val = tensor.min(), tensor.max()
-    scale = (max_val - min_val) / 15  # 2^4 - 1 = 15
+    scale = (max_val - min_val) / factor  # 2^2 - 1 = 3
     zero_point = min_val
-    quantized = ((tensor - zero_point) / scale).round().clamp(0, 15).to(torch.int8)
+    quantized = ((tensor - zero_point) / scale).round().clamp(0, factor).to(torch.int8)
     return quantized, scale, zero_point
 
-def dequantize_4bit(quantized, scale, zero_point):
-    return quantized.to(torch.half) * scale + zero_point
-
-# Custom 2-bit quantization function
-def quantize_2bit(tensor):
-    min_val, max_val = tensor.min(), tensor.max()
-    scale = (max_val - min_val) / 3  # 2^2 - 1 = 3
-    zero_point = min_val
-    quantized = ((tensor - zero_point) / scale).round().clamp(0, 3).to(torch.int8)
-    return quantized, scale, zero_point
-
-# Custom 2-bit dequantization function
-def dequantize_2bit(quantized, scale, zero_point):
-    return quantized.to(torch.float32) * scale + zero_point
+# Custom n-bit dequantization function
+def dequantize(quantized, scale, zero_point, bit):
+    if bit == 4:
+        return quantized.to(torch.half) * scale + zero_point
+    else:
+        return quantized.to(torch.float32) * scale + zero_point
 
     
 def train_layer(layer_id):
@@ -101,7 +107,7 @@ def train_layer(layer_id):
     # weights[0] (D,3.5xD)
     D1 = weights[layer_id].shape[0]
     D2 = weights[layer_id].shape[1]   # # of cols -- # of vectors to be indexed
-    batch_size = 16
+    batch_size = 4
 
     # train/val split 
     n_batches = labels[layer_id].shape[0] // batch_size
@@ -240,14 +246,6 @@ def train_layer(layer_id):
             
             # breakpoint()
 
-            print(f'Top {K} false negative values: {top_k_false_neg_vals}')
-            print(f'Top {K} true positive values: {top_k_true_pos_vals}')
-
-            print(f'true_pos_vals: min {true_pos_vals.min()} max {true_pos_vals.max()} mean {true_pos_vals.mean()} median {torch.median(true_pos_vals)}')
-            print(f'false_neg_vals: min {false_neg_vals.min()} max {false_neg_vals.max()} mean {false_neg_vals.mean()} median {torch.median(false_neg_vals)}')
-            
-            # breakpoint()
-
             false_negatives = false_negatives_mask.sum()  # Count of FN
             recall = true_positives / (true_positives + false_negatives + 1e-10)  # Add epsilon to avoid division by zero
 
@@ -267,7 +265,7 @@ def train_layer(layer_id):
                 kx = val_inputs[0][0].half()
                 k = kx @ kw
                 vx = torch.relu(k) ** 2
-                assert torch.equal(vx, val_outputs_gt[0][0])
+                #assert torch.equal(vx, val_outputs_gt[0][0].half())
 
                 gt_output = val_outputs_gt[0][0].cpu().numpy()
                 negs_idx = top_k_indices1[0][0].cpu().numpy()
@@ -307,27 +305,52 @@ def train_layer(layer_id):
                 '''
 
                 #  --- 4 bit quantization
-                kw_4bit, scale_kw_4bit, zero_kw_4bit = quantize_4bit(kw)
-                kx_4bit, scale_kx_4bit, zero_kx_4bit = quantize_4bit(kx)
-                
-                kw_4bit_dequant = dequantize_4bit(kw_4bit, scale_kw_4bit, zero_kw_4bit)
-                kx_4bit_dequant = dequantize_4bit(kx_4bit, scale_kx_4bit, zero_kx_4bit)
+                start = time()
+                kw_4bit, scale_kw_4bit, zero_kw_4bit = quantize(kw, 4)
+                end = time()
+                print(f'4bit kw quantization time: {end-start}')
+                kx_4bit, scale_kx_4bit, zero_kx_4bit = quantize(kx, 4)
+               
+                start = time()
+                kw_4bit_dequant = dequantize(kw_4bit, scale_kw_4bit, zero_kw_4bit, 4)
+                end = time()
+                print(f'4bit kw dequantization time: {end-start}')
+                kx_4bit_dequant = dequantize(kx_4bit, scale_kx_4bit, zero_kx_4bit, 4)
                 result_4bit = kx_4bit_dequant @ kw_4bit_dequant
 
                 # --- 2-bit quantization
-                kw_2bit, scale_kw_2bit, zero_kw_2bit = quantize_2bit(kw)
-                kx_2bit, scale_kx_2bit, zero_kx_2bit = quantize_2bit(kx)
+                start = time()
+                kw_2bit, scale_kw_2bit, zero_kw_2bit = quantize(kw, 2)
+                end = time()
+                print(f'2bit kw quantization time: {end-start}')
+                kx_2bit, scale_kx_2bit, zero_kx_2bit = quantize(kx, 2)
 
-                kw_2bit_dequant = dequantize_2bit(kw_2bit, scale_kw_2bit, zero_kw_2bit)
-                kx_2bit_dequant = dequantize_2bit(kx_2bit, scale_kx_2bit, zero_kx_2bit)
+                start = time()
+                kw_2bit_dequant = dequantize(kw_2bit, scale_kw_2bit, zero_kw_2bit, 2)
+                end = time()
+                print(f'2bit kw dequantization time: {end-start}')
+                kx_2bit_dequant = dequantize(kx_2bit, scale_kx_2bit, zero_kx_2bit, 2)
                 result_2bit = kx_2bit_dequant @ kw_2bit_dequant
+
+                start = time()
+                kw_1bit, scale_kw_1bit, zero_kw_1bit = quantize(kw, 1)
+                end = time()
+                print(f'1bit kw quantization time: {end-start}')
+                kx_1bit, scale_kx_1bit, zero_kx_1bit = quantize(kx, 1)
+
+                start = time()
+                kw_1bit_dequant = dequantize(kw_1bit, scale_kw_1bit, zero_kw_1bit)
+                end = time()
+                print(f'1bit kw dequantization time: {end-start}')
+                kx_1bit_dequant = dequantize(kx_1bit, scale_kx_1bit, zero_kx_1bit)
+                result_1bit = kx_1bit_dequant @ kw_1bit_dequant
 
                 '''
                 ex: GT: 209 activated; quant: 139 activated (95% percentile), 24 false positive
                 '''
 
                 per = 0.85  # percetile we use to take quant as activated            
-                result=result_2bit.float()
+                result=result_1bit.float()
                 percentile = torch.quantile(result, per).item()
                 # msk=(result>percentile)
                 # masked=val_outputs_gt[0][0].cpu()[msk]
@@ -348,7 +371,10 @@ def train_layer(layer_id):
                 # -- quant perf
                 tp = (quant_pred * gt_labels).sum()
                 fn = ((1 - quant_pred) * gt_labels).sum()
-                sparsity = 1 - torch.sum(quant_pred) / torch.numel(quant_pred)
+                sparsity = 1 - torch.sum(quant_pred) / torch.numel(result)
+                print(torch.sum(quant_pred))
+                print(torch.numel(quant_pred))
+                print(torch.numel(result))
                 print(f'\033[91mQUANT per {per} tp {tp} fn {fn} sparse {sparsity:.2f}\033[0m')
 
                 # -- ensemble perf
@@ -361,7 +387,7 @@ def train_layer(layer_id):
                 #     largest_k_indices = np.argpartition(dists, -K)[-K:]
                 #     largest_k_items = dists[largest_k_indices]            
 
-        breakpoint()
+        #breakpoint()
 
         if False: 
             pq, X_code = train_layer_pq(layer_id)
@@ -396,8 +422,9 @@ def load_tensors(file_path):
     Load the list of tensors from the file.
     """
     try:
-        data = torch.load(file_path, map_location=torch.device('cuda'),weights_only=True)
+        data = torch.load(file_path, map_location=torch.device('cuda'), weights_only=True)
         if isinstance(data, list):
+            print(len(data))
             return data
     except FileNotFoundError:
         print("File not found.")
@@ -421,7 +448,11 @@ if __name__ == '__main__':
         w=load_a_tensor(outpath_weights)
         weights[layer_id]=w
 
+        print("##### ", layer_id)
         q=load_tensors(outpath_query)
+        #for row in q:
+        #    print(len(row))
+        #continue
         inputs[layer_id]=torch.stack(q)
 
         ## gen T/F labels by running the actual matmul
@@ -447,9 +478,11 @@ if __name__ == '__main__':
 
         # train mlp    
         train_layer(layer_id)
+        del q
+        del inputs[layer_id]
 
-    # if model_dict:
-    #     print(f'saved to:' + out_model_file)
+    if model_dict:
+        print(f'saved to:' + out_model_file)
 
 '''
 .1b, train 100 epochs, MLP d=64

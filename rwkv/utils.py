@@ -88,17 +88,25 @@ class PIPELINE():
             out = torch.multinomial(probs, num_samples=1)[0]
             return int(out)
     
-    def generate(self, ctx, token_count=100, args=PIPELINE_ARGS(), callback=None, state=None):
+    def generate(self, ctx, token_count=100, args=PIPELINE_ARGS(), callback=None, state=None,
+                 collect_sparse_data=False):
         all_tokens = []
         out_last = 0
         out_str = ''
         occurrence = {}   # xzl: will decay over time 
+        if collect_sparse_data:
+            data_tensors = [] # WC: FFN tensors * # of layers
         for i in range(token_count):
 
             # forward & adjust prob.
             tokens = self.encode(ctx) if i == 0 else [token]
             while len(tokens) > 0:
-                out, state = self.model.forward(tokens[:args.chunk_len], state)
+                if collect_sparse_data:
+                    out, state, tensors = self.model.forward(tokens[:args.chunk_len], state)
+                    if len(tensors) > 0:
+                        data_tensors.append(tensors)
+                else:
+                    out, state = self.model.forward(tokens[:args.chunk_len], state)
                 tokens = tokens[args.chunk_len:]
                 
             # xzl: out: logits over all possible tokens
@@ -135,4 +143,7 @@ class PIPELINE():
                     callback(tmp)
                 out_str += tmp
                 out_last = i + 1
-        return out_str
+        if collect_sparse_data:
+            return out_str, data_tensors
+        else:
+            return out_str

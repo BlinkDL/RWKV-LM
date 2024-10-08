@@ -220,8 +220,6 @@ eval_tasks = [
         # 'arc_challenge',
         # 'openbookqa',
         # 'sciq',
-
-        #'leaderboard_gpqa_main',
         #'leaderboard_ifeval',
         #'leaderboard_mmlu_pro',
         #'leaderboard_musr_murder_mysteries',
@@ -343,8 +341,8 @@ class EvalHarnessAdapter(TemplateLM):
                         oo = outputs[i].detach().float()
                         dst = src[i+1]  # xzl: next token, from GT
                         v = F.softmax(oo, dim=-1)[dst]
-                        if v == 0:
-                            v = 0.00000000000000000000000001
+                        #if v == 0:
+                        #    v = 0.00000000000000000000000001
                         logit += math.log(v)    # xzl: accmulate logits for the GT token ... why?
                         _, s_index = torch.sort(oo, descending=True)
                         pred = s_index[0].item()   # xzl: pred token with higehst prob? greedy?
@@ -404,8 +402,13 @@ def do_eval(model_path, isverbose=False, benchmarks=[]):
     # if isverbose: 
     print(f'Loading model - {model_path}')
 
+    quant_bit = 2
+    quant_map = [0.85] * 24
+    mlp_map = [0.7] * 24
+
     # 8/26/24: using fp16 will make some benchmarks (eg openai) nan... so use fp32
-    model = RWKV(model=model_path, strategy='cuda fp16', verbose=isverbose)
+    model = RWKV(model=model_path, strategy='cuda fp16', verbose=isverbose,
+                 quant_bit=quant_bit, quant_map=quant_map, mlp_map=mlp_map)
     # model = RWKV(model=model_path, strategy='cuda fp32', verbose=isverbose)    # nneded for cls
     pipeline = PIPELINE(model, "rwkv_vocab_v20230424")
 
