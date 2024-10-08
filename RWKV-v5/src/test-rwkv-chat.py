@@ -19,7 +19,7 @@ if home_dir == None:
 home_dir += "/"
 
 sys.path.append(home_dir + 'workspace-rwkv/RWKV-LM')
-if os.environ["RWKV_JIT_ON"] != '0':
+if os.environ.get("RWKV_JIT_ON") != '0':
     os.environ["RWKV_JIT_ON"] = '1'
 
 if os.environ.get('RWKV_CUDA_ON') != '0':
@@ -51,9 +51,12 @@ import os
 
 # model_path='/data/models/0.1b-pre-x59-16x-1451'
 # model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
-model_path='/data/models/pi-deployment/01b-pre-x52-1455'
+# model_path='/data/models/pi-deployment/01b-pre-x52-1455'
 # model_path='/data/models/pi-deployment/01b-pre-x52-1455_fp16i8'     # can directly load quant model like this. cf "conversion" below
-# model_path='/data/models/pi-deployment/01b-pre-x59-976'
+model_path='/data/models/pi-deployment/01b-pre-x59-976'
+
+# model_path='/data/models/pi-deployment/04b-pre-x59-2405'
+
 # model_path='/data/models/pi-deployment/1b5-pre-x59-929'
 # model_path='/data/models/pi-deployment/01b-pre-x59-CLS-TEST'
 
@@ -157,7 +160,6 @@ print(out.detach().cpu().numpy())                   # same result as above
 print('\n')
 '''
 
-
 '''
 speed test 
 (careful: vscode-server will take quite some cpu time)
@@ -165,11 +167,16 @@ speed test
 rpi5 (4GB DRAM, supports fp16 in neon)
                                 tok/sec
 x52     01b-pre-x52-1455        15.3                
-    fp16i8                       ~10 tok/sec    (why: att much slower than fp16. TBD
+    fp16i8 v3                       ~12 tok/sec  
+            (reason: openmp multithreading straggler?. occassionally, mm8 takes 3x-4x longer to finish)
+    fp16i8 v4                       ~10 tok/sec  
+            (even for M=N=768, 2t is still benefitical; better than 1t)
                                  
 x59     01b-pre-x59-976         10.5
+        fp16i8 v3                  8.13                        
 
-04b    x59                    3.36 (not too bad
+04b    04b-pre-x59-2405        3.36 (not too bad
+    fp16i8 v3                  3.0 (not too bad)
 
 1b5        OOM
 
