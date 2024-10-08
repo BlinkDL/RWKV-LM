@@ -167,7 +167,6 @@ elif config_neon_fp16: # neon, and native fp16 support
         #     print(f"\n w.shape: {w.shape}, x.shape: {x.shape}")
         #     breakpoint()
         # return xxx
-
         return mm8_neon.mm_one_fp16i8(x, w, mx, rx, my, ry, 3) # ver3
 elif config_has_neon:  # neon, but no fp16 native support, fallback to fp32
     # @MyStatic
@@ -567,9 +566,9 @@ class RWKV(MyModule):
                             print('Note: You are running out of RAM. Get more CPU RAM. Now this will run much slower.')
                     elif DEVICE != 'cpu':   # xzl: if gpu, make it contig immediately
                         w[x] = w[x].to(device=DEVICE).contiguous()
-                    elif config_has_neon or config_neon_fp16: # neon mm8 -- all weights contig in mem, otherwise performance tanks
+                    elif (config_has_neon or config_neon_fp16) and w[x].dtype == torch.uint8: # neon mm8 -- all int8 weights contig in mem, otherwise performance tanks
                         assert DEVICE == 'cpu'
-                        w[x] = w[x].contiguous()                    
+                        w[x] = w[x].contiguous()
                     if (dd.stream) or (DEVICE != 'cpu'):        # move quant scale/bias to GPU now
                         try:
                             w[x+'_mx'] = w[x+'_mx'].to(device=DEVICE).contiguous()
@@ -1367,6 +1366,7 @@ class RWKV(MyModule):
     # xzl: this 
     @MyFunction
     def att_one_v5_1(self, x, sx, s, ln_w, ln_b, lx_w, lx_b, k_mix, v_mix, r_mix, g_mix, t_decay, t_first, kw, vw, rw, gw, ow, kmx, krx, kmy, kry, vmx, vrx, vmy, vry, rmx, rrx, rmy, rry, gmx, grx, gmy, gry, omx, orx, omy, ory):
+        tt0=time.time()        
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         kx = xx * k_mix + sx * (1 - k_mix)
         vx = xx * v_mix + sx * (1 - v_mix)
@@ -1376,20 +1376,31 @@ class RWKV(MyModule):
         H = t_decay.shape[0]
         N = x.shape[-1] // H
 
+        tt1=time.time()
         r = matmul(rx, rw, rmx, rrx, rmy, rry, output_dtype=torch.float32).view(H, 1, N)
         k = matmul(kx, kw, kmx, krx, kmy, kry, output_dtype=torch.float32).view(H, N, 1)
         v = matmul(vx, vw, vmx, vrx, vmy, vry, output_dtype=torch.float32).view(H, 1, N)
+        tt2=time.time()
         g = F.silu(matmul(gx, gw, gmx, grx, gmy, gry))
         
         a = matmul(k, v)
         out = r @ (t_first * a + s)
         s = a + t_decay * s
 
+        # tt3=time.time()
         out = out.flatten()
         out = F.group_norm(out.unsqueeze(0), num_groups=H, weight=lx_w, bias=lx_b, eps = 64e-5).squeeze(0)
         out = out.to(dtype=x.dtype) * g
         out = matmul(out, ow, omx, orx, omy, ory)
 
+        tt4=time.time()
+        print(f"\nTime measurements (in ms):")
+        print(f"total: {(tt4 - tt0) * 1000:.3f}")
+        # print(f"tt1 - tt0: {(tt1 - tt0) * 1000:.3f}")
+        print(f"tt2 - tt1: {(tt2 - tt1) * 1000:.3f}")
+        # print(f"tt3 - tt2: {(tt3 - tt2) * 1000:.3f}")
+        # print(f"tt4 - tt3: {(tt4 - tt3) * 1000:.3f}")
+        breakpoint()
         return x + out, xx, s
 
     @MyFunction
@@ -2372,7 +2383,7 @@ class RWKV(MyModule):
                         rmx, rrx, rmy, rry,
                         gmx, grx, gmy, gry,
                         omx, orx, omy, ory,
-                        )                    
+                        )
                 elif self.version in [5.9, 5.94, 5.95, 5.96]:
                     x, state[i*3+0], state[i*3+1] = ATT(
                         x, state[i*3+0], state[i*3+1],

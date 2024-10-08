@@ -1,3 +1,8 @@
+# enable NEON for mm8
+export RWKV_NEON_ON=1
+# then test-rwkv-chat.py
+# will use neon fp16 on supported platforms
+
 model.py ... optimized inference impl for rwkv (likely for serving 
     much code on model conversion (precision) 
     inference logic implemented in cuda (almost entirely) 
@@ -8,3 +13,6 @@ has logic that covers all rwkv versions....
 
 page: 
 https://pypi.org/project/rwkv/
+
+
+

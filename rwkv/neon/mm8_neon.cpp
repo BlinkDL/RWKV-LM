@@ -9,7 +9,7 @@
 #include <ATen/ATen.h>
 
 
-// #define DEBUG_KERNEL 1 //uncomment to enable debug prints
+#define DEBUG_KERNEL 1 //uncomment to enable debug prints
 
 // cf: rwkv/cuda/operators.cu kernel_mm_one_fp16i8
 // omp, not caring much about memory locality
@@ -214,14 +214,16 @@ void kernel_mm_one_fp16i8_v3(
     const float16_t* mx_fp16_data = reinterpret_cast<const float16_t*>(mx_fp16);
     const float16_t* rx_fp16_data = reinterpret_cast<const float16_t*>(rx_fp16);
 
-    // Determine the number of threads
     int num_threads = omp_get_max_threads();
+    if (N<1000 and M<1000) 
+        num_threads = 1;
 
     // Allocate thread-local accumulators
     std::vector<std::vector<float>> y_private(num_threads, std::vector<float>(M, 0.0f));
 
     // Parallelize over N dimension
-    #pragma omp parallel
+    // #pragma omp parallel
+    #pragma omp parallel num_threads(num_threads)
     {
         int thread_id = omp_get_thread_num();
         float* y_thread = y_private[thread_id].data();
@@ -800,6 +802,30 @@ torch::Tensor mm_one_fp16i8(
             reinterpret_cast<const at::Half*>(my_fp16.data_ptr<at::Half>()),
             reinterpret_cast<const at::Half*>(ry_fp16.data_ptr<at::Half>()),
             y.data_ptr<float>());
+        break;
+    case 4:     // dynamic, based on N,M
+        if (N < 1000 && M < 1000) { // no openmp
+            kernel_mm_one_fp16i8_v2(
+                N, M,
+                reinterpret_cast<const at::Half*>(x_fp16.data_ptr<at::Half>()),
+                w_uint8.data_ptr<uint8_t>(), w_stride,
+                reinterpret_cast<const at::Half*>(mx_fp16.data_ptr<at::Half>()),
+                reinterpret_cast<const at::Half*>(rx_fp16.data_ptr<at::Half>()),
+                reinterpret_cast<const at::Half*>(my_fp16.data_ptr<at::Half>()),
+                reinterpret_cast<const at::Half*>(ry_fp16.data_ptr<at::Half>()),
+                y.data_ptr<float>());
+        }
+        else {  // openmp
+            kernel_mm_one_fp16i8_v3(
+                N, M,
+                reinterpret_cast<const at::Half*>(x_fp16.data_ptr<at::Half>()),
+                w_uint8.data_ptr<uint8_t>(), w_stride,
+                reinterpret_cast<const at::Half*>(mx_fp16.data_ptr<at::Half>()),
+                reinterpret_cast<const at::Half*>(rx_fp16.data_ptr<at::Half>()),
+                reinterpret_cast<const at::Half*>(my_fp16.data_ptr<at::Half>()),
+                reinterpret_cast<const at::Half*>(ry_fp16.data_ptr<at::Half>()),
+                y.data_ptr<float>());
+        }
         break;
     default:
         TORCH_CHECK(false, "Invalid version number");

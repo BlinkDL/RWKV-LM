@@ -234,7 +234,7 @@ print(">here")
 # N = 1024
 # M = int(N * 3.5)
 N = 768
-M = 65536
+M = 768
 
 x_fp16 = torch.randn(N, dtype=torch.float16)
 w_uint8 = torch.randint(0, 256, (N, M), dtype=torch.uint8)
@@ -300,7 +300,7 @@ start_time = time.time()
 yy3 = mm8_neon.mm_one_fp16i8(x_fp16, w_uint8, mx_fp16, rx_fp16, my_fp16, ry_fp16, 3)
 end_time = time.time()
 print(f"Execution time for mm_one_fp16i8    v3: {(end_time - start_time) * 1000:.3f} ms")
-print(f"shape w: {w_uint8.shape} x_fp16: {x_fp16.shape} mx_fp16: {mx_fp16.shape} rx_fp16: {rx_fp16.shape} my_fp16: {my_fp16.shape} ry_fp16: {ry_fp16.shape}")
+# print(f"shape w: {w_uint8.shape} x_fp16: {x_fp16.shape} mx_fp16: {mx_fp16.shape} rx_fp16: {rx_fp16.shape} my_fp16: {my_fp16.shape} ry_fp16: {ry_fp16.shape}")
 
 # fp32
 start_time = time.time()
@@ -315,11 +315,21 @@ yyy = mm8_neon.mm_one_fp32i8(
 end_time = time.time()
 print(f"Execution time for mm_one_fp32i8: {(end_time - start_time) * 1000:.3f} ms")
 
-print(f"torch y: {y[:10]}")
-print(f"fp16i8 v1 yy1: {yy1[:10]}")
-print(f"fp16i8 v2 yy2: {yy2[:10]}")
-print(f"fp16i8 v3 yy3: {yy3[:10]}")
-print(f"fp32i8 yyy: {yyy[:10]}")
+# all fp16, no quant
+# Generate random tensors x and w
+x = torch.randn(N, dtype=torch.float16)
+w = torch.randn(N, M, dtype=torch.float16)
+start_time = time.time()
+result = x @ w
+end_time = time.time()
+print(f">>> Execution time for fp16 noquant: {(end_time - start_time) * 1000:.3f} ms")
+
+if False:
+    print(f"torch y: {y[:10]}")
+    print(f"fp16i8 v1 yy1: {yy1[:10]}")
+    print(f"fp16i8 v2 yy2: {yy2[:10]}")
+    print(f"fp16i8 v3 yy3: {yy3[:10]}")
+    print(f"fp32i8 yyy: {yyy[:10]}")
 
 
 y_torch_f32 = y.to(torch.float32)

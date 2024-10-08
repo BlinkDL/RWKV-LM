@@ -19,13 +19,15 @@ if home_dir == None:
 home_dir += "/"
 
 sys.path.append(home_dir + 'workspace-rwkv/RWKV-LM')
-os.environ["RWKV_JIT_ON"] = '1'
+if os.environ["RWKV_JIT_ON"] != '0':
+    os.environ["RWKV_JIT_ON"] = '1'
 
 if os.environ.get('RWKV_CUDA_ON') != '0':
     os.environ["RWKV_CUDA_ON"] = '1' #default
 
 from rwkv.model import RWKV
 from rwkv.utils import PIPELINE, PIPELINE_ARGS
+import os
 
 
 # rva
@@ -50,6 +52,7 @@ from rwkv.utils import PIPELINE, PIPELINE_ARGS
 # model_path='/data/models/0.1b-pre-x59-16x-1451'
 # model_path='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-pretrain-x59/from-hpc/rwkv-976'
 model_path='/data/models/pi-deployment/01b-pre-x52-1455'
+# model_path='/data/models/pi-deployment/01b-pre-x52-1455_fp16i8'     # can directly load quant model like this. cf "conversion" below
 # model_path='/data/models/pi-deployment/01b-pre-x59-976'
 # model_path='/data/models/pi-deployment/1b5-pre-x59-929'
 # model_path='/data/models/pi-deployment/01b-pre-x59-CLS-TEST'
@@ -90,12 +93,22 @@ else:
     # strategy='cpu fp16'
     strategy='cpu fp16i8'
 
-t0 = time.time()
+# use below to quantize model & save
+if False: 
+    strategy_token = strategy.split()[1]
+    basename, extension = os.path.splitext(os.path.basename(model_path))
+    save_path = os.path.join(os.path.dirname(model_path), f"{basename}_{strategy_token}{extension}")
+    print(f'Save path: {save_path}')
+    model = RWKV(model=model_path, strategy=strategy, verbose=True, convert_and_save_and_exit=save_path)
+    sys.exit(0)
 
+t0 = time.time()
 model = RWKV(model=model_path, 
              strategy=strategy, 
              verbose=True)
 #              head_K=200, load_token_cls='/data/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/01b-cls-mine/from-hpc/rwkv-823-cls.npy')
+
+
 
 pipeline = PIPELINE(model, "rwkv_vocab_v20230424")
 
@@ -152,8 +165,8 @@ speed test
 rpi5 (4GB DRAM, supports fp16 in neon)
                                 tok/sec
 x52     01b-pre-x52-1455        15.3                
-    fp16i8                        1 (very slow)     ->> guess: 30 tok/sec??
-                                 2 tok/sec (still slow
+    fp16i8                       ~10 tok/sec    (why: att much slower than fp16. TBD
+                                 
 x59     01b-pre-x59-976         10.5
 
 04b    x59                    3.36 (not too bad
