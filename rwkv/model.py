@@ -2054,7 +2054,7 @@ class RWKV(MyModule):
         #   idea: since the # of predicted CLS is likely small, we may bundle them in one tensor
         # (with padding), do projection & scatter in one go.
         num_tokens=0
-        sum_known_logits_exp = torch.tensor(0.0)  # sum of exp(logits) for all "known" clusters
+        sum_known_logits_exp = torch.tensor(0.0).to(x.device)  # sum of exp(logits) for all "known" clusters
 
         proj_known_time = 0.0 
         scatter_known_time = 0.0
@@ -2071,7 +2071,10 @@ class RWKV(MyModule):
 
             # x1 = x @ w[f'head_l2org.{cls}.weight'] 
             x1 = x @ head_l2org_weight[cls]
-            sum_known_logits_exp += torch.sum(torch.exp(x1)).float()
+            # WC: stabilize the exp(logits) by subtracting the max value
+            # https://blester125.com/blog/softmax.html#:~:text=Subtracting%20the%20maximum%20from%20all,subsequent%20sum%20will%20never%20overflow.
+            exp_x1 = torch.exp(x1 - x1.max()).to(x.device)
+            sum_known_logits_exp += torch.sum(exp_x1).float().to(x.device)
 
             tt1 = time.time()
 
@@ -2090,8 +2093,8 @@ class RWKV(MyModule):
             proj_known_time += (tt1-tt0)
 
         # Concatenate all indices and logits
-        all_idx = torch.cat(all_idx)
-        all_x1 = torch.cat(all_x1)
+        all_idx = torch.cat(all_idx).to(x.device)
+        all_x1 = torch.cat(all_x1).to(x.device)
 
         # Scatter in one shot
         logits.scatter_(dim=0, index=all_idx, src=all_x1)
@@ -2115,7 +2118,7 @@ class RWKV(MyModule):
 
                 # cls: cluster id, 
                 # self.clusters[cls] list of token_ids in this cls (as scatter idx
-                idx = self.clusters_tensor[cls]
+                idx = self.clusters_tensor[cls].to(x.device)
                 num_t = idx.shape[0]
 
                 tt1 = time.time()
@@ -2123,7 +2126,7 @@ class RWKV(MyModule):
                 # x1: pseudo logits over tokens inside cls, (as scatter src
                 # S_j: sum of exp logits for the cluster
                 S_j  = Q * (clsprob / CLSPROBS.sum())
-                vvv = (S_j / num_t).log()
+                vvv = ((S_j / num_t)).log().to(x.device)
                 # x1 = vvv * torch.ones(num_t, device=x.device, dtype=x.dtype)
 
                 tt2 = time.time()
