@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import re
 
 '''
 # xzl: can do the following things: 
@@ -98,9 +99,16 @@ def decompose_emb(args):
     w = torch.load(args.MODEL_NAME + '.pth', map_location='cpu') # xzl: load model...    
     print("model loaded")
 
+    layer_indices = set()
+    for key in w.keys():
+        match = re.search(r'blocks\.(\d+)', key)
+        if match:
+            layer_indices.add(int(match.group(1)))
+
+    args.n_layers = max(layer_indices) + 1
+    args.n_embd = w['emb.weight'].shape[1]
     K = 200
 
-    # emb = w['emb.weight'].float().to('cuda')
     emb = w['emb.weight'].float()
     U,S,V=torch.pca_lowrank(emb, q=256, center=True)
     pc = torch.matmul(emb, V[:, :K])
@@ -403,28 +411,37 @@ if __name__ == '__main__':
     parser.add_argument("--verbose", default=0, type=int)
 
     args = parser.parse_args()
-    
-    # .1B
-    # args.n_layer = 12   
-    # args.n_embd = 768
 
-    # .3B
-    # args.n_layer = 24   # xzl: so we cannot figure out automatically???
-    # args.n_embd = 1024
-
-    # 1.5B
-    # args.n_layer = 24   # xzl: so we cannot figure out automatically???
-    # args.n_embd = 2048
-
-    # 3B
-    args.n_layer = 32   # xzl: so we cannot figure out automatically???
-    args.n_embd = 2560
-
+    # initialization
+    args.n_layer = 0
+    args.n_embd = 0
     args.vocab_size = 65536
-
     args.convert = 1
-
     args.path_to = "" # use default name 
+   
+    """
+    # of layers and embd size for different models
+    They are automatically set in the code.
+    Only decompose_emb() works with these settings.
+    Others need to be set manually.
+
+    .1B
+    args.n_layer = 12   
+    args.n_embd = 768
+
+    .3B
+    args.n_layer = 24
+    args.n_embd = 1024
+
+    1.5B
+    args.n_layer = 24  
+    args.n_embd = 2048
+
+    3B
+    args.n_layer = 32 
+    args.n_embd = 2560
+    """
+
 
     if args.decompose == 1: 
         args.MODEL_NAME = args.orig_model
