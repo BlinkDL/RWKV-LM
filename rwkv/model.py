@@ -292,6 +292,11 @@ class RWKV(MyModule):
         self.stat_time_att = 0.0   
         self.stat_time_ffn = 0.0   
         self.stat_time_cls = 0.0   
+        self.stat_time_mlp = 0.0   
+        self.stat_time_quant = 0.0   
+        self.stat_time_ffn_rx_rw = 0.0
+        self.stat_time_ffn_kx_kw = 0.0
+        self.stat_time_ffn_vx_vw = 0.0
 
         self.sparse_outpath = sparse_outpath # collect sparse data inf FFN
 
@@ -944,20 +949,26 @@ class RWKV(MyModule):
                          layer_id,       # xzl
                          mlp_weights = None,
                          quant_weight = None,
+                         time_measure = None,
                          ):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         kx = xx * k_mix + sx * (1 - k_mix)
         rx = xx * r_mix + sx * (1 - r_mix)
 
         # r = torch.sigmoid(matmul(rx, rw, rmx, rrx, rmy, rry)) # orig
+        mm_start_t = time.time()
         r = matmul(rx, rw1, rmx1, rrx1, rmy1, rry1) 
         r = torch.relu(r) ** 2
         r = matmul(r, rw2, rmx2, rrx2, rmy2, rry2)
         r += rx @ torch.diag(rwdiag)   # xzl: should use matmul??
         r = torch.sigmoid(r)
+        mm_end_t = time.time()
+        time_measure['ffn_rx_rw'] += mm_end_t - mm_start_t
         
         # ------ FFN core ----------
         # MLP predictor        
+        mlp_exec_start_t = time.time()
+        mlp_pred = None
         if mlp_weights is not None:
             thr = self.mlp_map[layer_id] # MLP threshold
             mlpfc1, mlpfc2 = mlp_weights
@@ -966,6 +977,8 @@ class RWKV(MyModule):
             mlp_pred = (mlp_pred > thr).int()
 
         # --- quant pred, n bit    
+        quant_exec_start_t = time.time()
+        quant_pred = None
         if quant_weight is not None:
             kw_nbit, scale_kw_nbit, zero_kw_nbit = quant_weight
             kw_nbit_dequant = dequantize(kw_nbit, scale_kw_nbit, zero_kw_nbit).to(kx.device)
@@ -975,18 +988,27 @@ class RWKV(MyModule):
             # --- predict percentile as "activated"
             percentile = torch.quantile(result, percent).item()
             quant_pred = (result > percentile).int()
+        quant_exec_end_t = time.time()
+
+
+        time_measure['mlp_exec'] += quant_exec_start_t - mlp_exec_start_t
+        time_measure['quant_exec'] += quant_exec_end_t - quant_exec_start_t
 
         pred = None
-        if mlp_weights is not None and quant_weight is not None:
+        if mlp_pred is not None and quant_pred is not None:
             pred = mlp_pred | quant_pred    # ensemble
-        elif mlp_weights is not None:
+        elif mlp_pred is not None:
             pred = mlp_pred
-        elif quant_weight is not None:
+        elif quant_pred is not None:
             pred = quant_pred
         
         # actual compute
+        mm_start_t = time.time()
         k = matmul(kx, kw, kmx, krx, kmy, kry)  
         vx = torch.relu(k) ** 2     # xzl: vx sparse activation.
+        mm_end_t = time.time()
+
+        time_measure['ffn_kx_kw'] += mm_end_t - mm_start_t
 
         # check pred accuracy
         if False:
@@ -1020,7 +1042,9 @@ class RWKV(MyModule):
                 f'recall {recall:.3f} '
                 )
             breakpoint()
+        mm_start_t = time.time()
         v = matmul(vx, vw, vmx, vrx, vmy, vry)
+        mm_end_t = time.time()
         out = r * v
         return x + out, xx
     
@@ -1224,6 +1248,7 @@ class RWKV(MyModule):
                      layer_id,      # xzl 
                      mlp_weights = None,
                      quant_weight = None,
+                     time_measure = None,
                      ):
         xx = F.layer_norm(x, (x.shape[-1],), weight=ln_w, bias=ln_b)
         sx = torch.cat((sx.unsqueeze(0), xx[:-1,:]))
@@ -1231,14 +1256,19 @@ class RWKV(MyModule):
         rx = xx * r_mix + sx * (1 - r_mix)
 
         # r = torch.sigmoid(matmul(rx, rw, rmx, rrx, rmy, rry)) # orig
+        mm_start_t = time.time()
         r = matmul(rx, rw1, rmx1, rrx1, rmy1, rry1) 
         r = torch.relu(r) ** 2
         r = matmul(r, rw2, rmx2, rrx2, rmy2, rry2)
-        r += rx @ torch.diag(rwdiag)   # xzl: use matmul??
-        r = torch.sigmoid(r)        
+        r += rx @ torch.diag(rwdiag)   # xzl: should use matmul??
+        r = torch.sigmoid(r)
+        mm_end_t = time.time()
+        time_measure['ffn_rx_rw'] += mm_end_t - mm_start_t
 
         # ------ FFN core ----------
         # MLP predictor        
+        time_measure['mlp_exec_start'] = time.time()
+        mlp_pred = None
         if mlp_weights is not None:
             thr = self.mlp_map[layer_id] # MLP threshold
             mlpfc1, mlpfc2 = mlp_weights
@@ -1247,6 +1277,8 @@ class RWKV(MyModule):
             mlp_pred = (mlp_pred > thr).int()
 
         # --- quant pred, n bit    
+        time_measure['quant_exec_start'] = time.time()
+        quant_pred = None
         if quant_weight is not None:
             kw_nbit, scale_kw_nbit, zero_kw_nbit = quant_weight
             kw_nbit_dequant = dequantize(kw_nbit, scale_kw_nbit, zero_kw_nbit).to(kx.device)
@@ -1258,26 +1290,34 @@ class RWKV(MyModule):
             percentile = torch.quantile(result, percent).item()
             quant_pred = (result > percentile).int()
 
-        #if True:
-        #    quant_sparsity = 1-torch.sum(quant_pred > 0)/torch.numel(quant_pred)
-        #    mlp_sparsity  = 1-torch.sum(mlp_pred > 0)/torch.numel(mlp_pred)
-        #    ensemble_sparsity = 1-torch.sum((quant_pred | mlp_pred) > 0)/torch.numel(quant_pred | mlp_pred)
-        #    if layer_id == 0:
-        #        print(f"layer_id quant_sparsity mlp_sparsity ensemble_sparsity")
-        #    print(f"{layer_id} {quant_sparsity} {mlp_sparsity} {ensemble_sparsity}")
+        if False:
+            quant_sparsity = 1-torch.sum(quant_pred > 0)/torch.numel(quant_pred)
+            mlp_sparsity  = 1-torch.sum(mlp_pred > 0)/torch.numel(mlp_pred)
+            ensemble_sparsity = 1-torch.sum((quant_pred | mlp_pred) > 0)/torch.numel(quant_pred | mlp_pred)
+            if layer_id == 0:
+                print(f"layer_id quant_sparsity mlp_sparsity ensemble_sparsity")
+            print(f"{layer_id} {quant_sparsity} {mlp_sparsity} {ensemble_sparsity}")
 
+        time_measure['quant_exec_end'] = time.time()
+
+        time_measure['mlp_exec'] = time_measure['quant_exec_start'] - time_measure['mlp_exec_start']
+        time_measure['quant_exec'] = time_measure['quant_exec_end'] - time_measure['quant_exec_start']
 
         pred = None
-        if mlp_weights is not None and quant_weight is not None:
+        if mlp_pred is not None and quant_pred is not None:
             pred = mlp_pred | quant_pred    # ensemble
-        elif mlp_weights is not None:
+        elif mlp_pred is not None:
             pred = mlp_pred
-        elif quant_weight is not None:
+        elif quant_pred is not None:
             pred = quant_pred
 
         # actual compute
+        mm_start_t = time.time()
         k = matmul(kx, kw, kmx, krx, kmy, kry)  
         vx = torch.relu(k) ** 2     # xzl: vx sparse activation.
+        mm_end_t = time.time()
+
+        time_measure['ffn_kx_kw'] += mm_end_t - mm_start_t
 
         # sanity check -- pred accuracy
         if False:
@@ -1298,7 +1338,11 @@ class RWKV(MyModule):
         # simulate the pred ...
         if pred is not None:       # all layers sparse
             vx = vx * pred
+
+        mm_start_t = time.time()
         v = matmul(vx, vw, vmx, vrx, vmy, vry)
+        mm_end_t = time.time()
+        time_measure['ffn_vx_vw'] += mm_end_t - mm_start_t
 
         out = r * v
         return x + out, xx[-1,:]
@@ -2324,6 +2368,11 @@ class RWKV(MyModule):
             time_measure['ffn_dispatch'] = 0
             time_measure['att_exec'] = 0
             time_measure['ffn_exec'] = 0
+            time_measure['mlp_exec'] = 0
+            time_measure['quant_exec'] = 0
+            time_measure['ffn_rx_rw'] = 0
+            time_measure['ffn_kx_kw'] = 0
+            time_measure['ffn_vx_vw'] = 0
             time_measure['fwd_start'] = time.time()
 
             # xzl: init state
@@ -2745,6 +2794,7 @@ class RWKV(MyModule):
                             i,   # xzl, layer_id
                             mlp_weights=mlp_weights,
                             quant_weight=quant_weight,
+                            time_measure=time_measure,
                             )
                 elif self.version in [5.94]:
                     x, state[offset] = FFN(
@@ -3334,6 +3384,10 @@ class RWKV(MyModule):
             self.stat_time_fwd += time_measure["fwd_end"] - time_measure["fwd_start"]
             self.stat_time_att += time_measure["att_exec"]
             self.stat_time_ffn += time_measure["ffn_exec"]
+            self.stat_time_mlp += time_measure["mlp_exec"]
+            self.stat_time_quant += time_measure["quant_exec"]
+            self.stat_time_ffn_kx_kw += time_measure["ffn_kx_kw"]
+            self.stat_time_ffn_vx_vw += time_measure["ffn_vx_vw"]
             self.stat_time_cls += time_measure["cls_exec"]        
             # breakpoint()
 
