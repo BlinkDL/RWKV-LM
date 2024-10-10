@@ -1,4 +1,4 @@
-# by xzl 
+# by FL 
 def is_raspberry_pi():
     try:
         with open('/proc/cpuinfo', 'r') as f:
