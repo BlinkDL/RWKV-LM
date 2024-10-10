@@ -27,8 +27,9 @@ def quantize(tensor, bit):
     quantized = ((tensor - zero_point) / scale).round().clamp(0, factor).to(torch.int8)
     return quantized, scale, zero_point
 
+@torch.jit.script
 def dequantize(quantized, scale, zero_point):
-    return quantized.to(torch.half) * scale + zero_point
+    return quantized.mul(scale).add(zero_point).to(torch.half)
 
 
 ########################################################################################################
@@ -501,9 +502,9 @@ class RWKV(MyModule):
 
                 # xzl: quantize ffn.key... 
                 if 'ffn.key.weight' in x:
-                    w[x+'4b']   = quantize(w[x].t(), 4)   # a tuple
-                    w[x+'2b']   = quantize(w[x].t(), 2)   # a tuple
-                    w[x+'1b']   = quantize(w[x].t(), 1)   # a tuple
+                    w[x+'4b']   = quantize(w[x].t().to(DEVICE), 4)   # a tuple
+                    w[x+'2b']   = quantize(w[x].t().to(DEVICE), 2)   # a tuple
+                    w[x+'1b']   = quantize(w[x].t().to(DEVICE), 1)   # a tuple
 
                 if not ALREADY_CONVERTED:
                     if self.RESCALE_LAYER > 0:  # xzl we didnt touch these..
@@ -981,7 +982,7 @@ class RWKV(MyModule):
         quant_pred = None
         if quant_weight is not None:
             kw_nbit, scale_kw_nbit, zero_kw_nbit = quant_weight
-            kw_nbit_dequant = dequantize(kw_nbit, scale_kw_nbit, zero_kw_nbit).to(kx.device)
+            kw_nbit_dequant = dequantize(kw_nbit, scale_kw_nbit, zero_kw_nbit)
             result = (kx @ kw_nbit_dequant).float()
             percent = self.quant_map[layer_id] # percentile, we use to take quant as activated
 
