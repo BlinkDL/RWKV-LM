@@ -970,7 +970,7 @@ class RWKV(MyModule):
             kw_nbit, scale_kw_nbit, zero_kw_nbit = quant_weight
             kw_nbit_dequant = dequantize(kw_nbit, scale_kw_nbit, zero_kw_nbit).to(kx.device)
             result = (kx @ kw_nbit_dequant).float()
-            percent = quant_map[layer_id] # percentile, we use to take quant as activated
+            percent = self.quant_map[layer_id] # percentile, we use to take quant as activated
 
             # --- predict percentile as "activated"
             percentile = torch.quantile(result, percent).item()
@@ -1258,12 +1258,14 @@ class RWKV(MyModule):
             percentile = torch.quantile(result, percent).item()
             quant_pred = (result > percentile).int()
 
-        if False:
-            print("check parameter correctly passed")
-            print(f"layer_id {layer_id}")
-            print(f"mlp_map {self.mlp_map}")
-            print(f"quant_map {self.quant_map}")
-            print(f"quant_bit {self.quant_bit}")
+        #if True:
+        #    quant_sparsity = 1-torch.sum(quant_pred > 0)/torch.numel(quant_pred)
+        #    mlp_sparsity  = 1-torch.sum(mlp_pred > 0)/torch.numel(mlp_pred)
+        #    ensemble_sparsity = 1-torch.sum((quant_pred | mlp_pred) > 0)/torch.numel(quant_pred | mlp_pred)
+        #    if layer_id == 0:
+        #        print(f"layer_id quant_sparsity mlp_sparsity ensemble_sparsity")
+        #    print(f"{layer_id} {quant_sparsity} {mlp_sparsity} {ensemble_sparsity}")
+
 
         pred = None
         if mlp_weights is not None and quant_weight is not None:

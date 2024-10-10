@@ -1,0 +1,9 @@
+List of models
+==============
+
+models/
+├── 01b-x59.pth     01b-x59-1857 includes MLP
+├── 04b-x59.pth     04b-x59-2405 includes CLS/MLP
+├── 04b-cls.npy     04b-x59-2405-CLS
+└── README
+
