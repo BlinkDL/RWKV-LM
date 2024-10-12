@@ -6,15 +6,16 @@ import torch, types, os, gc, math, json
 import numpy as np
 import torch.nn as nn
 from torch.nn import functional as F
+np.set_printoptions(precision=4, suppress=True, linewidth=200)
 
 '''
-This will load RWKV-7 "Goose" x070.rc2-2409-2r7a-b0b4a and inference in GPT-mode (slower than RNN-mode for autoregressive generation)
+This will load RWKV-7 "Goose" x070.rc3-2409-2r7a-d1 and inference in GPT-mode (slower than RNN-mode for autoregressive generation)
 '''
 
 args = types.SimpleNamespace()
 
 # model download: https://huggingface.co/BlinkDL/temp-latest-training-models/tree/main
-MODEL_PATH = "/mnt/e/rwkv-x070-rc2-172m-pile-30%trained-20240922-ctx4k.pth"
+MODEL_PATH = "/mnt/e/rwkv-x070-rc3-172m-pile-20241011-ctx4k.pth"
 args.n_layer = 12
 args.ctx_len = 4096
 args.n_embd = 768
@@ -117,6 +118,16 @@ class RWKV_Tmix_x070(nn.Module):
             self.gate_w1 = nn.Parameter(torch.empty(args.n_embd, D_GATE_LORA))
             self.gate_w2 = nn.Parameter(torch.empty(D_GATE_LORA, args.dim_att))
 
+            D_MK_LORA = 16
+            self.mk_w1 = nn.Parameter(torch.empty(args.n_embd, D_MK_LORA))
+            self.mk_w2 = nn.Parameter(torch.empty(D_MK_LORA, args.dim_att))
+            D_MA_LORA = 16
+            self.ma_w1 = nn.Parameter(torch.empty(args.n_embd, D_MA_LORA))
+            self.ma_w2 = nn.Parameter(torch.empty(D_MA_LORA, args.dim_att))
+
+            self.time_misc_k = nn.Parameter(torch.empty(1,1,args.n_embd))
+            self.time_misc_a = nn.Parameter(torch.empty(1,1,args.n_embd))
+
             self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
             self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)
             self.key = nn.Linear(args.n_embd, args.dim_att, bias=False)
@@ -148,10 +159,13 @@ class RWKV_Tmix_x070(nn.Module):
         g = torch.tanh(xg @ self.gate_w1) @ self.gate_w2
 
         kk = k + torch.tanh(xk @ self.time_kkk_w1) @ self.time_kkk_w2
-        kk = F.normalize(kk, dim=-1, p=2.0)
-        a = torch.sigmoid( self.time_aaaaa + (xa @ self.time_aaa_w1) @ self.time_aaa_w2 ) * 2.0 # a is "in-context learning rate"
+        kk = F.normalize(kk.view(B,T,H,-1), dim=-1, p=2.0).view(B,T,C)
+        a = torch.sigmoid( self.time_aaaaa + (xa @ self.time_aaa_w1) @ self.time_aaa_w2 ) # a is "in-context learning rate"
 
-        k = k * torch.clamp(w*0.5,max=0).exp()
+        ma = torch.sigmoid(self.time_misc_a + (xa @ self.ma_w1) @ self.ma_w2)
+        k = k * ma + k*a * (1 - ma)
+        mk = torch.sigmoid(self.time_misc_k + (xk @ self.mk_w1) @ self.mk_w2)
+        k = k * torch.clamp(w*mk, max=0).exp()
         x = RUN_CUDA_RWKV7(r, w, k, v, -kk, kk*a)
 
         x = self.ln_x(x.view(B * T, C)).view(B, T, C)
