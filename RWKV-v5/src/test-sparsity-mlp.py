@@ -93,11 +93,8 @@ def quantize(tensor, bit):
     return quantized, scale, zero_point
 
 # Custom n-bit dequantization function
-def dequantize(quantized, scale, zero_point, bit):
-    if bit == 4:
-        return quantized.to(torch.half) * scale + zero_point
-    else:
-        return quantized.to(torch.float32) * scale + zero_point
+def dequantize(quantized, scale, zero_point):
+    return quantized.to(torch.half) * scale + zero_point
 
     
 def train_layer(layer_id):
@@ -304,43 +301,25 @@ def train_layer(layer_id):
                 '''
 
                 #  --- 4 bit quantization
-                start = time()
                 kw_4bit, scale_kw_4bit, zero_kw_4bit = quantize(kw, 4)
-                end = time()
-                print(f'4bit kw quantization time: {end-start}')
                 kx_4bit, scale_kx_4bit, zero_kx_4bit = quantize(kx, 4)
                
-                start = time()
-                kw_4bit_dequant = dequantize(kw_4bit, scale_kw_4bit, zero_kw_4bit, 4)
-                end = time()
-                print(f'4bit kw dequantization time: {end-start}')
-                kx_4bit_dequant = dequantize(kx_4bit, scale_kx_4bit, zero_kx_4bit, 4)
+                kw_4bit_dequant = dequantize(kw_4bit, scale_kw_4bit, zero_kw_4bit)
+                kx_4bit_dequant = dequantize(kx_4bit, scale_kx_4bit, zero_kx_4bit)
                 result_4bit = kx_4bit_dequant @ kw_4bit_dequant
 
                 # --- 2-bit quantization
-                start = time()
                 kw_2bit, scale_kw_2bit, zero_kw_2bit = quantize(kw, 2)
-                end = time()
-                print(f'2bit kw quantization time: {end-start}')
                 kx_2bit, scale_kx_2bit, zero_kx_2bit = quantize(kx, 2)
 
-                start = time()
-                kw_2bit_dequant = dequantize(kw_2bit, scale_kw_2bit, zero_kw_2bit, 2)
-                end = time()
-                print(f'2bit kw dequantization time: {end-start}')
-                kx_2bit_dequant = dequantize(kx_2bit, scale_kx_2bit, zero_kx_2bit, 2)
+                kw_2bit_dequant = dequantize(kw_2bit, scale_kw_2bit, zero_kw_2bit)
+                kx_2bit_dequant = dequantize(kx_2bit, scale_kx_2bit, zero_kx_2bit)
                 result_2bit = kx_2bit_dequant @ kw_2bit_dequant
 
-                start = time()
                 kw_1bit, scale_kw_1bit, zero_kw_1bit = quantize(kw, 1)
-                end = time()
-                print(f'1bit kw quantization time: {end-start}')
                 kx_1bit, scale_kx_1bit, zero_kx_1bit = quantize(kx, 1)
 
-                start = time()
                 kw_1bit_dequant = dequantize(kw_1bit, scale_kw_1bit, zero_kw_1bit)
-                end = time()
-                print(f'1bit kw dequantization time: {end-start}')
                 kx_1bit_dequant = dequantize(kx_1bit, scale_kx_1bit, zero_kx_1bit)
                 result_1bit = kx_1bit_dequant @ kw_1bit_dequant
 
@@ -349,7 +328,7 @@ def train_layer(layer_id):
                 '''
 
                 per = 0.85  # percetile we use to take quant as activated            
-                result=result_1bit.float()
+                result=result_4bit.float()
                 percentile = torch.quantile(result, per).item()
                 # msk=(result>percentile)
                 # masked=val_outputs_gt[0][0].cpu()[msk]
@@ -365,22 +344,22 @@ def train_layer(layer_id):
                 tp = (mlp_pred * gt_labels).sum()
                 fn = ((1 - mlp_pred) * gt_labels).sum()
                 sparsity = 1 - torch.sum(mlp_pred) / torch.numel(mlp_pred)
-                print(f'\033[91mMLP thr {thr} tp {tp} fn {fn} sparsity {sparsity:.2f}\033[0m')
+                recall = tp / (tp + fn + 1e-10)
+                print(f'\033[91mMLP thr {thr} tp {tp} fn {fn} recall {recall} sparsity {sparsity:.2f}\033[0m')
 
                 # -- quant perf
                 tp = (quant_pred * gt_labels).sum()
                 fn = ((1 - quant_pred) * gt_labels).sum()
+                recall = tp / (tp + fn + 1e-10)
                 sparsity = 1 - torch.sum(quant_pred) / torch.numel(result)
-                print(torch.sum(quant_pred))
-                print(torch.numel(quant_pred))
-                print(torch.numel(result))
-                print(f'\033[91mQUANT per {per} tp {tp} fn {fn} sparse {sparsity:.2f}\033[0m')
+                print(f'\033[91mQUANT per {per} tp {tp} fn {fn} recall {recall} sparse {sparsity:.2f}\033[0m')
 
                 # -- ensemble perf
                 tp = (ensemble_pred * gt_labels).sum()
                 fn = ((1 - ensemble_pred) * gt_labels).sum()
+                recall = tp / (tp + fn + 1e-10)
                 sparsity = 1 - torch.sum(ensemble_pred) / torch.numel(ensemble_pred)
-                print(f'\033[91mENSENBLE tp {tp} fn {fn} sparse {sparsity:.2f}\033[0m')
+                print(f'\033[91mENSENBLE tp {tp} fn {fn} recall {recall} sparse {sparsity:.2f}\033[0m')
 
                 # for K in [50]:
                 #     largest_k_indices = np.argpartition(dists, -K)[-K:]
@@ -422,7 +401,10 @@ def load_tensors(file_path):
     try:
         data = torch.load(file_path, map_location=torch.device('cuda'), weights_only=True)
         if isinstance(data, list):
-            print(len(data))
+            LIMIT = 100000
+            if len(data) > LIMIT:
+                print(f'WARNING: too many tensors {len(data)}')
+                data = data[:LIMIT]
             return data
     except FileNotFoundError:
         print("File not found.")

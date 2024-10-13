@@ -46,6 +46,7 @@ from torch.nn import functional as F
 sys.path.append('/home/xl6yq/workspace-rwkv/RWKV-LM')
 
 os.environ["RWKV_JIT_ON"] = '1'
+RWKV_HOME = os.environ.get('RWKV_HOME')
 
 if os.environ.get('RWKV_CUDA_ON') != '0':
     os.environ["RWKV_CUDA_ON"] = '1' #default
@@ -140,7 +141,12 @@ from lm_eval.api.model import TemplateLM
 #   - 1st half layers (0-11) sparse:               .35
 #   - all sparse:                                  .33
 
-MODEL_NAME='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860-mlp'
+#MODEL_NAME='/home/xl6yq/workspace-rwkv/RWKV-LM/RWKV-v5/out/04b-pre-x59-SPARSITY-EXP/rwkv-860-mlp'
+MODEL_NAME=f'{RWKV_HOME}/RWKV-v5/out/04b-pre-x59-8x-sparsity/rwkv-2405-mlp'
+MODEL_NAME=f'{RWKV_HOME}/RWKV-v5/out/04b-pre-x59-8x-sparsity/rwkv-2405-mlp'
+MODEL_NAME=f'/data/models/orin-deployment/04b-x59'
+MODEL_NAME=f'/data/models/orin-deployment/01b-x59'
+#MODEL_NAME=f'{RWKV_HOME}/RWKV-v5/out/01b-pre-x59-8x-sparsity/rwkv-1857-mlp'
 
 # 1B5 -- official
 # MODEL_NAME = "/data/models/RWKV-5-World-1B5-v2-20231025-ctx4096"
@@ -381,7 +387,7 @@ class EvalHarnessAdapter(TemplateLM):
             task_dict=tasks.get_task_dict(eval_tasks),
             #provide_description=False,
             #num_fewshot=num_fewshot,
-            limit=None,
+            #limit=1,
             bootstrap_iters=bootstrap_iters,
         )
         #results = evaluator.simple_evaluate(
@@ -402,8 +408,8 @@ def do_eval(model_path, isverbose=False, benchmarks=[]):
     # if isverbose: 
     print(f'Loading model - {model_path}')
 
-    quant_bit = 2
-    quant_map = [0.85] * 24
+    quant_bit = 1
+    quant_map = [0.95, 0.95, 0.95, 0.95, 0.95] + [0.85] * 5 + [0.8] * 14
     mlp_map = [0.7] * 24
 
     # 8/26/24: using fp16 will make some benchmarks (eg openai) nan... so use fp32
@@ -427,9 +433,10 @@ def do_eval(model_path, isverbose=False, benchmarks=[]):
     # print(results['results'])
 
     if model.stat_runs != 0: 
+        print(model.stat_runs)
         print(f"stats: runs: {model.stat_runs} \
         cls/run {model.stat_loaded_cls/model.stat_runs:.2f} \
-        tokens/run {model.state_loaded_tokens/model.stat_runs/65535:.2f}")
+        tokens/run {model.stat_loaded_tokens/model.stat_runs/65535:.2f}")
     
     return results['results']
 
