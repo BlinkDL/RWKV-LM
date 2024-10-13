@@ -8,6 +8,7 @@ import types, gc, os, time, re
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from .emb_lookup import EmbeddingLookupTable
 # import matplotlib.pyplot as plt
 
 
@@ -299,6 +300,8 @@ class RWKV(MyModule):
         self.stat_time_ffn_kx_kw = 0.0
         self.stat_time_ffn_vx_vw = 0.0
 
+        self.lazy_emb = True
+
         self.sparse_outpath = sparse_outpath # collect sparse data inf FFN
 
         # hyperparams for quantization and MLP
@@ -474,6 +477,9 @@ class RWKV(MyModule):
                     w['emb.weight'] = F.layer_norm(w['emb.weight'].float(), (args.n_embd,), weight=w['blocks.0.ln0.weight'].float(), bias=w['blocks.0.ln0.bias'].float())
                 del w['blocks.0.ln0.weight']
                 del w['blocks.0.ln0.bias']
+
+            if self.lazy_emb:
+                self.emb = EmbeddingLookupTable(w['emb.weight'], args.n_embd, w['emb.weight'].shape[0])
 
             print_need_newline = False
 
@@ -2405,8 +2411,15 @@ class RWKV(MyModule):
             # xzl: seq_mode=True for prompt encoding; =False for autoregression
             #   eval also uses seq_mode
             seq_mode = len(tokens) > 1
+            #self.lazy_emb = False
+            if self.lazy_emb:
+                if seq_mode:
+                    x = self.emb.get_embeddings(tokens)
+                else:
+                    x = self.emb.get_embedding(tokens[0])
+            else:
+                x = w['emb.weight'][tokens if seq_mode else tokens[0]] # xzl: 'x'-input
 
-            x = w['emb.weight'][tokens if seq_mode else tokens[0]] # xzl: 'x'-input
 
             ##### xzl: below- assemble & run layers (each layer)
             #  use custom cuda impl if available, otherwise fall back to torch
