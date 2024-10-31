@@ -16,10 +16,11 @@ RWKV-6 RNN-mode demo: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo
 
 ![MQAR](Research/RWKV-6-MQAR.png)
 
-### HOW TO TEST TRAINING RWKV-5 on MiniPile (1.5G tokens) ###
+### HOW TO TEST TRAINING RWKV-5/6 on MiniPile (1.5G tokens) ###
 
-For reference, use python 3.10, torch 2.3.1+cu121 (or latest), cuda 12.5+, **latest deepspeed**, but **keep pytorch-lightning==1.9.5**
+For reference, use python 3.10+, torch 2.5+, cuda 12.5+, latest deepspeed, but **keep pytorch-lightning==1.9.5**
 
+**Train RWKV-6**: use /RWKV-v5/ and add --my_testing "x060" (so it will use RWKV-6) to demo-training-prepare.sh and demo-training-run.sh
 ```
 pip install torch --upgrade --extra-index-url https://download.pytorch.org/whl/cu121
 pip install pytorch-lightning==1.9.5 deepspeed wandb ninja --upgrade
@@ -46,8 +47,6 @@ For example, if your binidx has 1498226207 tokens and ctxlen=4096, set "--my_exi
 simple: prepare SFT jsonl => repeat your SFT data 3 or 4 times in make_data.py. more repetition leads to overfitting.
 
 advanced: repeat your SFT data 3 or 4 times in your jsonl (note make_data.py will shuffle all jsonl items) => add some base data (such as slimpajama) to your jsonl => and only repeat 1 times in make_data.py.
-
-**Train RWKV-6**: use /RWKV-v5/ and add --my_testing "x060" to demo-training-prepare.sh and demo-training-run.sh
 
 **Simple inference for RWKV-5**: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v5_demo.py
 
