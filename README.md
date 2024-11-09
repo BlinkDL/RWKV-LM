@@ -112,6 +112,8 @@ ffn.receptance.weight => zero
 
 4. in trainer.py do "lr = lr * (0.01 + 0.99 * trainer.global_step / w_step)" (originally 0.2 + 0.8), and "--warmup_steps 20"
 
+5. "--weight_decay 0.1" leads to better final loss if you are training lots of data. set lr_final to 1/100 of lr_init when doing this.
+
 ## Introducing RWKV
 
 RWKV is an RNN with Transformer-level LLM performance, which can also be directly trained like a GPT transformer (parallelizable). And it's 100% attention-free. You only need the hidden state at position t to compute the state at position t+1. You can use the "GPT" mode to quickly compute the hidden state for the "RNN" mode.
