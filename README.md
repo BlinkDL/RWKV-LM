@@ -20,7 +20,10 @@ RWKV-6 RNN-mode demo: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo
 
 For reference, use python 3.10+, torch 2.5+, cuda 12.5+, latest deepspeed, but **keep pytorch-lightning==1.9.5**
 
-**Train RWKV-6**: use /RWKV-v5/ and add --my_testing "x060" (so it will use RWKV-6) to demo-training-prepare.sh and demo-training-run.sh
+**Train RWKV-6**: use /RWKV-v5/ and use --my_testing "x060" in demo-training-prepare.sh and demo-training-run.sh
+
+**Train RWKV-7**: use /RWKV-v5/ and use --my_testing "x070" in demo-training-prepare.sh and demo-training-run.sh
+
 ```
 pip install torch --upgrade --extra-index-url https://download.pytorch.org/whl/cu121
 pip install pytorch-lightning==1.9.5 deepspeed wandb ninja --upgrade
