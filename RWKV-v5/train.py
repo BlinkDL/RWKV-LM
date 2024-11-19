@@ -307,13 +307,11 @@ if __name__ == "__main__":
     if trainer.global_rank == 0:
         for n in model.state_dict():
             shape = model.state_dict()[n].shape
-            shape = [i for i in shape if i != 1]
-            if len(shape) > 2:
-                print(f"{str(shape[0]).ljust(5)} {str(shape[1]).ljust(5)} {str(shape[2]).ljust(5)} {n}")
-            elif len(shape) > 1:
-                print(f"{str(shape[0]).ljust(5)} {str(shape[1]).ljust(5)}       {n}")
-            else:
-                print(f"{str(shape[0]).ljust(5)}             {n}")
+            s0 = str(shape[0]) if len(shape) > 0 else ""
+            s1 = str(shape[1]) if len(shape) > 1 else ""
+            s2 = str(shape[2]) if len(shape) > 2 else ""
+            s3 = str(shape[3]) if len(shape) > 3 else ""
+            print(f"{s0.ljust(5)} {s1.ljust(5)} {s2.ljust(5)} {s3.ljust(5)} {n}")
 
     if "deepspeed" in args.strategy:
         trainer.strategy.config["zero_optimization"]["allgather_bucket_size"] = args.ds_bucket_mb * 1000 * 1000

@@ -773,28 +773,23 @@ class RWKV_Tmix_x070(MyModule):
         self.head_size = args.head_size_a
         self.n_head = args.dim_att // self.head_size
         assert args.dim_att % self.n_head == 0
+        H = self.n_head
+        N = self.head_size
+        C = args.n_embd
 
         with torch.no_grad():
             ratio_0_to_1 = layer_id / (args.n_layer - 1)  # 0 to 1
             ratio_1_to_almost0 = 1.0 - (layer_id / args.n_layer)  # 1 to ~0
-            ddd = torch.ones(1, 1, args.n_embd)
-            for i in range(args.n_embd):
-                ddd[0, 0, i] = i / args.n_embd
+            ddd = torch.ones(1, 1, C)
+            for i in range(C):
+                ddd[0, 0, i] = i / C
 
-            self.time_maa_x = nn.Parameter(1.0 - torch.pow(ddd, 0.6 * ratio_1_to_almost0 ** 0.9))
             self.time_maa_r = nn.Parameter(1.0 - torch.pow(ddd, 0.2 * ratio_1_to_almost0))
             self.time_maa_w = nn.Parameter(1.0 - torch.pow(ddd, 0.9 * ratio_1_to_almost0))
             self.time_maa_k = nn.Parameter(1.0 - (torch.pow(ddd, 0.9 * ratio_1_to_almost0) + 0.4 * ratio_0_to_1))
             self.time_maa_v = nn.Parameter(1.0 - (torch.pow(ddd, 0.4 * ratio_1_to_almost0) + 0.6 * ratio_0_to_1))
             self.time_maa_a = nn.Parameter(1.0 - torch.pow(ddd, 0.9 * ratio_1_to_almost0))
             self.time_maa_g = nn.Parameter(1.0 - torch.pow(ddd, 0.2 * ratio_1_to_almost0))
-
-            decay_speed = torch.ones(args.dim_att)
-            for n in range(args.dim_att):
-                decay_speed[n] = -7 + 5 * (n / (args.dim_att - 1)) ** (0.85 + 1.0 * ratio_0_to_1 ** 0.5)
-            self.time_decay = nn.Parameter(decay_speed.reshape(1,1,args.dim_att) + 0.5) # !!! 0.5 comes from F.softplus !!!
-
-            self.time_faaaa = nn.Parameter(torch.zeros(1,1,self.n_head,self.head_size))
 
             def ortho_init(x, scale):
                 with torch.no_grad():
@@ -811,37 +806,41 @@ class RWKV_Tmix_x070(MyModule):
                     return x
 
             D_DECAY_LORA = 64 # dim 64 for emb 768, change it for smaller/larger models
-            self.time_decay_w1 = nn.Parameter(torch.zeros(args.n_embd, D_DECAY_LORA))
-            self.time_decay_w2 = nn.Parameter(ortho_init(torch.zeros(D_DECAY_LORA, args.dim_att), 0.1))
+            self.time_decay_w1 = nn.Parameter(torch.zeros(C, D_DECAY_LORA))
+            self.time_decay_w2 = nn.Parameter(ortho_init(torch.zeros(D_DECAY_LORA, C), 0.1))
+            decay_speed = torch.ones(C)
+            for n in range(C):
+                decay_speed[n] = -7 + 5 * (n / (C - 1)) ** (0.85 + 1.0 * ratio_0_to_1 ** 0.5)
+            self.time_decay = nn.Parameter(decay_speed.reshape(1,1,C) + 0.5) # !!! 0.5 comes from F.softplus !!!
 
             D_AAA_LORA = 32 # dim 32 for emb 768, change it for smaller/larger models
-            self.time_aaa_w1 = nn.Parameter(torch.zeros(args.n_embd, D_AAA_LORA))
-            self.time_aaa_w2 = nn.Parameter(ortho_init(torch.zeros(D_AAA_LORA, args.dim_att), 0.1))
-            self.time_aaaaa = nn.Parameter(torch.zeros(1,1,args.dim_att))
+            self.time_aaa_w1 = nn.Parameter(torch.zeros(C, D_AAA_LORA))
+            self.time_aaa_w2 = nn.Parameter(ortho_init(torch.zeros(D_AAA_LORA, C), 0.1))
+            self.time_aaa = nn.Parameter(torch.zeros(1,1,C))
 
             D_GATE_LORA = 128 # dim 128 for emb 768, change it for smaller/larger models
-            self.gate_w1 = nn.Parameter(torch.zeros(args.n_embd, D_GATE_LORA))
-            self.gate_w2 = nn.Parameter(ortho_init(torch.zeros(D_GATE_LORA, args.dim_att), 0.1))
+            self.gate_w1 = nn.Parameter(torch.zeros(C, D_GATE_LORA))
+            self.gate_w2 = nn.Parameter(ortho_init(torch.zeros(D_GATE_LORA, C), 0.1))
 
-            D_MV_LORA = 64 # dim 64 for emb 768, change it for smaller/larger models
-            self.mv_w1 = nn.Parameter(torch.zeros(args.n_embd, D_MV_LORA))
-            self.mv_w2 = nn.Parameter(ortho_init(torch.zeros(D_MV_LORA, args.dim_att), 0.1))
-            self.time_misc_v = nn.Parameter(torch.zeros(1,1,args.n_embd)+1.0)
+            self.mv_w = nn.Parameter(torch.zeros(C, H))
+            self.time_misc_v = nn.Parameter(torch.zeros(1,1,H,N)+1.0)
 
-            self.time_misc_kkk = nn.Parameter(torch.ones(1,1,args.n_embd))
-            self.time_misc_a = nn.Parameter(torch.ones(1,1,args.n_embd))
+            self.time_misc_k = nn.Parameter(torch.ones(1,1,C))
+            self.time_misc_a = nn.Parameter(torch.ones(1,1,C))
+
+            self.time_faaaa = nn.Parameter(torch.zeros(1,1,H,N))
 
             self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
-            self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)
-            self.key = nn.Linear(args.n_embd, args.dim_att, bias=False)
-            self.value = nn.Linear(args.n_embd, args.dim_att, bias=False)
-            self.output = nn.Linear(args.dim_att, args.n_embd, bias=False)
-            self.ln_x = nn.GroupNorm(self.n_head, args.dim_att, eps=(1e-5)*(args.head_size_divisor**2))
+            self.receptance = nn.Linear(C, C, bias=False)
+            self.key = nn.Linear(C, C, bias=False)
+            self.value = nn.Linear(C, C, bias=False)
+            self.output = nn.Linear(C, C, bias=False)
+            self.ln_x = nn.GroupNorm(H, C, eps=(1e-5)*(args.head_size_divisor**2))
 
             # !!! initialize if you are using RWKV_Tmix_x070 in your code !!!
-            # self.receptance.weight.data.uniform_(-0.5/(args.n_embd**0.5), 0.5/(args.n_embd**0.5))
-            # self.key.weight.data.uniform_(-0.05/(args.n_embd**0.5), 0.05/(args.n_embd**0.5))
-            # self.value.weight.data.uniform_(-0.5/(args.n_embd**0.5), 0.5/(args.n_embd**0.5))
+            # self.receptance.weight.data.uniform_(-0.5/(C**0.5), 0.5/(C**0.5))
+            # self.key.weight.data.uniform_(-0.05/(C**0.5), 0.05/(C**0.5))
+            # self.value.weight.data.uniform_(-0.5/(C**0.5), 0.5/(C**0.5))
             # self.output.weight.data.zero_()
 
     @MyFunction
@@ -864,11 +863,11 @@ class RWKV_Tmix_x070(MyModule):
         if self.layer_id == 0:
             v0 = v
         else:
-            v = v + (v0 - v) * torch.sigmoid(self.time_misc_v + (xv @ self.mv_w1) @ self.mv_w2)
-        a = torch.sigmoid(self.time_aaaaa + (xa @ self.time_aaa_w1) @ self.time_aaa_w2)
+            v = v + (v0 - v) * torch.sigmoid(self.time_misc_v + (xv @ self.mv_w).view(B,T,H,1)).view(B,T,C)
+        a = torch.sigmoid(self.time_aaa + (xa @ self.time_aaa_w1) @ self.time_aaa_w2)
         g = torch.sigmoid(xg @ self.gate_w1) @ self.gate_w2
 
-        kk = k * self.time_misc_kkk
+        kk = k * self.time_misc_k
         kk = F.normalize(kk.view(B,T,H,-1), dim=-1, p=2.0).view(B,T,C)
         k = k * (1 + (a-1) * self.time_misc_a)
 
@@ -1362,7 +1361,8 @@ class RWKV(pl.LightningModule):
             s0 = str(shape[0]) if len(shape) > 0 else ""
             s1 = str(shape[1]) if len(shape) > 1 else ""
             s2 = str(shape[2]) if len(shape) > 2 else ""
-            print(f"{s0.ljust(5)} {s1.ljust(5)} {s2.ljust(5)} {n}", end="")
+            s3 = str(shape[3]) if len(shape) > 3 else ""
+            print(f"{s0.ljust(5)} {s1.ljust(5)} {s2.ljust(5)} {s3.ljust(5)} {n}", end="")
 
             scale = 1.0
             if "ln_" in n or ".ln" in n or "time_" in n or "_mask" in n or "pos_emb" in n or '.mask.' in n or n.endswith('_w') or n.endswith('_w1') or n.endswith('_w2') or n.endswith('_bias'):
