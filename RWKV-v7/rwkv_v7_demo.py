@@ -15,7 +15,7 @@ This will load RWKV-7 "Goose" x070.rc4-2411 and inference in GPT-mode (slower th
 args = types.SimpleNamespace()
 
 # model download: https://huggingface.co/BlinkDL/temp-latest-training-models/tree/main
-MODEL_PATH = "/mnt/e/rwkv-x070-rc4-172m-pile-20241115-ctx4k.pth"
+MODEL_PATH = "/mnt/e/rwkv-x070-rc4a-172m-pile-20241120-ctx4k.pth"
 args.n_layer = 12
 args.ctx_len = 4096
 args.n_embd = 768
@@ -84,7 +84,6 @@ class RWKV_Tmix_x070(nn.Module):
 
         with torch.no_grad():
             ddd = torch.empty(1, 1, args.n_embd)
-            self.time_maa_x = nn.Parameter(ddd)
             self.time_maa_r = nn.Parameter(ddd)
             self.time_maa_w = nn.Parameter(ddd)
             self.time_maa_k = nn.Parameter(ddd)
@@ -92,17 +91,9 @@ class RWKV_Tmix_x070(nn.Module):
             self.time_maa_a = nn.Parameter(ddd)
             self.time_maa_g = nn.Parameter(ddd)
 
-            decay_speed = torch.empty(args.dim_att)
-            self.time_decay = nn.Parameter(decay_speed.reshape(1,1,args.dim_att))
-
+            self.time_decay = nn.Parameter(torch.empty(1,1,args.dim_att))
             self.time_faaaa = nn.Parameter(torch.empty(self.n_head,self.head_size))
             self.time_aaaaa = nn.Parameter(torch.empty(1,1,args.dim_att))
-
-            ### TOO MANY LORAs HERE. I WILL REMOVE MOST OF THEM IN RWKV-7 FINAL :) ###
-
-            D_MIX_LORA = 32
-            self.time_maa_w1 = nn.Parameter(torch.empty(args.n_embd, D_MIX_LORA*6))
-            self.time_maa_w2 = nn.Parameter(torch.empty(6, D_MIX_LORA, args.n_embd))
 
             D_DECAY_LORA = 64
             self.time_decay_w1 = nn.Parameter(torch.empty(args.n_embd, D_DECAY_LORA))
@@ -112,27 +103,18 @@ class RWKV_Tmix_x070(nn.Module):
             self.time_aaa_w1 = nn.Parameter(torch.empty(args.n_embd, D_AAA_LORA))
             self.time_aaa_w2 = nn.Parameter(torch.empty(D_AAA_LORA, args.dim_att))
 
-            D_KKK_LORA = 32
-            self.time_kkk_w1 = nn.Parameter(torch.empty(args.n_embd, D_KKK_LORA))
-            self.time_kkk_w2 = nn.Parameter(torch.empty(D_KKK_LORA, args.dim_att))
-
             D_GATE_LORA = 128
             self.gate_w1 = nn.Parameter(torch.empty(args.n_embd, D_GATE_LORA))
             self.gate_w2 = nn.Parameter(torch.empty(D_GATE_LORA, args.dim_att))
 
-            D_MK_LORA = 16
-            self.mk_w1 = nn.Parameter(torch.empty(args.n_embd, D_MK_LORA))
-            self.mk_w2 = nn.Parameter(torch.empty(D_MK_LORA, args.dim_att))
-            D_MA_LORA = 16
-            self.ma_w1 = nn.Parameter(torch.empty(args.n_embd, D_MA_LORA))
-            self.ma_w2 = nn.Parameter(torch.empty(D_MA_LORA, args.dim_att))
-            D_MV_LORA = 32
-            self.mv_w1 = nn.Parameter(torch.empty(args.n_embd, D_MV_LORA))
-            self.mv_w2 = nn.Parameter(torch.empty(D_MV_LORA, args.dim_att))
+            if layer_id > 0:
+                D_MV_LORA = 32
+                self.mv_w1 = nn.Parameter(torch.empty(args.n_embd, D_MV_LORA))
+                self.mv_w2 = nn.Parameter(torch.empty(D_MV_LORA, args.dim_att))
+                self.time_misc_v = nn.Parameter(torch.empty(1,1,args.n_embd))
 
-            self.time_misc_k = nn.Parameter(torch.empty(1,1,args.n_embd))
+            self.time_misc_kkk = nn.Parameter(torch.empty(1,1,args.n_embd))
             self.time_misc_a = nn.Parameter(torch.empty(1,1,args.n_embd))
-            self.time_misc_v = nn.Parameter(torch.empty(1,1,args.n_embd))
 
             self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
             self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)
@@ -145,18 +127,12 @@ class RWKV_Tmix_x070(nn.Module):
         B, T, C = x.size()
         H = self.n_head
         xx = self.time_shift(x) - x
-
-        xxx = x + xx * self.time_maa_x
-        xxx = torch.tanh(xxx @ self.time_maa_w1).view(B*T, 6, -1).transpose(0, 1)
-        xxx = torch.bmm(xxx, self.time_maa_w2).view(6, B, T, -1)
-        mr, mw, mk, mv, ma, mg = xxx.unbind(dim=0)
-
-        xr = x + xx * (self.time_maa_r + mr)
-        xw = x + xx * (self.time_maa_w + mw)
-        xk = x + xx * (self.time_maa_k + mk)
-        xv = x + xx * (self.time_maa_v + mv)
-        xa = x + xx * (self.time_maa_a + ma)
-        xg = x + xx * (self.time_maa_g + mg)
+        xr = x + xx * self.time_maa_r
+        xw = x + xx * self.time_maa_w
+        xk = x + xx * self.time_maa_k
+        xv = x + xx * self.time_maa_v
+        xa = x + xx * self.time_maa_a
+        xg = x + xx * self.time_maa_g
 
         r = self.receptance(xr)
         w = -F.softplus(-(self.time_decay + torch.tanh(xw @ self.time_decay_w1) @ self.time_decay_w2)) - 0.5 # soft-clamp to (-inf, -0.5)
@@ -166,16 +142,13 @@ class RWKV_Tmix_x070(nn.Module):
             v0 = v
         else:
             v = v + (v0 - v) * torch.sigmoid(self.time_misc_v + (xv @ self.mv_w1) @ self.mv_w2)
+        a = torch.sigmoid( self.time_aaaaa + (xa @ self.time_aaa_w1) @ self.time_aaa_w2 ) # a is "in-context learning rate"
         g = torch.sigmoid(xg @ self.gate_w1) @ self.gate_w2
 
-        kk = k + torch.tanh(xk @ self.time_kkk_w1) @ self.time_kkk_w2
+        kk = k * self.time_misc_kkk
         kk = F.normalize(kk.view(B,T,H,-1), dim=-1, p=2.0).view(B,T,C)
-        a = torch.sigmoid( self.time_aaaaa + (xa @ self.time_aaa_w1) @ self.time_aaa_w2 ) # a is "in-context learning rate"
+        k = k * (1 + (a-1) * self.time_misc_a)
 
-        ma = torch.sigmoid(self.time_misc_a + (xa @ self.ma_w1) @ self.ma_w2)
-        k = k * ma + k*a * (1 - ma)
-        mk = torch.sigmoid(self.time_misc_k + (xk @ self.mk_w1) @ self.mk_w2)
-        k = k * torch.clamp(w*mk, max=0).exp()
         x = RUN_CUDA_RWKV7(r, w, k, v, -kk, kk*a)
 
         x = self.ln_x(x.view(B * T, C)).view(B, T, C)
