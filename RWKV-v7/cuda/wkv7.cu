@@ -17,13 +17,6 @@ __global__ void kernel_forward(const int B, const int T, const int C, const int 
     float state[_N_] = {0};
     __shared__ float r[_N_], k[_N_], w[_N_], a[_N_], b[_N_];
 
-    float v[_T_];
-    for (int _t = 0; _t < T; _t++)
-    {
-        const int t = e*T*C + h*_N_ + i + _t * C;
-        v[_t] = float(_v[t]);
-    }
-
     for (int _t = 0; _t < T; _t++)
     {
         const int t = e*T*C + h*_N_ + i + _t * C;
@@ -42,7 +35,7 @@ __global__ void kernel_forward(const int B, const int T, const int C, const int 
             sa += a[j] * state[j];
         }
 
-        float vv = v[_t];
+        float vv = float(_v[t]);
         float y = 0;
         #pragma unroll
         for (int j = 0; j < _N_; j++)

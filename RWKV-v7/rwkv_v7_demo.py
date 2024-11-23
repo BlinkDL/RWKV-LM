@@ -17,7 +17,6 @@ args = types.SimpleNamespace()
 # model download: https://huggingface.co/BlinkDL/temp-latest-training-models/tree/main
 MODEL_PATH = "/mnt/e/rwkv-x070-rc4a-172m-pile-20241120-ctx4k.pth"
 args.n_layer = 12
-args.ctx_len = 4096
 args.n_embd = 768
 
 args.vocab_size = 50304 # "pile" model: 50277 padded to 50304   
@@ -36,11 +35,10 @@ args.head_size_a = 64 # don't change
 args.head_size_divisor = 8 # don't change
 
 from torch.utils.cpp_extension import load
-T = args.ctx_len
 HEAD_SIZE = args.head_size_a
 
 load(name="wkv7", sources=["cuda/wkv7_op.cpp", f"cuda/wkv7.cu"], is_python_module=False,
-                    verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}", f"-D_T_={T}"])
+                    verbose=True, extra_cuda_cflags=["-res-usage", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization", f"-D_N_={HEAD_SIZE}"])
 class WKV_7(torch.autograd.Function):
     @staticmethod
     def forward(ctx, r, w, k, v, a, b):
@@ -225,14 +223,8 @@ class Block(nn.Module):
 class RWKV(nn.Module):
     def __init__(self, args):
         super().__init__()
-        self.args = args
         args.dim_att = args.n_embd
         args.dim_ffn = int((args.n_embd * 3.5) // 32 * 32)
-
-        assert args.n_embd % 32 == 0
-        assert args.dim_att % 32 == 0
-        assert args.dim_ffn % 32 == 0
-
         self.emb = nn.Embedding(args.vocab_size, args.n_embd)
 
         self.blocks = nn.ModuleList([Block(args, i) for i in range(args.n_layer)])
