@@ -816,16 +816,18 @@ class RWKV_Tmix_x070(MyModule):
             D_AAA_LORA = 32 # dim 32 for emb 768, change it for smaller/larger models
             self.time_aaa_w1 = nn.Parameter(torch.zeros(C, D_AAA_LORA))
             self.time_aaa_w2 = nn.Parameter(ortho_init(torch.zeros(D_AAA_LORA, C), 0.1))
-            self.time_aaa = nn.Parameter(torch.zeros(1,1,C))
+            self.time_aaaaa = nn.Parameter(torch.zeros(1,1,C))
+
+            D_MV_LORA = 32 # dim 32 for emb 768, change it for smaller/larger models
+            self.mv_w1 = nn.Parameter(torch.zeros(C, D_MV_LORA))
+            self.mv_w2 = nn.Parameter(ortho_init(torch.zeros(D_MV_LORA, C), 0.1))
+            self.time_misc_v = nn.Parameter(torch.zeros(1,1,C)+1.0)
 
             D_GATE_LORA = 128 # dim 128 for emb 768, change it for smaller/larger models
             self.gate_w1 = nn.Parameter(torch.zeros(C, D_GATE_LORA))
             self.gate_w2 = nn.Parameter(ortho_init(torch.zeros(D_GATE_LORA, C), 0.1))
 
-            self.mv_w = nn.Parameter(torch.zeros(C, H))
-            self.time_misc_v = nn.Parameter(torch.zeros(1,1,H,N)+1.0)
-
-            self.time_misc_k = nn.Parameter(torch.ones(1,1,C))
+            self.time_misc_kkk = nn.Parameter(torch.ones(1,1,C)*0.85)
             self.time_misc_a = nn.Parameter(torch.ones(1,1,C))
 
             self.time_faaaa = nn.Parameter(torch.zeros(1,1,H,N))
@@ -857,17 +859,17 @@ class RWKV_Tmix_x070(MyModule):
         xg = x + xx * self.time_maa_g
 
         r = self.receptance(xr)
-        w = -F.softplus(-(self.time_decay + torch.tanh(xw @ self.time_decay_w1) @ self.time_decay_w2)) - 0.5
+        w = -F.softplus(-(self.time_decay + torch.tanh(xw @ self.time_decay_w1) @ self.time_decay_w2)) - 0.5 # soft-clamp to (-inf, -0.5)
         k = self.key(xk)
         v = self.value(xv)
         if self.layer_id == 0:
             v0 = v
         else:
-            v = v + (v0 - v) * torch.sigmoid(self.time_misc_v + (xv @ self.mv_w).view(B,T,H,1)).view(B,T,C)
-        a = torch.sigmoid(self.time_aaa + (xa @ self.time_aaa_w1) @ self.time_aaa_w2)
+            v = v + (v0 - v) * torch.sigmoid(self.time_misc_v + (xv @ self.mv_w1) @ self.mv_w2)
+        a = torch.sigmoid(self.time_aaaaa + (xa @ self.time_aaa_w1) @ self.time_aaa_w2) # a is "in-context learning rate"
         g = torch.sigmoid(xg @ self.gate_w1) @ self.gate_w2
 
-        kk = k * self.time_misc_k
+        kk = k * self.time_misc_kkk
         kk = F.normalize(kk.view(B,T,H,-1), dim=-1, p=2.0).view(B,T,C)
         k = k * (1 + (a-1) * self.time_misc_a)
 

@@ -9,7 +9,7 @@ from torch.nn import functional as F
 np.set_printoptions(precision=4, suppress=True, linewidth=200)
 
 '''
-This will load RWKV-7 "Goose" x070.rc4-2411 and inference in GPT-mode (slower than RNN-mode for autoregressive generation)
+This will load RWKV-7 "Goose" x070.rc4a-2411 and inference in GPT-mode (slower than RNN-mode for autoregressive generation)
 '''
 
 args = types.SimpleNamespace()
@@ -142,7 +142,7 @@ class RWKV_Tmix_x070(nn.Module):
             v0 = v
         else:
             v = v + (v0 - v) * torch.sigmoid(self.time_misc_v + (xv @ self.mv_w1) @ self.mv_w2)
-        a = torch.sigmoid( self.time_aaaaa + (xa @ self.time_aaa_w1) @ self.time_aaa_w2 ) # a is "in-context learning rate"
+        a = torch.sigmoid(self.time_aaaaa + (xa @ self.time_aaa_w1) @ self.time_aaa_w2) # a is "in-context learning rate"
         g = torch.sigmoid(xg @ self.gate_w1) @ self.gate_w2
 
         kk = k * self.time_misc_kkk
