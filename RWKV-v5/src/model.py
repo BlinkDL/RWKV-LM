@@ -824,6 +824,7 @@ class RWKV_Tmix_x070(MyModule):
             self.time_misc_v = nn.Parameter(torch.zeros(1,1,C)+1.0)
 
             D_GATE_LORA = 128 # dim 128 for emb 768, change it for smaller/larger models
+            # Note: for some data, you can reduce gate lora dimension (such as to 32), or even remove it
             self.gate_w1 = nn.Parameter(torch.zeros(C, D_GATE_LORA))
             self.gate_w2 = nn.Parameter(ortho_init(torch.zeros(D_GATE_LORA, C), 0.1))
 
