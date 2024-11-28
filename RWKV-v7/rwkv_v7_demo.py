@@ -15,10 +15,25 @@ This will load RWKV-7 "Goose" x070 and inference in GPT-mode (slower than RNN-mo
 args = types.SimpleNamespace()
 
 # model download: https://huggingface.co/BlinkDL/rwkv-7-pile
-MODEL_PATH = "/mnt/e/RWKV-x070-Pile-168M-20241120-ctx4096.pth"
 
-args.n_layer = 12
-args.n_embd = 768
+MODEL_PATH = "/mnt/e/RWKV-x070-Pile-168M-20241120-ctx4096.pth"
+# MODEL_PATH = "/mnt/program/RWKV-x070-Pile-421M-20241127-ctx4096.pth"
+
+if '168M' in MODEL_PATH:
+    args.n_layer = 12
+    args.n_embd = 768
+    D_DECAY_LORA = 64
+    D_AAA_LORA = 64
+    D_MV_LORA = 32
+    D_GATE_LORA = 128
+elif '421M' in MODEL_PATH:
+    args.n_layer = 24
+    args.n_embd = 1024
+    D_DECAY_LORA = 64
+    D_AAA_LORA = 64
+    D_MV_LORA = 64
+    D_GATE_LORA = 128
+
 args.vocab_size = 50304 # "pile" model: 50277 padded to 50304   
 from tokenizers import Tokenizer
 tokenizer = Tokenizer.from_file("../RWKV-v4neo/20B_tokenizer.json")
@@ -120,23 +135,19 @@ class RWKV_Tmix_x070(nn.Module):
         self.xx_a = nn.Parameter(torch.empty(1,1,C))
         self.xx_g = nn.Parameter(torch.empty(1,1,C))
 
-        D_DECAY_LORA = 64
         self.ww_b = nn.Parameter(torch.empty(1,1,C))
         self.ww_w1 = nn.Parameter(torch.empty(C, D_DECAY_LORA))
         self.ww_w2 = nn.Parameter(torch.empty(D_DECAY_LORA, C))
 
-        D_AAA_LORA = 64
         self.aa_b = nn.Parameter(torch.empty(1,1,C))
         self.aa_w1 = nn.Parameter(torch.empty(C, D_AAA_LORA))
         self.aa_w2 = nn.Parameter(torch.empty(D_AAA_LORA, C))
 
         if layer_id > 0:
-            D_MV_LORA = 32
             self.vv_b = nn.Parameter(torch.empty(1,1,C))
             self.vv_w1 = nn.Parameter(torch.empty(C, D_MV_LORA))
             self.vv_w2 = nn.Parameter(torch.empty(D_MV_LORA, C))
 
-        D_GATE_LORA = 128
         self.gg_w1 = nn.Parameter(torch.empty(C, D_GATE_LORA))
         self.gg_w2 = nn.Parameter(torch.empty(D_GATE_LORA, C))
 
