@@ -166,6 +166,7 @@ class RWKV_Tmix_x070(nn.Module):
         B, T, C = x.size()
         H = self.n_head
         xx = self.time_shift(x) - x
+
         xr = x + xx * self.x_r
         xw = x + xx * self.x_w
         xk = x + xx * self.x_k
@@ -178,9 +179,9 @@ class RWKV_Tmix_x070(nn.Module):
         k = self.key(xk)
         v = self.value(xv)
         if self.layer_id == 0:
-            v_first = v
+            v_first = v # store the v of the first layer
         else:
-            v = v + (v_first - v) * torch.sigmoid(self.v0 + (xv @ self.v1) @ self.v2)
+            v = v + (v_first - v) * torch.sigmoid(self.v0 + (xv @ self.v1) @ self.v2) # add value residual
         a = torch.sigmoid(self.a0 + (xa @ self.a1) @ self.a2) # a is "in-context learning rate"
         g = torch.sigmoid(xg @ self.g1) @ self.g2
 
@@ -189,11 +190,9 @@ class RWKV_Tmix_x070(nn.Module):
         k = k * (1 + (a-1) * self.k_a)
 
         x = RWKV7_OP(r, w, k, v, -kk, kk*a)
-
         x = self.ln_x(x.view(B * T, C)).view(B, T, C)
         
         x = x + ((r.view(B,T,H,-1)*k.view(B,T,H,-1)*self.r_k).sum(dim=-1, keepdim=True) * v.view(B,T,H,-1)).view(B,T,C)
-
         x = self.output(x * g)
         return x, v_first
     

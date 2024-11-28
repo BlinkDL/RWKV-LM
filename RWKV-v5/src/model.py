@@ -784,12 +784,12 @@ class RWKV_Tmix_x070(MyModule):
             for i in range(C):
                 ddd[0, 0, i] = i / C
 
-            self.time_maa_r = nn.Parameter(1.0 - torch.pow(ddd, 0.2 * ratio_1_to_almost0))
-            self.time_maa_w = nn.Parameter(1.0 - torch.pow(ddd, 0.9 * ratio_1_to_almost0))
-            self.time_maa_k = nn.Parameter(1.0 - (torch.pow(ddd, 0.9 * ratio_1_to_almost0) + 0.4 * ratio_0_to_1))
-            self.time_maa_v = nn.Parameter(1.0 - (torch.pow(ddd, 0.4 * ratio_1_to_almost0) + 0.6 * ratio_0_to_1))
-            self.time_maa_a = nn.Parameter(1.0 - torch.pow(ddd, 0.9 * ratio_1_to_almost0))
-            self.time_maa_g = nn.Parameter(1.0 - torch.pow(ddd, 0.2 * ratio_1_to_almost0))
+            self.x_r = nn.Parameter(1.0 - torch.pow(ddd, 0.2 * ratio_1_to_almost0))
+            self.x_w = nn.Parameter(1.0 - torch.pow(ddd, 0.9 * ratio_1_to_almost0))
+            self.x_k = nn.Parameter(1.0 - (torch.pow(ddd, 0.9 * ratio_1_to_almost0) + 0.4 * ratio_0_to_1))
+            self.x_v = nn.Parameter(1.0 - (torch.pow(ddd, 0.4 * ratio_1_to_almost0) + 0.6 * ratio_0_to_1))
+            self.x_a = nn.Parameter(1.0 - torch.pow(ddd, 0.9 * ratio_1_to_almost0))
+            self.x_g = nn.Parameter(1.0 - torch.pow(ddd, 0.2 * ratio_1_to_almost0))
 
             def ortho_init(x, scale):
                 with torch.no_grad():
@@ -806,39 +806,38 @@ class RWKV_Tmix_x070(MyModule):
                     return x
 
             D_DECAY_LORA = 64 # dim 64 for emb 768, change it for smaller/larger models
-            self.time_decay_w1 = nn.Parameter(torch.zeros(C, D_DECAY_LORA))
-            self.time_decay_w2 = nn.Parameter(ortho_init(torch.zeros(D_DECAY_LORA, C), 0.1))
+            self.w1 = nn.Parameter(torch.zeros(C, D_DECAY_LORA))
+            self.w2 = nn.Parameter(ortho_init(torch.zeros(D_DECAY_LORA, C), 0.1))
             decay_speed = torch.ones(C)
             for n in range(C):
                 decay_speed[n] = -7 + 5 * (n / (C - 1)) ** (0.85 + 1.0 * ratio_0_to_1 ** 0.5)
-            self.time_decay = nn.Parameter(decay_speed.reshape(1,1,C) + 0.5) # !!! 0.5 comes from F.softplus !!!
+            self.w0 = nn.Parameter(decay_speed.reshape(1,1,C) + 0.5) # !!! 0.5 comes from F.softplus !!!
 
-            D_AAA_LORA = 32 # dim 32 for emb 768, change it for smaller/larger models
-            self.time_aaa_w1 = nn.Parameter(torch.zeros(C, D_AAA_LORA))
-            self.time_aaa_w2 = nn.Parameter(ortho_init(torch.zeros(D_AAA_LORA, C), 0.1))
-            self.time_aaaaa = nn.Parameter(torch.zeros(1,1,C))
+            D_AAA_LORA = 32 # dim 32 or 64 for emb 768, change it for smaller/larger models
+            self.a1 = nn.Parameter(torch.zeros(C, D_AAA_LORA))
+            self.a2 = nn.Parameter(ortho_init(torch.zeros(D_AAA_LORA, C), 0.1))
+            self.a0 = nn.Parameter(torch.zeros(1,1,C))
 
             D_MV_LORA = 32 # dim 32 for emb 768, change it for smaller/larger models
-            self.mv_w1 = nn.Parameter(torch.zeros(C, D_MV_LORA))
-            self.mv_w2 = nn.Parameter(ortho_init(torch.zeros(D_MV_LORA, C), 0.1))
-            self.time_misc_v = nn.Parameter(torch.zeros(1,1,C)+1.0)
+            self.v1 = nn.Parameter(torch.zeros(C, D_MV_LORA))
+            self.v2 = nn.Parameter(ortho_init(torch.zeros(D_MV_LORA, C), 0.1))
+            self.v0 = nn.Parameter(torch.zeros(1,1,C)+1.0)
 
             D_GATE_LORA = 128 # dim 128 for emb 768, change it for smaller/larger models
             # Note: for some data, you can reduce gate lora dimension (such as to 32), or even remove it
-            self.gate_w1 = nn.Parameter(torch.zeros(C, D_GATE_LORA))
-            self.gate_w2 = nn.Parameter(ortho_init(torch.zeros(D_GATE_LORA, C), 0.1))
+            self.g1 = nn.Parameter(torch.zeros(C, D_GATE_LORA))
+            self.g2 = nn.Parameter(ortho_init(torch.zeros(D_GATE_LORA, C), 0.1))
 
-            self.time_misc_kkk = nn.Parameter(torch.ones(1,1,C)*0.85)
-            self.time_misc_a = nn.Parameter(torch.ones(1,1,C))
-
-            self.time_faaaa = nn.Parameter(torch.zeros(1,1,H,N))
+            self.k_k = nn.Parameter(torch.ones(1,1,C)*0.85)
+            self.k_a = nn.Parameter(torch.ones(1,1,C))
+            self.r_k = nn.Parameter(torch.zeros(H,N))
 
             self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
             self.receptance = nn.Linear(C, C, bias=False)
             self.key = nn.Linear(C, C, bias=False)
             self.value = nn.Linear(C, C, bias=False)
             self.output = nn.Linear(C, C, bias=False)
-            self.ln_x = nn.GroupNorm(H, C, eps=(1e-5)*(args.head_size_divisor**2))
+            self.ln_x = nn.GroupNorm(H, C, eps=(1e-5)*(args.head_size_divisor**2)) # !!! notice eps value !!!
 
             # !!! initialize if you are using RWKV_Tmix_x070 in your code !!!
             # self.receptance.weight.data.uniform_(-0.5/(C**0.5), 0.5/(C**0.5))
@@ -847,39 +846,39 @@ class RWKV_Tmix_x070(MyModule):
             # self.output.weight.data.zero_()
 
     @MyFunction
-    def forward(self, x, v0):
+    def forward(self, x, v_first):
         B, T, C = x.size()
         H = self.n_head
         xx = self.time_shift(x) - x
 
-        xr = x + xx * self.time_maa_r
-        xw = x + xx * self.time_maa_w
-        xk = x + xx * self.time_maa_k
-        xv = x + xx * self.time_maa_v
-        xa = x + xx * self.time_maa_a
-        xg = x + xx * self.time_maa_g
+        xr = x + xx * self.x_r
+        xw = x + xx * self.x_w
+        xk = x + xx * self.x_k
+        xv = x + xx * self.x_v
+        xa = x + xx * self.x_a
+        xg = x + xx * self.x_g
 
         r = self.receptance(xr)
-        w = -F.softplus(-(self.time_decay + torch.tanh(xw @ self.time_decay_w1) @ self.time_decay_w2)) - 0.5 # soft-clamp to (-inf, -0.5)
+        w = -F.softplus(-(self.w0 + torch.tanh(xw @ self.w1) @ self.w2)) - 0.5 # soft-clamp to (-inf, -0.5)
         k = self.key(xk)
         v = self.value(xv)
         if self.layer_id == 0:
-            v0 = v
+            v_first = v # store the v of the first layer
         else:
-            v = v + (v0 - v) * torch.sigmoid(self.time_misc_v + (xv @ self.mv_w1) @ self.mv_w2)
-        a = torch.sigmoid(self.time_aaaaa + (xa @ self.time_aaa_w1) @ self.time_aaa_w2) # a is "in-context learning rate"
-        g = torch.sigmoid(xg @ self.gate_w1) @ self.gate_w2
+            v = v + (v_first - v) * torch.sigmoid(self.v0 + (xv @ self.v1) @ self.v2) # add value residual
+        a = torch.sigmoid(self.a0 + (xa @ self.a1) @ self.a2) # a is "in-context learning rate"
+        g = torch.sigmoid(xg @ self.g1) @ self.g2
 
-        kk = k * self.time_misc_kkk
+        kk = k * self.k_k
         kk = F.normalize(kk.view(B,T,H,-1), dim=-1, p=2.0).view(B,T,C)
-        k = k * (1 + (a-1) * self.time_misc_a)
+        k = k * (1 + (a-1) * self.k_a)
 
         x = RUN_CUDA_RWKV7g(r, w, k, v, -kk, kk*a)
         x = self.ln_x(x.view(B * T, C)).view(B, T, C)
 
-        x = x + ((r.view(B,T,H,-1)*k.view(B,T,H,-1)*self.time_faaaa).sum(dim=-1, keepdim=True) * v.view(B,T,H,-1)).view(B,T,C)
+        x = x + ((r.view(B,T,H,-1)*k.view(B,T,H,-1)*self.r_k).sum(dim=-1, keepdim=True) * v.view(B,T,H,-1)).view(B,T,C)
         x = self.output(x * g)
-        return x, v0
+        return x, v_first
     
 ########################################################################################################
 
@@ -954,7 +953,7 @@ class RWKV_CMix_x070(MyModule):
             ddd = torch.ones(1, 1, args.n_embd)
             for i in range(args.n_embd):
                 ddd[0, 0, i] = i / args.n_embd
-            self.time_maa_k = nn.Parameter(1.0 - torch.pow(ddd, ratio_1_to_almost0**4))
+            self.x_k = nn.Parameter(1.0 - torch.pow(ddd, ratio_1_to_almost0**4))
 
         self.key = nn.Linear(args.n_embd, args.n_embd * 4, bias=False)
         self.value = nn.Linear(args.n_embd * 4, args.n_embd, bias=False)
@@ -967,7 +966,7 @@ class RWKV_CMix_x070(MyModule):
     def forward(self, x):
         xx = self.time_shift(x) - x
         
-        k = x + xx * self.time_maa_k
+        k = x + xx * self.x_k
         k = torch.relu(self.key(k)) ** 2
 
         return self.value(k)
@@ -1065,15 +1064,15 @@ class Block(nn.Module):
             self.drop1 = nn.Dropout(p = args.dropout)
 
     if 'x070' in os.environ["RWKV_MY_TESTING"]:
-        def forward(self, x, v0):
+        def forward(self, x, v_first):
             if self.layer_id == 0:
                 x = self.ln0(x)
 
-            x_attn, v0 = self.att(self.ln1(x), v0)
+            x_attn, v_first = self.att(self.ln1(x), v_first)
             x = x + x_attn
 
             x = x + self.ffn(self.ln2(x))
-            return x, v0
+            return x, v_first
     else:
         def forward(self, x, x_emb=None):
             args = self.args
@@ -1181,7 +1180,7 @@ class RWKV(pl.LightningModule):
                     lr_2x.add(n)
                 else:
                     lr_1x.add(n)
-            elif (("time_decay" in n) or ("time_daaaa" in n)) and (args.layerwise_lr > 0):
+            elif (("time_decay" in n) or ("time_daaaa" in n) or ("att.w0" in n)) and (args.layerwise_lr > 0):
                 if args.my_pile_stage == 2:
                     lr_3x.add(n)
                 else:
@@ -1193,7 +1192,7 @@ class RWKV(pl.LightningModule):
                     lr_1x.add(n)
             elif ("time_first" in n) and (args.layerwise_lr > 0):
                 lr_3x.add(n)
-            elif (len(p.squeeze().shape) >= 2) and (args.weight_decay > 0):
+            elif (len(p.squeeze().shape) >= 2) and (args.weight_decay > 0) and (".weight" in n):
                 lr_decay.add(n)
             else:
                 lr_1x.add(n)
@@ -1264,12 +1263,12 @@ class RWKV(pl.LightningModule):
                     x = block(x, x_emb)
         else:
             if 'x070' in os.environ["RWKV_MY_TESTING"]:
-                v0 = torch.empty_like(x)
+                v_first = torch.empty_like(x)
                 for block in self.blocks:
                     if args.grad_cp == 1:
-                        x, v0 = deepspeed.checkpointing.checkpoint(block, x, v0)
+                        x, v_first = deepspeed.checkpointing.checkpoint(block, x, v_first)
                     else:
-                        x, v0 = block(x, v0)
+                        x, v_first = block(x, v_first)
             else:
                 for block in self.blocks:
                     if args.grad_cp == 1:
@@ -1368,7 +1367,7 @@ class RWKV(pl.LightningModule):
             print(f"{s0.ljust(5)} {s1.ljust(5)} {s2.ljust(5)} {s3.ljust(5)} {n}", end="")
 
             scale = 1.0
-            if "ln_" in n or ".ln" in n or "time_" in n or "_mask" in n or "pos_emb" in n or '.mask.' in n or n.endswith('_w') or n.endswith('_w1') or n.endswith('_w2') or n.endswith('_bias'):
+            if "ln_" in n or ".ln" in n or "time_" in n or "_mask" in n or "pos_emb" in n or '.mask.' in n or n.endswith('_w') or n.endswith('_w1') or n.endswith('_w2') or n.endswith('_bias') or (".weight" not in n):
                 if 'ln_x.weight' in n:
                     layer_scale = (1+int(n.split('.')[1])) / self.args.n_layer
                     m[n] = (p * 0.0) + (layer_scale ** 0.7)
