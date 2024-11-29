@@ -116,7 +116,6 @@ def time_mixing__(H:int, N:int, x, x_prev, v_first, state, x_r, x_w, x_k, x_v, x
 
     r = rw @ xr
     w = torch.tanh(xw @ w1) @ w2
-    w = -torch.nn.functional.softplus(-(w0 + w.float())) - 0.5
     k = kw @ xk
     v = vw @ xv
 
@@ -133,12 +132,22 @@ def time_mixing__(H:int, N:int, x, x_prev, v_first, state, x_r, x_w, x_k, x_v, x
     kk = torch.nn.functional.normalize(kk.view(H,N), dim=-1, p=2.0).view(-1)
     k = k * (1 + (a-1) * k_a)
 
+    # naive version
+    # w = -torch.nn.functional.softplus(-(w0 + w.float())) - 0.5
+    # assert w.dtype == torch.float
+    # w = torch.exp(-torch.exp(w))
+
+    # fused version
+    w = w0 + w.float()
     assert w.dtype == torch.float
-    w = torch.exp(-torch.exp(w))
+    w = torch.exp(-0.606531*torch.sigmoid(w)) # 0.606531 = exp(-0.5)
     
     kv = v.view(H,N,1) @ k.view(H,1,N)
-    sab = state @ ((-kk).view(H,N,1) @ (kk*a).view(H,1,N)).float() # note state is float
-    state = state * w.view(H,1,N) + sab + kv.float()
+
+    ab = (-kk).view(H,N,1) @ (kk*a).view(H,1,N)
+    
+    state = state * w.view(H,1,N) + state @ ab.float() + kv.float()
+    
     out = (state.to(torch.bfloat16) @ r.view(H,N,1)).view(H,N)
 
     out = torch.nn.functional.group_norm(out.view(1,H*N), num_groups=H, weight=ln_w, bias=ln_b, eps = 64e-5).view(H*N)    
