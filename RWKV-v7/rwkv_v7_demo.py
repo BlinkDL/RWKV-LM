@@ -99,14 +99,24 @@ else:
         state = torch.zeros((B, H, N, N), device=r.device, dtype=torch.float)
 
         for t in range(T):
-            kk = k[:, t, :]
-            rr = r[:, t, :]
-            vv = v[:, t, :]
-            aa = a[:, t, :]
-            bb = b[:, t, :]
-            sab = torch.einsum('bhik,bhk,bhj->bhij', state, aa, bb)
-            state = state * w[: , t, :, None, :] + sab + torch.einsum('bhj,bhi->bhij', kk, vv)
-            out[:, t, :] = torch.einsum('bhj,bhij->bhi', rr, state)
+            kk = k[:, t, :].view(B, H, 1, N)
+            rr = r[:, t, :].view(B, H, N, 1)
+            vv = v[:, t, :].view(B, H, N, 1)
+            aa = a[:, t, :].view(B, H, N, 1)
+            bb = b[:, t, :].view(B, H, 1, N)
+            state = state * w[: , t, :, None, :] + state @ aa @ bb + vv @ kk
+            out[:, t, :] = (state @ rr).view(B, H, N)
+
+            # another method using einsum
+            #
+            # kk = k[:, t, :]
+            # rr = r[:, t, :]
+            # vv = v[:, t, :]
+            # aa = a[:, t, :]
+            # bb = b[:, t, :]
+            # sab = torch.einsum('bhik,bhk,bhj->bhij', state, aa, bb)
+            # state = state * w[: , t, :, None, :] + sab + torch.einsum('bhj,bhi->bhij', kk, vv)
+            # out[:, t, :] = torch.einsum('bhj,bhij->bhi', rr, state)
 
         return out.view(B, T, C).to(dtype=DTYPE)
 
