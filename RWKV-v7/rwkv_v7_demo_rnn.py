@@ -95,8 +95,7 @@ class RWKV_RNN(MyModule):
 
                 xx = F.layer_norm(x, (self.n_embd,), weight=z[bbb+'ln1.weight'], bias=z[bbb+'ln1.bias'])
 
-                # using a hack to determine first layer
-                xx, state[i*3+0], state[i*3+1], v_first = time_mixing(self.n_head if i > 0 else -self.n_head, self.head_size, xx, state[i*3+0], v_first, state[i*3+1],
+                xx, state[i*3+0], state[i*3+1], v_first = time_mixing(i, self.n_head, self.head_size, xx, state[i*3+0], v_first, state[i*3+1],
                     z[att+'x_r'], z[att+'x_w'], z[att+'x_k'], z[att+'x_v'], z[att+'x_a'], z[att+'x_g'],
                     z[att+'w0'], z[att+'w1'], z[att+'w2'], z[att+'a0'], z[att+'a1'], z[att+'a2'], z[att+'v0'], z[att+'v1'], z[att+'v2'],
                     z[att+'g1'], z[att+'g2'], z[att+'k_k'], z[att+'k_a'], z[att+'r_k'],
@@ -116,32 +115,25 @@ class RWKV_RNN(MyModule):
 
 ########################################################################################################
 
-def time_mixing__(H:int, N:int, x, x_prev, v_first, state, x_r, x_w, x_k, x_v, x_a, x_g, w0, w1, w2, a0, a1, a2, v0, v1, v2, g1, g2, k_k, k_a, r_k, kw, vw, rw, ow, ln_w, ln_b):
+def time_mixing__(layer_id:int, H:int, N:int, x, x_prev, v_first, state, x_r, x_w, x_k, x_v, x_a, x_g, w0, w1, w2, a0, a1, a2, v0, v1, v2, g1, g2, k_k, k_a, r_k, kw, vw, rw, ow, ln_w, ln_b):
     xx = x_prev - x
-    xr = x + xx * x_r
-    xw = x + xx * x_w
-    xk = x + xx * x_k
-    xv = x + xx * x_v
-    xa = x + xx * x_a
-    xg = x + xx * x_g
+    xr, xw, xk, xv, xa, xg = x+xx*x_r, x+xx*x_w, x+xx*x_k, x+xx*x_v, x+xx*x_a, x+xx*x_g
 
     r = rw @ xr
     w = torch.tanh(xw @ w1) @ w2
     k = kw @ xk
     v = vw @ xv
-
-    if H < 0: # hack to determine first layer
-        v_first = v
-        H = -H
-    else:
-        v = v + (v_first - v) * torch.sigmoid(v0 + (xv @ v1) @ v2)
-
     a = torch.sigmoid(a0 + (xa @ a1) @ a2)
     g = torch.sigmoid(xg @ g1) @ g2
 
     kk = k * k_k
     kk = torch.nn.functional.normalize(kk.view(H,N), dim=-1, p=2.0).view(-1)
     k = k * (1 + (a-1) * k_a)
+
+    if layer_id == 0:
+        v_first = v
+    else:
+        v = v + (v_first - v) * torch.sigmoid(v0 + (xv @ v1) @ v2)
 
     # naive version
     # w = -torch.nn.functional.softplus(-(w0 + w.float())) - 0.5
@@ -151,19 +143,16 @@ def time_mixing__(H:int, N:int, x, x_prev, v_first, state, x_r, x_w, x_k, x_v, x
     # fused version
     w = w0 + w.float()
     assert w.dtype == torch.float
-    w = torch.exp(-0.606531*torch.sigmoid(w)) # 0.606531 = exp(-0.5)
+    w = torch.exp(-0.606531 * torch.sigmoid(w)) # 0.606531 = exp(-0.5)
     
+    # rwkv-7 kernel
     vk = v.view(H,N,1) @ k.view(H,1,N)
-
     ab = (-kk).view(H,N,1) @ (kk*a).view(H,1,N)
-    
     state = state * w.view(H,1,N) + state @ ab.float() + vk.float()
-    
     out = (state.to(dtype=x.dtype) @ r.view(H,N,1)).view(H,N)
 
     out = torch.nn.functional.group_norm(out.view(1,H*N), num_groups=H, weight=ln_w, bias=ln_b, eps = 64e-5).view(H*N)    
     out = out + ((r * k * r_k).view(H,N).sum(dim=-1, keepdim=True) * v.view(H,N)).view(H*N)
-
     return ow @ (out * g), x, state, v_first
 try:
     time_mixing = torch.compile(time_mixing__, mode="max-autotune", fullgraph=True, dynamic=False)
