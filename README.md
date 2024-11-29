@@ -107,6 +107,8 @@ ffn.receptance.weight => zero
 
 ### Fixing RWKV-6 Spikes ###
 
+0. upgrade to RWKV-7. It's very stable.
+
 1. when training from scratch, add "k = k * torch.clamp(w, max=0).exp()" before "RUN_CUDA_RWKV6(r, k, v, w, u)", and remember to change your inference code too. you will see faster convergence.
 
 2. use "--adam_eps 1e-18"
