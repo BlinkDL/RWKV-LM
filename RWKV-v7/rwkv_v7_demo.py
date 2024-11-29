@@ -7,6 +7,12 @@ import numpy as np
 import torch.nn as nn
 from torch.nn import functional as F
 np.set_printoptions(precision=4, suppress=True, linewidth=200)
+torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.allow_tf32 = True
+torch.backends.cuda.matmul.allow_tf32 = True
+# torch.backends.cuda.matmul.allow_fp16_reduced_precision_reduction = True
+# torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = True
+torch._C._jit_set_autocast_mode(False)
 
 '''
 This will load RWKV-7 "Goose" x070 and inference in GPT-mode (slower than RNN-mode for autoregressive generation)
@@ -34,7 +40,7 @@ elif '421M' in MODEL_PATH:
     D_MV_LORA = 64
     D_GATE_LORA = 128
 
-args.vocab_size = 50304 # "pile" model: 50277 padded to 50304   
+args.vocab_size = 50304 # "pile" model: 50277 padded to 50304
 from tokenizers import Tokenizer
 tokenizer = Tokenizer.from_file("../RWKV-v4neo/20B_tokenizer.json")
 
@@ -45,6 +51,10 @@ args.head_size_a = 64 # don't change
 HEAD_SIZE = args.head_size_a
 
 USE_CUDA_KERNEL = True # False => UNOPTIMIZED, VERY SLOW
+
+MyModule = torch.jit.ScriptModule
+MyFunction = torch.jit.script_method
+MyStatic = torch.jit.script
 
 ########################################################################################################
 # CUDA Kernel
@@ -124,7 +134,7 @@ else:
 # RWKV TimeMix
 ########################################################################################################
 
-class RWKV_Tmix_x070(nn.Module):
+class RWKV_Tmix_x070(MyModule):
     def __init__(self, args, layer_id):
         super().__init__()
         self.args = args
@@ -153,10 +163,9 @@ class RWKV_Tmix_x070(nn.Module):
         self.a1 = nn.Parameter(torch.empty(C, D_AAA_LORA))
         self.a2 = nn.Parameter(torch.empty(D_AAA_LORA, C))
 
-        if layer_id > 0:
-            self.v0 = nn.Parameter(torch.empty(1,1,C))
-            self.v1 = nn.Parameter(torch.empty(C, D_MV_LORA))
-            self.v2 = nn.Parameter(torch.empty(D_MV_LORA, C))
+        self.v0 = nn.Parameter(torch.empty(1,1,C))
+        self.v1 = nn.Parameter(torch.empty(C, D_MV_LORA))
+        self.v2 = nn.Parameter(torch.empty(D_MV_LORA, C))
 
         self.g1 = nn.Parameter(torch.empty(C, D_GATE_LORA))
         self.g2 = nn.Parameter(torch.empty(D_GATE_LORA, C))
@@ -172,6 +181,7 @@ class RWKV_Tmix_x070(nn.Module):
         self.output = nn.Linear(C, C, bias=False)
         self.ln_x = nn.GroupNorm(H, C, eps=64e-5) # !!! notice eps value !!!
 
+    @MyFunction
     def forward(self, x, v_first):
         B, T, C = x.size()
         H = self.n_head
@@ -210,7 +220,7 @@ class RWKV_Tmix_x070(nn.Module):
 # RWKV ChannelMix
 ########################################################################################################
 
-class RWKV_CMix_x070(nn.Module):
+class RWKV_CMix_x070(MyModule):
     def __init__(self, args, layer_id):
         super().__init__()
         self.args = args
@@ -223,6 +233,7 @@ class RWKV_CMix_x070(nn.Module):
         self.key = nn.Linear(args.n_embd, args.dim_ffn, bias=False)
         self.value = nn.Linear(args.dim_ffn, args.n_embd, bias=False)
 
+    @MyFunction
     def forward(self, x):
         xx = self.time_shift(x) - x
         
@@ -234,21 +245,20 @@ class RWKV_CMix_x070(nn.Module):
 # RWKV Block
 ########################################################################################################
 
-class Block(nn.Module):
+class Block(MyModule):
     def __init__(self, args, layer_id):
         super().__init__()
         self.args = args
         self.layer_id = layer_id
 
+        self.ln0 = nn.LayerNorm(args.n_embd) # only used in block 0, should be fused with emb
         self.ln1 = nn.LayerNorm(args.n_embd)
         self.ln2 = nn.LayerNorm(args.n_embd)
-
-        if self.layer_id == 0:
-            self.ln0 = nn.LayerNorm(args.n_embd)
 
         self.att = RWKV_Tmix_x070(args, layer_id)
         self.ffn = RWKV_CMix_x070(args, layer_id)
         
+    @MyFunction
     def forward(self, x, v_first):
 
         if self.layer_id == 0:
@@ -298,7 +308,7 @@ model_params = torch.load(MODEL_PATH, map_location="cpu")
 with torch.no_grad():
 
     model = RWKV(args).to(dtype=DTYPE).cuda()
-    model.load_state_dict(model_params)
+    model.load_state_dict(model_params, strict=False) # we will ignore blocks.0.att.v0/v1/v2
 
     ########################################################################################################
 

@@ -22,7 +22,13 @@ MyStatic = torch.jit.script
 
 ########################################################################################################
 
+'''
+This will load RWKV-7 "Goose" x070 and inference in RNN-mode (slower than GPT-mode for prefilling)
+'''
+
 args = types.SimpleNamespace()
+
+# model download: https://huggingface.co/BlinkDL/rwkv-7-pile
 
 args.MODEL_NAME = '/mnt/e/RWKV-x070-Pile-168M-20241120-ctx4096'
 # args.MODEL_NAME = "/mnt/program/RWKV-x070-Pile-421M-20241127-ctx4096"
@@ -89,7 +95,7 @@ class RWKV_RNN(MyModule):
 
                 xx = F.layer_norm(x, (self.n_embd,), weight=z[bbb+'ln1.weight'], bias=z[bbb+'ln1.bias'])
 
-                # here i am using a hack to determine "first layer"
+                # using a hack to determine first layer
                 xx, state[i*3+0], state[i*3+1], v_first = time_mixing(self.n_head if i > 0 else -self.n_head, self.head_size, xx, state[i*3+0], v_first, state[i*3+1],
                     z[att+'x_r'], z[att+'x_w'], z[att+'x_k'], z[att+'x_v'], z[att+'x_a'], z[att+'x_g'],
                     z[att+'w0'], z[att+'w1'], z[att+'w2'], z[att+'a0'], z[att+'a1'], z[att+'a2'], z[att+'v0'], z[att+'v1'], z[att+'v2'],
@@ -124,7 +130,7 @@ def time_mixing__(H:int, N:int, x, x_prev, v_first, state, x_r, x_w, x_k, x_v, x
     k = kw @ xk
     v = vw @ xv
 
-    if H < 0: # hack to determine "first layer"
+    if H < 0: # hack to determine first layer
         v_first = v
         H = -H
     else:
@@ -156,7 +162,7 @@ def time_mixing__(H:int, N:int, x, x_prev, v_first, state, x_r, x_w, x_k, x_v, x
     out = (state.to(dtype=x.dtype) @ r.view(H,N,1)).view(H,N)
 
     out = torch.nn.functional.group_norm(out.view(1,H*N), num_groups=H, weight=ln_w, bias=ln_b, eps = 64e-5).view(H*N)    
-    out = out + ((r*k*r_k).view(H,N).sum(dim=-1, keepdim=True) * v.view(H,N)).view(H*N)
+    out = out + ((r * k * r_k).view(H,N).sum(dim=-1, keepdim=True) * v.view(H,N)).view(H*N)
 
     return ow @ (out * g), x, state, v_first
 try:
@@ -208,10 +214,10 @@ def sample_logits(logits, temperature:float=1.0, top_p:float=1.0, top_k:int=0):
 from tokenizers import Tokenizer
 tokenizer = Tokenizer.from_file("../RWKV-v4neo/20B_tokenizer.json")
 
-print(f'\nUsing CUDA bf16. Loading {args.MODEL_NAME} ...')
+print(f'\nUsing CUDA {str(DTYPE).replace("torch.","")}. Loading {args.MODEL_NAME} ...')
 model = RWKV_RNN(args)
 
-print(f'\nPreprocessing prompt (note: using RNN mode to pre-fill is very inefficient)')
+print(f'\nPrefilling prompt (note: using RNN mode to prefill is very inefficient)')
 
 init_state = [None for _ in range(args.n_layer * 3)]
 for i in range(args.n_layer): # state: 0=att_x_prev 1=att_kv 2=ffn_x_prev
