@@ -189,9 +189,9 @@ https://github.com/harrisonvanderbyl/rwkv-cpp-cuda Fast GPU inference with cuda/
 
 ![RWKV-7](RWKV-v7.png)
 
-![RWKV-paper](RWKV-paper.png)
-
 **RWKV v4 introduction, and in 100 lines of numpy**: https://johanwind.github.io/2023/03/23/rwkv_overview.html https://johanwind.github.io/2023/03/23/rwkv_details.html
+
+![RWKV-paper](RWKV-paper.png)
 
 RWKV v6 illustrated:
 
