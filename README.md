@@ -107,6 +107,8 @@ ffn.receptance.weight => zero
 
 ### Fixing RWKV-6 Spikes ###
 
+0. upgrade to RWKV-7. It's very stable.
+
 1. when training from scratch, add "k = k * torch.clamp(w, max=0).exp()" before "RUN_CUDA_RWKV6(r, k, v, w, u)", and remember to change your inference code too. you will see faster convergence.
 
 2. use "--adam_eps 1e-18"
@@ -122,8 +124,6 @@ ffn.receptance.weight => zero
 RWKV is an RNN with Transformer-level LLM performance, which can also be directly trained like a GPT transformer (parallelizable). And it's 100% attention-free. You only need the hidden state at position t to compute the state at position t+1. You can use the "GPT" mode to quickly compute the hidden state for the "RNN" mode.
 
 So it's combining the best of RNN and transformer - **great performance, fast inference, saves VRAM, fast training, "infinite" ctx_len, and free sentence embedding** (using the final hidden state).
-
-![RWKV-v5-benchmark-1](RWKV-v5-benchmark-1.png)
 
 **RWKV Runner GUI** https://github.com/josStorer/RWKV-Runner with one-click install and API
 
@@ -189,13 +189,17 @@ https://github.com/harrisonvanderbyl/rwkv-cpp-cuda Fast GPU inference with cuda/
 
 **RWKV v4 preprint** https://arxiv.org/abs/2305.13048
 
-![RWKV-paper](RWKV-paper.png)
+![RWKV-7](RWKV-v7.png)
 
 **RWKV v4 introduction, and in 100 lines of numpy**: https://johanwind.github.io/2023/03/23/rwkv_overview.html https://johanwind.github.io/2023/03/23/rwkv_details.html
+
+![RWKV-paper](RWKV-paper.png)
 
 RWKV v6 illustrated:
 
 ![RWKV-v6](rwkv-x060.png)
+
+![RWKV-v5-benchmark-1](RWKV-v5-benchmark-1.png)
 
 A cool paper (Spiking Neural Network) using RWKV: https://github.com/ridgerchu/SpikeGPT
 
