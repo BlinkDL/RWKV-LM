@@ -149,7 +149,7 @@ def time_mixing__(layer_id:int, H:int, N:int, x, x_prev, v_first, state, x_r, x_
     vk = v.view(H,N,1) @ k.view(H,1,N)
     ab = (-kk).view(H,N,1) @ (kk*a).view(H,1,N)
     state = state * w.view(H,1,N) + state @ ab.float() + vk.float()
-    out = (state.to(dtype=x.dtype) @ r.view(H,N,1)).view(H,N)
+    out = state.to(dtype=x.dtype) @ r.view(H,N,1)
 
     out = torch.nn.functional.group_norm(out.view(1,H*N), num_groups=H, weight=ln_w, bias=ln_b, eps = 64e-5).view(H*N)    
     out = out + ((r * k * r_k).view(H,N).sum(dim=-1, keepdim=True) * v.view(H,N)).view(H*N)
