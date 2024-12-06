@@ -805,7 +805,8 @@ class RWKV_Tmix_x070(MyModule):
                         assert False
                     return x
 
-            D_DECAY_LORA = 64 # dim 64 for emb 768, change it for smaller/larger models
+            D_DECAY_LORA = 64
+            # D_DECAY_LORA = max(32, int(round(  (1.8*(C**0.5))  /32)*32)) # suggestion
             self.w1 = nn.Parameter(torch.zeros(C, D_DECAY_LORA))
             self.w2 = nn.Parameter(ortho_init(torch.zeros(D_DECAY_LORA, C), 0.1))
             decay_speed = torch.ones(C)
@@ -813,18 +814,21 @@ class RWKV_Tmix_x070(MyModule):
                 decay_speed[n] = -7 + 5 * (n / (C - 1)) ** (0.85 + 1.0 * ratio_0_to_1 ** 0.5)
             self.w0 = nn.Parameter(decay_speed.reshape(1,1,C) + 0.5) # !!! 0.5 comes from F.softplus !!!
 
-            D_AAA_LORA = 32 # dim 32 or 64 for emb 768, change it for smaller/larger models
+            D_AAA_LORA = 64
+            # D_AAA_LORA = max(32, int(round(  (1.8*(C**0.5))  /32)*32)) # suggestion
             self.a1 = nn.Parameter(torch.zeros(C, D_AAA_LORA))
             self.a2 = nn.Parameter(ortho_init(torch.zeros(D_AAA_LORA, C), 0.1))
             self.a0 = nn.Parameter(torch.zeros(1,1,C))
 
-            D_MV_LORA = 32 # dim 32 for emb 768, change it for smaller/larger models
+            D_MV_LORA = 32
+            # D_MV_LORA = max(32, int(round(  (1.3*(C**0.5))  /32)*32)) # suggestion
             self.v1 = nn.Parameter(torch.zeros(C, D_MV_LORA))
             self.v2 = nn.Parameter(ortho_init(torch.zeros(D_MV_LORA, C), 0.1))
             self.v0 = nn.Parameter(torch.zeros(1,1,C)+1.0)
 
-            D_GATE_LORA = 128 # dim 128 for emb 768, change it for smaller/larger models
-            # Note: for some data, you can reduce gate lora dimension (such as to 32), or even remove it
+            D_GATE_LORA = 128
+            # D_GATE_LORA = max(32, int(round(  (0.6*(C**0.8))  /32)*32)) # suggestion
+            # Note: for some data, you can reduce D_GATE_LORA or even remove this gate
             self.g1 = nn.Parameter(torch.zeros(C, D_GATE_LORA))
             self.g2 = nn.Parameter(ortho_init(torch.zeros(D_GATE_LORA, C), 0.1))
 
