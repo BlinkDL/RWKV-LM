@@ -14,9 +14,11 @@ RWKV-6 3B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 
 RWKV-6 7B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
 
-**RWKV-6 GPT-mode demo code (with comments and explanations)**: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/rwkv_v6_demo.py
+Chat demo for developers: https://github.com/BlinkDL/ChatRWKV/blob/main/API_DEMO_CHAT.py
 
-RWKV-6 RNN-mode demo: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
+And: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/rwkv_v6_demo.py
+
+And: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
 
 ![MQAR](Research/RWKV-6-MQAR.png)
 
@@ -64,8 +66,6 @@ advanced: repeat your SFT data 3 or 4 times in your jsonl (note make_data.py wil
 **Note: In [state = kv + w * state] everything must be in fp32 because w can be very close to 1. So we can keep state and w in fp32, and convert kv to fp32.**
 
 lm_eval: https://github.com/BlinkDL/ChatRWKV/blob/main/run_lm_eval.py
-
-chat demo for developers: https://github.com/BlinkDL/ChatRWKV/blob/main/API_DEMO_CHAT.py
 
 **Tips for small model / small data**: When I train RWKV music models, I use deep & narrow (such as L29-D512) dimensions, and apply wd and dropout (such as wd=2 dropout=0.02). Note RWKV-LM dropout is very effective - use 1/4 of your usual value.
 
