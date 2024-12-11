@@ -12,6 +12,8 @@ RWKV-6 7B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
 
 RWKV-6 3B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 
+RWKV pip pkg: https://pypi.org/project/rwkv/
+
 Chat demo: https://github.com/BlinkDL/ChatRWKV/blob/main/API_DEMO_CHAT.py
 
 RWKV-7 Demo: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7
