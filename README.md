@@ -8,17 +8,19 @@ RWKV Twitter: https://twitter.com/BlinkDL_AI (lastest news)
 
 RWKV-5/6 Eagle/Finch paper: https://arxiv.org/abs/2404.05892
 
-Awesome RWKV in Vision: https://github.com/Yaziwel/Awesome-RWKV-in-Vision
+RWKV-6 7B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
 
 RWKV-6 3B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 
-RWKV-6 7B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
+Chat demo: https://github.com/BlinkDL/ChatRWKV/blob/main/API_DEMO_CHAT.py
 
-Chat demo for developers: https://github.com/BlinkDL/ChatRWKV/blob/main/API_DEMO_CHAT.py
+RWKV-7 Demo: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7
 
-And: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/rwkv_v6_demo.py
+RWKV-6 demo: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/rwkv_v6_demo.py
 
-And: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
+RWKV-6 demo: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
+
+Awesome RWKV in Vision: https://github.com/Yaziwel/Awesome-RWKV-in-Vision
 
 ![MQAR](Research/RWKV-6-MQAR.png)
 
