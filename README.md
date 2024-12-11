@@ -2,9 +2,13 @@
 
 RWKV homepage: https://www.rwkv.com
 
-**RWKV-5/6 Eagle/Finch paper**: https://arxiv.org/abs/2404.05892
+RWKV Discord: https://discord.gg/bDSBUMeFpc (9k+ members)
 
-**Awesome RWKV in Vision:** https://github.com/Yaziwel/Awesome-RWKV-in-Vision
+RWKV Twitter: https://twitter.com/BlinkDL_AI (lastest news)
+
+RWKV-5/6 Eagle/Finch paper: https://arxiv.org/abs/2404.05892
+
+Awesome RWKV in Vision: https://github.com/Yaziwel/Awesome-RWKV-in-Vision
 
 RWKV-6 3B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 
@@ -148,10 +152,6 @@ print(out.detach().cpu().numpy())                   # same result as above
 ```
 
 **nanoRWKV**: https://github.com/BlinkDL/nanoRWKV (does not require custom CUDA kernel to train, works for any GPU/CPU)
-
-## RWKV Discord: https://discord.gg/bDSBUMeFpc (7k+ members)
-
-**Twitter**: https://twitter.com/BlinkDL_AI
 
 **Homepage**: https://www.rwkv.com
 
