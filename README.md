@@ -1,6 +1,6 @@
 # RWKV: Parallelizable RNN with Transformer-level LM Performance (pronounced as "RwaKuv" (rʌkuv in IPA), from 4 major params: R W K V)
 
-RWKV homepage: https://www.rwkv.com
+RWKV Homepage: https://www.rwkv.com
 
 RWKV Discord: https://discord.gg/bDSBUMeFpc (9k+ members)
 
@@ -13,6 +13,8 @@ RWKV-6 7B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
 RWKV-6 3B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 
 RWKV pip pkg: https://pypi.org/project/rwkv/
+
+PEFT (Lora etc.): https://github.com/JL-er/RWKV-PEFT
 
 Chat demo: https://github.com/BlinkDL/ChatRWKV/blob/main/API_DEMO_CHAT.py
 
