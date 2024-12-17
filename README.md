@@ -8,9 +8,9 @@ RWKV Twitter: https://twitter.com/BlinkDL_AI (lastest news)
 
 RWKV-5/6 Eagle/Finch paper: https://arxiv.org/abs/2404.05892
 
-RWKV-6 7B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
+RWKV-7 0.1B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 
-RWKV-6 3B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
+RWKV-6 7B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
 
 RWKV pip pkg: https://pypi.org/project/rwkv/
 
