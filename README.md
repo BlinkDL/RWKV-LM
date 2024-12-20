@@ -36,7 +36,7 @@ RWKV-6 demo code: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
 
 Awesome RWKV in Vision: https://github.com/Yaziwel/Awesome-RWKV-in-Vision
 
-![MQAR](Research/RWKV-6-MQAR.png)
+<img src="RWKV-v7-niah.png">
 
 ### HOW TO TEST TRAINING RWKV-5/6 on MiniPile (1.5G tokens) ###
 
@@ -199,9 +199,11 @@ https://github.com/harrisonvanderbyl/rwkv-cpp-cuda Fast GPU inference with cuda/
 
 **RWKV v4 preprint** https://arxiv.org/abs/2305.13048
 
+**RWKV v4 introduction, and in 100 lines of numpy**: https://johanwind.github.io/2023/03/23/rwkv_overview.html https://johanwind.github.io/2023/03/23/rwkv_details.html
+
 ![RWKV-7](RWKV-v7.png)
 
-**RWKV v4 introduction, and in 100 lines of numpy**: https://johanwind.github.io/2023/03/23/rwkv_overview.html https://johanwind.github.io/2023/03/23/rwkv_details.html
+![MQAR](Research/RWKV-6-MQAR.png)
 
 ![RWKV-paper](RWKV-paper.png)
 
