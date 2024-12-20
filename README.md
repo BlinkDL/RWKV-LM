@@ -1,28 +1,38 @@
 # RWKV: Parallelizable RNN with Transformer-level LM Performance (pronounced as "RwaKuv" (rʌkuv in IPA), from 4 major params: R W K V)
 
-RWKV Homepage: https://www.rwkv.com
+RWKV Homepage (with 30+ RWKV-related papers): https://rwkv.com
 
 RWKV Discord: https://discord.gg/bDSBUMeFpc (9k+ members)
 
 RWKV Twitter: https://twitter.com/BlinkDL_AI (lastest news)
 
-RWKV-5/6 Eagle/Finch paper: https://arxiv.org/abs/2404.05892
+===
 
 RWKV-7 0.1B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 
 RWKV-6 7B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
 
+===
+
+RWKV-Runner GUI: https://github.com/josStorer/RWKV-Runner/releases
+
+Ai00 Server: https://github.com/Ai00-X/ai00_server
+
 RWKV pip pkg: https://pypi.org/project/rwkv/
 
 PEFT (Lora etc.): https://github.com/JL-er/RWKV-PEFT
 
-Chat demo: https://github.com/BlinkDL/ChatRWKV/blob/main/API_DEMO_CHAT.py
+===
 
-RWKV-7 Demo: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7
+RWKV-5/6 Eagle/Finch paper: https://arxiv.org/abs/2404.05892
 
-RWKV-6 demo: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/rwkv_v6_demo.py
+Chat demo code: https://github.com/BlinkDL/ChatRWKV/blob/main/API_DEMO_CHAT.py
 
-RWKV-6 demo: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
+RWKV-7 demo code: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7
+
+RWKV-6 demo code: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/rwkv_v6_demo.py
+
+RWKV-6 demo code: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
 
 Awesome RWKV in Vision: https://github.com/Yaziwel/Awesome-RWKV-in-Vision
 
@@ -135,13 +145,9 @@ RWKV is an RNN with Transformer-level LLM performance, which can also be directl
 
 So it's combining the best of RNN and transformer - **great performance, fast inference, saves VRAM, fast training, "infinite" ctx_len, and free sentence embedding** (using the final hidden state).
 
-**RWKV Runner GUI** https://github.com/josStorer/RWKV-Runner with one-click install and API
-
 **All latest RWKV weights:** https://huggingface.co/BlinkDL
 
 **HF-compatible RWKV weights:** https://huggingface.co/RWKV
-
-**RWKV pip package**: https://pypi.org/project/rwkv/
 
 ```python
 os.environ["RWKV_JIT_ON"] = '1'
@@ -157,13 +163,11 @@ out, state = model.forward([310, 247], state)
 print(out.detach().cpu().numpy())                   # same result as above
 ```
 
-**nanoRWKV**: https://github.com/BlinkDL/nanoRWKV (does not require custom CUDA kernel to train, works for any GPU/CPU)
-
-**Homepage**: https://www.rwkv.com
+nanoRWKV: https://github.com/BlinkDL/nanoRWKV (does not require custom CUDA kernel to train, works for any GPU/CPU)
 
 **Cool Community RWKV Projects**:
 
-All (300+) RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
+All (400+) RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
 
 https://github.com/OpenGVLab/Vision-RWKV Vision RWKV
 
