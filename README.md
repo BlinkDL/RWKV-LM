@@ -22,6 +22,8 @@ RWKV pip pkg: https://pypi.org/project/rwkv/
 
 PEFT (Lora etc.): https://github.com/JL-er/RWKV-PEFT
 
+All (400+) RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
+
 ===
 
 RWKV-5/6 Eagle/Finch paper: https://arxiv.org/abs/2404.05892
