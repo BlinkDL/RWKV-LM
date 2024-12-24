@@ -1,12 +1,18 @@
 # RWKV: Parallelizable RNN with Transformer-level LM Performance (pronounced as "RwaKuv" (rʌkuv in IPA), from 4 major params: R W K V)
 
-RWKV Homepage: https://rwkv.com (with 30+ RWKV-related papers)
-
-RWKV Discord: https://discord.gg/bDSBUMeFpc (9k+ members)
+RWKV website: https://rwkv.com (with 30+ RWKV-related papers)
 
 RWKV Twitter: https://twitter.com/BlinkDL_AI (lastest news)
 
-===
+RWKV Discord: https://discord.gg/bDSBUMeFpc (9k+ members)
+
+RWKV-7 is the best **linear-time & constant-space & attention-free** architecture on this planet at this moment, suitable for both LLM and multimodal applications, and more (check rwkv.com for examples).
+
+And it's a Linux Foundation AI project, so totally free: https://lfaidata.foundation/projects/rwkv/
+
+You are welcome to ask the RWKV community (such as RWKV Discord) for advice on upgrading your attention-based models to rwkv7-based models :)
+
+<img src="RWKV-v7-niah.png">
 
 RWKV-7 0.1B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 
@@ -37,8 +43,6 @@ RWKV-6 demo code: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/rwkv_v6_d
 RWKV-6 demo code: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
 
 Awesome RWKV in Vision: https://github.com/Yaziwel/Awesome-RWKV-in-Vision
-
-<img src="RWKV-v7-niah.png">
 
 ### HOW TO TEST TRAINING RWKV-5/6 on MiniPile (1.5G tokens) ###
 
