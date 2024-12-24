@@ -1,4 +1,4 @@
-# RWKV: Parallelizable RNN with Transformer-level LM Performance (pronounced as "RwaKuv" (rʌkuv in IPA), from 4 major params: R W K V)
+# RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv" (rʌkuv in IPA), from 4 major params: R W K V)
 
 RWKV website: https://rwkv.com (with 30+ RWKV-related papers)
 
@@ -11,6 +11,8 @@ RWKV-7 is the best **linear-time & constant-space & attention-free** architectur
 And it's a Linux Foundation AI project, so totally free: https://lfaidata.foundation/projects/rwkv/
 
 You are welcome to ask the RWKV community (such as RWKV Discord) for advice on upgrading your attention-based models to rwkv7-based models :)
+
+RWKV runtime is already in Windows & Office: https://x.com/BlinkDL_AI/status/1831012419508019550
 
 <img src="RWKV-v7-niah.png">
 
