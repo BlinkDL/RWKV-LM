@@ -20,6 +20,8 @@ RWKV-7 0.1B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 
 RWKV-6 7B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
 
+Latest RWKV weights: https://huggingface.co/BlinkDL
+
 ===
 
 RWKV-Runner GUI: https://github.com/josStorer/RWKV-Runner/releases
@@ -32,7 +34,7 @@ PEFT (Lora etc.): https://github.com/JL-er/RWKV-PEFT
 
 RLHF: https://github.com/OpenMOSE/RWKV-LM-RLHF
 
-All (400+) RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
+400+ RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
 
 ===
 
@@ -45,8 +47,6 @@ RWKV-7 demo code: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7
 RWKV-6 demo code: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/rwkv_v6_demo.py
 
 RWKV-6 demo code: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
-
-Awesome RWKV in Vision: https://github.com/Yaziwel/Awesome-RWKV-in-Vision
 
 ### HOW TO TEST TRAINING RWKV-5/6 on MiniPile (1.5G tokens) ###
 
