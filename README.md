@@ -6,7 +6,7 @@ RWKV Twitter: https://twitter.com/BlinkDL_AI (lastest news)
 
 RWKV Discord: https://discord.gg/bDSBUMeFpc (9k+ members)
 
-RWKV-7 is the best **linear-time & constant-space & attention-free** architecture on this planet at this moment, suitable for both LLM and multimodal applications, and more (check rwkv.com for examples).
+RWKV-7 is the best **linear-time & constant-space (no kv-cache) & attention-free** architecture on this planet at this moment, suitable for both LLM and multimodal applications, and more (check rwkv.com for examples).
 
 And it's a Linux Foundation AI project, so totally free: https://lfaidata.foundation/projects/rwkv/
 
