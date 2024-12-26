@@ -2,17 +2,17 @@
 
 RWKV website: https://rwkv.com (with 30+ RWKV-related papers)
 
-RWKV Twitter: https://twitter.com/BlinkDL_AI (lastest news)
+RWKV twitter: https://twitter.com/BlinkDL_AI (lastest news)
 
-RWKV Discord: https://discord.gg/bDSBUMeFpc (9k+ members)
+RWKV discord: https://discord.gg/bDSBUMeFpc (9k+ members)
 
-RWKV-7 is the best **linear-time & constant-space (no kv-cache) & attention-free** architecture on this planet at this moment, suitable for both LLM and multimodal applications, and more (check rwkv.com for examples).
+RWKV-7 "Goose" is the best **linear-time & constant-space (no kv-cache) & attention-free** architecture on this planet at this moment, suitable for both LLM and multimodal applications, and more (check [rwkv.com](https://rwkv.com) for examples).
 
-And it's a Linux Foundation AI project, so totally free: https://lfaidata.foundation/projects/rwkv/
+It is a [meta-in-context learner](https://raw.githubusercontent.com/BlinkDL/RWKV-LM/main/RWKV-v7.png), test-time-training its state on the context via in-context gradient descent at every token, and 100% RNN.
 
-You are welcome to ask the RWKV community (such as RWKV Discord) for advice on upgrading your attention-based models to rwkv7-based models :)
+RWKV is a [Linux Foundation AI project](https://lfaidata.foundation/projects/rwkv/), so totally free. RWKV runtime is [already in Windows & Office](https://x.com/BlinkDL_AI/status/1831012419508019550).
 
-RWKV runtime is already in Windows & Office: https://x.com/BlinkDL_AI/status/1831012419508019550
+You are welcome to ask the RWKV community (such as [RWKV discord](https://discord.gg/bDSBUMeFpc) for advice on upgrading your attention-based models to rwkv7-based models :)
 
 <img src="RWKV-v7-niah.png">
 
