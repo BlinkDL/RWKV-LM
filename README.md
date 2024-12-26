@@ -12,7 +12,7 @@ RWKV-7 is a [meta-in-context learner](https://raw.githubusercontent.com/BlinkDL/
 
 RWKV is a [Linux Foundation AI project](https://lfaidata.foundation/projects/rwkv/), so totally free. RWKV runtime is [already in Windows & Office](https://x.com/BlinkDL_AI/status/1831012419508019550).
 
-You are welcome to ask the RWKV community (such as [RWKV discord](https://discord.gg/bDSBUMeFpc) for advice on upgrading your attention/ssm models to rwkv7 models :)
+You are welcome to ask the RWKV community (such as [RWKV discord](https://discord.gg/bDSBUMeFpc)) for advice on upgrading your attention/ssm models to rwkv7 models :)
 
 <img src="RWKV-v7-niah.png">
 
