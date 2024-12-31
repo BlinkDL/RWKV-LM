@@ -20,6 +20,8 @@ RWKV-7 0.1B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 
 RWKV-6 7B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
 
+WebGPU Demo: https://cryscan.github.io/web-rwkv-puzzles/#/chat
+
 Latest RWKV weights: https://huggingface.co/BlinkDL
 
 ===
