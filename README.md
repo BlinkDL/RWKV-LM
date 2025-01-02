@@ -58,12 +58,15 @@ For reference, use python 3.10+, torch 2.5+, cuda 12.5+, latest deepspeed, but *
 
 **Train RWKV-7**: use /RWKV-v5/ and use --my_testing "x070" in demo-training-prepare.sh and demo-training-run.sh
 
+
 ```
 pip install torch --upgrade --extra-index-url https://download.pytorch.org/whl/cu121
 pip install pytorch-lightning==1.9.5 deepspeed wandb ninja --upgrade
 
 cd RWKV-v5/
 ./demo-training-prepare.sh
+(Note look inside of demo-training-prepare.sh and there are two data files that you have to get and put them in the data directory.
+If you need more context look at the script.)
 ./demo-training-run.sh
 (you may want to log in to wandb first)
 ```
