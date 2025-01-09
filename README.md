@@ -8,7 +8,7 @@ RWKV discord: https://discord.gg/bDSBUMeFpc (9k+ members)
 
 RWKV-7 "Goose" is the strongest **linear-time** & **constant-space** (no kv-cache) & **attention-free** & 100% RNN architecture on this planet at this moment, suitable for LLM and multimodal applications and more (see [rwkv.com](https://rwkv.com)).
 
-**VERY IMPORTANT: Use LayerNorm (instead of RMSNorm) for RWKV.** I think it's related to better initial state, because I am not using trainable initial state - found it useless when using LN.
+**VERY IMPORTANT: Use PreLN LayerNorm (instead of RMSNorm) for RWKV.** I think it's related to better initial state, because I am not using trainable initial state (found it useless when using LayerNorm).
 
 RWKV-7 is a [meta-in-context learner](https://raw.githubusercontent.com/BlinkDL/RWKV-LM/main/RWKV-v7.png), test-time-training its state on the context via in-context gradient descent at every token.
 
