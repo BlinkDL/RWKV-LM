@@ -52,7 +52,7 @@ RWKV-6 demo code: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/rwkv_v6_d
 
 RWKV-6 demo code: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
 
-### HOW TO TEST TRAINING RWKV-5/6 on MiniPile (1.5G tokens) ###
+### HOW TO TEST TRAINING RWKV-5/6/7 on MiniPile (1.5G tokens) ###
 
 For reference, use python 3.10+, torch 2.5+, cuda 12.5+, latest deepspeed, but **keep pytorch-lightning==1.9.5**
 
