@@ -52,13 +52,13 @@ RWKV-6 demo code: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/rwkv_v6_d
 
 RWKV-6 demo code: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
 
-### HOW TO TEST TRAINING RWKV-5/6/7 on MiniPile (1.5G tokens) ###
+## HOW TO TRAIN RWKV-5/6/7 on MiniPile (1.5G tokens) ##
 
 For reference, use python 3.10+, torch 2.5+, cuda 12.5+, latest deepspeed, but **keep pytorch-lightning==1.9.5**
 
-**Train RWKV-6**: use /RWKV-v5/ and use --my_testing "x060" in demo-training-prepare.sh and demo-training-run.sh
-
 **Train RWKV-7**: use /RWKV-v5/ and use --my_testing "x070" in demo-training-prepare.sh and demo-training-run.sh
+
+**Train RWKV-6**: use /RWKV-v5/ and use --my_testing "x060" in demo-training-prepare.sh and demo-training-run.sh
 
 ```
 pip install torch --upgrade --extra-index-url https://download.pytorch.org/whl/cu121
@@ -87,17 +87,27 @@ simple: prepare SFT jsonl => repeat your SFT data 3 or 4 times in make_data.py. 
 
 advanced: repeat your SFT data 3 or 4 times in your jsonl (note make_data.py will shuffle all jsonl items) => add some base data (such as slimpajama) to your jsonl => and only repeat 1 times in make_data.py.
 
-**Fix training spikes**: see the "Fixing RWKV-6 Spikes" part on this page.
-
-**Simple inference for RWKV-5**: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v5_demo.py
+**Fix training spikes**: see the "Fixing RWKV-6 Spikes" part on this page. **RWKV-7 is very stable and spike-free.**
 
 **Simple inference for RWKV-6**: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
+
+**Simple inference for RWKV-5**: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v5_demo.py
 
 **Note: In [state = kv + w * state] everything must be in fp32 because w can be very close to 1. So we can keep state and w in fp32, and convert kv to fp32.**
 
 lm_eval: https://github.com/BlinkDL/ChatRWKV/blob/main/run_lm_eval.py
 
 **Tips for small model / small data**: When I train RWKV music models, I use deep & narrow (such as L29-D512) dimensions, and apply wd and dropout (such as wd=2 dropout=0.02). Note RWKV-LM dropout is very effective - use 1/4 of your usual value.
+
+## HOW TO TRAIN RWKV-7 on Pile (332G tokens) ##
+
+See https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/demo-training-prepare-v7-pile.sh and https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/demo-training-run-v7-pile.sh
+
+Get these files first:
+
+pile_20B_tokenizer_text_document.bin (664230651068 bytes)
+
+pile_20B_tokenizer_text_document.idx (4212099722 bytes)
 
 ### HOW TO FINETUNE RWKV-5 MODELS ###
 
