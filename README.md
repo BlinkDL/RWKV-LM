@@ -87,7 +87,10 @@ simple: prepare SFT jsonl => repeat your SFT data 3 or 4 times in make_data.py. 
 
 advanced: repeat your SFT data 3 or 4 times in your jsonl (note make_data.py will shuffle all jsonl items) => add some base data (such as slimpajama) to your jsonl => and only repeat 1 times in make_data.py.
 
-**Fix training spikes**: see the "Fixing RWKV-6 Spikes" part on this page. **RWKV-7 is very stable and spike-free.**
+**Fix training spikes**: see the "Fixing RWKV-6 Spikes" part on this page. 
+
+Or use RWKV-7 (much better). RWKV-7 is very stable and spike-free (verified for 0.1/0.4/1.5/2.9b):
+<img src="RWKV-v7-loss.png" width="500">
 
 **Simple inference for RWKV-6**: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
 
