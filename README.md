@@ -46,7 +46,13 @@ RWKV-5/6 Eagle/Finch paper: https://arxiv.org/abs/2404.05892
 
 Chat demo code: https://github.com/BlinkDL/ChatRWKV/blob/main/API_DEMO_CHAT.py
 
-RWKV-7 demo code: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7
+**RWKV-7 demo code**: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7
+
+https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/rwkv_v7_demo.py (GPT mode)
+
+https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/rwkv_v7_demo_rnn.py (RNN mode)
+
+https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/rwkv_v7_demo_fast.py (Both mode, fastest)
 
 RWKV-6 demo code: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/rwkv_v6_demo.py
 
