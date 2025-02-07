@@ -13,7 +13,11 @@ torch.backends.cuda.matmul.allow_tf32 = True
 from torch.nn import functional as F
 from datasets import load_dataset, load_from_disk
 
-# HF_MODE = True # this is currently insanely slow. please wait for fix
+# for HF_MODE, do these first:
+# pip install flash_attn -U --force-reinstall
+# pip install git+https://github.com/fla-org/flash-linear-attention -U --force-reinstall
+#
+# HF_MODE = True # currently HF_MODE only has 30% running speed. wait for optimizations
 
 HF_MODE = False # you will get 44.87% for RWKV-x070-World-1.5B-v3-20250127-ctx4096
 
