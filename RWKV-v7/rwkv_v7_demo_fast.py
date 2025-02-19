@@ -32,19 +32,13 @@ MyStatic = torch.jit.script
 
 args = types.SimpleNamespace()
 
-# model download: https://huggingface.co/BlinkDL/rwkv-7-pile
+# model download: https://huggingface.co/BlinkDL/rwkv-7-world
 
-args.MODEL_NAME = '/mnt/e/RWKV-x070-Pile-168M-20241120-ctx4096'
-# args.MODEL_NAME = "/mnt/program/RWKV-x070-Pile-421M-20241127-ctx4096"
+args.MODEL_NAME = "/mnt/e/RWKV-Runner/models/RWKV-x070-World-0.1B-v2.8-20241210-ctx4096"
 
-if '168M' in args.MODEL_NAME:
-    args.n_layer = 12
-    args.n_embd = 768
-elif '421M' in args.MODEL_NAME:
-    args.n_layer = 24
-    args.n_embd = 1024
-
-args.vocab_size = 50304 # "pile" model: 50277 padded to 50304
+args.n_layer = 12
+args.n_embd = 768
+args.vocab_size = 65536
 args.head_size = 64
 
 prompt = "The Eiffel tower is in the city of"
@@ -299,14 +293,93 @@ def sample_logits(logits, temperature:float=1.0, top_p:float=1.0, top_k:int=0):
     return torch.multinomial(probs, num_samples=1).item()
 
 ########################################################################################################
+# RWKV Tokenizer (slow version)
+########################################################################################################
 
-from tokenizers import Tokenizer
-tokenizer = Tokenizer.from_file("../RWKV-v4neo/20B_tokenizer.json")
+class RWKV_TOKENIZER():
+    table: list[list[list[bytes]]]
+    good: list[set[int]]
+    wlen: list[int]
+    def __init__(self, file_name):
+        self.idx2token = {}
+        sorted = [] # must be already sorted
+        lines = open(file_name, "r", encoding="utf-8").readlines()
+        for l in lines:
+            idx = int(l[:l.index(' ')])
+            x = eval(l[l.index(' '):l.rindex(' ')])
+            x = x.encode("utf-8") if isinstance(x, str) else x
+            assert isinstance(x, bytes)
+            assert len(x) == int(l[l.rindex(' '):])
+            sorted += [x]
+            self.idx2token[idx] = x
+
+        self.token2idx = {}
+        for k, v in self.idx2token.items():
+            self.token2idx[v] = int(k)
+
+        # precompute some tables for fast matching
+        self.table = [[[] for j in range(256)] for i in range(256)]
+        self.good = [set() for i in range(256)]
+        self.wlen = [0 for i in range(256)]
+
+        for i in reversed(range(len(sorted))): # reverse order - match longer tokens first
+            s = sorted[i]
+            if len(s) >= 2:
+                s0 = int(s[0])
+                s1 = int(s[1])
+                self.table[s0][s1] += [s]
+                self.wlen[s0] = max(self.wlen[s0], len(s))
+                self.good[s0].add(s1)
+
+    def encodeBytes(self, src: bytes) -> list[int]:
+        src_len: int = len(src)
+        tokens: list[int] = []
+        i: int = 0
+        while i < src_len:
+            s: bytes = src[i : i + 1]
+
+            if i < src_len - 1:
+                s1: int = int(src[i + 1])
+                s0: int = int(src[i])
+                if s1 in self.good[s0]:
+                    sss: bytes = src[i : i + self.wlen[s0]]
+                    try:
+                        s = next(filter(sss.startswith, self.table[s0][s1]))
+                    except:
+                        pass
+            tokens.append(self.token2idx[s])
+            i += len(s)
+
+        return tokens
+
+    def decodeBytes(self, tokens):
+        return b''.join(map(lambda i: self.idx2token[i], tokens))
+
+    def encode(self, src: str):
+        return self.encodeBytes(src.encode("utf-8"))
+
+    def decode(self, tokens):
+        return self.decodeBytes(tokens).decode('utf-8')
+
+    def printTokens(self, tokens):
+        for i in tokens:
+            s = self.idx2token[i]
+            try:
+                s = s.decode('utf-8')
+            except:
+                pass
+            print(f'{repr(s)}{i}', end=' ')
+            # print(repr(s), i)
+        print()
+
+tokenizer = RWKV_TOKENIZER("rwkv_vocab_v20230424.txt")
+
+########################################################################################################
 
 print(f'\nUsing CUDA {str(DTYPE).replace("torch.","")}. Loading {args.MODEL_NAME} ...')
 model = RWKV_x070(args)
 
-init_out, init_state = model.forward(tokenizer.encode(prompt).ids, None)
+init_out, init_state = model.forward(tokenizer.encode(prompt), None)
     
 probs = F.softmax(init_out.float(), dim=-1) # compute softmax in float (more accurate)
 
@@ -368,8 +441,8 @@ xsum = 0
 xcnt = 0
 xacc = 0
 for d in todo:
-    src = [0] + tokenizer.encode(d[0]).ids
-    dst = tokenizer.encode(d[1]).ids
+    src = [0] + tokenizer.encode(d[0])
+    dst = tokenizer.encode(d[1])
 
     logits = 0
     correct = True
