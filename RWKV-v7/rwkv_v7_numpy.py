@@ -9,6 +9,7 @@ from torch import load as torch_load
 layer_norm = lambda x, w, b : (x - x.mean()) / (x.var() + 1e-5)**0.5 * w + b
 group_norm = lambda x, w, b : ((x - x.mean(axis=1,keepdims=1)) / (x.var(axis=1,keepdims=1) + 64e-5)**0.5).flatten() * w + b
 sigmoid = lambda x : 1/(1+np.exp(-x))
+softmax = lambda x: np.exp(x - np.max(x)) / np.exp(x - np.max(x)).sum(axis=-1, keepdims=True)
 
 def time_mixing(x, v0, last_x, S, params):
     mr,mw,mk,mv,ma,mg, w_bias, r_k, Ww1,Ww2, Wa1,Wa2,a_bias, Wg1,Wg2 = params[:15]
@@ -45,6 +46,28 @@ def channel_mixing(x, last_x, mix, Wk, Wv):
     v = Wv @ np.maximum(k, 0)**2
     return v, x
 
+def sample_logits(logits, temperature=1.0, top_p=0.85, top_k=0):
+    if temperature == 0:
+        temperature = 1.0
+        top_p = 0
+    
+    # use numpy instead of torch
+    probs = softmax(logits)
+    top_k = int(top_k)
+
+    sorted_ids = np.argsort(probs)
+    sorted_probs = probs[sorted_ids][::-1]
+    cumulative_probs = np.cumsum(sorted_probs)
+    cutoff = float(sorted_probs[np.argmax(cumulative_probs >= top_p)])
+    probs[probs < cutoff] = 0
+    if top_k < len(probs) and top_k > 0:
+        probs[sorted_ids[:-top_k]] = 0
+    if temperature != 1.0:
+        probs = probs ** (1.0 / temperature)
+    probs = probs / np.sum(probs)
+    out = np.random.choice(a=len(probs), p=probs)
+
+    return int(out)
 
 def RWKV7(params, token, state):
     x = params('emb')[0][token]
@@ -97,7 +120,32 @@ params = lambda prefix : [weights[key] for key in weights.keys() if key.startswi
 
 state = (np.zeros((N_LAYER, 2, N_EMBD), dtype=np.float32),
          np.zeros((N_LAYER, N_HEAD, HEAD_SIZE, HEAD_SIZE), dtype=np.float32))
+
+# Prefilling 
 for token in tokens:
     minimal_logits, state = RWKV7(params, token, state)
-
+    
 print('Deviation from official rwkv:', max(abs(minimal_logits-reference_logits))/reference_logits.std())
+
+if 1: # Decoding
+    GEN_TEMP = 0
+    GEN_TOP_P = 0.3
+
+    out = minimal_logits
+    out_tokens = []
+    out_last = 0
+
+    for i in range(99999):
+        token = sample_logits(out, temperature=GEN_TEMP, top_p=GEN_TOP_P)
+
+        out, state = RWKV7(params, token, state)
+        out_tokens += [token]
+
+        tmp = pipeline.decode(out_tokens[out_last:])
+        if ("\ufffd" not in tmp) and (not tmp.endswith("\n")):
+            print(tmp, end="", flush=True)
+            out_last = i + 1
+
+        if "\n\n" in tmp:
+            print(tmp, end="", flush=True)
+            break
