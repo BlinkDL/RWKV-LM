@@ -4,6 +4,8 @@
 
 import logging
 logging.basicConfig(level=logging.INFO)
+import torch
+import torch_musa
 
 if __name__ == "__main__":
     from argparse import ArgumentParser

@@ -4,6 +4,7 @@
 
 import os, math, gc, importlib
 import torch
+import torch_musa
 # torch._C._jit_set_profiling_executor(True)
 # torch._C._jit_set_profiling_mode(True)
 import torch.nn as nn
@@ -44,24 +45,26 @@ HEAD_SIZE = int(os.environ["RWKV_HEAD_SIZE_A"])
 if 'x070' in os.environ["RWKV_MY_TESTING"]:
     CHUNK_LEN = 16
 
-    flags = ['-res-usage', f'-D_C_={HEAD_SIZE}', f"-D_CHUNK_LEN_={CHUNK_LEN}", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization"]
-    load(name="wind_backstepping", sources=[f'cuda/wkv7_cuda.cu', 'cuda/wkv7_op.cpp'], is_python_module=False, verbose=True, extra_cuda_cflags=flags)
+    #flags = ['-res-usage', f'-D_C_={HEAD_SIZE}', f"-D_CHUNK_LEN_={CHUNK_LEN}", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization"]
+    flags = ['-res-usage', f'-D_C_={HEAD_SIZE}', f"-D_CHUNK_LEN_={CHUNK_LEN}", "-O3", "-Xptxas -O3"]
+    load(name="wind_backstepping", sources=[f'cuda/wkv7_cuda.mu', 'cuda/wkv7_op.cpp'], is_python_module=False, verbose=True, extra_cuda_cflags=flags)
 
     class WindBackstepping(torch.autograd.Function):
         @staticmethod
         def forward(ctx, w,q,k,v,z,b):
-            B,T,H,C = w.shape 
-            assert T%CHUNK_LEN == 0
-            assert all(i.dtype==torch.bfloat16 for i in [w,q,k,v,z,b])
-            assert all(i.is_contiguous() for i in [w,q,k,v,z,b])
+            #B,T,H,C = w.shape 
+            #assert T%CHUNK_LEN == 0
+            #assert all(i.dtype==torch.bfloat16 for i in [w,q,k,v,z,b])
+            #assert all(i.is_contiguous() for i in [w,q,k,v,z,b])
             y = torch.empty_like(v)
-            s = torch.empty(B,H,T//CHUNK_LEN,C,C, dtype=torch.float32,device=w.device)
-            sa = torch.empty(B,T,H,C, dtype=torch.float32,device=w.device)
-            torch.ops.wind_backstepping.forward(w,q,k,v,z,b, y,s,sa)
-            ctx.save_for_backward(w,q,k,v,z,b,s,sa)
+            #s = torch.empty(B,H,T//CHUNK_LEN,C,C, dtype=torch.float32,device=w.device)
+            #sa = torch.empty(B,T,H,C, dtype=torch.float32,device=w.device)
+            #torch.ops.wind_backstepping.forward(w,q,k,v,z,b, y,s,sa)
+            #ctx.save_for_backward(w,q,k,v,z,b,s,sa)
             return y
         @staticmethod
         def backward(ctx, dy):
+            print("=============", dy.dtype)
             assert all(i.dtype==torch.bfloat16 for i in [dy])
             assert all(i.is_contiguous() for i in [dy])
             w,q,k,v,z,b,s,sa = ctx.saved_tensors
@@ -73,6 +76,7 @@ if 'x070' in os.environ["RWKV_MY_TESTING"]:
         B,T,HC = q.shape
         q,w,k,v,a,b = [i.view(B,T,HC//64,64) for i in [q,w,k,v,a,b]]
         return WindBackstepping.apply(w,q,k,v,a,b).view(B,T,HC)
+        #return torch.zeros(B,T,HC).to('musa')
 
 elif 'x060' in os.environ["RWKV_MY_TESTING"]:
     if os.environ["RWKV_TRAIN_TYPE"] == 'states':
@@ -842,6 +846,9 @@ class RWKV_Tmix_x070(MyModule):
             self.value = nn.Linear(C, C, bias=False)
             self.output = nn.Linear(C, C, bias=False)
             self.ln_x = nn.GroupNorm(H, C, eps=(1e-5)*(args.head_size_divisor**2)) # !!! notice eps value !!!
+            # ====================
+            #self.ln_x = self.ln_x.to('cpu')
+            # ====================
 
             # !!! initialize if you are using RWKV_Tmix_x070 in your code !!!
             # self.receptance.weight.data.uniform_(-0.5/(C**0.5), 0.5/(C**0.5))
@@ -863,7 +870,14 @@ class RWKV_Tmix_x070(MyModule):
         xg = x + xx * self.x_g
 
         r = self.receptance(xr)
-        w = -F.softplus(-(self.w0 + torch.tanh(xw @ self.w1) @ self.w2)) - 0.5 # soft-clamp to (-inf, -0.5)
+        # ======================
+        tmp0 = -(self.w0 + torch.tanh(xw @ self.w1) @ self.w2)
+        #tmp1 = -F.softplus(tmp0)
+        tmp2 = tmp0 - 0.5
+
+        # ======================
+        #w = -F.softplus(-(self.w0 + torch.tanh(xw @ self.w1) @ self.w2)) - 0.5 # soft-clamp to (-inf, -0.5)
+        w = tmp2
         k = self.key(xk)
         v = self.value(xv)
         if self.layer_id == 0:
@@ -878,7 +892,10 @@ class RWKV_Tmix_x070(MyModule):
         k = k * (1 + (a-1) * self.k_a)
 
         x = RUN_CUDA_RWKV7g(r, w, k, v, -kk, kk*a)
-        x = self.ln_x(x.view(B * T, C)).view(B, T, C)
+        #x = self.ln_x(x.view(B * T, C)).view(B, T, C)
+        # ====================
+
+        # ====================
 
         x = x + ((r.view(B,T,H,-1)*k.view(B,T,H,-1)*self.r_k).sum(dim=-1, keepdim=True) * v.view(B,T,H,-1)).view(B,T,C)
         x = self.output(x * g)
@@ -1234,7 +1251,8 @@ class RWKV(pl.LightningModule):
             optim_groups += [{"params": [param_dict[n] for n in lr_decay], "weight_decay": args.weight_decay, "my_lr_scale": 1.0}]
             if self.deepspeed_offload:
                 return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adamw_mode=True, amsgrad=False)
-            return FusedAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adam_w_mode=True, amsgrad=False)
+            return torch.optim.AdamW(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps)
+            #return FusedAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adam_w_mode=True, amsgrad=False)
         else:
             if self.deepspeed_offload:
                 return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adamw_mode=False, weight_decay=0, amsgrad=False)
@@ -1305,8 +1323,11 @@ class RWKV(pl.LightningModule):
         args = self.args
         if args.my_qa_mask != 1:
             idx, targets = batch
+            print(idx.device)
+            print(targets.device)
             logits = self(idx)
-            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+            print(logits.device)
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)).to('cpu'), targets.view(-1).to('cpu')).to('musa')
             # if '0' in os.environ["RWKV_MY_TESTING"]:
             #     print('logits', logits)
             #     torch.set_printoptions(threshold=10000)

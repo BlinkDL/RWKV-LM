@@ -100,6 +100,9 @@ class MyDataset(Dataset):
         return self.args.epoch_steps * self.args.micro_bsz
 
     def __getitem__(self, idx):
+        self.global_rank = 0
+        self.real_epoch = 0
+        self.world_size = 1
         args = self.args
         rank = self.global_rank
         epoch = self.real_epoch

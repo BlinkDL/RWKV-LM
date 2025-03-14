@@ -1,7 +1,7 @@
-#include <cuda_bf16.h>
+#include <musa_bf16.h>
 #include <assert.h>
 
-using bf = __nv_bfloat16;
+using bf = __mt_bfloat16;
 __device__ inline float to_float(const bf & u) { return __bfloat162float(u); }
 __device__ inline bf to_bf(const float & u) { return __float2bfloat16_rn(u); }
 
@@ -129,10 +129,10 @@ __global__ void backward_kernel(int T, int H, F_ w_, F_ q_, F_ k_, F_ v_, F_ a_,
     }
 }
 
-void cuda_forward(int B, int T, int H, bf*w, bf*q, bf*k, bf*v, bf*z, bf*a, bf*y, float*s, float*sa) {
+void musa_forward(int B, int T, int H, bf*w, bf*q, bf*k, bf*v, bf*z, bf*a, bf*y, float*s, float*sa) {
     forward_kernel<<<dim3(H,B), dim3(_C_)>>>(T,H,w,q,k,v,z,a,y,s,sa);
 }
-void cuda_backward(int B, int T, int H, bf*w, bf*q, bf*k, bf*v, bf*z, bf*a, bf*dy, float*s, float*sa, bf*dw, bf*dq, bf*dk, bf*dv, bf*dz, bf*da) {
+void musa_backward(int B, int T, int H, bf*w, bf*q, bf*k, bf*v, bf*z, bf*a, bf*dy, float*s, float*sa, bf*dw, bf*dq, bf*dk, bf*dv, bf*dz, bf*da) {
     assert(T%_CHUNK_LEN_ == 0);
     backward_kernel<<<dim3(H,B), dim3(_C_)>>>(T,H,w,q,k,v,z,a,dy,s,sa,dw,dq,dk,dv,dz,da);
 }
