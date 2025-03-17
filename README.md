@@ -1,6 +1,6 @@
 # RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv" (rʌkuv in IPA), from 4 major params: R W K V)
 
-RWKV website: https://rwkv.com (with 30+ RWKV-related papers)
+RWKV website: https://rwkv.com (with 60+ RWKV-related papers)
 
 RWKV twitter: https://twitter.com/BlinkDL_AI (lastest news)
 
