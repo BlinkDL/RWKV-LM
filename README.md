@@ -58,6 +58,52 @@ RWKV-6 demo code: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/rwkv_v6_d
 
 RWKV-6 demo code: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
 
+RWKV-7 weight example for 1.5B (L24-D2048, vocab 65536):
+| name                | shape         | comment      | initialization  |
+|---------------------|---------------|--------------|-----------------|
+| emb.weight          | [65536, 2048] | wdecay       | see code        |
+| blocks.0.ln0.weight | [2048]        | for layer 0  | 1               |
+| blocks.0.ln0.bias   | [2048]        | for layer 0  | 0               |
+|                     |               |              |                 |
+| blocks.*.ln1.weight | [2048]        |              | 1               |
+| blocks.*.ln1.bias   | [2048]        |              | 0               |
+| blocks.*.att.x_r    | [1, 1, 2048]  |              | see code        |
+| blocks.*.att.x_w    | [1, 1, 2048]  |              | see code        |
+| blocks.*.att.x_k    | [1, 1, 2048]  |              | see code        |
+| blocks.*.att.x_v    | [1, 1, 2048]  |              | see code        |
+| blocks.*.att.x_a    | [1, 1, 2048]  |              | see code        |
+| blocks.*.att.x_g    | [1, 1, 2048]  |              | see code        |
+| blocks.*.att.w0     | [1, 1, 2048]  | lr 2x        | see code        |
+| blocks.*.att.w1     | [2048, 96]    |              | 0               |
+| blocks.*.att.w2     | [96, 2048]    |              | see code        |
+| blocks.*.att.a0     | [1, 1, 2048]  |              | 0               |
+| blocks.*.att.a1     | [2048, 96]    |              | 0               |
+| blocks.*.att.a2     | [96, 2048]    |              | see code        |
+| blocks.*.att.v0     | [1, 1, 2048]  | for layer 1+ | 1               |
+| blocks.*.att.v1                | [2048, 64]   | for layer 1+ | 0         |
+| blocks.*.att.v2                | [64, 2048]   | for layer 1+ | see code  |
+| blocks.*.att.g1                | [2048, 256]  |              | 0         |
+| blocks.*.att.g2                | [256, 2048]  |              | see code  |
+| blocks.*.att.k_k               | [1, 1, 2048] |              | 1         |
+| blocks.*.att.k_a               | [1, 1, 2048] |              | 1         |
+| blocks.*.att.r_k               | [32, 64]     |              | 0         |
+| blocks.*.att.receptance.weight | [2048, 2048] | wdecay       | see code  |
+| blocks.*.att.key.weight        | [2048, 2048] | wdecay       | see code  |
+| blocks.*.att.value.weight      | [2048, 2048] | wdecay       | see code  |
+| blocks.*.att.output.weight     | [2048, 2048] | wdecay       | 0         |
+| blocks.*.att.ln_x.weight       | [2048]       |              | see code  |
+| blocks.*.att.ln_x.bias         | [2048]       |              | 0         |
+|                                |              |              |           |
+| blocks.*.ln2.weight            | [2048]       |              | 1         |
+| blocks.*.ln2.bias              | [2048]       |              | 0         |
+| blocks.*.ffn.x_k               | [1, 1, 2048] |              | see code  |
+| blocks.*.ffn.key.weight        | [8192, 2048] | wdecay       | see code  |
+| blocks.*.ffn.value.weight      | [2048, 8192] | wdecay       | 0         |
+|                                |              |              |           |
+| ln_out.weight | [2048]        |        | 1         |
+| ln_out.bias   | [2048]        |        | 0         |
+| head.weight   | [65536, 2048] | wdecay | see code  |
+
 ## HOW TO TRAIN RWKV-5/6/7 on MiniPile (1.5G tokens) ##
 
 For reference, use python 3.10+, torch 2.5+, cuda 12.5+, latest deepspeed, but **keep pytorch-lightning==1.9.5**
