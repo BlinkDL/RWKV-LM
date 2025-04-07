@@ -19,7 +19,6 @@ if __name__ == "__main__":
     parser.add_argument("--wandb", default="", type=str)  # wandb project name. if "" then don't use wandb
     parser.add_argument("--proj_dir", default="out", type=str)
     parser.add_argument("--random_seed", default="-1", type=int)
-    parser.add_argument("--train_type", default="", type=str) # ""/"states"
 
     parser.add_argument("--data_file", default="", type=str)
     parser.add_argument("--data_type", default="utf-8", type=str)
@@ -39,43 +38,24 @@ if __name__ == "__main__":
 
     parser.add_argument("--lr_init", default=6e-4, type=float)  # 6e-4 for L12-D768, 4e-4 for L24-D1024, 3e-4 for L24-D2048
     parser.add_argument("--lr_final", default=1e-5, type=float)
-    parser.add_argument("--warmup_steps", default=-1, type=int)  # try 20 if you load a model
+    parser.add_argument("--warmup_steps", default=-1, type=int)  # try 10 if you load a model
     parser.add_argument("--beta1", default=0.9, type=float)
-    parser.add_argument("--beta2", default=0.99, type=float)  # use 0.95 if you see spikes
-    parser.add_argument("--adam_eps", default=1e-8, type=float)
+    parser.add_argument("--beta2", default=0.99, type=float)
+    parser.add_argument("--adam_eps", default=1e-18, type=float)
     parser.add_argument("--grad_cp", default=0, type=int)  # gradient checkpt: saves VRAM, but slower
-    parser.add_argument("--dropout", default=0, type=float) # try 0.01 / 0.02 / 0.05 / 0.1
     parser.add_argument("--weight_decay", default=0, type=float) # try 0.1
-    parser.add_argument("--weight_decay_final", default=-1, type=float)
     parser.add_argument("--grad_clip", default=1.0, type=float) # reduce it to 0.7 / 0.5 / 0.3 / 0.2 for problematic samples
 
-    parser.add_argument("--my_pile_version", default=1, type=int)  # my special pile version
-    parser.add_argument("--my_pile_stage", default=0, type=int)  # my special pile mode
-    parser.add_argument("--my_pile_shift", default=-1, type=int)  # my special pile mode - text shift
-    parser.add_argument("--my_pile_edecay", default=0, type=int)
+    parser.add_argument("--train_stage", default=0, type=int)  # my special pile mode
     parser.add_argument("--ds_bucket_mb", default=200, type=int)  # deepspeed bucket size in MB. 200 seems enough
-    # parser.add_argument("--cuda_cleanup", default=0, type=int)  # extra cuda cleanup (sometimes helpful)
 
-    parser.add_argument("--my_sample_len", default=0, type=int)
-    parser.add_argument("--my_ffn_shift", default=1, type=int)
-    parser.add_argument("--my_att_shift", default=1, type=int)
-    parser.add_argument("--head_size_a", default=64, type=int) # can try larger values for larger models
-    parser.add_argument("--head_size_divisor", default=8, type=int)
+    parser.add_argument("--head_size", default=64, type=int) # can try larger values for larger models
     parser.add_argument("--load_partial", default=0, type=int)
     parser.add_argument("--magic_prime", default=0, type=int)
-    parser.add_argument("--my_testing", default='x052', type=str)
-    parser.add_argument("--my_exit", default=99999999, type=int)
+    parser.add_argument("--my_testing", default='x070', type=str)
     parser.add_argument("--my_exit_tokens", default=0, type=int)
 
-    if pl.__version__[0]=='2':
-        parser.add_argument("--accelerator", default="gpu", type=str)
-        parser.add_argument("--strategy", default="auto", type=str)
-        parser.add_argument("--devices", default=1, type=int)
-        parser.add_argument("--num_nodes", default=1, type=int)
-        parser.add_argument("--precision", default="fp16", type=str)
-        parser.add_argument("--accumulate_grad_batches", default=1, type=int)
-    else:
-        parser = Trainer.add_argparse_args(parser)
+    parser = Trainer.add_argparse_args(parser)
     args = parser.parse_args()
 
     ########################################################################################################
@@ -110,8 +90,7 @@ if __name__ == "__main__":
     args.real_bsz = int(args.num_nodes) * int(args.devices) * args.micro_bsz
     os.environ["RWKV_MY_TESTING"] = args.my_testing
     os.environ["RWKV_CTXLEN"] = str(args.ctx_len)
-    os.environ["RWKV_HEAD_SIZE_A"] = str(args.head_size_a)
-    os.environ["RWKV_TRAIN_TYPE"] = args.train_type
+    os.environ["RWKV_HEAD_SIZE"] = str(args.head_size)
     if args.dim_att <= 0:
         args.dim_att = args.n_embd
     if args.dim_ffn <= 0:
@@ -121,19 +100,11 @@ if __name__ == "__main__":
     if not os.path.exists(args.proj_dir):
         os.makedirs(args.proj_dir)
 
-    magic_prime_bak = args.magic_prime
-
-    if args.my_pile_shift < 0:
-        args.my_pile_shift = 0
-
-    if magic_prime_bak > 0:
-        args.magic_prime = magic_prime_bak
     args.epoch_count = args.magic_prime // 40320
-
     args.epoch_steps = 40320 // args.real_bsz
     assert args.epoch_steps * args.real_bsz == 40320
 
-    if args.my_pile_stage >= 2:  # find latest saved model
+    if args.train_stage >= 2:  # find latest saved model
         list_p = []
         for p in os.listdir(args.proj_dir):
             if p.startswith("rwkv") and p.endswith(".pth"):
@@ -153,10 +124,7 @@ if __name__ == "__main__":
         else:
             args.load_model = f"{args.proj_dir}/rwkv-{max_p}.pth"
             if args.warmup_steps < 0:
-                if args.my_pile_stage == 2:
-                    args.warmup_steps = 10
-                else:
-                    args.warmup_steps = 30
+                args.warmup_steps = 10
         args.epoch_begin = max_p + 1
 
     samples_per_epoch = args.epoch_steps * args.real_bsz
@@ -206,7 +174,7 @@ if __name__ == "__main__":
 
     os.environ["RWKV_JIT_ON"] = "1"
     if "deepspeed_stage_3" in args.strategy:
-        os.environ["RWKV_JIT_ON"] = "0"
+        os.environ["RWKV_JIT_ON"] = "0" # somehow incompatible
 
     torch.backends.cudnn.benchmark = True
     torch.backends.cudnn.enabled = True
@@ -235,7 +203,7 @@ if __name__ == "__main__":
     from src.model import RWKV
     model = RWKV(args)
 
-    if len(args.load_model) == 0 or args.my_pile_stage == 1:  # shall we build the initial weights?
+    if len(args.load_model) == 0 or args.train_stage == 1:  # shall we build the initial weights?
         init_weight_name = f"{args.proj_dir}/rwkv-init.pth"
         generate_init_weight(model, init_weight_name)  # save initial weights
         args.load_model = init_weight_name
@@ -250,7 +218,7 @@ if __name__ == "__main__":
                 del load_dict[k]
     except:
         rank_zero_info(f"Bad checkpoint {args.load_model}")
-        if args.my_pile_stage >= 2:  # try again using another checkpoint
+        if args.train_stage >= 2:  # try again using another checkpoint
             max_p = args.my_pile_prev_p
             if max_p == -1:
                 args.load_model = f"{args.proj_dir}/rwkv-init.pth"
@@ -260,13 +228,6 @@ if __name__ == "__main__":
             rank_zero_info(f"Trying {args.load_model}")
             load_dict = torch.load(args.load_model, map_location="cpu")
 
-    state_file = f"{args.proj_dir}/rwkv-init-state.pth"
-    if os.path.isfile(state_file):
-        rank_zero_info(f"########## Loading State {state_file}... ##########")
-        state_dict = torch.load(state_file, map_location="cpu")
-        for k in state_dict:
-            load_dict[k] = state_dict[k]
-
     if args.load_partial == 1:
         load_keys = load_dict.keys()
         for k in model.state_dict():
@@ -274,15 +235,10 @@ if __name__ == "__main__":
                 load_dict[k] = model.state_dict()[k]
     model.load_state_dict(load_dict)
 
-    if pl.__version__[0]=='2':
-        trainer = Trainer(accelerator=args.accelerator,strategy=args.strategy,devices=args.devices,num_nodes=args.num_nodes,precision=args.precision,
-        logger=args.logger,callbacks=[train_callback(args)],max_epochs=args.max_epochs,check_val_every_n_epoch=args.check_val_every_n_epoch,num_sanity_val_steps=args.num_sanity_val_steps,
-        log_every_n_steps=args.log_every_n_steps,enable_checkpointing=args.enable_checkpointing,accumulate_grad_batches=args.accumulate_grad_batches,gradient_clip_val=args.gradient_clip_val)
-    else:
-        trainer = Trainer.from_argparse_args(
-            args,
-            callbacks=[train_callback(args)],
-        )
+    trainer = Trainer.from_argparse_args(
+        args,
+        callbacks=[train_callback(args)],
+    )
 
     if trainer.global_rank == 0:
         for n in model.state_dict():

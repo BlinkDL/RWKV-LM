@@ -4,8 +4,6 @@
 
 import os, math, gc, importlib
 import torch
-# torch._C._jit_set_profiling_executor(True)
-# torch._C._jit_set_profiling_mode(True)
 import torch.nn as nn
 from torch.nn import functional as F
 import pytorch_lightning as pl
@@ -37,7 +35,7 @@ if os.environ["RWKV_JIT_ON"] == "1":
 
 from torch.utils.cpp_extension import load
 
-HEAD_SIZE = int(os.environ["RWKV_HEAD_SIZE_A"])
+HEAD_SIZE = int(os.environ["RWKV_HEAD_SIZE"])
 
 if 'x070' in os.environ["RWKV_MY_TESTING"]:
     CHUNK_LEN = 16
@@ -81,7 +79,7 @@ class RWKV_Tmix_x070(MyModule):
         self.layer_id = layer_id
         self.my_testing = args.my_testing
 
-        self.head_size = args.head_size_a
+        self.head_size = args.head_size
         self.n_head = args.dim_att // self.head_size
         assert args.dim_att % self.n_head == 0
         H = self.n_head
@@ -116,7 +114,6 @@ class RWKV_Tmix_x070(MyModule):
                         assert False
                     return x
 
-            # D_DECAY_LORA = 64
             D_DECAY_LORA = max(32, int(round(  (1.8*(C**0.5))  /32)*32)) # suggestion
             self.w1 = nn.Parameter(torch.zeros(C, D_DECAY_LORA))
             self.w2 = nn.Parameter(ortho_init(torch.zeros(D_DECAY_LORA, C), 0.1))
@@ -125,20 +122,17 @@ class RWKV_Tmix_x070(MyModule):
                 decay_speed[n] = -7 + 5 * (n / (C - 1)) ** (0.85 + 1.0 * ratio_0_to_1 ** 0.5)
             self.w0 = nn.Parameter(decay_speed.reshape(1,1,C) + 0.5) # !!! 0.5 comes from F.softplus !!!
 
-            # D_AAA_LORA = 64
             D_AAA_LORA = max(32, int(round(  (1.8*(C**0.5))  /32)*32)) # suggestion
             self.a1 = nn.Parameter(torch.zeros(C, D_AAA_LORA))
             self.a2 = nn.Parameter(ortho_init(torch.zeros(D_AAA_LORA, C), 0.1))
             self.a0 = nn.Parameter(torch.zeros(1,1,C))
 
-            # D_MV_LORA = 32
             D_MV_LORA = max(32, int(round(  (1.3*(C**0.5))  /32)*32)) # suggestion
             self.v1 = nn.Parameter(torch.zeros(C, D_MV_LORA))
             self.v2 = nn.Parameter(ortho_init(torch.zeros(D_MV_LORA, C), 0.1))
             self.v0 = nn.Parameter(torch.zeros(1,1,C)+1.0)
 
             # Note: for some data, you can reduce D_GATE_LORA or even remove this gate
-            # D_GATE_LORA = 128
             D_GATE_LORA = max(32, int(round(  (0.6*(C**0.8))  /32)*32)) # suggestion
             self.g1 = nn.Parameter(torch.zeros(C, D_GATE_LORA))
             self.g2 = nn.Parameter(ortho_init(torch.zeros(D_GATE_LORA, C), 0.1))
@@ -152,7 +146,7 @@ class RWKV_Tmix_x070(MyModule):
             self.key = nn.Linear(C, C, bias=False)
             self.value = nn.Linear(C, C, bias=False)
             self.output = nn.Linear(C, C, bias=False)
-            self.ln_x = nn.GroupNorm(H, C, eps=(1e-5)*(args.head_size_divisor**2)) # !!! notice eps value !!!
+            self.ln_x = nn.GroupNorm(H, C, eps=64e-5) # !!! notice eps value !!!
 
             self.receptance.weight.data.uniform_(-0.5/(C**0.5), 0.5/(C**0.5))
             self.key.weight.data.uniform_(-0.05/(C**0.5), 0.05/(C**0.5))
@@ -229,7 +223,6 @@ class RWKV_CMix_x070(MyModule):
 ########################################################################################################
 # The RWKV Model with our blocks
 ########################################################################################################
-
 
 class Block(nn.Module):
     def __init__(self, args, layer_id):
@@ -366,10 +359,9 @@ class RWKV(pl.LightningModule):
         return L2Wrap.apply(loss, logits)
 
     def training_step_end(self, batch_parts):
-        if pl.__version__[0]!='2':
-            all = self.all_gather(batch_parts)
-            if self.trainer.is_global_zero:
-                self.trainer.my_loss_all = all
+        all = self.all_gather(batch_parts)
+        if self.trainer.is_global_zero:
+            self.trainer.my_loss_all = all
 
     def generate_init_weight(self):
         print(

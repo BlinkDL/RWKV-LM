@@ -8,14 +8,7 @@ def my_save(args, trainer, dd, ff):
     if 'deepspeed_stage_3' in args.strategy:
         trainer.save_checkpoint(ff, weights_only=True)
     else:
-        if args.train_type == 'states':
-            ddd = {}
-            for k, v in dd.items():
-                if 'time_sta' in k:
-                    ddd[k] = v.clone()
-            torch.save(ddd, ff)
-        else:
-            torch.save(dd, ff)
+        torch.save(dd, ff)
 
 class train_callback(pl.Callback):
     def __init__(self, args):
@@ -52,10 +45,7 @@ class train_callback(pl.Callback):
         if trainer.global_step < w_step:
             lr = lr * (0.01 + 0.99 * trainer.global_step / w_step)
 
-        if args.weight_decay_final > 0:
-            wd_now = args.weight_decay * math.exp(math.log(args.weight_decay_final / args.weight_decay) * progress)
-        else:
-            wd_now = args.weight_decay
+        wd_now = args.weight_decay
 
         for param_group in trainer.optimizers[0].param_groups:
             if param_group["weight_decay"] > 0:
@@ -92,6 +82,7 @@ class train_callback(pl.Callback):
         args = self.args
         token_per_step = args.ctx_len * args.real_bsz
         real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
+
         if trainer.is_global_zero:  # logging
             t_now = time.time_ns()
             kt_s = 0
@@ -103,10 +94,7 @@ class train_callback(pl.Callback):
             except:
                 pass
             trainer.my_time_ns = t_now
-            if pl.__version__[0]=='2':
-                trainer.my_loss = outputs["loss"]
-            else:
-                trainer.my_loss = trainer.my_loss_all.float().mean().item()
+            trainer.my_loss = trainer.my_loss_all.float().mean().item()
             trainer.my_loss_sum += trainer.my_loss
             trainer.my_loss_count += 1
             trainer.my_epoch_loss = trainer.my_loss_sum / trainer.my_loss_count
@@ -118,10 +106,10 @@ class train_callback(pl.Callback):
                 if kt_s > 0:
                     lll["kt/s"] = kt_s
                 trainer.my_wandb.log(lll, step=int(real_step))
+
         if (trainer.is_global_zero) or ('deepspeed_stage_3' in args.strategy): # save pth
             if args.magic_prime > 0:
-                expand_factor = 1
-                if int(real_step) == int(args.magic_prime * expand_factor // args.real_bsz) - 1:
+                if int(real_step) == int(args.magic_prime // args.real_bsz) - 1:
                     to_save_dict = pl_module.state_dict()
                     my_save(
                         args, trainer,
@@ -132,10 +120,7 @@ class train_callback(pl.Callback):
 
     def on_train_epoch_start(self, trainer, pl_module):
         args = self.args
-        if pl.__version__[0]=='2':
-            dataset = trainer.train_dataloader.dataset
-        else:
-            dataset = trainer.train_dataloader.dataset.datasets
+        dataset = trainer.train_dataloader.dataset.datasets
         assert "MyDataset" in str(dataset)
         dataset.global_rank = trainer.global_rank
         dataset.real_epoch = int(args.epoch_begin + trainer.current_epoch)
@@ -169,15 +154,12 @@ class train_callback(pl.Callback):
 
             trainer.my_loss_sum = 0
             trainer.my_loss_count = 0
-            if (args.epoch_begin + trainer.current_epoch) >= args.my_exit:
-                exit(0)
-
 
 @rank_zero_only
 def generate_init_weight(model, init_weight_name):
     mm = model.generate_init_weight()
 
-    if model.args.my_pile_stage == 1:
+    if model.args.train_stage == 1:
         if len(model.args.load_model) > 0:
             print(f"Combine weights from {model.args.load_model}...")
             load_dict = torch.load(model.args.load_model, map_location="cpu")
@@ -212,6 +194,6 @@ def generate_init_weight(model, init_weight_name):
     print(f"Save to {init_weight_name}...")
     torch.save(mm, init_weight_name)
 
-    if model.args.my_pile_stage == 1:
+    if model.args.train_stage == 1:
         print("Done. Now go for stage 2.")
         exit(0)
