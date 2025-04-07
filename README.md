@@ -48,7 +48,7 @@ Chat demo code: https://github.com/BlinkDL/ChatRWKV/blob/main/API_DEMO_CHAT.py
 
 **RWKV-7 demo code**: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7
 
-https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/rwkv_v7_demo.py (GPT mode)
+https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/rwkv_v7_demo.py (GPT-like mode)
 
 https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/rwkv_v7_demo_rnn.py (RNN mode)
 
@@ -64,7 +64,7 @@ For reference, use python 3.10+, torch 2.5+, cuda 12.5+, latest deepspeed, but *
 
 **Train RWKV-7**: use /RWKV-v5/ and use --my_testing "x070" in demo-training-prepare.sh and demo-training-run.sh
 
-**Train RWKV-7, much clearner code**: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp
+**Train RWKV-7, much cleaner code**: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp
 
 RWKV-7 weight example for 1.5B (L24-D2048, vocab 65536):
 | name                | shape         | comment      | initialization  |
