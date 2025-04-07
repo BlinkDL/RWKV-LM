@@ -58,6 +58,14 @@ RWKV-6 demo code: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/rwkv_v6_d
 
 RWKV-6 demo code: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
 
+## HOW TO TRAIN RWKV-5/6/7 on MiniPile (1.5G tokens) ##
+
+For reference, use python 3.10+, torch 2.5+, cuda 12.5+, latest deepspeed, but **keep pytorch-lightning==1.9.5**
+
+**Train RWKV-7**: use /RWKV-v5/ and use --my_testing "x070" in demo-training-prepare.sh and demo-training-run.sh
+
+**Train RWKV-7, much clearner code**: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp
+
 RWKV-7 weight example for 1.5B (L24-D2048, vocab 65536):
 | name                | shape         | comment      | initialization  |
 |---------------------|---------------|--------------|-----------------|
@@ -103,14 +111,6 @@ RWKV-7 weight example for 1.5B (L24-D2048, vocab 65536):
 | ln_out.weight | [2048]        |        | 1         |
 | ln_out.bias   | [2048]        |        | 0         |
 | head.weight   | [65536, 2048] | wdecay | see code  |
-
-## HOW TO TRAIN RWKV-5/6/7 on MiniPile (1.5G tokens) ##
-
-For reference, use python 3.10+, torch 2.5+, cuda 12.5+, latest deepspeed, but **keep pytorch-lightning==1.9.5**
-
-**Train RWKV-7**: use /RWKV-v5/ and use --my_testing "x070" in demo-training-prepare.sh and demo-training-run.sh
-
-**RWKV-7 training cleanup version (WIP)**: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp
 
 **Train RWKV-6**: use /RWKV-v5/ and use --my_testing "x060" in demo-training-prepare.sh and demo-training-run.sh
 
