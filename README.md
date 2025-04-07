@@ -110,6 +110,8 @@ For reference, use python 3.10+, torch 2.5+, cuda 12.5+, latest deepspeed, but *
 
 **Train RWKV-7**: use /RWKV-v5/ and use --my_testing "x070" in demo-training-prepare.sh and demo-training-run.sh
 
+**RWKV-7 training cleanup version (WIP)**: https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp
+
 **Train RWKV-6**: use /RWKV-v5/ and use --my_testing "x060" in demo-training-prepare.sh and demo-training-run.sh
 
 ```
