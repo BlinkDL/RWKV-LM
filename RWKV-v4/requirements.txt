@@ -1,0 +1,22 @@
+# nessesary
+pytorch_lightning==1.9.0
+ninja
+numpy
+torch
+torchinfo
+torchsummary
+# misc
+jupyter
+jupyterlab
+matplotlib
+nbdev
+pandas
+pillow
+pyyaml
+scikit-learn
+seaborn
+tensorboard
+tqdm
+wandb
+timm
+
