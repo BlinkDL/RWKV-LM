@@ -124,9 +124,9 @@ cd RWKV-v5/
 
 # download minipile first (check demo-training-prepare.sh)
 ./demo-training-prepare.sh
-./demo-training-run.sh
 
 # you may want to log in to wandb first
+./demo-training-run.sh
 ```
 Your loss curve should look almost exactly the same as this, with the same ups and downs (if you use the same bsz & config):
 
