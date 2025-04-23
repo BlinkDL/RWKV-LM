@@ -115,13 +115,18 @@ RWKV-7 weight example for 1.5B (L24-D2048, vocab 65536):
 **Train RWKV-6**: use /RWKV-v5/ and use --my_testing "x060" in demo-training-prepare.sh and demo-training-run.sh
 
 ```
+# you can use latest torch + latest cuda (not limited to cu121)
 pip install torch --upgrade --extra-index-url https://download.pytorch.org/whl/cu121
 pip install pytorch-lightning==1.9.5 deepspeed wandb ninja --upgrade
 
+# cd RWKV-v7/train_temp/ to train RWKV-7
 cd RWKV-v5/
+
+# download minipile first (check demo-training-prepare.sh)
 ./demo-training-prepare.sh
 ./demo-training-run.sh
-(you may want to log in to wandb first)
+
+# you may want to log in to wandb first
 ```
 Your loss curve should look almost exactly the same as this, with the same ups and downs (if you use the same bsz & config):
 
