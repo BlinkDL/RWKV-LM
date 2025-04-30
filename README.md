@@ -72,12 +72,13 @@ pip install pytorch-lightning==1.9.5 deepspeed wandb ninja --upgrade
 cd RWKV-v7/train_temp/ 
 
 # download minipile .bin .idx to train_temp/data first (check demo-training-prepare.sh)
+# this will generate rwkv-init.pth in out/....../
 sh ./demo-training-prepare.sh
 
 # you may want to log in to wandb first
 sh ./demo-training-run.sh
 
-your out/....../train_log.txt should have loss similar to:
+your out/....../train_log.txt should have losses similar to:
 0 4.875856 131.0863 0.00059975 2025-04-24 02:23:42.481256 0
 1 4.028621 56.1834 0.00059899 2025-04-24 02:28:16.674463 1
 2 3.801625 44.7739 0.00059773 2025-04-24 02:32:51.059568 2
