@@ -112,17 +112,18 @@ RWKV-7 weight example for 1.5B (L24-D2048, vocab 65536):
 | ln_out.bias   | [2048]        |        | 0         |
 | head.weight   | [65536, 2048] | wdecay | see code  |
 
-**Train RWKV-6**: use /RWKV-v5/ and use --my_testing "x060" in demo-training-prepare.sh and demo-training-run.sh
+Train RWKV-6: use /RWKV-v5/ and use --my_testing "x060" in demo-training-prepare.sh and demo-training-run.sh
 
+**Train RWKV-7:**
 ```
 # you can use latest torch + latest cuda (not limited to cu121)
 pip install torch --upgrade --extra-index-url https://download.pytorch.org/whl/cu121
 pip install pytorch-lightning==1.9.5 deepspeed wandb ninja --upgrade
 
-# cd RWKV-v7/train_temp/ to train RWKV-7
-cd RWKV-v5/
+# train RWKV-7
+cd RWKV-v7/train_temp/ 
 
-# download minipile first (check demo-training-prepare.sh)
+# download minipile .bin .idx to train_temp/data first (check demo-training-prepare.sh)
 sh ./demo-training-prepare.sh
 
 # you may want to log in to wandb first
