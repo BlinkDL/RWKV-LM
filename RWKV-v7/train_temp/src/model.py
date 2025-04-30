@@ -17,7 +17,9 @@ try:
     print('RWKV_MY_TESTING', os.environ["RWKV_MY_TESTING"])
 except:
     os.environ["RWKV_MY_TESTING"] = ''
-
+from fla.ops.rwkv7.fused_addcmul import fused_addcmul_rwkv7
+from fla.modules.token_shift import token_shift
+from fla.ops.rwkv7.fused_k_update import fused_k_rwkv7
 def __nop(ob):
     return ob
 
@@ -153,19 +155,23 @@ class RWKV_Tmix_x070(MyModule):
             self.value.weight.data.uniform_(-0.5/(C**0.5), 0.5/(C**0.5))
             self.output.weight.data.zero_()
 
-    @MyFunction
     def forward(self, x, v_first):
         B, T, C = x.size()
         H = self.n_head
-        xx = self.time_shift(x) - x
+        # use fuse_token_shift op
+        xx = token_shift(x)
 
-        xr = x + xx * self.x_r
-        xw = x + xx * self.x_w
-        xk = x + xx * self.x_k
-        xv = x + xx * self.x_v
-        xa = x + xx * self.x_a
-        xg = x + xx * self.x_g
+        xr, xw, xk, xv, xa, xg = fused_addcmul_rwkv7(x, xx, self.x_r, self.x_w, self.x_k, self.x_v, self.x_a, self.x_g)
+        r, w, k, v, a, g, kk, v_first = self.forward_2(B, T, C, H, xr, xw, xk, xv, xa, xg, v_first)
+        
+        k = fused_k_rwkv7(k, a, self.k_a)
 
+        x = self.forward_3(B, T, C, H, r, w, k, v, a, g, kk)
+
+        return x, v_first
+
+    @MyFunction
+    def forward_2(self, B, T, C, H, xr, xw, xk, xv, xa, xg, v_first):
         r = self.receptance(xr)
         w = -F.softplus(-(self.w0 + torch.tanh(xw @ self.w1) @ self.w2)) - 0.5 # soft-clamp to (-inf, -0.5)
         k = self.key(xk)
@@ -179,14 +185,15 @@ class RWKV_Tmix_x070(MyModule):
 
         kk = k * self.k_k
         kk = F.normalize(kk.view(B,T,H,-1), dim=-1, p=2.0).view(B,T,C)
-        k = k * (1 + (a-1) * self.k_a)
-
+        return r, w, k, v, a, g, kk, v_first
+    
+    @MyFunction
+    def forward_3(self, B, T, C, H, r, w, k, v, a, g, kk):
         x = RUN_CUDA_RWKV7g(r, w, k, v, -kk, kk*a)
         x = self.ln_x(x.view(B * T, C)).view(B, T, C)
-
         x = x + ((r.view(B,T,H,-1)*k.view(B,T,H,-1)*self.r_k).sum(dim=-1, keepdim=True) * v.view(B,T,H,-1)).view(B,T,C)
         x = self.output(x * g)
-        return x, v_first
+        return x
     
 ########################################################################################################
 
@@ -210,13 +217,14 @@ class RWKV_CMix_x070(MyModule):
         self.key.weight.data.uniform_(-0.5/(args.n_embd**0.5), 0.5/(args.n_embd**0.5))
         self.value.weight.data.zero_()
 
-    @MyFunction
     def forward(self, x):
-        xx = self.time_shift(x) - x
-        
-        k = x + xx * self.x_k
-        k = torch.relu(self.key(k)) ** 2
+        xx = token_shift(x)
+        k = torch.addcmul(x, xx, self.x_k)
+        return self.forward_2(k)
 
+    @MyFunction
+    def forward_2(self, k):
+        k = torch.relu(self.key(k)) ** 2
         return self.value(k)
 
 
