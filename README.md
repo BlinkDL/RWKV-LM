@@ -18,9 +18,9 @@ You are welcome to ask the RWKV community (such as [RWKV discord](https://discor
 
 <img src="RWKV-v7-niah.png">
 
-RWKV-7 0.1B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
+Gradio Demo 1: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 
-RWKV-6 7B Demo: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
+Gradio Demo 2: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
 
 WebGPU Demo: https://cryscan.github.io/web-rwkv-puzzles/#/chat
 

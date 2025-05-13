@@ -789,8 +789,8 @@ class RWKV_Tmix_x070(MyModule):
 
             self.x_r = nn.Parameter(1.0 - torch.pow(ddd, 0.2 * ratio_1_to_almost0))
             self.x_w = nn.Parameter(1.0 - torch.pow(ddd, 0.9 * ratio_1_to_almost0))
-            self.x_k = nn.Parameter(1.0 - (torch.pow(ddd, 0.9 * ratio_1_to_almost0) + 0.4 * ratio_0_to_1))
-            self.x_v = nn.Parameter(1.0 - (torch.pow(ddd, 0.4 * ratio_1_to_almost0) + 0.6 * ratio_0_to_1))
+            self.x_k = nn.Parameter(1.0 - torch.pow(ddd, 0.7 * ratio_1_to_almost0))
+            self.x_v = nn.Parameter(1.0 - torch.pow(ddd, 0.7 * ratio_1_to_almost0))
             self.x_a = nn.Parameter(1.0 - torch.pow(ddd, 0.9 * ratio_1_to_almost0))
             self.x_g = nn.Parameter(1.0 - torch.pow(ddd, 0.2 * ratio_1_to_almost0))
 
@@ -808,26 +808,32 @@ class RWKV_Tmix_x070(MyModule):
                         assert False
                     return x
 
+            www = torch.zeros(C)
+            zigzag = torch.zeros(C)
+            linear = torch.zeros(C)
+            for n in range(C):
+                linear[n] = n / (C-1) - 0.5
+                zigzag[n] = ((n % N) - ((N-1) / 2)) / ((N-1) / 2)
+                zigzag[n] = zigzag[n] * abs(zigzag[n])
+                www[n] = -6 + 6 * (n / (C - 1)) ** (1 + 1 * ratio_0_to_1 ** 0.3)
+
             # D_DECAY_LORA = 64
             D_DECAY_LORA = max(32, int(round(  (1.8*(C**0.5))  /32)*32)) # suggestion
             self.w1 = nn.Parameter(torch.zeros(C, D_DECAY_LORA))
             self.w2 = nn.Parameter(ortho_init(torch.zeros(D_DECAY_LORA, C), 0.1))
-            decay_speed = torch.ones(C)
-            for n in range(C):
-                decay_speed[n] = -7 + 5 * (n / (C - 1)) ** (0.85 + 1.0 * ratio_0_to_1 ** 0.5)
-            self.w0 = nn.Parameter(decay_speed.reshape(1,1,C) + 0.5) # !!! 0.5 comes from F.softplus !!!
+            self.w0 = nn.Parameter(www.reshape(1,1,C) + 0.5 + zigzag*2.5) # !!! 0.5 comes from F.softplus !!!
 
             # D_AAA_LORA = 64
             D_AAA_LORA = max(32, int(round(  (1.8*(C**0.5))  /32)*32)) # suggestion
             self.a1 = nn.Parameter(torch.zeros(C, D_AAA_LORA))
             self.a2 = nn.Parameter(ortho_init(torch.zeros(D_AAA_LORA, C), 0.1))
-            self.a0 = nn.Parameter(torch.zeros(1,1,C))
+            self.a0 = nn.Parameter(torch.zeros(1,1,C)-0.19 + zigzag*0.3 + linear*0.4)
 
             # D_MV_LORA = 32
             D_MV_LORA = max(32, int(round(  (1.3*(C**0.5))  /32)*32)) # suggestion
             self.v1 = nn.Parameter(torch.zeros(C, D_MV_LORA))
             self.v2 = nn.Parameter(ortho_init(torch.zeros(D_MV_LORA, C), 0.1))
-            self.v0 = nn.Parameter(torch.zeros(1,1,C)+1.0)
+            self.v0 = nn.Parameter(torch.zeros(1,1,C)+0.73 - linear*0.4)
 
             # Note: for some data, you can reduce D_GATE_LORA or even remove this gate
             # D_GATE_LORA = 128
@@ -835,9 +841,9 @@ class RWKV_Tmix_x070(MyModule):
             self.g1 = nn.Parameter(torch.zeros(C, D_GATE_LORA))
             self.g2 = nn.Parameter(ortho_init(torch.zeros(D_GATE_LORA, C), 0.1))
 
-            self.k_k = nn.Parameter(torch.ones(1,1,C)*0.85)
-            self.k_a = nn.Parameter(torch.ones(1,1,C))
-            self.r_k = nn.Parameter(torch.zeros(H,N))
+            self.k_k = nn.Parameter(torch.zeros(1,1,C)+0.71 - linear*0.1)
+            self.k_a = nn.Parameter(torch.zeros(1,1,C)+1.02)
+            self.r_k = nn.Parameter(torch.zeros(H,N)-0.04)
 
             self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
             self.receptance = nn.Linear(C, C, bias=False)
