@@ -170,14 +170,14 @@ class RWKV_Tmix_x070(MyModule):
         xr, xw, xk, xv, xa, xg = fused_addcmul_rwkv7(x, xx, self.x_r, self.x_w, self.x_k, self.x_v, self.x_a, self.x_g)
         r, w, k, v, a, g, kk, v_first = self.forward_2(B, T, C, H, xr, xw, xk, xv, xa, xg, v_first)
         
-        k = fused_k_rwkv7(k, a, self.k_a)
+        k = fused_k_rwkv7(k, a, self.k_a.view(C))
 
         x = self.forward_3(B, T, C, H, r, w, k, v, a, g, kk)
 
         return x, v_first
 
     @MyFunction
-    def forward_2(self, B, T, C, H, xr, xw, xk, xv, xa, xg, v_first):
+    def forward_2(self, B:int, T:int, C:int, H:int, xr, xw, xk, xv, xa, xg, v_first):
         r = self.receptance(xr)
         w = -F.softplus(-(self.w0 + torch.tanh(xw @ self.w1) @ self.w2)) - 0.5 # soft-clamp to (-inf, -0.5)
         k = self.key(xk)
@@ -194,7 +194,7 @@ class RWKV_Tmix_x070(MyModule):
         return r, w, k, v, a, g, kk, v_first
     
     @MyFunction
-    def forward_3(self, B, T, C, H, r, w, k, v, a, g, kk):
+    def forward_3(self, B:int, T:int, C:int, H:int, r, w, k, v, a, g, kk):
         x = RUN_CUDA_RWKV7g(r, w, k, v, -kk, kk*a)
         x = self.ln_x(x.view(B * T, C)).view(B, T, C)
         x = x + ((r.view(B,T,H,-1)*k.view(B,T,H,-1)*self.r_k).sum(dim=-1, keepdim=True) * v.view(B,T,H,-1)).view(B,T,C)
