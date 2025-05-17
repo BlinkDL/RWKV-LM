@@ -149,6 +149,8 @@ You can run your model using https://pypi.org/project/rwkv/ (use "rwkv_vocab_v20
 
 Use https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/make_data.py to prepare binidx data from jsonl, and compute "--my_exit_tokens" and "--magic_prime".
 
+Use https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v5/compute_magic_prime.py to compute "--my_exit_tokens" and "--magic_prime" for existing binidx.
+
 Much faster tokenizer of large data: https://github.com/cahya-wirawan/json2bin https://github.com/cahya-wirawan/rwkv-tokenizer https://github.com/m8than/RWKV-World-Tokenizer-CPP
 
 The "epoch" in train.py is "mini-epoch" (not real epoch. only for convenience), and 1 mini-epoch = 40320 * ctx_len tokens.
