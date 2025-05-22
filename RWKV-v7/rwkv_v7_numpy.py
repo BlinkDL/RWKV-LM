@@ -11,6 +11,9 @@ group_norm = lambda x, w, b : ((x - x.mean(axis=1,keepdims=1)) / (x.var(axis=1,k
 sigmoid = lambda x : 1/(1+np.exp(-x))
 
 def time_mixing(x, v0, last_x, S, params):
+    # use this and remove other param[] if you are testing models trained by RWKV-LM
+    # mr,mw,mk,mv,ma,mg, Ww1,Ww2,w_bias, Wa1,Wa2,a_bias, Wv1,Wv2,v_bias, Wg1,Wg2, k_k,k_a,r_k, Wr,Wk,Wv,Wo, ln_w,ln_b = params
+    
     mr,mw,mk,mv,ma,mg, w_bias, r_k, Ww1,Ww2, Wa1,Wa2,a_bias, Wg1,Wg2 = params[:15]
     k_k,k_a, Wr,Wk,Wv,Wo, ln_w,ln_b = params[-8:]
 
@@ -68,10 +71,11 @@ def RWKV7(params, token, state):
 
 # Verification
 
-# Available at https://huggingface.co/BlinkDL/rwkv-7-world/resolve/main/RWKV-x070-World-0.4B-v2.9-20250107-ctx4096.pth
-MODEL_FILE = '/data/models/RWKV-x070-World-0.4B-v2.9-20250107-ctx4096.pth'
-N_LAYER = 24
-N_EMBD = 1024
+# Available at https://huggingface.co/BlinkDL/rwkv7-g1/blob/main/rwkv7-g1-0.1b-20250307-ctx4096.pth
+MODEL_FILE = '/mnt/e/RWKV-Runner/models/rwkv7-g1-0.1b-20250307-ctx4096.pth'
+N_LAYER = 12
+N_EMBD = 768
+
 HEAD_SIZE = 64
 N_HEAD = N_EMBD//HEAD_SIZE
 
