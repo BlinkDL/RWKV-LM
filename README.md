@@ -16,6 +16,8 @@ RWKV is a [Linux Foundation AI project](https://lfaidata.foundation/projects/rwk
 
 You are welcome to ask the RWKV community (such as [RWKV discord](https://discord.gg/bDSBUMeFpc)) for advice on upgrading your attention/ssm models to rwkv7 models :)
 
+History of RWKV (from v1 to v7): https://wiki.rwkv.com/advance/architecture.html (note: AI-written. might contain errors)
+
 <img src="RWKV-v7-niah.png">
 
 Gradio Demo 1: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
