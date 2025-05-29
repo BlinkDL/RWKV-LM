@@ -179,6 +179,7 @@ class RWKV_x070(MyModule):
 
                 xx = F.layer_norm(x, (self.n_embd,), weight=z[bbb+'ln2.weight'], bias=z[bbb+'ln2.bias'])
 
+                # Disk space offloading
                 if not (ffn+'enn.weight' in self.deepembs):
                     z[ffn+'enn.weight'].numpy().tofile(ffn+'enn.weight_storage'+'.pt')
                     emb_size = z[ffn+'enn.weight'].numel()
