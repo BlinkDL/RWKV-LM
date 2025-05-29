@@ -199,10 +199,63 @@ class RWKV_x070(MyModule):
 
 @MyStatic
 def RWKV_x070_TMix_one(layer_id: int, H:int, N:int, x, x_prev, v_first, state, x_r, x_w, x_k, x_v, x_a, x_g, w0, w1, w2, a0, a1, a2, v0, v1, v2, g1, g2, k_k, k_a, r_k, R_, K_, V_, O_, ln_w, ln_b):
+    xx = x_prev - x
+    xr, xw, xk, xv, xa, xg = x+xx*x_r, x+xx*x_w, x+xx*x_k, x+xx*x_v, x+xx*x_a, x+xx*x_g
+
+    r = xr @ R_
+    w = torch.tanh(xw @ w1) @ w2
+    k = xk @ K_
+    v = xv @ V_
+    a = torch.sigmoid(a0 + (xa @ a1) @ a2)
+    g = torch.sigmoid(xg @ g1) @ g2
+
+    kk = torch.nn.functional.normalize((k * k_k).view(H,N), dim=-1, p=2.0).view(H*N)
+    k = k * (1 + (a-1) * k_a)
+    if layer_id == 0: v_first = v
+    else: v = v + (v_first - v) * torch.sigmoid(v0 + (xv @ v1) @ v2)
+    w = torch.exp(-0.606531 * torch.sigmoid((w0 + w).float())) # 0.606531 = exp(-0.5)
+
+    vk = v.view(H,N,1) @ k.view(H,1,N)
+    ab = (-kk).view(H,N,1) @ (kk*a).view(H,1,N)
+    state = state * w.view(H,1,N) + state @ ab.float() + vk.float()
+    xx = (state.to(dtype=x.dtype) @ r.view(H,N,1))
+
+    xx = torch.nn.functional.group_norm(xx.view(1,H*N), num_groups=H, weight=ln_w, bias=ln_b, eps = 64e-5).view(H*N)    
+    xx = xx + ((r * k * r_k).view(H,N).sum(dim=-1, keepdim=True) * v.view(H,N)).view(H*N)
     return (xx * g) @ O_, x, state, v_first
 
 @MyStatic
 def RWKV_x070_TMix_seq(layer_id: int, H:int, N:int, x, x_prev, v_first, state, x_r, x_w, x_k, x_v, x_a, x_g, w0, w1, w2, a0, a1, a2, v0, v1, v2, g1, g2, k_k, k_a, r_k, R_, K_, V_, O_, ln_w, ln_b):
+    T = x.shape[0]
+    xx = torch.cat((x_prev.unsqueeze(0), x[:-1,:])) - x
+    xr, xw, xk, xv, xa, xg = x+xx*x_r, x+xx*x_w, x+xx*x_k, x+xx*x_v, x+xx*x_a, x+xx*x_g
+
+    r = xr @ R_
+    w = torch.tanh(xw @ w1) @ w2
+    k = xk @ K_
+    v = xv @ V_
+    a = torch.sigmoid(a0 + (xa @ a1) @ a2)
+    g = torch.sigmoid(xg @ g1) @ g2
+
+    kk = torch.nn.functional.normalize((k * k_k).view(T,H,N), dim=-1, p=2.0).view(T,H*N)
+    k = k * (1 + (a-1) * k_a)
+    if layer_id == 0: v_first = v
+    else: v = v + (v_first - v) * torch.sigmoid(v0 + (xv @ v1) @ v2)
+
+    ######## cuda-free method 
+    # w = torch.exp(-0.606531 * torch.sigmoid((w0 + w).float())) # 0.606531 = exp(-0.5)
+    # for t in range(T):
+    #     r_, w_, k_, v_, kk_, a_ = r[t], w[t], k[t], v[t], kk[t], a[t]
+    #     vk = v_.view(H,N,1) @ k_.view(H,1,N)
+    #     ab = (-kk_).view(H,N,1) @ (kk_*a_).view(H,1,N)
+    #     state = state * w_.view(H,1,N) + state @ ab.float() + vk.float()
+    #     xx[t] = (state.to(dtype=x.dtype) @ r_.view(H,N,1)).view(H*N)
+
+    w = -torch.nn.functional.softplus(-(w0 + w)) - 0.5
+    xx = RWKV7_OP(state, r, w, k, v, -kk, kk*a)
+
+    xx = torch.nn.functional.group_norm(xx.view(T,H*N), num_groups=H, weight=ln_w, bias=ln_b, eps = 64e-5).view(T,H*N)
+    xx = xx + ((r * k * r_k).view(T,H,N).sum(dim=-1, keepdim=True) * v.view(T,H,N)).view(T,H*N)
     return (xx * g) @ O_, x[-1,:], state, v_first
 
 ########################################################################################################
