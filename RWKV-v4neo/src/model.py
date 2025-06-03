@@ -829,18 +829,30 @@ class RWKV(pl.LightningModule):
 
         if args.dropout > 0:
             x = self.drop0(x)
-        if args.tiny_att_dim > 0:
-            for block in self.blocks:
-                if args.grad_cp == 1:
-                    x = deepspeed.checkpointing.checkpoint(block, x, x_emb)
+
+
+        # resx is an exponential residual connection between layers.
+        # It cuts early training speed in half
+        resx = "x" in os.environ["RWKV_MY_TESTING"] 
+        resxstack = None
+
+        usex_emb = args.tiny_att_dim > 0
+        
+        for block in self.blocks:
+
+            if resx:
+                if resxstack is None:
+                    resxstack = x
                 else:
-                    x = block(x, x_emb)
-        else:
-            for block in self.blocks:
-                if args.grad_cp == 1:
-                    x = deepspeed.checkpointing.checkpoint(block, x)
-                else:
-                    x = block(x)
+                    resxstack = resxstack*2 + x
+
+                x = resxstack + x
+
+            if args.grad_cp == 1:
+                x = deepspeed.checkpointing.checkpoint(block, *([x, x_emb] if usex_emb else [x]))
+            else:
+                x = block(*([x, x_emb] if usex_emb else [x]))
+    
 
         x = self.ln_out(x)
 
