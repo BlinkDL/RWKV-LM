@@ -42,6 +42,8 @@ RLHF: https://github.com/OpenMOSE/RWKV-LM-RLHF
 
 400+ RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
 
+**Faster RWKV-7 kernels**: https://github.com/johanwind/wind_rwkv
+
 ===
 
 RWKV-5/6 Eagle/Finch paper: https://arxiv.org/abs/2404.05892
