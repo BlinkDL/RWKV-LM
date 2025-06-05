@@ -1,0 +1,15 @@
+{
+    "summary": "The code defines C++ functions for the forward and backward passes of a WKV model in RWKV-LM/RWKV-v4, utilizing PyTorch's torch::Tensor class and CUDA kernels on GPU.",
+    "details": [
+        {
+            "comment": "This code defines a C++ function for the forward pass of the WaveGrad RWKV model, and a backward pass for gradient calculation. It uses the torch::Tensor class from PyTorch library to handle tensors and wraps the CUDA kernels with torch::extension to enable GPU computation.",
+            "location": "\"/media/root/Prima/works/RWKV-LM/docs/src/RWKV-v4/cuda/wkv_op.cpp\":0-13",
+            "content": "#include <torch/extension.h>\nvoid cuda_forward(int B, int T, int C, float *w, float *u, float *k, float *v, float *y);\nvoid cuda_backward(int B, int T, int C, float *w, float *u, float *k, float *v, float *gy, float *gw, float *gu, float *gk, float *gv);\nvoid forward(int64_t B, int64_t T, int64_t C, torch::Tensor &w, torch::Tensor &u, torch::Tensor &k, torch::Tensor &v, torch::Tensor &y) {\n    cuda_forward(B, T, C, w.data_ptr<float>(), u.data_ptr<float>(), k.data_ptr<float>(), v.data_ptr<float>(), y.data_ptr<float>());\n}\nvoid backward(int64_t B, int64_t T, int64_t C, torch::Tensor &w, torch::Tensor &u, torch::Tensor &k, torch::Tensor &v, torch::Tensor &gy, torch::Tensor &gw, torch::Tensor &gu, torch::Tensor &gk, torch::Tensor &gv) {\n    cuda_backward(B, T, C, w.data_ptr<float>(), u.data_ptr<float>(), k.data_ptr<float>(), v.data_ptr<float>(), gy.data_ptr<float>(), gw.data_ptr<float>(), gu.data_ptr<float>(), gk.data_ptr<float>(), gv.data_ptr<float>());\n}\nPYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {\n    m.def(\"forward\", &forward, \"wkv forward\");"
+        },
+        {
+            "comment": "The code is defining C++ functions for the forward and backward passes of a Wavelet Quantized Variational Kalman Filter (WKV) model in the RWKV-LM/RWKV-v4/cuda/wkv_op.cpp file, which are then exported as bindings through Torch library with names \"forward\" and \"backward\".",
+            "location": "\"/media/root/Prima/works/RWKV-LM/docs/src/RWKV-v4/cuda/wkv_op.cpp\":14-20",
+            "content": "    m.def(\"backward\", &backward, \"wkv backward\");\n}\nTORCH_LIBRARY(wkv, m) {\n    m.def(\"forward\", forward);\n    m.def(\"backward\", backward);\n}"
+        }
+    ]
+}
