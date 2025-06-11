@@ -1,0 +1,549 @@
+{
+    "700": {
+        "file_id": 41,
+        "content": "args.FLOAT_MODE = \"fp16\" # fp16 (good for GPU, does not work for CPU) // fp32 (good for CPU) // bf16 (less accurate, but works for CPU)\n# if args.RUN_DEVICE == \"cuda\":\n#     os.environ[\"RWKV_RUN_BACKEND\"] = 'nvfuser' # !!!BUGGY!!! wrong output\nos.environ[\"RWKV_JIT_ON\"] = '1' # '1' or '0'. very useful for GPU/CPU fp32, but might be harmful for GPU fp16. please benchmark !!!\nTOKEN_MODE = \"pile\"\nWORD_NAME = [\n    \"20B_tokenizer.json\",\n    \"20B_tokenizer.json\",\n]  # [vocab, vocab] for Pile model\nUNKNOWN_CHAR = None\nvocab_size = 50277\n# Download Pile models: https://huggingface.co/BlinkDL\n# or, set MODEL_NAME to your fine-tuned model\n# MODEL_NAME = \"/fsx/BlinkDL/rwkv-release/RWKV-4-Pile-169M-20220807-8023\"\n# n_layer = 12\n# n_embd = 768\n# ctx_len = 1024\n# MODEL_NAME = '/fsx/BlinkDL/rwkv-release/RWKV-4-Pile-430M-20220808-8066'\n# n_layer = 24\n# n_embd = 1024\n# ctx_len = 1024\n# MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-1b5/RWKV-4-Pile-1B5-20220903-8040'\n# n_layer = 24\n# n_embd = 2048\n# ctx_len = 1024\n# MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-3b/RWKV-4-Pile-3B-20221008-8023'",
+        "type": "code",
+        "location": "/RWKV-v4neo/run.py:24-56"
+    },
+    "701": {
+        "file_id": 41,
+        "content": "This code sets various parameters for an RWKV model, including float mode (fp16, fp32 or bf16), JIT environment, tokenizer files, and Pile model options. It also specifies the MODEL_NAME based on downloaded models or a user-defined fine-tuned model. The code is designed for GPU and CPU usage, but some elements may require benchmarking due to potential issues or reduced accuracy.",
+        "type": "comment"
+    },
+    "702": {
+        "file_id": 41,
+        "content": "# n_layer = 32\n# n_embd = 2560\n# ctx_len = 1024\nMODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-7b/RWKV-4-Pile-7B-20221115-8047'\nn_layer = 32\nn_embd = 4096\nctx_len = 1024\nargs.MODEL_NAME = MODEL_NAME\nargs.n_layer = n_layer\nargs.n_embd = n_embd\nargs.ctx_len = ctx_len\nargs.vocab_size = vocab_size\nargs.head_qk = 0\nargs.pre_ffn = 0\nargs.grad_cp = 0\nargs.my_pos_emb = 0\nos.environ[\"RWKV_RUN_DEVICE\"] = args.RUN_DEVICE\n########################################################################################################\n# Step 2: set prompt & sampling stuffs\n########################################################################################################\n# context = 'A'\n# context = \"\\nIn the\"\n# context = '\\nSugar:'\ncontext = \"\\nIn a shocking finding, scientist discovered a herd of dragons living in a remote, previously unexplored valley, in Tibet. Even more surprising to the researchers was the fact that the dragons spoke perfect Chinese.\"\n# context = \"\\n深圳是\" # test Chinese\n# context = \"\\n東京は\" # test Japanese\n# ###### A good prompt for Q&A ######",
+        "type": "code",
+        "location": "/RWKV-v4neo/run.py:57-89"
+    },
+    "703": {
+        "file_id": 41,
+        "content": "This code sets the model parameters (n_layer, n_embd, ctx_len) and environment variables for RWKV-v4neo's run.py. The context variable holds a text prompt for question and answer tasks in various languages.",
+        "type": "comment"
+    },
+    "704": {
+        "file_id": 41,
+        "content": "# context = '''\n# Questions & Helpful Answers\n# Ask Research Experts\n# Question:\n# Can penguins fly?\n# Full Answer:\n# '''\n# ###### A good prompt for chatbot ######\n# context = '''\n# The following is a conversation between a highly knowledgeable and intelligent AI assistant called Bot, and a human user called User. In the following interactions, User and Bot converse in natural language, and Bot always answer User's questions. Bot is very smart, polite and humorous. Bot knows a lot, and always tells the truth. The conversation begins.\n# User: who is president of usa?\n# Bot: It’s Joe Biden; he was sworn in earlier this year.\n# User: french revolution what year\n# Bot: It started in 1789, but it lasted 10 years until 1799.\n# User: guess i marry who ?\n# Bot: Only if you tell me more about yourself - what are your interests?\n# User: wat is lhc\n# Bot: It’s a large and very expensive piece of science equipment. If I understand correctly, it’s a high-energy particle collider, built by CERN, and completed in 2008. They used it to confirm the existence of the Higgs boson in 2012.",
+        "type": "code",
+        "location": "/RWKV-v4neo/run.py:90-117"
+    },
+    "705": {
+        "file_id": 41,
+        "content": "This code is a chatbot prompt featuring a conversation between a user and an intelligent AI assistant. The user asks various questions about politics, history, and personal preferences, and the AI provides accurate and informative responses.",
+        "type": "comment"
+    },
+    "706": {
+        "file_id": 41,
+        "content": "# User:''' # type your question here\nNUM_TRIALS = 999\nLENGTH_PER_TRIAL = 333\nTEMPERATURE = 1.0\ntop_p = 0.8\ntop_p_newline = 0.9  # only used in TOKEN_MODE = char\nDEBUG_DEBUG = False  # True False --> show softmax output\n########################################################################################################\nprint(f'\\nUsing {args.RUN_DEVICE.upper()}. Loading {MODEL_NAME}...')\nfrom src.model_run import RWKV_RNN\nmodel = RWKV_RNN(args)\nprint(f'\\nOptimizing speed...')\nout, _ = model.forward([187], None)\n# print(out)\ngc.collect()\ntorch.cuda.empty_cache()\n# input(0)\nprint(f'\\nLoading tokenizer {WORD_NAME}...')\ntokenizer = TOKENIZER(WORD_NAME, UNKNOWN_CHAR=UNKNOWN_CHAR)\nif TOKEN_MODE == \"pile\":\n    assert tokenizer.tokenizer.decode([187]) == '\\n'\n########################################################################################################\nif tokenizer.charMode:\n    context = tokenizer.refine_context(context)\n    ctx = [tokenizer.stoi.get(s, tokenizer.UNKNOWN_CHAR) for s in context]\nelse:\n    ctx = tokenizer.tokenizer.encode(context)",
+        "type": "code",
+        "location": "/RWKV-v4neo/run.py:119-156"
+    },
+    "707": {
+        "file_id": 41,
+        "content": "This code snippet is part of a larger program that uses the RWKV-v4neo model for text generation. It sets up necessary parameters and initializes the model, optimizer, and tokenizer. The context provided to the model is refined if character mode is enabled. The code also includes error checking for specific conditions related to the tokenizer being used.",
+        "type": "comment"
+    },
+    "708": {
+        "file_id": 41,
+        "content": "src_len = len(ctx)\nsrc_ctx = ctx.copy()\nprint(\"\\nYour prompt has \" + str(src_len) + \" tokens.\")\nprint(\n    \"Note: currently the first run takes a while if your prompt is long, as we are using RNN to preprocess the prompt. Use GPT to build the hidden state for better speed.\\n\"\n)\ntime_slot = {}\ntime_ref = time.time_ns()\ndef record_time(name):\n    if name not in time_slot:\n        time_slot[name] = 1e20\n    tt = (time.time_ns() - time_ref) / 1e9\n    if tt < time_slot[name]:\n        time_slot[name] = tt\ninit_state = None\ninit_out = None\nstate = None\nout = None\nfor TRIAL in range(1 if DEBUG_DEBUG else NUM_TRIALS):\n    print((\"-\" * 50) + '\\n' + context, end=\"\")\n    time_ref = time.time_ns()\n    ctx = src_ctx.copy()\n    if TRIAL == 0:\n        for i in range(src_len):\n            x = ctx[: i + 1]\n            if i == src_len - 1:\n                init_out, init_state = model.forward(x, init_state)\n            else:\n                init_state = model.forward(x, init_state, preprocess_only=True)\n        gc.collect()\n        torch.cuda.empty_cache()",
+        "type": "code",
+        "location": "/RWKV-v4neo/run.py:157-194"
+    },
+    "709": {
+        "file_id": 41,
+        "content": "This code is running a neural language model for a given prompt. It first processes the prompt to generate an initial state and output, which are then used in subsequent trials. The processing involves using a recurrent neural network (RNN) for the first run if the prompt is long, or GPT otherwise. The code also keeps track of time taken during various operations for potential performance improvements.",
+        "type": "comment"
+    },
+    "710": {
+        "file_id": 41,
+        "content": "    record_time('preprocess')\n    out_last = src_len\n    for i in range(src_len, src_len + (1 if DEBUG_DEBUG else LENGTH_PER_TRIAL)):\n        x = ctx[: i + 1]\n        x = x[-ctx_len:]\n        if i == src_len:\n            out = init_out.clone()\n            state = init_state.clone()\n        else:\n            out, state = model.forward(x, state)\n        if DEBUG_DEBUG:\n            print(\"model\", np.array(x), \"==>\", np.array(out), np.max(out.cpu().numpy()), np.min(out.cpu().numpy()))\n        if TOKEN_MODE == \"pile\":\n            out[0] = -999999999  # disable <|endoftext|>\n        ttt = tokenizer.sample_logits(\n            out,\n            x,\n            ctx_len,\n            temperature=TEMPERATURE,\n            top_p_usual=top_p,\n            top_p_newline=top_p_newline,\n        )\n        ctx += [ttt]\n        if tokenizer.charMode:\n            char = tokenizer.itos[ttt]\n            print(char, end=\"\", flush=True)\n        else:\n            char = tokenizer.tokenizer.decode(ctx[out_last:])\n            if '\\ufffd' not in char: # is valid utf8 string?",
+        "type": "code",
+        "location": "/RWKV-v4neo/run.py:196-227"
+    },
+    "711": {
+        "file_id": 41,
+        "content": "This code is iterating through a sequence of tokens, using a model to predict the next token based on the previous ones. If in debug mode, it prints out the output of the model for each step. It also has special handling for the \"<|endoftext|>\" token, disabling it if the tokenizer mode is set to \"pile\". The code then adds the predicted token to the context and either prints out each character if in character mode or combines the tokens into a string if not.",
+        "type": "comment"
+    },
+    "712": {
+        "file_id": 41,
+        "content": "                print(char, end=\"\", flush=True)\n                out_last = i+1\n    record_time('total')\n    # print(f'\\n\\n{time_slot}\\n\\n')\n    print(\n        f\"\\n\\n--- preprocess {round(time_slot['preprocess'], 2)}s, generation {round(time_slot['total']-time_slot['preprocess'], 2)}s \", end = ''\n    )\nprint((\"-\" * 50) + '\\n')",
+        "type": "code",
+        "location": "/RWKV-v4neo/run.py:228-237"
+    },
+    "713": {
+        "file_id": 41,
+        "content": "This code block prints the time taken for preprocessing and generation, separates with a line of dashes, and then proceeds to print information about the time slots. It also flushes the buffer immediately after each character is printed to update the output instantly. The comments are for record-keeping and provide an organized summary of the code's actions.",
+        "type": "comment"
+    },
+    "714": {
+        "file_id": 42,
+        "content": "/RWKV-v4neo/src/binidx.py",
+        "type": "filepath"
+    },
+    "715": {
+        "file_id": 42,
+        "content": "The code defines 'MMapIndexedDataset' and 'Index' for handling indexed datasets, reading binary data, creating memory-mapped objects, and allows retrieval/manipulation of data. It doesn't support prefetch and checks if files exist for given path.",
+        "type": "summary"
+    },
+    "716": {
+        "file_id": 42,
+        "content": "from lib2to3.pgen2 import token\nimport os\nimport torch\nimport numpy as np\nimport shutil\nimport struct\nfrom functools import lru_cache\nfrom itertools import accumulate\ndef print_rank_0(*message):\n    pass\n    # \"\"\"If distributed is initialized print only on rank 0.\"\"\"\n    # if torch.distributed.is_initialized():\n    #     if torch.distributed.get_rank() == 0:\n    #         print(*message, flush=True)\n    # else:\n    #     print(*message, flush=True)\ndef _warmup_mmap_file(path):\n    pass\n    # with open(path, \"rb\") as stream:\n    #     while stream.read(100 * 1024 * 1024):\n    #         pass\ndtypes = {\n    1: np.uint8,\n    2: np.int8,\n    3: np.int16,\n    4: np.int32,\n    5: np.int64,\n    6: float,\n    7: np.double,\n    8: np.uint16,\n}\ndef code(dtype):\n    for k in dtypes.keys():\n        if dtypes[k] == dtype:\n            return k\n    raise ValueError(dtype)\ndef index_file_path(prefix_path):\n    return prefix_path + \".idx\"\ndef data_file_path(prefix_path):\n    return prefix_path + \".bin\"\nclass MMapIndexedDataset(torch.utils.data.Dataset):",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:1-48"
+    },
+    "717": {
+        "file_id": 42,
+        "content": "This code imports necessary libraries and defines functions for handling indexed datasets. The 'print_rank_0' function prints messages only on rank 0 if distributed is initialized, while '_warmup_mmap_file' warms up an mmap file by reading it in chunks. The 'dtypes' dictionary maps data types to their respective codes. 'index_file_path' and 'data_file_path' functions return the paths for index and data files respectively. The class 'MMapIndexedDataset' inherits from torch.utils.data.Dataset, suggesting it handles indexed datasets in a specific format.",
+        "type": "comment"
+    },
+    "718": {
+        "file_id": 42,
+        "content": "    class Index(object):\n        _HDR_MAGIC = b\"MMIDIDX\\x00\\x00\"\n        @classmethod\n        def writer(cls, path, dtype):\n            class _Writer(object):\n                def __enter__(self):\n                    self._file = open(path, \"wb\")\n                    # Write Magic string so we can check the file format then opening it again.\n                    self._file.write(cls._HDR_MAGIC)\n                    # Write version number\n                    # Little endian unsigned 64 Bit integer\n                    self._file.write(struct.pack(\"<Q\", 1))\n                    # Little endian unsigned 8 Bit integer\n                    self._file.write(struct.pack(\"<B\", code(dtype)))\n                    return self\n                @staticmethod\n                def _get_pointers(sizes):\n                    dtype_size = dtype().itemsize\n                    address = 0\n                    pointers = []\n                    for size in sizes:\n                        pointers.append(address)\n                        address += size * dtype_size",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:49-76"
+    },
+    "719": {
+        "file_id": 42,
+        "content": "The code defines a class called Index with a method writer(). This writer() method creates a subclass _Writer which is used to write the header of a binary file. It writes a magic string, version number (little endian), and data type information in the file.",
+        "type": "comment"
+    },
+    "720": {
+        "file_id": 42,
+        "content": "                    return pointers\n                def write(self, sizes, doc_idx):\n                    pointers = self._get_pointers(sizes)\n                    # Little endian unsigned 64 Bit integer\n                    self._file.write(struct.pack(\"<Q\", len(sizes)))\n                    # Little endian unsigned 64 Bit integer\n                    self._file.write(struct.pack(\"<Q\", len(doc_idx)))\n                    sizes = np.array(sizes, dtype=np.int32)\n                    self._file.write(sizes.tobytes(order=\"C\"))\n                    del sizes\n                    pointers = np.array(pointers, dtype=np.int64)\n                    self._file.write(pointers.tobytes(order=\"C\"))\n                    del pointers\n                    doc_idx = np.array(doc_idx, dtype=np.int64)\n                    self._file.write(doc_idx.tobytes(order=\"C\"))\n                def __exit__(self, exc_type, exc_val, exc_tb):\n                    self._file.close()\n            return _Writer()\n        def __init__(self, path, skip_warmup=False):",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:78-104"
+    },
+    "721": {
+        "file_id": 42,
+        "content": "This code defines a class with methods for writing binary data to a file. The `write` method takes sizes and document index as inputs, writes their lengths as little endian unsigned 64-bit integers, then converts the input arrays to byte sequences in little endian byte order and writes them to the file. The `__exit__` method closes the file when an exception occurs. The `__init__` method initializes an instance with a specified path and optionally skips warmup.",
+        "type": "comment"
+    },
+    "722": {
+        "file_id": 42,
+        "content": "            with open(path, \"rb\") as stream:\n                magic_test = stream.read(9)\n                assert self._HDR_MAGIC == magic_test, (\n                    \"Index file doesn't match expected format. \"\n                    \"Make sure that --dataset-impl is configured properly.\"\n                )\n                # Little endian unsigned 64 Bit integer\n                version = struct.unpack(\"<Q\", stream.read(8))\n                assert (1,) == version\n                # Little endian unsigned 8 Bit integer\n                (dtype_code,) = struct.unpack(\"<B\", stream.read(1))\n                self._dtype = dtypes[dtype_code]\n                self._dtype_size = self._dtype().itemsize\n                self._len = struct.unpack(\"<Q\", stream.read(8))[0]\n                self._doc_count = struct.unpack(\"<Q\", stream.read(8))[0]\n                offset = stream.tell()\n            if not skip_warmup:\n                print_rank_0(\"    warming up index mmap file...\")\n                _warmup_mmap_file(path)\n            self._bin_buffer_mmap = np.memmap(path, mode=\"r\", order=\"C\")",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:105-128"
+    },
+    "723": {
+        "file_id": 42,
+        "content": "This code reads the index file and checks its format, version, dtype, size, length, and document count. It then optionally warms up the memory-mapped file for faster access.",
+        "type": "comment"
+    },
+    "724": {
+        "file_id": 42,
+        "content": "            self._bin_buffer = memoryview(self._bin_buffer_mmap)\n            print_rank_0(\"    reading sizes...\")\n            self._sizes = np.frombuffer(\n                self._bin_buffer, dtype=np.int32, count=self._len, offset=offset\n            )\n            print_rank_0(\"    reading pointers...\")\n            self._pointers = np.frombuffer(\n                self._bin_buffer,\n                dtype=np.int64,\n                count=self._len,\n                offset=offset + self._sizes.nbytes,\n            )\n            print_rank_0(\"    reading document index...\")\n            self._doc_idx = np.frombuffer(\n                self._bin_buffer,\n                dtype=np.int64,\n                count=self._doc_count,\n                offset=offset + self._sizes.nbytes + self._pointers.nbytes,\n            )\n        def __del__(self):\n            self._bin_buffer_mmap._mmap.close()\n            del self._bin_buffer_mmap\n        @property\n        def dtype(self):\n            return self._dtype\n        @property\n        def sizes(self):",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:129-158"
+    },
+    "725": {
+        "file_id": 42,
+        "content": "This code reads binary data into memory, storing sizes of elements, pointers to each element, and a document index. The buffer is created from a mmap object, and numpy's frombuffer method is used to read the data as int32, int64 types with appropriate counts and offsets. The __del__ method ensures proper cleanup by closing the mmap and deleting it. A dtype property allows access to the type of elements stored.",
+        "type": "comment"
+    },
+    "726": {
+        "file_id": 42,
+        "content": "            return self._sizes\n        @property\n        def doc_idx(self):\n            return self._doc_idx\n        @lru_cache(maxsize=8)\n        def __getitem__(self, i):\n            return self._pointers[i], self._sizes[i]\n        def __len__(self):\n            return self._len\n    def __init__(self, path, skip_warmup=False):\n        super().__init__()\n        self._path = None\n        self._index = None\n        self._bin_buffer = None\n        self._do_init(path, skip_warmup)\n    def __getstate__(self):\n        return self._path\n    def __setstate__(self, state):\n        self._do_init(state)\n    def _do_init(self, path, skip_warmup):\n        self._path = path\n        self._index = self.Index(index_file_path(self._path), skip_warmup)\n        if not skip_warmup:\n            print_rank_0(\"    warming up data mmap file...\")\n            _warmup_mmap_file(data_file_path(self._path))\n        print_rank_0(\"    creating numpy buffer of mmap...\")\n        self._bin_buffer_mmap = np.memmap(\n            data_file_path(self._path), mode=\"r\", order=\"C\"",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:159-196"
+    },
+    "727": {
+        "file_id": 42,
+        "content": "This code defines a class that represents a binary index. It has properties for sizes and document indices, as well as methods for getting items by index and determining the length of the index. The constructor initializes the class instance with a specified path and optionally skips the warmup process. The `__getstate__` and `__setstate__` methods allow saving and restoring the state of the instance, respectively.",
+        "type": "comment"
+    },
+    "728": {
+        "file_id": 42,
+        "content": "        )\n        print_rank_0(\"    creating memory view of numpy buffer...\")\n        self._bin_buffer = memoryview(self._bin_buffer_mmap)\n    def __del__(self):\n        self._bin_buffer_mmap._mmap.close()\n        del self._bin_buffer_mmap\n        del self._index\n    def __len__(self):\n        return len(self._index)\n    # @lru_cache(maxsize=8)\n    def __getitem__(self, idx):\n        if isinstance(idx, int):\n            ptr, size = self._index[idx]\n            np_array = np.frombuffer(\n                self._bin_buffer, dtype=self._index.dtype, count=size, offset=ptr\n            )\n            return np_array\n        elif isinstance(idx, slice):\n            start, stop, step = idx.indices(len(self))\n            if step != 1:\n                raise ValueError(\n                    \"Slices into indexed_dataset must be contiguous\")\n            ptr = self._index._pointers[start]\n            sizes = self._index._sizes[idx]\n            offsets = list(accumulate(sizes))\n            total_size = sum(sizes)\n            np_array = np.frombuffer(",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:197-226"
+    },
+    "729": {
+        "file_id": 42,
+        "content": "This code snippet creates a memory view of a numpy buffer, deletes the mmap file and index when object is deleted, provides length of the index, and overrides __getitem__ to return numpy arrays from the buffer based on indices or slices. The LRU cache decorator has been commented out.",
+        "type": "comment"
+    },
+    "730": {
+        "file_id": 42,
+        "content": "                self._bin_buffer, dtype=self._index.dtype, count=total_size, offset=ptr\n            )\n            sents = np.split(np_array, offsets[:-1])\n            return sents\n    def get(self, idx, offset=0, length=None):\n        \"\"\"Retrieves a single item from the dataset with the option to only\n        return a portion of the item.\n        get(idx) is the same as [idx] but get() does not support slicing.\n        \"\"\"\n        ptr, size = self._index[idx]\n        if length is None:\n            length = size - offset\n        ptr += offset * np.dtype(self._index.dtype).itemsize\n        np_array = np.frombuffer(\n            self._bin_buffer, dtype=self._index.dtype, count=length, offset=ptr\n        )\n        return np_array\n    @property\n    def sizes(self):\n        return self._index.sizes\n    @property\n    def doc_idx(self):\n        return self._index.doc_idx\n    def get_doc_idx(self):\n        return self._index._doc_idx\n    def set_doc_idx(self, doc_idx_):\n        self._index._doc_idx = doc_idx_\n    @property",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:227-261"
+    },
+    "731": {
+        "file_id": 42,
+        "content": "The code defines a class with methods to retrieve and manipulate data from an index. The `_bin_buffer` is used to store the binary data, and the `dtype` parameter specifies the data type of the index. The `get()` method retrieves a single item from the dataset and can optionally return only a portion of it. The `sizes` property returns the sizes of the indexed items, while `doc_idx` and related methods are used to set or get the document index.",
+        "type": "comment"
+    },
+    "732": {
+        "file_id": 42,
+        "content": "    def supports_prefetch(self):\n        return False\n    @staticmethod\n    def exists(path):\n        return os.path.exists(index_file_path(path)) and os.path.exists(\n            data_file_path(path)\n        )",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:262-269"
+    },
+    "733": {
+        "file_id": 42,
+        "content": "Function `supports_prefetch` returns False, indicating it doesn't support prefetch. Function `exists(path)` checks if index and data files exist for given path.",
+        "type": "comment"
+    },
+    "734": {
+        "file_id": 43,
+        "content": "/RWKV-v4neo/src/dataset.py",
+        "type": "filepath"
+    },
+    "735": {
+        "file_id": 43,
+        "content": "This code initializes a custom PyTorch dataset, handling data loading and resizing for various scenarios. It manages token lists, WebDatasets, indices, and data selection for centralized or distributed training. The code selects random data based on stage, data type, and my_pile_version, converts indices to string tokens, checks input data patterns, generates random index if not found, converts to tensors, and handles different return values based on `args.my_qa_mask`.",
+        "type": "summary"
+    },
+    "736": {
+        "file_id": 43,
+        "content": "########################################################################################################\n# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM\n########################################################################################################\nimport json, math, random, os, sys\nimport numpy as np\nimport torch\nfrom torch.utils.data import Dataset\nfrom pytorch_lightning.utilities import rank_zero_info\nfrom .binidx import MMapIndexedDataset\nfrom .utils import MaybeIsPrime\nclass MyDataset(Dataset):\n    def __init__(self, args):\n        self.args = args\n        if args.data_type == \"binidx\":\n            self.vocab_size = args.vocab_size\n            rank_zero_info(f\"Current vocab size = {self.vocab_size} (make sure it's correct)\")\n            if args.my_pile_version == 1:\n                self.data = MMapIndexedDataset(args.data_file)\n                self.data_size = len(self.data._bin_buffer) // self.data._index._dtype_size\n                rank_zero_info(f\"Data has {self.data_size} tokens.\")",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/dataset.py:1-25"
+    },
+    "737": {
+        "file_id": 43,
+        "content": "This code is initializing a custom PyTorch dataset named MyDataset. It takes arguments and checks if the data type is \"binidx\". If so, it sets the vocabulary size, loads the dataset from a file using MMapIndexedDataset, and calculates the total number of tokens in the dataset. It also provides informational messages to the user about the vocabulary size and the total number of tokens in the dataset.",
+        "type": "comment"
+    },
+    "738": {
+        "file_id": 43,
+        "content": "            elif args.my_pile_version == 2:\n                data_list = open(args.data_file, \"r\", encoding='utf-8').read().strip().split('\\n')\n                data_list = [i.strip().split(' ') for i in data_list]\n                self.data = []\n                self.data_size = int(data_list[-1][-1])\n                rank_zero_info(f\"Data has {self.data_size} chunks.\")\n                for d in data_list:\n                    data = MMapIndexedDataset(d[0])\n                    data_size = len(data._bin_buffer) // data._index._dtype_size\n                    assert (data_size - args.ctx_len) == int(d[1])\n                    self.data += [[int(d[-1]), int(d[1]), data]]\n                # rank_zero_info(self.data)\n            if args.my_qa_mask > 0:\n                # self.data_pile = MMapIndexedDataset('/fsx/pile/pile_20B_tokenizer_text_document')\n                self.data_pile = MMapIndexedDataset('/fsx/pile_deduped/pile_0.87_deduped_text_document')\n                self.data_pile_size = len(self.data_pile._bin_buffer) // self.data._index._dtype_size",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/dataset.py:26-42"
+    },
+    "739": {
+        "file_id": 43,
+        "content": "This code block is checking if the `my_pile_version` argument is equal to 2. If so, it reads in the data file and prepares it for use. It splits the data into chunks and asserts that the size of each chunk matches the expected size. Finally, if the `my_qa_mask` argument is greater than zero, it assigns a specific dataset to `data_pile`.",
+        "type": "comment"
+    },
+    "740": {
+        "file_id": 43,
+        "content": "            else:\n                self.data_pile = None\n                self.data_pile_size = 0\n            if args.my_pile_stage > 0:\n                # assert self.data_size == 332115325534 and self.vocab_size == 50277\n                self.samples_per_epoch = args.epoch_steps * args.real_bsz\n                assert self.samples_per_epoch == 40320\n                rank_zero_info(f\"########## Pile 20b-tokenized stage {args.my_pile_stage} ##########\")\n                dataset_slot = self.data_size // args.ctx_len\n                if args.my_pile_stage != 4:\n                    assert MaybeIsPrime(args.magic_prime)\n                    assert args.magic_prime % 3 == 2\n                    assert args.magic_prime / dataset_slot > 0.99 and args.magic_prime / dataset_slot <= 1\n        elif args.data_type == \"numpy\":\n            self.data = np.load(args.data_file).astype(\"int\")\n            self.vocab_size = args.vocab_size\n            rank_zero_info(f\"Current vocab size = {self.vocab_size} (make sure it's correct)\")",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/dataset.py:43-60"
+    },
+    "741": {
+        "file_id": 43,
+        "content": "If the data is not tokenized, self.data_pile is set to None and self.data_pile_size is set to 0. If args.my_pile_stage is greater than 0, it checks if the dataset size is as expected (332115325534 tokens) and vocab size (50277). It calculates samples_per_epoch based on epoch_steps and real_bsz. Asserts that samples_per_epoch is 40320. Prints rank-zero info with stage number if args.my_pile_stage != 4. If args.data_type is \"numpy\", loads data from args.data_file, converts it to int, sets self.vocab_size, and prints current vocab size to ensure correctness.",
+        "type": "comment"
+    },
+    "742": {
+        "file_id": 43,
+        "content": "            self.data_size = len(self.data)\n            rank_zero_info(f\"Data has {self.data_size} tokens.\")\n        elif args.data_type == \"uint16\":\n            self.data = np.fromfile(args.data_file, dtype=np.uint16).astype(\"int32\").reshape(-1, args.my_sample_len)\n            self.vocab_size = args.vocab_size\n            rank_zero_info(f\"Current vocab size = {self.vocab_size} (make sure it's correct)\")\n            self.data_size = self.data.shape[0]\n            rank_zero_info(f\"Data has {self.data_size} samples.\")\n        elif args.data_type == \"wds_img\":\n            self.vocab_size = -1\n            self.data_size = -1\n            self.data = None\n            self.error_count = 0\n        else:\n            if args.data_type == \"dummy\":\n                rank_zero_info(\"Building dummy data...\")\n                self.data = \"\"\n                for i in range(100000):\n                    aa = (i) % 10000\n                    bb = (i * i) % 10000\n                    cc = aa + bb\n                    self.data += f\".{aa}+{bb}={cc}.\"",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/dataset.py:61-82"
+    },
+    "743": {
+        "file_id": 43,
+        "content": "The code handles loading and resizing data based on the specified data type. If no data type is specified, it loads uint16 data from the file, resizes vocab size, calculates number of samples, and notifies rank 0. If data type is \"wds_img\", it sets vocab size and data size to -1, sets data to None, and error count to 0. If data type is \"dummy\", it creates dummy data by concatenating numbers and notifies rank 0.",
+        "type": "comment"
+    },
+    "744": {
+        "file_id": 43,
+        "content": "            else:\n                self.data = open(args.data_file, \"r\", encoding=args.data_type).read()\n            rank_zero_info(\"Building token list...\")\n            unique = sorted(list(set(self.data)))\n            self.vocab_size = len(unique)\n            # rank_zero_info()\n            # for u in unique:\n            #     print(u, end=' ')\n            # rank_zero_info('\\n\\n')\n            xx = 0\n            xxObj = {}\n            for u in unique:\n                xxObj[xx] = u\n                xx += 1\n            with open(f\"{args.proj_dir}/vocab.json\", \"w\", encoding=\"utf-8\") as vocab_file:\n                vocab_file.write(json.dumps(xxObj, ensure_ascii=False))\n            self.data_size = len(self.data)\n            rank_zero_info(f\"Data has {self.data_size} tokens, {self.vocab_size} vocab size.\")\n            self.stoi = {ch: i for i, ch in enumerate(unique)}\n            self.itos = {i: ch for i, ch in enumerate(unique)}\n    def __len__(self):\n        return self.args.epoch_steps * self.args.micro_bsz\n    def __getitem__(self, idx):",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/dataset.py:83-107"
+    },
+    "745": {
+        "file_id": 43,
+        "content": "The code reads data from a file and builds a token list, storing it in a JSON file. It then creates dictionaries for mapping tokens to indices and indices to tokens. Finally, it provides methods for the length of the dataset and accessing specific items within the dataset.",
+        "type": "comment"
+    },
+    "746": {
+        "file_id": 43,
+        "content": "        args = self.args\n        rank = self.global_rank\n        epoch = self.real_epoch\n        world_size = self.world_size\n        # print(f\"epoch {epoch} idx {idx} rank {rank}/{world_size}\")\n        if args.data_type == \"wds_img\":\n            def init_wds(self, bias=0):\n                def identity(x):\n                    return x            \n                import webdataset as wds\n                import torchvision.transforms as transforms\n                # img_transform = transforms.Compose(\n                #     [transforms.CenterCrop(256)]\n                # )\n                img_transform = transforms.Compose([\n                    transforms.CenterCrop(512),\n                    transforms.Resize((args.my_img_size))\n                ])\n                self.data_raw = wds.WebDataset(args.data_file, resampled=True).shuffle(10000, initial=1000, rng=random.Random(epoch*100000+rank+bias*1e9)).decode(\"torchrgb\").to_tuple(\"jpg\", \"json\", \"txt\").map_tuple(img_transform, identity, identity)\n                for pp in self.data_raw.pipeline:",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/dataset.py:108-128"
+    },
+    "747": {
+        "file_id": 43,
+        "content": "This code initializes a WebDataset for image data with specified transformation. It shuffles the dataset and decodes it into torchrgb format, then maps the tuple of jpg, json, and txt files to image transformations, identity mappings for other file types, and returns the initialized dataset.",
+        "type": "comment"
+    },
+    "748": {
+        "file_id": 43,
+        "content": "                    if 'Resampled' in str(pp):\n                        pp.deterministic = True\n                        def worker_seed():\n                            return rank*100000+epoch+bias*1e9\n                        pp.worker_seed = worker_seed\n                self.data = iter(self.data_raw)\n                # print(f\"WebDataset loaded for rank {rank} epoch {epoch}\")\n            if self.data == None:\n                init_wds(self)\n            trial = 0\n            while trial < 10:\n                try:\n                    dd = next(self.data) # jpg, json, txt\n                    break\n                except:\n                    print(f'[dataloader error - epoch {epoch} rank {rank} - trying a new shuffle]')\n                    self.error_count += 1\n                    init_wds(self, self.error_count)\n                    trial += 1\n                    pass\n            # print(f\"epoch {epoch} idx {idx} rank {rank}/{world_size} {dd[2]}\")\n            # with open(f\"sample_{rank}.txt\", \"a\", encoding=\"utf-8\") as tmp:",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/dataset.py:129-150"
+    },
+    "749": {
+        "file_id": 43,
+        "content": "This code initializes a WebDataset for distributed training, handling potential errors in data loading and maintaining worker seeds for determinism. If the dataset is not initialized, it calls init_wds() to do so. It attempts to load data from the dataset 10 times, printing an error message if there's a failure, then re-initializes the WebDataset before retrying. The code also prints information about the current epoch, rank, and progress when loading data successfully. Additionally, it has the potential to append data samples to a file named \"sample_{rank}.txt\".",
+        "type": "comment"
+    },
+    "750": {
+        "file_id": 43,
+        "content": "            #     tmp.write(f\"epoch {epoch} idx {idx} rank {rank}/{world_size} {int(dd[1]['key'])}\\n\")\n            return dd[0], dd[2]\n        else:\n            if args.data_type == \"uint16\":\n                i = np.random.randint(0, self.data_size-1)\n                dix = self.data[i]\n                x = torch.tensor(dix[:-1], dtype=torch.long)\n                y = torch.tensor(dix[1:], dtype=torch.long)\n            else:\n                ctx_len = args.ctx_len\n                req_len = ctx_len + 1\n                magic_prime = args.magic_prime\n                data = self.data\n                if args.my_pile_stage > 0:\n                    ii = 1 + epoch * self.samples_per_epoch + (idx * world_size) + rank\n                    if args.my_qa_mask > 0:\n                        ii_orig = ii\n                        if ii % 2 == 0:\n                            ii = -1\n                            data = self.data_pile\n                        else:\n                            ii = ii // 2\n                    if data == self.data_pile:",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/dataset.py:151-175"
+    },
+    "751": {
+        "file_id": 43,
+        "content": "The code initializes a random index 'i' within the data range, creates two tensors 'x' and 'y' with torch.tensor() from the data slice. If the data type is uint16, it selects a random index 'i' from 0 to data_size-1, extracts x from the data at index i, y from the next element. Else, it calculates the context length, required length, and uses magic prime for data selection based on current epoch, idx, rank, world_size. If my_pile_stage is greater than 0, it computes the index 'ii', checks if my_qa_mask > 0 to determine if ii should be -1 or half of itself. Depending on data type and certain conditions, it selects data_pile for data tensor.",
+        "type": "comment"
+    },
+    "752": {
+        "file_id": 43,
+        "content": "                        i = np.random.randint(0, self.data_pile_size - req_len)\n                    else:\n                        if args.my_pile_stage == 4 or ii < args.my_random_steps:\n                            # cheat: pick a random spot in dataset\n                            if args.my_pile_version == 1:\n                                i = np.random.randint(0, self.data_size - req_len)\n                            else:\n                                i = np.random.randint(0, self.data_size)\n                        else:\n                            ii = ii - args.my_random_steps\n                            factor = (math.sqrt(5) - 1) / 2\n                            factor = int(magic_prime * factor)\n                            i = ((factor * ii * ii * ii) % magic_prime) * ctx_len\n                            i = i + args.my_pile_shift\n                    # print(f\"epoch {epoch} idx {idx} rank {rank}/{world_size} ii {ii} pos {round(i / self.data_size, 3)}\")\n                else:\n                    # cheat: pick a random spot in dataset",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/dataset.py:176-192"
+    },
+    "753": {
+        "file_id": 43,
+        "content": "This code randomly selects a chunk of data for model training. If the stage is 4 or random steps are involved, it either picks a random spot in the dataset based on the current version, or uses a formula involving magic prime and pile shift to determine the position. It then adds the context length. Finally, if the input type is \"cheat\", it picks a random spot in the dataset. The code also prints some information about epoch, index, rank, world size, iterations, and selected position.",
+        "type": "comment"
+    },
+    "754": {
+        "file_id": 43,
+        "content": "                    i = np.random.randint(0, self.data_size - req_len)\n                if args.data_type == \"binidx\":\n                    if args.my_pile_version == 1:\n                        dix = data.get(idx=0, offset=i, length=req_len).astype(int)\n                    else:\n                        # self.data : cutoff, chunk_count, data\n                        for j in range(len(data)):\n                            if i < data[j][0]:\n                                ii = i\n                                i = (i - (data[j-1][0] if j > 0 else 0)) % data[j][1]\n                                dix = data[j][2].get(idx=0, offset=i, length=req_len).astype(int)\n                                # print(ii, j, i)\n                                break\n                elif args.data_type == \"numpy\":\n                    dix = data[i : i + req_len]\n                else:\n                    dix = [self.stoi[s] for s in data[i : i + req_len]]\n                if args.my_qa_mask == 1:\n                    if data == self.data_pile:",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/dataset.py:193-213"
+    },
+    "755": {
+        "file_id": 43,
+        "content": "The code retrieves a random index (i) within the data size and based on the data type, it selects the appropriate indices (dix) from the provided dataset. If data_type is \"binidx\", it checks if my_pile_version is 1 or not; then it gets the indices using different methods. If data_type is \"numpy\", it directly selects the indices using numpy's slicing. Finally, it converts string tokens to indices using self.stoi for non-\"binidx\" and \"numpy\" data types.",
+        "type": "comment"
+    },
+    "756": {
+        "file_id": 43,
+        "content": "                        z = [1] * ctx_len\n                    else:\n                        z = [0] * ctx_len\n                        z_sum = 0\n                        isGood = False\n                        for i in range(3, ctx_len):\n                            if dix[i] == 27 and dix[i-1] == 34 and dix[i-2] == 187 and dix[i-3] == 187:\n                                isGood = True\n                            if dix[i] == 0:\n                                isGood = False\n                            if isGood:\n                                z[i] = 1\n                                z_sum += 1\n                        if z_sum == 0:\n                            z = [1] * ctx_len\n                            i = np.random.randint(0, self.data_pile_size - req_len)\n                            dix = self.data_pile.get(idx=0, offset=i, length=req_len).astype(int)\n                    z = torch.tensor(z, dtype=torch.bfloat16)\n                x = torch.tensor(dix[:-1], dtype=torch.long)\n                y = torch.tensor(dix[1:], dtype=torch.long)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/dataset.py:214-234"
+    },
+    "757": {
+        "file_id": 43,
+        "content": "This code checks if the input data has a specific pattern, and sets corresponding values in the 'z' list. If no such pattern is found, it generates a random index and retrieves the data from the dataset. It then converts the data into tensors for further processing.",
+        "type": "comment"
+    },
+    "758": {
+        "file_id": 43,
+        "content": "                # if ii_orig < 50:\n                #     # if rank == 1:\n                #     print('rank', rank, 'i', ii_orig, ii, i, 'x', x[:5], '...', x[-5:])\n                # else:\n                #     exit(0)\n                if args.my_qa_mask == 1:\n                    return x, y, z\n            return x, y",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/dataset.py:236-245"
+    },
+    "759": {
+        "file_id": 43,
+        "content": "This code snippet appears to be part of a larger function. It checks if `ii_orig` is less than 50, and if it is, it prints some information related to rank, indices, and a portion of the array `x`. If `args.my_qa_mask` is equal to 1, it returns `x`, `y`, and `z`, otherwise it simply returns `x` and `y`. The purpose and functionality of this code may vary depending on the larger context in which it exists.",
+        "type": "comment"
+    },
+    "760": {
+        "file_id": 44,
+        "content": "/RWKV-v4neo/src/model.py",
+        "type": "filepath"
+    },
+    "761": {
+        "file_id": 44,
+        "content": "This code imports libraries, sets up profiling, defines modules based on environment variables, utilizes CUDA for efficient computation, and initializes a neural network model with backpropagation support. It applies layer normalization using CUDA function calculations and introduces the RWKV_TimeMix class for the RWKV5 model. The code initializes optimizer groups and models with layer-specific learning rates, performs all-gather for losses, handles various settings, and initializes model weights using orthogonal initialization.",
+        "type": "summary"
+    },
+    "762": {
+        "file_id": 44,
+        "content": "########################################################################################################\n# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM\n########################################################################################################\nimport os, math, gc, importlib\nimport torch\n# torch._C._jit_set_profiling_executor(True)\n# torch._C._jit_set_profiling_mode(True)\nimport torch.nn as nn\nfrom torch.nn import functional as F\nimport pytorch_lightning as pl\nfrom pytorch_lightning.utilities import rank_zero_info, rank_zero_only\nfrom pytorch_lightning.strategies import DeepSpeedStrategy\nif importlib.util.find_spec('deepspeed'):\n    import deepspeed\n    from deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam\n# from deepspeed.runtime.fp16.onebit.zoadam import ZeroOneAdam\ntry:\n    print('RWKV_MY_TESTING', os.environ[\"RWKV_MY_TESTING\"])\nexcept:\n    os.environ[\"RWKV_MY_TESTING\"] = ''\ndef __nop(ob):\n    return ob\nMyModule = nn.Module\nMyFunction = __nop\nif os.environ[\"RWKV_JIT_ON\"] == \"1\":",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:1-31"
+    },
+    "763": {
+        "file_id": 44,
+        "content": "This code imports necessary libraries, sets up profiling executor and mode for torch.nn, defines MyModule and MyFunction based on JIT environment variable, and imports DeepSpeed if available.",
+        "type": "comment"
+    },
+    "764": {
+        "file_id": 44,
+        "content": "    MyModule = torch.jit.ScriptModule\n    MyFunction = torch.jit.script_method\n########################################################################################################\n# CUDA Kernel\n########################################################################################################\nT_MAX = int(os.environ[\"RWKV_T_MAX\"])  # TAKES LOTS OF VRAM!\n# it's possible to go beyond CUDA limitations if you slice the ctx and pass the hidden state in each slice\nfrom torch.utils.cpp_extension import load\nif os.environ[\"RWKV_FLOAT_MODE\"] == \"bf16\":\n    wkv_cuda = load(name=f\"wkv_{T_MAX}_bf16\", sources=[\"cuda/wkv_op_bf16.cpp\", \"cuda/wkv_cuda_bf16.cu\"], verbose=True, extra_cuda_cflags=[\"-t 4\", \"-std=c++17\", \"-res-usage\", \"--maxrregcount 60\", \"--use_fast_math\", \"-O3\", \"-Xptxas -O3\", \"--extra-device-vectorization\", f\"-DTmax={T_MAX}\"])\n    class WKV(torch.autograd.Function):\n        @staticmethod\n        def forward(ctx, B, T, C, w, u, k, v):\n            ctx.B = B\n            ctx.T = T\n            ctx.C = C",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:32-52"
+    },
+    "765": {
+        "file_id": 44,
+        "content": "This code defines a class 'WKV' that utilizes CUDA for efficient computation, and loads a corresponding CUDA kernel module depending on the environment variable \"RWKV_FLOAT_MODE\". This process involves setting T_MAX and loading the appropriate C++ modules with specific compiler flags.",
+        "type": "comment"
+    },
+    "766": {
+        "file_id": 44,
+        "content": "            assert T <= T_MAX\n            assert B * C % min(C, 32) == 0\n            w = -torch.exp(w.float().contiguous())\n            u = u.contiguous()\n            k = k.contiguous()\n            v = v.contiguous()\n            y = torch.empty((B, T, C), device=w.device, memory_format=torch.contiguous_format, dtype=torch.bfloat16)\n            wkv_cuda.forward(B, T, C, w, u, k, v, y)\n            ctx.save_for_backward(w, u, k, v, y)\n            return y\n        @staticmethod\n        def backward(ctx, gy):\n            B = ctx.B\n            T = ctx.T\n            C = ctx.C\n            assert T <= T_MAX\n            assert B * C % min(C, 32) == 0\n            w, u, k, v, y = ctx.saved_tensors\n            gw = torch.empty((B, C), device=gy.device, memory_format=torch.contiguous_format, dtype=torch.bfloat16)\n            gu = torch.empty((B, C), device=gy.device, memory_format=torch.contiguous_format, dtype=torch.bfloat16)\n            gk = torch.empty((B, T, C), device=gy.device, memory_format=torch.contiguous_format, dtype=torch.bfloat16)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:53-73"
+    },
+    "767": {
+        "file_id": 44,
+        "content": "This code defines a model function with forward and backward operations. It checks some conditions, initializes tensors, performs model computations, and saves the intermediate states for later backpropagation.",
+        "type": "comment"
+    },
+    "768": {
+        "file_id": 44,
+        "content": "            gv = torch.empty((B, T, C), device=gy.device, memory_format=torch.contiguous_format, dtype=torch.bfloat16)\n            wkv_cuda.backward(B, T, C, w, u, k, v, y, gy.contiguous(), gw, gu, gk, gv)\n            gw = torch.sum(gw, dim=0)\n            gu = torch.sum(gu, dim=0)\n            return (None, None, None, gw, gu, gk, gv)\nelse:\n    wkv_cuda = load(name=f\"wkv_{T_MAX}\", sources=[\"cuda/wkv_op.cpp\", \"cuda/wkv_cuda.cu\"], verbose=True, extra_cuda_cflags=[\"-res-usage\", \"--maxrregcount 60\", \"--use_fast_math\", \"-O3\", \"-Xptxas -O3\", \"--extra-device-vectorization\", f\"-DTmax={T_MAX}\"])\n    class WKV(torch.autograd.Function):\n        @staticmethod\n        def forward(ctx, B, T, C, w, u, k, v):\n            ctx.B = B\n            ctx.T = T\n            ctx.C = C\n            assert T <= T_MAX\n            assert B * C % min(C, 32) == 0\n            if \"32\" in os.environ[\"RWKV_FLOAT_MODE\"]:\n                w = -torch.exp(w.contiguous())\n                u = u.contiguous()\n                k = k.contiguous()\n                v = v.contiguous()",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:74-93"
+    },
+    "769": {
+        "file_id": 44,
+        "content": "This code initializes a tensor and calls a function. It then calculates the sum along dimension 0 for two other tensors, and returns them alongside others. It seems to be part of a neural network model with CUDA support. The forward method creates an instance variable for each argument, checks if T is within a limit, and performs some transformations on certain arguments.",
+        "type": "comment"
+    },
+    "770": {
+        "file_id": 44,
+        "content": "            else:\n                w = -torch.exp(w.float().contiguous())\n                u = u.float().contiguous()\n                k = k.float().contiguous()\n                v = v.float().contiguous()\n            y = torch.empty((B, T, C), device=w.device, memory_format=torch.contiguous_format)\n            wkv_cuda.forward(B, T, C, w, u, k, v, y)\n            ctx.save_for_backward(w, u, k, v, y)\n            if \"32\" in os.environ[\"RWKV_FLOAT_MODE\"]:\n                return y\n            elif os.environ[\"RWKV_FLOAT_MODE\"] == \"fp16\":\n                return y.half()\n            elif os.environ[\"RWKV_FLOAT_MODE\"] == \"bf16\":\n                return y.bfloat16()\n        @staticmethod\n        def backward(ctx, gy):\n            B = ctx.B\n            T = ctx.T\n            C = ctx.C\n            assert T <= T_MAX\n            assert B * C % min(C, 32) == 0\n            w, u, k, v, y = ctx.saved_tensors\n            gw = torch.empty((B, C), device=gy.device, memory_format=torch.contiguous_format)\n            gu = torch.empty((B, C), device=gy.device, memory_format=torch.contiguous_format)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:94-117"
+    },
+    "771": {
+        "file_id": 44,
+        "content": "The code is handling the forward and backward passes of a model. It first checks the environment variable 'RWKV_FLOAT_MODE' to determine the data type for output 'y'. If '32' is present in this environment variable, it directly returns 'y'. If 'fp16' is set, it converts 'y' to half precision and returns it. If 'bf16' is set, it converts 'y' to BFloat16 and returns it. The backward method applies constraints on the dimensions of tensors and retrieves saved tensors from context for gradients calculation.",
+        "type": "comment"
+    },
+    "772": {
+        "file_id": 44,
+        "content": "            gk = torch.empty((B, T, C), device=gy.device, memory_format=torch.contiguous_format)\n            gv = torch.empty((B, T, C), device=gy.device, memory_format=torch.contiguous_format)\n            if \"32\" in os.environ[\"RWKV_FLOAT_MODE\"]:\n                wkv_cuda.backward(B, T, C, w, u, k, v, y, gy.contiguous(), gw, gu, gk, gv)\n            else:\n                wkv_cuda.backward(B, T, C, w, u, k, v, y, gy.float().contiguous(), gw, gu, gk, gv)\n            gw = torch.sum(gw, dim=0)\n            gu = torch.sum(gu, dim=0)\n            if \"32\" in os.environ[\"RWKV_FLOAT_MODE\"]:\n                return (None, None, None, gw, gu, gk, gv)\n            elif os.environ[\"RWKV_FLOAT_MODE\"] == \"fp16\":\n                return (None, None, None, gw.half(), gu.half(), gk.half(), gv.half())\n            elif os.environ[\"RWKV_FLOAT_MODE\"] == \"bf16\":\n                return (None, None, None, gw.bfloat16(), gu.bfloat16(), gk.bfloat16(), gv.bfloat16())\ndef RUN_CUDA(B, T, C, w, u, k, v):\n    return WKV.apply(B, T, C, w, u, k, v)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:118-135"
+    },
+    "773": {
+        "file_id": 44,
+        "content": "The code defines a function for running CUDA on BERT-like transformer models. It initializes empty tensors for gradients, and then calls the backward operation of WKV to compute gradients. Depending on the float mode environment variable, it returns the gradients in different precisions: None, half (fp16), or bfloat16. If no CUDA is used, the code calls a RUN_CUDA function, which applies the transformer model with CUDA.",
+        "type": "comment"
+    },
+    "774": {
+        "file_id": 44,
+        "content": "########################################################################################################\nclass RWKV_TimeMix_RWKV5_Preview(MyModule):\n    def __init__(self, args, layer_id):\n        super().__init__()\n        self.args = args\n        self.layer_id = layer_id\n        self.head_size = 64\n        self.n_head = args.dim_att // self.head_size\n        assert args.dim_att % self.n_head == 0\n        self.head_size_divisor = 8\n        self.chunk_len = 512\n        assert args.ctx_len % self.chunk_len == 0\n        with torch.no_grad():\n            ratio_0_to_1 = layer_id / (args.n_layer - 1)  # 0 to 1\n            ratio_1_to_almost0 = 1.0 - (layer_id / args.n_layer)  # 1 to ~0\n            ddd = torch.ones(1, 1, args.n_embd)\n            for i in range(args.n_embd):\n                ddd[0, 0, i] = i / args.n_embd\n            # fancy time_mix\n            self.time_mix_k = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))\n            self.time_mix_v = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0) + 0.3 * ratio_0_to_1)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:137-162"
+    },
+    "775": {
+        "file_id": 44,
+        "content": "This code defines a class for the RWKV_TimeMix_RWKV5_Preview module, which is an extension of the MyModule class. It initializes instance variables related to the model's parameters and performs some sanity checks on the input arguments. The time_mix_k and time_mix_v parameters are calculated based on a combination of the layer index and other factors.",
+        "type": "comment"
+    },
+    "776": {
+        "file_id": 44,
+        "content": "            self.time_mix_r = nn.Parameter(torch.pow(ddd, 0.5 * ratio_1_to_almost0))\n            if 'r3' in os.environ[\"RWKV_MY_TESTING\"]:\n                self.time_mix_g = nn.Parameter(torch.pow(ddd, 0.5 * ratio_1_to_almost0))\n                self.gate = nn.Linear(args.n_embd, args.dim_att, bias=False)\n            # fancy time_decay\n            decay_speed = torch.ones(self.n_head)\n            for h in range(self.n_head):\n                decay_speed[h] = -6 + 5 * (h / (self.n_head - 1)) ** (0.7 + 1.3 * ratio_0_to_1)\n            self.time_decay = nn.Parameter(decay_speed)\n            # print(layer_id, self.time_decay.flatten()[:3].cpu().numpy(), '...', self.time_decay.flatten()[-3:].cpu().numpy())\n            if 'r2' in os.environ[\"RWKV_MY_TESTING\"]:\n                tmp = torch.zeros(self.n_head)\n                for h in range(self.n_head):\n                    tmp[h] = ratio_0_to_1 * (1 - (h / (self.n_head - 1)))\n                self.time_faaaa = nn.Parameter(tmp)\n            else:\n                self.time_first = nn.Parameter(torch.ones(self.n_head) * (-3.0))",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:163-182"
+    },
+    "777": {
+        "file_id": 44,
+        "content": "This code initializes parameters for a time-related model component, including time_mix_r, time_mix_g (conditionally), time_decay, and time_faaaa (conditionally). The values are determined by ratios and layer index. Printing the parameter values is optional based on environment variables.",
+        "type": "comment"
+    },
+    "778": {
+        "file_id": 44,
+        "content": "        self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))\n        self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)\n        self.key = nn.Linear(args.n_embd, args.dim_att, bias=False)\n        self.value = nn.Linear(args.n_embd, args.dim_att, bias=False)\n        self.output = nn.Linear(args.dim_att, args.n_embd, bias=False)\n        self.ln_x = nn.GroupNorm(self.n_head, args.dim_att)\n    if 'r3' in os.environ[\"RWKV_MY_TESTING\"]:\n        @MyFunction\n        def jit_func(self, x):\n            B, TT, C = x.size()\n            xx = self.time_shift(x) # Mix x with the previous timestep to produce xk, xv, xr\n            xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)\n            xv = x * self.time_mix_v + xx * (1 - self.time_mix_v)\n            xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)\n            xg = x * self.time_mix_g + xx * (1 - self.time_mix_g)\n            r = self.receptance(xr).view(B, TT, self.n_head, self.head_size).transpose(1, 2)            # BTC -> BHTS\n            k ",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:184-204"
+    },
+    "779": {
+        "file_id": 44,
+        "content": "The code defines a model with time shift, receptance, key, value, and output layers. It also includes a group normalization layer (ln_x). If 'r3' is present in the environment, it creates a jit_func that processes input x by mixing it with the previous timestep to produce k, v, r, and g. The receptance layer then transforms the r values into BHTS format.",
+        "type": "comment"
+    },
+    "780": {
+        "file_id": 44,
+        "content": "= self.key(xk).view(B, TT, self.n_head, self.head_size).transpose(1, 2).transpose(-2, -1) # BTC -> BHTS -> BHST\n            v = self.value(xv).view(B, TT, self.n_head, -1).transpose(1, 2)                 # BTC -> BHTS\n            g = F.silu(self.gate(xg))\n            return r, k, v, g\n        @MyFunction\n        def jit_func_2(self, r, k, v, g, w, wk, wb, ws):\n            B, H, TT, S = r.size()\n            T = self.chunk_len\n            s = torch.zeros(B, H, S, S, device=r.device, dtype=r.dtype)  # state\n            x = torch.zeros(B, H, TT, S, device=r.device, dtype=r.dtype) # output\n            for i in range(TT // T):\n                rr = r[:, :, i*T:i*T+T, :]\n                kk = k[:, :, :, i*T:i*T+T]\n                vv = v[:, :, i*T:i*T+T, :]\n                x[:, :, i*T:i*T+T, :] = ((rr @ kk) * w) @ vv  +  (rr @ s) * wb\n                s = ws * s + (kk * wk) @ vv\n            x = x.transpose(1, 2).contiguous().view(B * TT, H*S) # BHTS -> BTHS -> BTC\n            x = self.ln_x(x / self.head_size_divisor).view(B, TT, H*S) * g",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:204-228"
+    },
+    "781": {
+        "file_id": 44,
+        "content": "This code is defining and implementing a function for an attention mechanism in a transformer model. It calculates the attention scores, performs weighted sum of values, updates the states, and applies non-linearity before returning the final output.",
+        "type": "comment"
+    },
+    "782": {
+        "file_id": 44,
+        "content": "            return self.output(x)\n    else:\n        @MyFunction\n        def jit_func(self, x):\n            B, TT, C = x.size()\n            xx = self.time_shift(x) # Mix x with the previous timestep to produce xk, xv, xr\n            xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)\n            xv = x * self.time_mix_v + xx * (1 - self.time_mix_v)\n            xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)\n            r = self.receptance(xr).view(B, TT, self.n_head, self.head_size).transpose(1, 2)            # BTC -> BHTS\n            k = self.key(xk).view(B, TT, self.n_head, self.head_size).transpose(1, 2).transpose(-2, -1) # BTC -> BHTS -> BHST\n            v = self.value(xv).view(B, TT, self.n_head, self.head_size).transpose(1, 2)                 # BTC -> BHTS\n            return r, k, v\n        @MyFunction\n        def jit_func_2(self, r, k, v, w, wk, wb, ws):\n            B, H, TT, S = r.size()\n            T = self.chunk_len\n            s = torch.zeros(B, H, S, S, device=r.device, dtype=r.dtype)  # state",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:229-251"
+    },
+    "783": {
+        "file_id": 44,
+        "content": "This code defines a class with two JIT functions. The first function takes an input tensor x and performs time shifting, then separates it into three components (k, v, r). The second function takes the output of the first function and creates another tensor s using torch.zeros. Both functions use jitted methods for faster execution.",
+        "type": "comment"
+    },
+    "784": {
+        "file_id": 44,
+        "content": "            x = torch.zeros(B, H, TT, S, device=r.device, dtype=r.dtype) # output\n            for i in range(TT // T):\n                rr = r[:, :, i*T:i*T+T, :]\n                kk = k[:, :, :, i*T:i*T+T]\n                vv = v[:, :, i*T:i*T+T, :]\n                x[:, :, i*T:i*T+T, :] = ((rr @ kk) * w) @ vv  +  (rr @ s) * wb\n                s = ws * s + (kk * wk) @ vv\n            x = x.transpose(1, 2).contiguous().view(B * TT, H*S) # BHTS -> BTHS -> BTC\n            x = self.ln_x(x / self.head_size_divisor).view(B, TT, H*S)\n            return self.output(x)\n    def forward(self, x):\n        H = self.n_head\n        T = self.chunk_len\n        if 'r3' in os.environ[\"RWKV_MY_TESTING\"]:\n            r, k, v, g = self.jit_func(x)\n        else:\n            r, k, v = self.jit_func(x)\n        w = torch.exp(-torch.exp(self.time_decay.float())).unsqueeze(-1)\n        if 'r2' in os.environ[\"RWKV_MY_TESTING\"]:\n            u = self.time_faaaa.float().unsqueeze(-1)\n        else:\n            u = torch.exp(self.time_first.float()).unsqueeze(-1)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:252-281"
+    },
+    "785": {
+        "file_id": 44,
+        "content": "Initializes a tensor with zeros, performs matrix operations to compute the output tensor, and applies layer normalization before returning the final output. The code also includes variable assignments for time-based decay and initial values for other computations.",
+        "type": "comment"
+    },
+    "786": {
+        "file_id": 44,
+        "content": "################################################################################\n########\n        ws = w.pow(T).reshape(1, H, 1, 1)\n        ind = torch.arange(T-1, -1, -1, device=r.device).unsqueeze(0).repeat(H, 1)\n        w = w.repeat(1, T).pow(ind)\n        wk = w.reshape(1, H, 1, T)\n        wb = wk.transpose(-2, -1).flip(2)\n        w = torch.cat([w[:, 1:], u], dim=1)\n        w = F.pad(w, (0, T))\n        w = torch.tile(w, [T])\n        w = w[:, :-T].reshape(-1, T, 2 * T - 1)\n        w = w[:, :, T-1:].reshape(1, H, T, T)\n########\n################################################################################\n        w = w.to(dtype=r.dtype)\n        wk = wk.to(dtype=r.dtype)\n        wb = wb.to(dtype=r.dtype)\n        ws = ws.to(dtype=r.dtype)\n        if 'r3' in os.environ[\"RWKV_MY_TESTING\"]:\n            return self.jit_func_2(r, k, v, g, w, wk, wb, ws)\n        else:\n            return self.jit_func_2(r, k, v, w, wk, wb, ws)        \n########################################################################################################",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:283-311"
+    },
+    "787": {
+        "file_id": 44,
+        "content": "This code segment is manipulating and reshaping a tensor 'w' by repeating, powering, transposing, and padding it. It then reshapes the result to specific dimensions and performs type conversions before returning from either jit_func_2 function depending on the environment variable \"RWKV_MY_TESTING\".",
+        "type": "comment"
+    },
+    "788": {
+        "file_id": 44,
+        "content": "# CUDA RWKV5 Kernel\n########################################################################################################\nif 'r4' in os.environ[\"RWKV_MY_TESTING\"]:\n    HEAD_SIZE = int(os.environ[\"RWKV_HEAD_SIZE_A\"])\n    wkv5_cuda = load(name=\"wkv5\", sources=[\"cuda/wkv5_op.cpp\", f\"cuda/wkv5_cuda.cu\"],\n                    verbose=True, extra_cuda_cflags=[\"-res-usage\", \"--use_fast_math\", \"-O3\", \"-Xptxas -O3\", \"--extra-device-vectorization\", f\"-D_N_={HEAD_SIZE}\"])\n    class WKV_5(torch.autograd.Function):\n        @staticmethod\n        def forward(ctx, B, T, C, H, r, k, v, w, u):\n            with torch.no_grad():\n                assert r.dtype == torch.bfloat16\n                assert k.dtype == torch.bfloat16\n                assert v.dtype == torch.bfloat16\n                assert w.dtype == torch.bfloat16\n                assert u.dtype == torch.bfloat16\n                assert HEAD_SIZE == C // H\n                ctx.B = B\n                ctx.T = T\n                ctx.C = C\n                ctx.H = H\n                assert r.is_contiguous()",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:312-334"
+    },
+    "789": {
+        "file_id": 44,
+        "content": "This code defines a WKV_5 function as a wrapper for CUDA RWKV5 kernel, which performs tensor operations on B, T, C, H, r, k, v, w, and u tensors. The kernel is loaded from the specified sources, with optional environment variables controlling its size. It asserts that certain conditions are met, such as matching data types and sizes for each input tensor, before proceeding with further computations.",
+        "type": "comment"
+    },
+    "790": {
+        "file_id": 44,
+        "content": "                assert k.is_contiguous()\n                assert v.is_contiguous()\n                assert w.is_contiguous()\n                assert u.is_contiguous()\n                ew = (-torch.exp(w.float())).contiguous()\n                eew = (torch.exp(ew)).contiguous()\n                ctx.save_for_backward(r, k, v, eew, ew, u)\n                y = torch.empty((B, T, C), device=r.device, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)\n                wkv5_cuda.forward(B, T, C, H, r, k, v, eew, u, y)\n                return y\n        @staticmethod\n        def backward(ctx, gy):\n            with torch.no_grad():\n                assert gy.dtype == torch.bfloat16\n                B = ctx.B\n                T = ctx.T\n                C = ctx.C\n                H = ctx.H\n                assert gy.is_contiguous()\n                r, k, v, eew, ew, u = ctx.saved_tensors\n                gr = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:335-356"
+    },
+    "791": {
+        "file_id": 44,
+        "content": "This code snippet is checking the contiguity of tensors k, v, w, and u. It then initializes eew and ew as exponentiated versions of w, saves them along with r, k, v, and u for backpropagation. Next, it creates an empty tensor y for forward pass with specific device, dtype, and memory format. Finally, it defines a backward method to compute gradients for backpropagation.",
+        "type": "comment"
+    },
+    "792": {
+        "file_id": 44,
+        "content": "                gk = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)\n                gv = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)\n                gw = torch.empty((B, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)\n                gu = torch.empty((B, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)\n                wkv5_cuda.backward(B, T, C, H, r, k, v, eew, ew, u, gy, gr, gk, gv, gw, gu)\n                gw = torch.sum(gw, 0).view(H, C//H)\n                gu = torch.sum(gu, 0).view(H, C//H)\n                return (None, None, None, None, gr, gk, gv, gw, gu)\n    def RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w, u):\n        return WKV_5.apply(B, T, C, H, r, k, v, w, u)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:357-367"
+    },
+    "793": {
+        "file_id": 44,
+        "content": "This code initializes four tensors with uniform random values for model parameters, then calls a CUDA function to perform calculations on the input data. The resulting gradients are stored in gk and gu and returned along with other results.",
+        "type": "comment"
+    },
+    "794": {
+        "file_id": 44,
+        "content": "########################################################################################################\nclass RWKV_TimeMix_RWKV5(MyModule):\n    def __init__(self, args, layer_id):\n        super().__init__()\n        self.args = args\n        self.layer_id = layer_id\n        self.head_size = args.head_size_a\n        assert HEAD_SIZE == self.head_size # change HEAD_SIZE to match args.head_size_a\n        self.n_head = args.dim_att // self.head_size\n        assert args.dim_att % self.n_head == 0\n        self.head_size_divisor = args.head_size_divisor\n        with torch.no_grad():\n            ratio_0_to_1 = layer_id / (args.n_layer - 1)  # 0 to 1\n            ratio_1_to_almost0 = 1.0 - (layer_id / args.n_layer)  # 1 to ~0\n            ddd = torch.ones(1, 1, args.n_embd)\n            for i in range(args.n_embd):\n                ddd[0, 0, i] = i / args.n_embd\n            # fancy time_mix\n            self.time_mix_k = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))\n            self.time_mix_v = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0) + 0.3 * ratio_0_to_1)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:369-392"
+    },
+    "795": {
+        "file_id": 44,
+        "content": "The code initializes the RWKV_TimeMix_RWKV5 class, sets up layer parameters based on input arguments, and creates time_mix_k and time_mix_v parameters using a combination of ratio-based calculations and input arguments.",
+        "type": "comment"
+    },
+    "796": {
+        "file_id": 44,
+        "content": "            self.time_mix_r = nn.Parameter(torch.pow(ddd, 0.5 * ratio_1_to_almost0))\n            self.time_mix_g = nn.Parameter(torch.pow(ddd, 0.5 * ratio_1_to_almost0))\n            # fancy time_decay\n            decay_speed = torch.ones(args.dim_att)\n            for n in range(args.dim_att):\n                decay_speed[n] = -6 + 5 * (n / (args.dim_att - 1)) ** (0.7 + 1.3 * ratio_0_to_1)\n            self.time_decay = nn.Parameter(decay_speed.reshape(self.n_head, self.head_size))\n            # print(layer_id, self.time_decay.flatten()[:3].cpu().numpy(), '...', self.time_decay.flatten()[-3:].cpu().numpy())\n            tmp = torch.zeros(args.dim_att)\n            for n in range(args.dim_att):\n                zigzag = ((n + 1) % 3 - 1) * 0.1\n                tmp[n] = ratio_0_to_1 * (1 - (n / (args.dim_att - 1))) + zigzag\n            self.time_faaaa = nn.Parameter(tmp.reshape(self.n_head, self.head_size))\n        self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))\n        self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:393-411"
+    },
+    "797": {
+        "file_id": 44,
+        "content": "This code initializes three learnable parameters: time_mix_r, time_mix_g, and time_faaaa. It also includes a decay speed parameter (time_decay) and a zero-padding operation (time_shift). These parameters are used for time-related operations in the model. The receptance layer is initialized as a linear layer without bias, taking input embeddings of size args.n_embd to args.dim_att. This code likely contributes to the model's ability to process temporal information effectively.",
+        "type": "comment"
+    },
+    "798": {
+        "file_id": 44,
+        "content": "        self.key = nn.Linear(args.n_embd, args.dim_att, bias=False)\n        self.value = nn.Linear(args.n_embd, args.dim_att, bias=False)\n        self.output = nn.Linear(args.dim_att, args.n_embd, bias=False)\n        self.gate = nn.Linear(args.n_embd, args.dim_att, bias=False)\n        self.ln_x = nn.GroupNorm(self.n_head, args.dim_att)\n    @MyFunction\n    def jit_func(self, x):\n        B, T, C = x.size()\n        xx = self.time_shift(x) # Mix x with the previous timestep to produce xk, xv, xr\n        xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)\n        xv = x * self.time_mix_v + xx * (1 - self.time_mix_v)\n        xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)\n        xg = x * self.time_mix_g + xx * (1 - self.time_mix_g)\n        r = self.receptance(xr)\n        k = self.key(xk)\n        v = self.value(xv)\n        g = F.silu(self.gate(xg))\n        return r, k, v, g\n    @MyFunction\n    def jit_func_2(self, x, g):\n        B, T, C = x.size()\n        x = x.view(B * T, C)\n        x = self.ln_x(x / self.head_size_divisor).view(B, T, C)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:412-441"
+    },
+    "799": {
+        "file_id": 44,
+        "content": "The code defines a model with four linear layers and one group normalization layer. The `jit_func` method performs time-shifted mixing of input `x` to produce key, value, residual, and gate tensors, which are then passed through their respective layers and normalized. The `jit_func_2` method applies group normalization and divides by the head size divisor before reshaping the tensor.",
+        "type": "comment"
+    }
+}

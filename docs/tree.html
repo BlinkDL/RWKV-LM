@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="github-markdown.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <title>Project structure of: BlinkDL/RWKV-LM</title>
+    <style>
+        .directory:hover {
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        :target {
+            background-color: yellow !important;
+        }
+
+        .folded::before {
+            content: '\25B6';
+            margin-right: 8px;
+            /* Add space between marker and text */
+        }
+
+        .expanded::before {
+            content: '\25BC';
+            margin-right: 8px;
+            /* Add space between marker and text */
+        }
+    </style>
+    <script>
+        function toggleVisibility(element) {
+            let mclass = element.getAttribute("class");
+            if (mclass == "expanded") {
+                element.setAttribute('class', 'folded');
+            } else {
+                element.setAttribute('class', 'expanded');
+            }
+            const siblings = element.parentNode.children;
+            for (const sibling of siblings) {
+                if (sibling !== element) {
+                    sibling.style.display = (sibling.style.display === 'none') ? 'block' : 'none';
+                }
+            }
+        }
+    </script>
+    <style>
+        .markdown-body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 45px;
+        }
+
+        @media (max-width: 767px) {
+            .markdown-body {
+                padding: 15px;
+            }
+
+            .partial-repository-url {
+                display: none;
+            }
+        }
+
+        ul {
+            list-style: none;
+        }
+        #feeling-lucky:hover{
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <article class="markdown-body">
+        <h2>Project structure<span hierarchy="0" class="partial-repository-url"> of: BlinkDL/RWKV-LM</span><div style="float: right;"><a title="Document index" style="margin:3.5px;" href="index.html"><i class="bi bi-search"></i></a><a title="Feeling lucky" style="margin:3.5px;" id="feeling-lucky" href="#"><i class="bi bi-dice-3"></i></a><a title="Expand tree" style="margin:3.5px;" href="tree.html?full=true" id="expand-tree"><i class="bi bi-caret-down-square"></i></a></div></h2>
+<ul>
+<li><span hierarchy="0" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/"><code>RWKV-LM</code></strong> <em>RWKV-based Text Generation and Chatbots</em></span><ul>
+<li><a class="file_link" href="index.html?q=/README.md" id="/README.md"><code>README&period;md</code></a> <em>Trains enhanced RWKV language model with features and optimizations</em></li>
+<li><span hierarchy="1" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v1/"><code>RWKV-v1</code></strong> <em>Neural network training, Transformer models, text generation utilities.</em></span><ul>
+<li><span hierarchy="2" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v1/src/"><code>src</code></strong> <em>Neural network training, Transformer models, RWKV-v1 source code, text generation utilities.</em></span><ul>
+<li><a class="file_link" href="index.html?q=/RWKV-v1/src/model.py" id="/RWKV-v1/src/model.py"><code>model&period;py</code></a> <em>Neural network weights, time curves, Transformer models with rotary pos embeddings.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v1/src/trainer.py" id="/RWKV-v1/src/trainer.py"><code>trainer&period;py</code></a> <em>Train models, handle datasets, adjust learning rate.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v1/src/utils.py" id="/RWKV-v1/src/utils.py"><code>utils&period;py</code></a> <em>Tight top-k, p sampling with temperature control for text gen</em></li>
+</ul>
+</li>
+<li><a class="file_link" href="index.html?q=/RWKV-v1/train.py" id="/RWKV-v1/train.py"><code>train&period;py</code></a> <em>Trains RWKV language model efficiently.</em></li>
+</ul>
+</li>
+<li><span hierarchy="1" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v2-RNN/"><code>RWKV-v2-RNN</code></strong> <em>Trains and saves RWKV-v2 RNN models.</em></span><ul>
+<li><span hierarchy="2" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v2-RNN/cuda/"><code>cuda</code></strong> <em>CUDA implementation of RNN forward/backward passes</em></span><ul>
+<li><a class="file_link" href="index.html?q=/RWKV-v2-RNN/cuda/timex_cuda.cu" id="/RWKV-v2-RNN/cuda/timex_cuda.cu"><code>timex&UnderBar;cuda&period;cu</code></a> <em>Optimized CUDA code for RNN forward pass with dot products</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v2-RNN/cuda/timex_op.cpp" id="/RWKV-v2-RNN/cuda/timex_op.cpp"><code>timex&UnderBar;op&period;cpp</code></a> <em>Timex forward/backward CUDA kernel.</em></li>
+</ul>
+</li>
+<li><a class="file_link" href="index.html?q=/RWKV-v2-RNN/run.py" id="/RWKV-v2-RNN/run.py"><code>run&period;py</code></a> <em>Trains RWKV text generation model, evaluates on dataset.</em></li>
+<li><span hierarchy="2" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v2-RNN/src/"><code>src</code></strong> <em>RWKV-v2 RNN Language Generation</em></span><ul>
+<li><a class="file_link" href="index.html?q=/RWKV-v2-RNN/src/model.py" id="/RWKV-v2-RNN/src/model.py"><code>model&period;py</code></a> <em>RWKV v2-RNN model, performance optimized, CUDA, time-decay parameters.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v2-RNN/src/model_run.py" id="/RWKV-v2-RNN/src/model_run.py"><code>model&UnderBar;run&period;py</code></a> <em>Language generation model with iterative layers and attention</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v2-RNN/src/trainer.py" id="/RWKV-v2-RNN/src/trainer.py"><code>trainer&period;py</code></a> <em>Trains RWKV-v2 model with configurable parameters.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v2-RNN/src/utils.py" id="/RWKV-v2-RNN/src/utils.py"><code>utils&period;py</code></a> <em>RWKV v2-RNN Dataset: Tokenization, Conversion, Sampling.</em></li>
+</ul>
+</li>
+<li><a class="file_link" href="index.html?q=/RWKV-v2-RNN/train.py" id="/RWKV-v2-RNN/train.py"><code>train&period;py</code></a> <em>Trains RWKV-v2 RNN, adjusts params, saves models at intervals.</em></li>
+</ul>
+</li>
+<li><span hierarchy="1" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v3/"><code>RWKV-v3</code></strong> <em>Train RWKV-v3 models for verification</em></span><ul>
+<li><span hierarchy="2" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v3/cuda/"><code>cuda</code></strong> <em>CUDA RNN, dot product, shared memory, timex op, PyTorch kernel.</em></span><ul>
+<li><a class="file_link" href="index.html?q=/RWKV-v3/cuda/timex_cuda.cu" id="/RWKV-v3/cuda/timex_cuda.cu"><code>timex&UnderBar;cuda&period;cu</code></a> <em>CUDA code for RNN dot product computation with shared memory.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v3/cuda/timex_op.cpp" id="/RWKV-v3/cuda/timex_op.cpp"><code>timex&UnderBar;op&period;cpp</code></a> <em>CUDA kernel: timex op, PyTorch forward-backward.</em></li>
+</ul>
+</li>
+<li><a class="file_link" href="index.html?q=/RWKV-v3/run.py" id="/RWKV-v3/run.py"><code>run&period;py</code></a> <em>RWKV model training script</em></li>
+<li><span hierarchy="2" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v3/src/"><code>src</code></strong> <em>Training datasets and tokenizer for RWKV-v3</em></span><ul>
+<li><a class="file_link" href="index.html?q=/RWKV-v3/src/model.py" id="/RWKV-v3/src/model.py"><code>model&period;py</code></a> <em>RWKV Language Model: PyTorch, CUDA, time-based mixing</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v3/src/model_run.py" id="/RWKV-v3/src/model_run.py"><code>model&UnderBar;run&period;py</code></a> <em>RWKV-v3 Transformer Model Initialization</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v3/src/trainer.py" id="/RWKV-v3/src/trainer.py"><code>trainer&period;py</code></a> <em>Trainer class: CUDA optimized, data loading, updates params, logs progress.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v3/src/utils.py" id="/RWKV-v3/src/utils.py"><code>utils&period;py</code></a> <em>Custom RWKV dataset and tokenizer, top-p sampling, conversion functions.</em></li>
+</ul>
+</li>
+<li><a class="file_link" href="index.html?q=/RWKV-v3/train.py" id="/RWKV-v3/train.py"><code>train&period;py</code></a> <em>Trains RWKV-LM and GPT, optimizes GPU, saves partial models.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v3/verify.py" id="/RWKV-v3/verify.py"><code>verify&period;py</code></a> <em>RWKV-v3/verify.py: Verifies RWKV model using GPT, creates RWKV-GPT and RWKV-RNN</em></li>
+</ul>
+</li>
+<li><span hierarchy="1" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v4/"><code>RWKV-v4</code></strong> <em>RWKV-V4: Transformer RNN Language Model Framework</em></span><ul>
+<li><span hierarchy="2" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v4/cuda/"><code>cuda</code></strong> <em>Efficient CUDA RNN ops, overflow avoidance for WKV model passes.</em></span><ul>
+<li><a class="file_link" href="index.html?q=/RWKV-v4/cuda/wkv_cuda.cu" id="/RWKV-v4/cuda/wkv_cuda.cu"><code>wkv&UnderBar;cuda&period;cu</code></a> <em>RWKV-v4 CUDA kernel: efficient RNN operations, overflow avoidance.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4/cuda/wkv_op.cpp" id="/RWKV-v4/cuda/wkv_op.cpp"><code>wkv&UnderBar;op&period;cpp</code></a> <em>WKV model forward/backward passes with CUDA, PyTorch</em></li>
+</ul>
+</li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4/run.py" id="/RWKV-v4/run.py"><code>run&period;py</code></a> <em>RWKV language model text generation script</em></li>
+<li><span hierarchy="2" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v4/src/"><code>src</code></strong> <em>Transformer model and trainer with utilities.</em></span><ul>
+<li><a class="file_link" href="index.html?q=/RWKV-v4/src/binidx.py" id="/RWKV-v4/src/binidx.py"><code>binidx&period;py</code></a> <em>Indexed binary dataset class with memmap support.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4/src/model.py" id="/RWKV-v4/src/model.py"><code>model&period;py</code></a> <em>RWKV model with CUDA, attention, and DeepSpeed optimizer.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4/src/model_run.py" id="/RWKV-v4/src/model_run.py"><code>model&UnderBar;run&period;py</code></a> <em>RWKV-v4 Transformer Model CUDA Efficient</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4/src/trainer.py" id="/RWKV-v4/src/trainer.py"><code>trainer&period;py</code></a> <em>Trains RWKV language model, multi-GPU support.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4/src/utils.py" id="/RWKV-v4/src/utils.py"><code>utils&period;py</code></a> <em>Python utils: Dataset, vocab, tokenizer, data handling.</em></li>
+</ul>
+</li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4/train.py" id="/RWKV-v4/train.py"><code>train&period;py</code></a> <em>Trains RWKV-v4 model with DeepSpeed and FP16.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4/verify.py" id="/RWKV-v4/verify.py"><code>verify&period;py</code></a> <em>RWKV model initialization and comparison script</em></li>
+</ul>
+</li>
+<li><span hierarchy="1" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v4neo/"><code>RWKV-v4neo</code></strong> <em>Trains customizable RWKV chatbot models.</em></span><ul>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/chat.py" id="/RWKV-v4neo/chat.py"><code>chat&period;py</code></a> <em>Multilingual chatbot with RWKV language model.</em></li>
+<li><span hierarchy="2" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v4neo/cuda/"><code>cuda</code></strong> <em>CUDA-accelerated RWKV ops for BFloat16</em></span><ul>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/cuda/wkv5_cuda.cu" id="/RWKV-v4neo/cuda/wkv5_cuda.cu"><code>wkv5&UnderBar;cuda&period;cu</code></a> <em>Optimized CUDA neural network forward pass with shared memory.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/cuda/wkv5_op.cpp" id="/RWKV-v4neo/cuda/wkv5_op.cpp"><code>wkv5&UnderBar;op&period;cpp</code></a> <em>CUDA-optimized PyTorch ops for BFloat16 data in wkv5 module</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/cuda/wkv_cuda.cu" id="/RWKV-v4neo/cuda/wkv_cuda.cu"><code>wkv&UnderBar;cuda&period;cu</code></a> <em>Matrix multiplication, gradients, CUDA RWKV optimization.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/cuda/wkv_cuda_bf16.cu" id="/RWKV-v4neo/cuda/wkv_cuda_bf16.cu"><code>wkv&UnderBar;cuda&UnderBar;bf16&period;cu</code></a> <em>Performs GPU-accelerated neural network forward pass with BFloat16.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/cuda/wkv_op.cpp" id="/RWKV-v4neo/cuda/wkv_op.cpp"><code>wkv&UnderBar;op&period;cpp</code></a> <em>CUDA functions wrapped for PyTorch with PyBind11</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/cuda/wkv_op_bf16.cpp" id="/RWKV-v4neo/cuda/wkv_op_bf16.cpp"><code>wkv&UnderBar;op&UnderBar;bf16&period;cpp</code></a> <em>CUDA BF16 Tensor Op Functions for CUDA, Python Bindings</em></li>
+</ul>
+</li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/img_demoAE.py" id="/RWKV-v4neo/img_demoAE.py"><code>img&UnderBar;demoAE&period;py</code></a> <em>Image processing code with ToBinary, R_ENCODER, and neural network model.</em></li>
+<li><span hierarchy="2" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v4neo/math_demo/"><code>math&UnderBar;demo</code></strong></span><ul>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/math_demo/run.py" id="/RWKV-v4neo/math_demo/run.py"><code>run&period;py</code></a> <em>RWKV NLP model, tokenization classes, RWKV_RNN functions.</em></li>
+</ul>
+</li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/run.py" id="/RWKV-v4neo/run.py"><code>run&period;py</code></a> <em>RWKV Language Model: Text Generation &amp; Refinement</em></li>
+<li><span hierarchy="2" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v4neo/src/"><code>src</code></strong> <em>Trains RWKV, AWS S3 storage, prime number utilities.</em></span><ul>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/src/binidx.py" id="/RWKV-v4neo/src/binidx.py"><code>binidx&period;py</code></a> <em>Memory-mapped indexed dataset handling in Python</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/src/dataset.py" id="/RWKV-v4neo/src/dataset.py"><code>dataset&period;py</code></a> <em>Custom PyTorch dataset for data loading and resizing.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/src/model.py" id="/RWKV-v4neo/src/model.py"><code>model&period;py</code></a> <em>Neural network model setup with CUDA, layer normalization &amp; RWKV_TimeMix.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/src/model_img.py" id="/RWKV-v4neo/src/model_img.py"><code>model&UnderBar;img&period;py</code></a> <em>RWKV-v4neo: DeepSpeed, VGG16, RWKV-LM model with encoder-decoder</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/src/model_run.py" id="/RWKV-v4neo/src/model_run.py"><code>model&UnderBar;run&period;py</code></a> <em>RWKV Language Model initialization and optimization.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/src/trainer.py" id="/RWKV-v4neo/src/trainer.py"><code>trainer&period;py</code></a> <em>Trains PyTorch Lightning model, saves on AWS S3</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/src/utils.py" id="/RWKV-v4neo/src/utils.py"><code>utils&period;py</code></a> <em>Prime number verification utility code</em></li>
+</ul>
+</li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/train.py" id="/RWKV-v4neo/train.py"><code>train&period;py</code></a> <em>Trains RWKV language model with customizable parameters, PyTorch Lightning.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v4neo/verify.py" id="/RWKV-v4neo/verify.py"><code>verify&period;py</code></a> <em>Trains RWKV language model, prints outputs.</em></li>
+</ul>
+</li>
+<li><span hierarchy="1" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v5/"><code>RWKV-v5</code></strong> <em>Large-scale RWKV text model utilities.</em></span><ul>
+<li><span hierarchy="2" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v5/cuda/"><code>cuda</code></strong> <em>CUDA-optimized neural network operations and code for shared memory, matrix ops, and parallelism.</em></span><ul>
+<li><a class="file_link" href="index.html?q=/RWKV-v5/cuda/wkv5_cuda.cu" id="/RWKV-v5/cuda/wkv5_cuda.cu"><code>wkv5&UnderBar;cuda&period;cu</code></a> <em>CUDA code optimizes neural network with shared memory, matrix ops, and parallelism.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v5/cuda/wkv5_op.cpp" id="/RWKV-v5/cuda/wkv5_op.cpp"><code>wkv5&UnderBar;op&period;cpp</code></a> <em>CUDA-optimized PyTorch neural network operations with BFloat16.</em></li>
+</ul>
+</li>
+<li><a class="file_link" href="index.html?q=/RWKV-v5/demo.jsonl" id="/RWKV-v5/demo.jsonl"><code>demo&period;jsonl</code></a> <em>Restaurant Attack, AI Advancements, Legal Drama, and Growth</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v5/make_data.py" id="/RWKV-v5/make_data.py"><code>make&UnderBar;data&period;py</code></a> <em>Binary file manipulation, RWKV indexing, prime number verification.</em></li>
+<li><span hierarchy="2" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v5/src/"><code>src</code></strong> <em>RWKV Transformer Training with DeepSpeed and Utilities</em></span><ul>
+<li><a class="file_link" href="index.html?q=/RWKV-v5/src/binidx.py" id="/RWKV-v5/src/binidx.py"><code>binidx&period;py</code></a> <em>Memory-mapped, indexed dataset handler</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v5/src/dataset.py" id="/RWKV-v5/src/dataset.py"><code>dataset&period;py</code></a> <em>Trains RWKV Language Model dataset.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v5/src/model.py" id="/RWKV-v5/src/model.py"><code>model&period;py</code></a> <em>RWKV transformer layer with DeepSpeed CUDA optimization.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v5/src/trainer.py" id="/RWKV-v5/src/trainer.py"><code>trainer&period;py</code></a> <em>Trains PyTorch Lightning model with AWS S3 saving, LR scheduling, and progress logging.</em></li>
+<li><a class="file_link" href="index.html?q=/RWKV-v5/src/utils.py" id="/RWKV-v5/src/utils.py"><code>utils&period;py</code></a> <em>Prime number calculation and verification.</em></li>
+</ul>
+</li>
+<li><span hierarchy="2" class="expanded" onclick="toggleVisibility(this)" ><strong class="directory" id="/RWKV-v5/tokenizer/"><code>tokenizer</code></strong></span><ul>
+<li><a class="file_link" href="index.html?q=/RWKV-v5/tokenizer/rwkv_tokenizer.py" id="/RWKV-v5/tokenizer/rwkv_tokenizer.py"><code>rwkv&UnderBar;tokenizer&period;py</code></a> <em>Tokenizer using trie for encoding and decoding bytes.</em></li>
+</ul>
+</li>
+<li><a class="file_link" href="index.html?q=/RWKV-v5/train.py" id="/RWKV-v5/train.py"><code>train&period;py</code></a> <em>Trains RWKV Language Model with Pytorch Lightning and Deepspeed</em></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+    </article>
+    <script type="text/javascript">
+        function getQueryParams() {
+            var search = window.location.search.substring(1); // Remove leading '?'
+            var queryParams = {};
+            search.split('&').forEach(function (pair) {
+                var parts = pair.split('=');
+                var key = decodeURIComponent(parts[0]);
+                var value = decodeURIComponent(parts[1]);
+                queryParams[key] = value;
+            });
+            return queryParams;
+        }
+
+        const queryParams = getQueryParams(window.location.search);
+        const show_full = queryParams.full == "true";
+        //const is_random = queryParams.random == 'true';
+        function feelingLucky() {
+            var elements = document.getElementsByClassName("file_link");
+            var randomIndex = Math.floor(Math.random() * elements.length);
+            window.location = elements[randomIndex].href;
+        }
+        //if (is_random) {feelingLucky();}
+        document.getElementById("feeling-lucky").onclick = feelingLucky;
+        if (!show_full) {
+            const spans = document.querySelectorAll('span');
+            for (let span of spans) {
+                if (span.getAttribute("hierarchy") == '0') { continue }
+                toggleVisibility(span);
+            }
+        } else {
+            const expand_elem = document.getElementById('expand-tree');
+            expand_elem.setAttribute("href", "tree.html");
+            expand_elem.setAttribute("title", "Undo expand");
+            expand_elem.innerHTML = '<i class="bi bi-caret-up-square"></i>'
+        }
+
+    </script>
+</body>
+
+</html>
