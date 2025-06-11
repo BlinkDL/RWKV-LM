@@ -1,6 +1,6 @@
 # RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv" (rʌkuv in IPA), from 4 major params: R W K V)
 
-RWKV website: https://rwkv.com (with 60+ RWKV-related papers)
+RWKV website: https://rwkv.com (with 90+ RWKV-related papers)
 
 RWKV twitter: https://twitter.com/BlinkDL_AI (lastest news)
 
@@ -15,6 +15,12 @@ RWKV-7 is a [meta-in-context learner](https://raw.githubusercontent.com/BlinkDL/
 RWKV is a [Linux Foundation AI project](https://lfaidata.foundation/projects/rwkv/), so totally free. RWKV runtime is [already in Windows & Office](https://x.com/BlinkDL_AI/status/1831012419508019550).
 
 You are welcome to ask the RWKV community (such as [RWKV discord](https://discord.gg/bDSBUMeFpc)) for advice on upgrading your attention/ssm models to rwkv7 models :)
+
+===
+
+**Please use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp as RWKV-7 reference implementation**
+
+===
 
 History of RWKV (from v1 to v7): https://wiki.rwkv.com/advance/architecture.html (note: AI-written. might contain errors)
 
