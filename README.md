@@ -18,7 +18,9 @@ You are welcome to ask the RWKV community (such as [RWKV discord](https://discor
 
 ===
 
-**Please use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp as RWKV-7 reference implementation**
+**Please use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp as RWKV-7 reference implementation**.
+
+FLA RWKV-7 is NOT aligned with reference implementation yet, and you will get less performance.
 
 ===
 
