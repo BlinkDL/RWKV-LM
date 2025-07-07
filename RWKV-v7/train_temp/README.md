@@ -2,7 +2,7 @@
 
 For reference, use python 3.10+, torch 2.5+, cuda 12.5+, latest deepspeed, but **keep pytorch-lightning==1.9.5**
 
-The default config only requires 1 GPU with 8G VRAM.
+The default config only requires 1 GPU with 8G VRAM, so it's very easy to test.
 
 **Train RWKV-7:**
 ```
