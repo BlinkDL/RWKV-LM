@@ -17,6 +17,14 @@ N_EMBD="768"
 CTX_LEN="512" # !!! change magic_prime if you change ctx_len !!!
 PROJ_DIR="out/L"$N_LAYER"-D"$N_EMBD"-"$MODEL_TYPE # set output folder
 #
+# !!! by default train.py will load the last .pth in PROJ_DIR, and continue training from it !!!
+# !!! so here we will REMOVE all previous checkpts in PROJ_DIR, so they won't be loaded !!!
+# !!! comment these if you don't want this behavior !!!
+#
+rm "$PROJ_DIR"/rwkv-*0.pth
+rm "$PROJ_DIR"/rwkv-71.pth
+rm "$PROJ_DIR"/rwkv-final.pth
+#
 #######################################################################################################################
 #
 # Note bsz & lr affects model & training performance
