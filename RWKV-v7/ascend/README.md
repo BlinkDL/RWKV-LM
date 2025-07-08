@@ -1,5 +1,5 @@
 # 1. 编译算子
-cd mkdir build
+mkdir build
 cd build
 cmake ..
 make 
