@@ -47,7 +47,7 @@ if 'x070' in os.environ["RWKV_MY_TESTING"]:
         @staticmethod
         def forward(ctx, w,q,k,v,z,b):
             B,T,H,C = w.shape 
-            assert T%CHUNK_LEN == 0
+            assert T%CHUNK_LEN == 0 # if T%CHUNK_LEN != 0: pad your input to T%CHUNK_LEN == 0, or change CHUNK_LEN (will be slower)
             assert all(i.dtype==torch.bfloat16 for i in [w,q,k,v,z,b])
             assert all(i.is_contiguous() for i in [w,q,k,v,z,b])
             y = torch.empty_like(v)

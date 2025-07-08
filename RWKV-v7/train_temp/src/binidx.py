@@ -101,7 +101,7 @@ class MMapIndexedDataset(torch.utils.data.Dataset):
 
             return _Writer()
         
-        def __init__(self, path, skip_warmup=False):
+        def __init__(self, path, skip_warmup=True):
             with open(path, "rb") as stream:
                 magic_test = stream.read(9)
                 assert self._HDR_MAGIC == magic_test, (
@@ -169,7 +169,7 @@ class MMapIndexedDataset(torch.utils.data.Dataset):
         def __len__(self):
             return self._len
 
-    def __init__(self, path, skip_warmup=False):
+    def __init__(self, path, skip_warmup=True):
         super().__init__()
 
         self._path = None
@@ -184,7 +184,7 @@ class MMapIndexedDataset(torch.utils.data.Dataset):
     def __setstate__(self, state):
         self._do_init(state)
 
-    def _do_init(self, path, skip_warmup):
+    def _do_init(self, path, skip_warmup=True):
         self._path = path
         self._index = self.Index(index_file_path(self._path), skip_warmup)
 
