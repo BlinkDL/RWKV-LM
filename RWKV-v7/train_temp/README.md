@@ -14,10 +14,10 @@ pip install pytorch-lightning==1.9.5 deepspeed wandb ninja --upgrade
 cd RWKV-v7/train_temp/ 
 
 # download minipile .bin .idx to train_temp/data first (check demo-training-prepare.sh)
-# this will generate rwkv-init.pth in out/....../
+# this will generate the initial weight rwkv-init.pth in out/....../
 sh ./demo-training-prepare.sh
 
-# you may want to log in to wandb first
+# this will load rwkv-init.pth and train the model. you may want to log in to wandb first
 sh ./demo-training-run.sh
 
 your out/....../train_log.txt should have losses similar to:
