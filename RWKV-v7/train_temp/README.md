@@ -13,7 +13,8 @@ pip install pytorch-lightning==1.9.5 deepspeed wandb ninja --upgrade
 # train RWKV-7
 cd RWKV-v7/train_temp/ 
 
-# download minipile .bin .idx to train_temp/data first (check demo-training-prepare.sh)
+# download minipile .bin .idx to train_temp/data first (download link in demo-training-prepare.sh)
+
 # this will generate the initial weight rwkv-init.pth in out/....../
 sh ./demo-training-prepare.sh
 
