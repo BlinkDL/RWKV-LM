@@ -20,7 +20,11 @@ You are welcome to ask the RWKV community (such as [RWKV discord](https://discor
 
 **Please use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp as RWKV-7 reference implementation**. The default config only requires 1 GPU with 10G VRAM (you can reduce bsz if you have less VRAM), so it's easy to test.
 
-FLA RWKV-7 is NOT aligned with reference implementation yet, and you will get less performance.
+Note FLA RWKV-7 is NOT aligned with reference implementation yet, and you will get less performance.
+
+This is because RWKV-7 is the whole model with carefully set stuffs, including different init / wd / lr for each parameter, so it's readily scalable and very stable (spike-free).
+
+But the price to pay is there is no good simple "RWKV-7 layer" because a pytorch layer can't make sure itself is using correct init and hyperparameters.
 
 ===
 
