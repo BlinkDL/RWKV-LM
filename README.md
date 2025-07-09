@@ -26,6 +26,8 @@ This is because RWKV-7 is the whole model with carefully set stuffs, including d
 
 But the price to pay is there is no good simple "RWKV-7 layer" because a pytorch layer can't make sure itself is using correct init and hyperparameters.
 
+So if you need to use RWKV-7 for another task, please study train_temp code (only several hundred lines) and change it to suit you.
+
 ===
 
 History of RWKV (from v1 to v7): https://wiki.rwkv.com/advance/architecture.html (note: AI-written. might contain errors)
