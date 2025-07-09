@@ -36,6 +36,12 @@ your out/....../train_log.txt should have losses similar to:
 11 3.295895 27.0016 0.00056441 2025-04-24 03:14:01.786079 11
 ```
 
+RWKV-7 is the whole model with carefully set stuffs, including different init / wd / lr for each parameter, so it's readily scalable and very stable (spike-free).
+
+But the price to pay is there is no good simple "RWKV-7 layer" because a pytorch layer can't make sure itself is using correct init and hyperparameters.
+
+So if you need to use RWKV-7 for another task, please study train_temp code (only several hundred lines) and change it to suit you.
+
 RWKV-7 weight example for 1.5B (L24-D2048, vocab 65536):
 | name                | shape         | comment      | initialization  |
 |---------------------|---------------|--------------|-----------------|
