@@ -21,7 +21,7 @@ sh ./demo-training-prepare.sh
 # this will load rwkv-init.pth and train the model. you may want to log in to wandb first
 sh ./demo-training-run.sh
 
-your out/....../train_log.txt should have losses similar to:
+your out/....../train_log.txt should have losses similar to (must be within +-0.01 or something is wrong):
 0 4.875856 131.0863 0.00059975 2025-04-24 02:23:42.481256 0
 1 4.028621 56.1834 0.00059899 2025-04-24 02:28:16.674463 1
 2 3.801625 44.7739 0.00059773 2025-04-24 02:32:51.059568 2
