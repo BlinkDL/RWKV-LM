@@ -58,6 +58,24 @@ Another question where it's able to give the correct answer after multiple "self
 
 ---
 
+Then I saw a paper (https://arxiv.org/abs/2507.14417) mentioning "misleading questions":
+
+<img width="1305" height="1135" alt="image" src="https://github.com/user-attachments/assets/dbced9f7-4903-4651-acef-85b67df420d4" />
+
+Let's test one.
+
+<img width="1075" height="1162" alt="image" src="https://github.com/user-attachments/assets/b9aa7fca-acca-483d-9425-82c0ab3613a6" />
+
+Another.
+
+<img width="1066" height="1204" alt="image" src="https://github.com/user-attachments/assets/af0e5053-653a-4a07-b75f-a651255baf0c" />
+
+Change a number.
+
+<img width="1074" height="1164" alt="image" src="https://github.com/user-attachments/assets/4065b11f-05c2-43f0-8247-66f0c4fe687e" />
+
+---
+
 Some simple code question.
 
 <img width="643" height="1372" alt="image" src="https://github.com/user-attachments/assets/b7552380-3a07-43cd-94d3-45c6e191b552" />
