@@ -30,6 +30,10 @@ So if you need to use RWKV-7 for another task, please study train_temp code (onl
 
 ===
 
+RWKV-7 can do math. See https://github.com/BlinkDL/RWKV-LM/blob/main/Research/rwkv7-g0-7.2b.md for details.
+
+<img width="555" height="784" alt="image" src="https://github.com/user-attachments/assets/095b4576-962f-4274-ae1a-855406ec76c1" />
+
 History of RWKV (from v1 to v7): https://wiki.rwkv.com/advance/architecture.html (note: AI-written. might contain errors)
 
 <img src="RWKV-v7-niah.png">
