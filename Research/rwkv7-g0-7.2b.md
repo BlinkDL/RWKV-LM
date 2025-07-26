@@ -103,3 +103,13 @@ Future plan:
 2. add DeepEmbed (https://x.com/BlinkDL_AI/status/1926941496684519805) and maybe DeepEmbedAttention (https://x.com/BlinkDL_AI/status/1939532655823040545)
 
 3. have been training RWKV-7 "G0" 13.3B too
+
+---
+
+UPDATE: It can solve some easy AIME too.
+
+<img width="963" height="1373" alt="image" src="https://github.com/user-attachments/assets/fb815747-890b-427c-93c4-69d3ee54fc5c" />
+
+<img width="962" height="1374" alt="image" src="https://github.com/user-attachments/assets/08460b8e-e499-4dca-ace4-5956cbdcd7a6" />
+
+<img width="641" height="1373" alt="dce19e0e02cf5edff3ef5042ba3061a1" src="https://github.com/user-attachments/assets/96d0f1ae-9915-42ba-a60f-65e1d96140d6" />
