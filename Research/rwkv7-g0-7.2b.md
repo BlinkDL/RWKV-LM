@@ -90,9 +90,9 @@ Some evals:
 
 <img width="1605" height="176" alt="image" src="https://github.com/user-attachments/assets/bcf95a8e-cb03-46dd-ac95-a33c4b18d84f" />
 
-and https://huggingface.co/spaces/Jellyfish042/UncheatableEval (testing 2024-07 data, will update and add Qwen3 Qwen2.5 later):
+and https://huggingface.co/spaces/Jellyfish042/UncheatableEval :
 
-<img width="1606" height="680" alt="image" src="https://github.com/user-attachments/assets/97797d1f-c719-479e-8219-fdfa36083dfd" />
+<img width="1585" height="880" alt="image" src="https://github.com/user-attachments/assets/1e37b736-eae0-4b83-9d16-b4c2233088d9" />
 
 Overall I think it's decent for pure RNN + pretrain 2T tokens :)
 
