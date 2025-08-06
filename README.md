@@ -20,9 +20,19 @@ You are welcome to ask the RWKV community (such as [RWKV discord](https://discor
 
 **Please use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp as RWKV-7 reference implementation**. The default config only requires 1 GPU with 10G VRAM (you can reduce bsz if you have less VRAM), so it's easy to test.
 
-FLA RWKV-7 is NOT aligned with reference implementation yet, and you will get less performance.
+Note FLA RWKV-7 is NOT aligned with reference implementation yet, and you will get less performance.
+
+This is because RWKV-7 is the whole model with carefully set stuffs, including different init / wd / lr for each parameter, so it's readily scalable and very stable (spike-free).
+
+But the price to pay is there is no good simple "RWKV-7 layer" because a pytorch layer can't make sure itself is using correct init and hyperparameters.
+
+So if you need to use RWKV-7 for another task, please study train_temp code (only several hundred lines) and change it to suit you.
 
 ===
+
+RWKV-7 can do math. See https://github.com/BlinkDL/RWKV-LM/blob/main/Research/rwkv7-g0-7.2b.md for details.
+
+<img width="555" height="784" alt="image" src="https://github.com/user-attachments/assets/095b4576-962f-4274-ae1a-855406ec76c1" />
 
 History of RWKV (from v1 to v7): https://wiki.rwkv.com/advance/architecture.html (note: AI-written. might contain errors)
 
@@ -84,10 +94,10 @@ pip install pytorch-lightning==1.9.5 deepspeed wandb ninja --upgrade
 cd RWKV-v7/train_temp/ 
 
 # download minipile .bin .idx to train_temp/data first (check demo-training-prepare.sh)
-# this will generate rwkv-init.pth in out/....../
+# this will generate the initial weight rwkv-init.pth in out/....../
 sh ./demo-training-prepare.sh
 
-# you may want to log in to wandb first
+# this will load rwkv-init.pth and train the model. you may want to log in to wandb first
 sh ./demo-training-run.sh
 
 your out/....../train_log.txt should have losses similar to:

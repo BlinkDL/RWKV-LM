@@ -13,14 +13,15 @@ pip install pytorch-lightning==1.9.5 deepspeed wandb ninja --upgrade
 # train RWKV-7
 cd RWKV-v7/train_temp/ 
 
-# download minipile .bin .idx to train_temp/data first (check demo-training-prepare.sh)
-# this will generate rwkv-init.pth in out/....../
+# download minipile .bin .idx to train_temp/data first (download link in demo-training-prepare.sh)
+
+# this will generate the initial weight rwkv-init.pth in out/....../
 sh ./demo-training-prepare.sh
 
-# you may want to log in to wandb first
+# this will load rwkv-init.pth and train the model. you may want to log in to wandb first
 sh ./demo-training-run.sh
 
-your out/....../train_log.txt should have losses similar to:
+your out/....../train_log.txt should have losses similar to (must be within +-0.01 or something is wrong):
 0 4.875856 131.0863 0.00059975 2025-04-24 02:23:42.481256 0
 1 4.028621 56.1834 0.00059899 2025-04-24 02:28:16.674463 1
 2 3.801625 44.7739 0.00059773 2025-04-24 02:32:51.059568 2
@@ -34,6 +35,12 @@ your out/....../train_log.txt should have losses similar to:
 10 3.313411 27.4787 0.00056999 2025-04-24 03:09:27.563336 10
 11 3.295895 27.0016 0.00056441 2025-04-24 03:14:01.786079 11
 ```
+
+RWKV-7 is the whole model with carefully set stuffs, including different init / wd / lr for each parameter, so it's readily scalable and very stable (spike-free).
+
+But the price to pay is there is no good simple "RWKV-7 layer" because a pytorch layer can't make sure itself is using correct init and hyperparameters.
+
+So if you need to use RWKV-7 for another task, please study train_temp code (only several hundred lines) and change it to suit you.
 
 RWKV-7 weight example for 1.5B (L24-D2048, vocab 65536):
 | name                | shape         | comment      | initialization  |
