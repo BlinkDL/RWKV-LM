@@ -82,7 +82,9 @@ RWKV-6 demo code: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
 
 ## HOW TO TRAIN RWKV-7/6/5 on MiniPile (1.5G tokens) ##
 
-For reference, use python 3.10+, torch 2.5+, cuda 12.5+, latest deepspeed, but **keep pytorch-lightning==1.9.5**
+For reference, use python 3.10+, torch 2.5+, cuda 12.4+, latest deepspeed, but **keep pytorch-lightning==1.9.5**
+
+### Note: seems deepspeed 0.17.x is very buggy (worse loss or divergence). Use 0.16.8 for reference
 
 **Train RWKV-7:**
 ```
