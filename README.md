@@ -34,7 +34,7 @@ RWKV-7 can do math. See https://github.com/BlinkDL/RWKV-LM/blob/main/Research/rw
 
 <img width="555" height="784" alt="image" src="https://github.com/user-attachments/assets/095b4576-962f-4274-ae1a-855406ec76c1" />
 
-History of RWKV (from v1 to v7): https://wiki.rwkv.com/advance/architecture.html (note: AI-written. might contain errors)
+History of RWKV (from v1 to v7): [https://wiki.rwkv.com](https://wiki.rwkv.com/) (note: AI-written. might contain errors)
 
 <img src="RWKV-v7-niah.png">
 
@@ -84,7 +84,7 @@ RWKV-6 demo code: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
 
 For reference, use python 3.10+, torch 2.5+, cuda 12.4+, latest deepspeed, but **keep pytorch-lightning==1.9.5**
 
-### Note: seems deepspeed 0.17.x is very buggy (worse loss or divergence). Use 0.16.8 for reference
+### Note: seems deepspeed 0.17.x is buggy (worse loss or divergence). Use 0.16.8 for reference (maybe --layerwise_lr 0 can fix it)
 
 **Train RWKV-7:**
 ```
