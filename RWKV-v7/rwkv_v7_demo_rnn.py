@@ -28,18 +28,18 @@ This will load RWKV-7 "Goose" x070 and inference in RNN-mode (slower than GPT-mo
 
 args = types.SimpleNamespace()
 
-# model download: https://huggingface.co/BlinkDL/rwkv-7-world
+# model download: https://huggingface.co/BlinkDL/rwkv7-g1
 
-args.MODEL_NAME = "/mnt/e/RWKV-Runner/models/RWKV-x070-World-0.1B-v2.8-20241210-ctx4096"
+args.MODEL_NAME = "/mnt/e/RWKV-Runner/models/rwkv7-g1a-0.1b-20250728-ctx4096"
 
 args.n_layer = 12
 args.n_embd = 768
 args.vocab_size = 65536
 args.head_size = 64
 
-prompt = "The Eiffel tower is in the city of"
-NUM_TRIALS = 3
-LENGTH_PER_TRIAL = 100
+prompt = "User: simulate SpaceX mars landing using python\n\nAssistant: <think"
+NUM_TRIALS = 1
+LENGTH_PER_TRIAL = 500
 TEMPERATURE = 1.0
 TOP_P = 0.0
 
