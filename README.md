@@ -20,6 +20,8 @@ You are welcome to ask the RWKV community (such as [RWKV discord](https://discor
 
 **Efficient inference project**: https://github.com/BlinkDL/Albatross
 
+**RWKV APP**: https://github.com/RWKV-APP/RWKV_APP
+
 ===
 
 **Please use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp as RWKV-7 reference implementation**. The default config only requires 1 GPU with 10G VRAM (you can reduce bsz if you have less VRAM), so it's easy to test.
