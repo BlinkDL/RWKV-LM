@@ -20,7 +20,7 @@ You are welcome to ask the RWKV community (such as [RWKV discord](https://discor
 
 **Efficient inference project**: https://github.com/BlinkDL/Albatross
 
-**RWKV APP**: https://github.com/RWKV-APP/RWKV_APP
+**RWKV APP**: https://github.com/RWKV-APP/RWKV_APP (local inference for Android / iOS)
 
 ===
 
