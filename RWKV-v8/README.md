@@ -6,4 +6,10 @@
 
 <img src="251014_rosa_1bit.png">
 
+### Other ROSA Projects
+
+https://github.com/bcml-ai/rosa-plus
+
+https://github.com/zyaaa-ux/ROSA-Tuning
+
 <img src="../RWKV-8-ROSA.png">
