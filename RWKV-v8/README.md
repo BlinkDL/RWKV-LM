@@ -4,4 +4,6 @@
 
 251014_rosa_1bit_train.py will reach loss ~0.4
 
+<img src="251014_rosa_1bit.png">
+
 <img src="../RWKV-8-ROSA.png">
