@@ -4,6 +4,8 @@
 
 251014_rosa_1bit_train.py will reach loss ~0.4
 
+251018_rosa_4bit_train.py will reach loss ~0.25
+
 <img src="251014_rosa_1bit.png">
 
 251016_rosa_1bit_run.py for multi-layer ROSA demo:
