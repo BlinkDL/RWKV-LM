@@ -20,6 +20,8 @@
 
 https://github.com/zyaaa-ux/ROSA-Tuning
 
+https://github.com/wjie98/rosa_soft
+
 https://github.com/bcml-ai/rosa-plus
 
 <img src="../RWKV-8-ROSA.png">
