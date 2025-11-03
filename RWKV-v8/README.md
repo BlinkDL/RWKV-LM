@@ -1,5 +1,7 @@
 # RWKV-8 "Heron" with ROSA (Rapid Online Suffix Automaton)
 
+<img src="../RWKV-8-ROSA.png">
+
 251024_rosaQKV_run.py for arithmetic demo (1M params can solve 40 digits plus/minus with 99% digit accuracy, without CoT):
 
 <img width="1563" height="1008" alt="image" src="https://github.com/user-attachments/assets/12134e7c-85f3-4788-9664-8070152e7e72" />
@@ -24,4 +26,4 @@ https://github.com/wjie98/rosa_soft
 
 https://github.com/bcml-ai/rosa-plus
 
-<img src="../RWKV-8-ROSA.png">
+https://github.com/x-0D/RASP
