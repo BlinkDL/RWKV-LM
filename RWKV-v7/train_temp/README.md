@@ -1,5 +1,7 @@
 ## HOW TO TRAIN RWKV-7 on MiniPile (1.5G tokens) ##
 
+**Simplified RWKV-7 training demo**: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/train_temp/rwkv7_train_simplified.py
+
 For reference, use python 3.10+, torch 2.5+, cuda 12.5+, latest deepspeed, but **keep pytorch-lightning==1.9.5**
 
 ### Note: seems deepspeed 0.17.x is buggy (worse loss or divergence). Use 0.16.8 for reference (maybe --layerwise_lr 0 can fix it)
