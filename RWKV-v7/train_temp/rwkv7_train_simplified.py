@@ -35,13 +35,13 @@ print("This is a simplified RWKV7 training demo")
 HEAD_SIZE = 16 # !!! use HEAD_SIZE = 64 for LM !!!
 CHUNK_LEN = 16
 flags = ['-res-usage', f'-D_C_={HEAD_SIZE}', f"-D_CHUNK_LEN_={CHUNK_LEN}", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization"]
-load(name="wind_backstepping", sources=[f'cuda/wkv7_cuda.cu', 'cuda/wkv7_op.cpp'], is_python_module=False, verbose=False, extra_cuda_cflags=flags)
+load(name="wind_backstepping", sources=[f'cuda/wkv7_cuda_fp32.cu', 'cuda/wkv7_op_fp32.cpp'], is_python_module=False, verbose=False, extra_cuda_cflags=flags)
 class WindBackstepping(torch.autograd.Function):
     @staticmethod
     def forward(ctx, w,q,k,v,z,b):
         B,T,H,C = w.shape
         assert T%CHUNK_LEN == 0 # if T%CHUNK_LEN != 0: pad your input to T%CHUNK_LEN == 0, or change CHUNK_LEN (will be slower)
-        assert all(i.dtype==torch.float32 for i in [w,q,k,v,z,b])
+        assert all(i.dtype==torch.float32 for i in [w,q,k,v,z,b]) # !!! this simplified demo is in fp32 !!!
         assert all(i.is_contiguous() for i in [w,q,k,v,z,b])
         y = torch.empty_like(v)
         s = torch.empty(B,H,T//CHUNK_LEN,C,C, dtype=torch.float32,device=w.device)
@@ -331,3 +331,4 @@ with torch.no_grad():
         print('diff',zy)
         print(f'correct {nzy}/{n}  acc {nzy/n:.3f}')
         print('#'*100)
+
