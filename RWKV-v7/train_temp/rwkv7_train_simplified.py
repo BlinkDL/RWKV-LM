@@ -312,23 +312,83 @@ for step in range(steps):
     opt.step(); sch.step()
 
 torch.save(model.state_dict(),"out.pth")
+
 print('#'*100)
+print('simple check (NOTE: here random inputs are considered for diff too, for simplicity)')
 
 with torch.no_grad():
     S='0123456789,#'
 
     for SAMPLE in range(5):
-        x=batch(1,129); y=x[:,1:]; z=model(x[:,:-1]).argmax(-1); n=y.numel()
+        x=batch(1,129); y=x[:,1:]; z=model(x[:,:-1]).argmax(-1)
 
         xx=''.join(S[t] for t in x[0,:-1].tolist())
         yy=''.join(S[t] for t in y[0].tolist())
         zz=''.join(S[t] for t in z[0].tolist())
         zy=''.join('.' if z[0,i].item()==y[0,i].item() else '^' for i in range(y.size(1)))
-        nzy=(z==y).sum().item()
         print('in  ',xx)
         print('gold',yy)
         print('pred',zz)
         print('diff',zy)
-        print(f'correct {nzy}/{n}  acc {nzy/n:.3f}')
         print('#'*100)
 
+print('#'*100)
+print('correct check (only check results)')
+
+with torch.no_grad():
+    S = '0123456789,#'
+    COMMA = S.index(',')
+    HASH  = S.index('#')
+
+    for SAMPLE in range(5):
+        x = batch(1, 129)
+        y = x[:, 1:]
+        logits = model(x[:, :-1])
+        z = logits.argmax(-1)
+
+        xx = ''.join(S[t] for t in x[0, :-1].tolist())
+        yy = ''.join(S[t] for t in y[0].tolist())
+        zz = ''.join(S[t] for t in z[0].tolist())
+
+        x_ids = x[0].tolist()
+        L = len(x_ids)
+
+        region_char = [False] * L
+        mode = 0
+
+        for j, tok in enumerate(x_ids):
+            if mode == 1:
+                region_char[j] = True
+            if tok == COMMA:
+                mode = 1
+            elif tok == HASH:
+                mode = 0
+
+        mask = region_char[1:]
+
+        y_ids = y[0].tolist()
+        z_ids = z[0].tolist()
+
+        n_tokens = sum(mask)
+        if n_tokens > 0:
+            n_correct = sum(
+                1 for i, m in enumerate(mask) if m and y_ids[i] == z_ids[i]
+            )
+            acc = n_correct / n_tokens
+        else:
+            n_correct = 0
+            acc = float('nan')
+
+        gold_masked = ''.join(S[y_ids[i]] if mask[i] else ' ' for i in range(len(y_ids)))
+        pred_masked = ''.join(S[z_ids[i]] if mask[i] else ' ' for i in range(len(z_ids)))
+        diff_masked = ''.join(
+            ('.' if y_ids[i] == z_ids[i] else '^') if mask[i] else ' '
+            for i in range(len(y_ids))
+        )
+
+        print('in   ', xx)
+        print('gold ', gold_masked)
+        print('pred ', pred_masked)
+        print('diff ', diff_masked)
+        print(f'correct {n_correct}/{n_tokens}  acc {acc:.3f}')
+        print('#' * 100)
