@@ -1,10 +1,10 @@
 # RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv" (rʌkuv in IPA), from 4 major params: R W K V)
 
-RWKV website: https://rwkv.com (with 90+ RWKV-related papers)
+RWKV website: https://rwkv.com (with 150+ RWKV-related papers)
 
 RWKV twitter: https://twitter.com/BlinkDL_AI (lastest news)
 
-RWKV discord: https://discord.gg/bDSBUMeFpc (9k+ members)
+RWKV discord: https://discord.gg/bDSBUMeFpc
 
 RWKV-7 "Goose" is the strongest **linear-time** & **constant-space** (no kv-cache) & **attention-free** & 100% RNN architecture on this planet at this moment, suitable for LLM and multimodal applications and more (see [rwkv.com](https://rwkv.com)).
 
@@ -16,13 +16,15 @@ RWKV is a [Linux Foundation AI project](https://lfaidata.foundation/projects/rwk
 
 You are welcome to ask the RWKV community (such as [RWKV discord](https://discord.gg/bDSBUMeFpc)) for advice on upgrading your attention/ssm models to rwkv7 models :)
 
-**Improving RNNs (RWKV-8 and beyond)**: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-8.md
-
 **Efficient inference project**: https://github.com/BlinkDL/Albatross
+
+**Fast fwd & bwd CUDA kernels**: https://github.com/BlinkDL/RWKV-CUDA/tree/main/rwkv7_fast_fused
 
 **RWKV APP**: https://github.com/RWKV-APP/RWKV_APP (local inference for Android / iOS)
 
 **Simplified RWKV-7 training demo**: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/train_temp/rwkv7_train_simplified.py
+
+**Improving RNNs**: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-8.md
 
 ===
 
