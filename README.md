@@ -18,13 +18,13 @@ You are welcome to ask the RWKV community (such as [RWKV discord](https://discor
 
 **Efficient inference project**: https://github.com/BlinkDL/Albatross
 
-**Fast fwd & bwd CUDA kernels**: https://github.com/BlinkDL/RWKV-CUDA/tree/main/rwkv7_fast_fused
+**Fast RWKV-7 CUDA kernels (vanilla, state-tuning, state-passing infctx)**: https://github.com/BlinkDL/RWKV-CUDA/tree/main/rwkv7_fast_fused
 
 **RWKV APP**: https://github.com/RWKV-APP/RWKV_APP (local inference for Android / iOS)
 
 **Simplified RWKV-7 training demo**: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/train_temp/rwkv7_train_simplified.py
 
-**Improving RNNs**: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-8.md
+Improving RNNs: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-8.md
 
 ===
 
