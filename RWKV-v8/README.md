@@ -1,5 +1,17 @@
 # RWKV-8 "Heron" with ROSA (Rapid Online Suffix Automaton)
 
+### Community ROSA Projects
+
+https://github.com/wjie98/rosa_soft
+
+https://github.com/zyaaa-ux/ROSA-Tuning
+
+https://github.com/bcml-ai/rosa-plus
+
+https://github.com/x-0D/RASP
+
+### Introducing ROSA 
+
 <img src="../RWKV-8-ROSA.png">
 
 251105_reverse_run.py - RWKV7+ROSA with 40K params (L2-D32) reversing 1-60 digits input with 99.8% digit accuracy:
@@ -21,13 +33,3 @@
 251018_rosa_4bit_train.py will reach loss ~0.25
 
 <img src="251014_rosa_1bit.png">
-
-### Other ROSA Projects
-
-https://github.com/zyaaa-ux/ROSA-Tuning
-
-https://github.com/wjie98/rosa_soft
-
-https://github.com/bcml-ai/rosa-plus
-
-https://github.com/x-0D/RASP
