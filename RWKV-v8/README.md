@@ -2,9 +2,9 @@
 
 ### Community ROSA Projects
 
-https://github.com/wjie98/rosa_soft
+https://github.com/wjie98/rosa_soft (training ROSA)
 
-https://github.com/zyaaa-ux/ROSA-Tuning
+https://github.com/zyaaa-ux/ROSA-Tuning (training ROSA)
 
 https://github.com/bcml-ai/rosa-plus
 
