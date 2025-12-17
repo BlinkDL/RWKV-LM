@@ -40,17 +40,13 @@ So if you need to use RWKV-7 for another task, please study train_temp code (onl
 
 ===
 
+RWKV-8:
+
 <img src="RWKV-8-ROSA.png">
 
 ===
 
-RWKV-7 can do math. See https://github.com/BlinkDL/RWKV-LM/blob/main/Research/rwkv7-g0-7.2b.md for details.
-
-<img width="555" height="784" alt="image" src="https://github.com/user-attachments/assets/095b4576-962f-4274-ae1a-855406ec76c1" />
-
 History of RWKV (from v1 to v7): [https://wiki.rwkv.com](https://wiki.rwkv.com/) (note: AI-written. might contain errors)
-
-<img src="RWKV-v7-niah.png">
 
 Gradio Demo 1: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 
@@ -277,6 +273,14 @@ ffn.receptance.weight => zero
 4. in trainer.py do "lr = lr * (0.01 + 0.99 * trainer.global_step / w_step)" (originally 0.2 + 0.8), and "--warmup_steps 20"
 
 5. "--weight_decay 0.1" leads to better final loss if you are training lots of data. set lr_final to 1/100 of lr_init when doing this.
+
+### Misc
+
+RWKV-7 can do math. See https://github.com/BlinkDL/RWKV-LM/blob/main/Research/rwkv7-g0-7.2b.md for details.
+
+<img width="555" height="784" alt="image" src="https://github.com/user-attachments/assets/095b4576-962f-4274-ae1a-855406ec76c1" />
+
+<img src="RWKV-v7-niah.png">
 
 ## Introducing RWKV
 
