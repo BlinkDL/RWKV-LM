@@ -71,8 +71,8 @@ def RWKV7(params, token, state):
 
 # Verification
 
-# Available at https://huggingface.co/BlinkDL/rwkv7-g1/blob/main/rwkv7-g1-0.1b-20250307-ctx4096.pth
-MODEL_FILE = '/mnt/e/RWKV-Runner/models/rwkv7-g1-0.1b-20250307-ctx4096.pth'
+# Available at https://huggingface.co/BlinkDL/rwkv7-g1/tree/main
+MODEL_FILE = '/mnt/e/RWKV-Runner/models/rwkv7-g1a-0.1b-20250728-ctx4096.pth'
 N_LAYER = 12
 N_EMBD = 768
 
