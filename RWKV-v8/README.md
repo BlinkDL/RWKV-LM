@@ -1,5 +1,7 @@
 # RWKV-8 "Heron" with ROSA (Rapid Online Suffix Automaton)
 
+p.s. Can use float V in ROSA-QKV (still highly efficient). will try this soon.
+
 ### Community ROSA Projects
 
 https://github.com/wjie98/rosa_soft (training ROSA)
