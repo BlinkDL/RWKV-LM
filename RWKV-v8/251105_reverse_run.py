@@ -18,7 +18,11 @@ MyFunction = torch.jit.script_method
 
 # DIGIT_MAX = 60
 # T = 129
-# LOAD_NAME = '251105_reverse_L2' # acc = 395782/396500=99.8% (can reach 100% if train longer) for 1-60 digits, only 39.6K params
+# LOAD_NAME = '251105_reverse_L2' # acc = 395782/396500=99.8% for 1-60 digits, only 39.6K params
+
+# DIGIT_MAX = 60
+# T = 129
+# LOAD_NAME = '260123_reverse_L2_only_rwkv7' # acc = 396500/396500=100% (because trained longer) for 1-60 digits, pure rwkv7 (rosa set to 0 output), so less than 39.6K params
 
 DIGIT_MAX = 120
 T = 257
