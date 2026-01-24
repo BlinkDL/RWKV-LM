@@ -29,6 +29,10 @@ You are welcome to ask the RWKV community (such as [RWKV discord](https://discor
 
 Improving RNNs: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-8.md
 
+Latest RWKV weights: https://huggingface.co/BlinkDL
+
+GGUF: https://huggingface.co/collections/shoumenchougou/rwkv7-gxx-gguf
+
 ===
 
 **Please use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp as RWKV-7 reference implementation**. The default config only requires 1 GPU with 10G VRAM (you can reduce bsz if you have less VRAM), so it's easy to test.
@@ -56,8 +60,6 @@ Gradio Demo 1: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 Gradio Demo 2: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
 
 WebGPU Demo: https://cryscan.github.io/web-rwkv-puzzles/#/chat
-
-Latest RWKV weights: https://huggingface.co/BlinkDL
 
 ===
 
