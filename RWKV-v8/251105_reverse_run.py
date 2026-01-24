@@ -16,7 +16,13 @@ set_seed_all(42)
 MyModule = torch.jit.ScriptModule
 MyFunction = torch.jit.script_method
 
-LOAD_NAME = '251105_reverse_L2' # acc = 395782/396500=99.8% for 1-60 digits, only 39.6K params
+# DIGIT_MAX = 60
+# T = 129
+# LOAD_NAME = '251105_reverse_L2' # acc = 395782/396500=99.8% (can reach 100% if train longer) for 1-60 digits, only 39.6K params
+
+DIGIT_MAX = 120
+T = 257
+LOAD_NAME = '260123_reverse_L2' # acc = 3012165/3025000=99.6% for 1-120 digits, only 39.6K params
 
 weights=torch.load(f'{LOAD_NAME}.pth', map_location=device, mmap=True, weights_only=True)
 nparams = 0
@@ -24,8 +30,7 @@ for k in weights:
     nparams += weights[k].numel()
 print('parameter count', nparams)
 
-V,C,T=12,32,129
-DIGIT_MAX=60
+V,C=12,32
 
 ############################################################################################################################################
 
@@ -392,7 +397,7 @@ for DIGIT in range(1, DIGIT_MAX+1):
     for ii in range(10):
         raw = str(get_randint(DIGIT))
         raw = raw + ',' + raw[::-1] 
-        raw = raw + '#'*(129-len(raw))
+        raw = raw + '#'*(T-len(raw))
         raw = [TOK[c] for c in list(raw)]
         src.append(raw)
     src=torch.tensor(src, device=device, dtype=torch.long)
@@ -411,3 +416,4 @@ for DIGIT in range(1, DIGIT_MAX+1):
     src = []
     if DIGIT%20 == 0:
         print('SUM: correct digits', agood, 'all digits', aall)
+
