@@ -22,6 +22,8 @@ GGUF: https://huggingface.co/collections/shoumenchougou/rwkv7-gxx-gguf
 
 **Fast RWKV-7 CUDA kernels (vanilla, state-tuning, state-passing infctx)**: https://github.com/BlinkDL/RWKV-CUDA/tree/main/rwkv7_fast_fused
 
+My current RWKV7 kernel is 2x slower for 0.1/0.4B, but you can reach good speed with 7B+. RWKV7 7.2B training on 4x8xH100 ctx8192 zero2+cp = 206k tokens/s.
+
 **RWKV APP**: https://github.com/RWKV-APP/RWKV_APP (local inference for Android / iOS)
 
 **Simplified RWKV-7 training demo**: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/train_temp/rwkv7_train_simplified.py
