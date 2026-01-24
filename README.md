@@ -16,6 +16,10 @@ You are welcome to ask the RWKV community (such as [RWKV discord](https://discor
 
 **Efficient inference project**: https://github.com/BlinkDL/Albatross
 
+Latest RWKV weights: https://huggingface.co/BlinkDL
+
+GGUF: https://huggingface.co/collections/shoumenchougou/rwkv7-gxx-gguf
+
 **Fast RWKV-7 CUDA kernels (vanilla, state-tuning, state-passing infctx)**: https://github.com/BlinkDL/RWKV-CUDA/tree/main/rwkv7_fast_fused
 
 **RWKV APP**: https://github.com/RWKV-APP/RWKV_APP (local inference for Android / iOS)
@@ -28,10 +32,6 @@ You are welcome to ask the RWKV community (such as [RWKV discord](https://discor
 * Use correct initialization.
 
 Improving RNNs: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-8.md
-
-Latest RWKV weights: https://huggingface.co/BlinkDL
-
-GGUF: https://huggingface.co/collections/shoumenchougou/rwkv7-gxx-gguf
 
 ===
 
