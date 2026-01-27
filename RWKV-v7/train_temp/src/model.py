@@ -39,36 +39,37 @@ HEAD_SIZE = int(os.environ["RWKV_HEAD_SIZE"])
 
 if 'x070' in os.environ["RWKV_MY_TESTING"]:
     CHUNK_LEN = 16
+    assert HEAD_SIZE == 64 # can change 64 to your HEAD_SIZE
 
-    flags = ['-res-usage', f'-D_C_={HEAD_SIZE}', f"-D_CHUNK_LEN_={CHUNK_LEN}", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization"]
-    load(name="wind_backstepping", sources=[f'cuda/wkv7_cuda.cu', 'cuda/wkv7_op.cpp'], is_python_module=False, verbose=True, extra_cuda_cflags=flags)
+    # check https://github.com/BlinkDL/RWKV-CUDA/blob/main/rwkv7_fast_fused/rwkv7_cuda_benchmark.py
 
-    class WindBackstepping(torch.autograd.Function):
+    flags = ['-res-usage', f'-D_N_={HEAD_SIZE}', f"-D_CHUNK_LEN_={CHUNK_LEN}", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization"]
+    load(name="rwkv7_clampw", sources=[f'cuda/rwkv7_clampw.cu', 'cuda/rwkv7_clampw.cpp'], is_python_module=False, verbose=True, extra_cuda_cflags=flags)
+    class RWKV7_CLAMPW_CUDA_OP(torch.autograd.Function):
         @staticmethod
-        def forward(ctx, w,q,k,v,z,b):
-            B,T,H,C = w.shape 
+        def forward(ctx,r,w,k,v,a,b):
+            B,T,H,N = r.shape 
             assert T%CHUNK_LEN == 0 # if T%CHUNK_LEN != 0: pad your input to T%CHUNK_LEN == 0, or change CHUNK_LEN (will be slower)
-            assert all(i.dtype==torch.bfloat16 for i in [w,q,k,v,z,b])
-            assert all(i.is_contiguous() for i in [w,q,k,v,z,b])
+            assert all(i.dtype==torch.bfloat16 for i in [r,w,k,v,a,b])
+            assert all(i.is_contiguous() for i in [r,w,k,v,a,b])
             y = torch.empty_like(v)
-            s = torch.empty(B,H,T//CHUNK_LEN,C,C, dtype=torch.float32,device=w.device)
-            sa = torch.empty(B,T,H,C, dtype=torch.float32,device=w.device)
-            torch.ops.wind_backstepping.forward(w,q,k,v,z,b, y,s,sa)
-            ctx.save_for_backward(w,q,k,v,z,b,s,sa)
+            s = torch.empty(B,H,T//CHUNK_LEN,N,N, dtype=torch.float32,device=w.device)
+            sa = torch.empty(B,T,H,N, dtype=torch.float32,device=w.device)
+            torch.ops.rwkv7_clampw.forward(r,w,k,v,a,b,y,s,sa)
+            ctx.save_for_backward(r,w,k,v,a,b,s,sa)
             return y
         @staticmethod
-        def backward(ctx, dy):
+        def backward(ctx,dy):
             assert all(i.dtype==torch.bfloat16 for i in [dy])
             assert all(i.is_contiguous() for i in [dy])
-            w,q,k,v,z,b,s,sa = ctx.saved_tensors
-            dw,dq,dk,dv,dz,db = [torch.empty_like(x) for x in [w,q,k,v,z,b]]
-            torch.ops.wind_backstepping.backward(w,q,k,v,z,b, dy,s,sa, dw,dq,dk,dv,dz,db)
-            return dw,dq,dk,dv,dz,db
-
-    def RUN_CUDA_RWKV7g(q,w,k,v,a,b):
-        B,T,HC = q.shape
-        q,w,k,v,a,b = [i.view(B,T,HC//64,64) for i in [q,w,k,v,a,b]]
-        return WindBackstepping.apply(w,q,k,v,a,b).view(B,T,HC)
+            r,w,k,v,a,b,s,sa = ctx.saved_tensors
+            dr,dw,dk,dv,da,db = [torch.empty_like(x) for x in [r,w,k,v,a,b]]
+            torch.ops.rwkv7_clampw.backward(r,w,k,v,a,b,dy,s,sa,dr,dw,dk,dv,da,db)
+            return dr,dw,dk,dv,da,db
+    def RWKV7_CLAMPW_CUDA(r,w,k,v,a,b):
+        B,T,HN = r.shape
+        r,w,k,v,a,b = [i.view(B,T,HN//64,64) for i in [r,w,k,v,a,b]] # can change 64 to your HEAD_SIZE. have to hard-code the number here, or pytorch will complain
+        return RWKV7_CLAMPW_CUDA_OP.apply(r,w,k,v,a,b).view(B,T,HN)
 
 ########################################################################################################
 
@@ -126,7 +127,7 @@ class RWKV_Tmix_x070(MyModule):
             D_DECAY_LORA = max(32, int(round(  (2.5*(C**0.5))  /32)*32)) # suggestion
             self.w1 = nn.Parameter(torch.zeros(C, D_DECAY_LORA))
             self.w2 = nn.Parameter(ortho_init(torch.zeros(D_DECAY_LORA, C), 0.1))
-            self.w0 = nn.Parameter(www.reshape(1,1,C) + 0.5 + zigzag*2.5) # !!! 0.5 comes from F.softplus !!!
+            self.w0 = nn.Parameter(www.reshape(1,1,C) + 0.5 + zigzag*2.5)
 
             D_AAA_LORA = max(32, int(round(  (2.5*(C**0.5))  /32)*32)) # suggestion
             self.a1 = nn.Parameter(torch.zeros(C, D_AAA_LORA))
@@ -173,7 +174,7 @@ class RWKV_Tmix_x070(MyModule):
         xg = x + xx * self.x_g
 
         r = self.receptance(xr)
-        w = -F.softplus(-(self.w0 + torch.tanh(xw @ self.w1) @ self.w2)) - 0.5 # soft-clamp to (-inf, -0.5)
+        w = self.w0 + torch.tanh(xw @ self.w1) @ self.w2 # will be soft-clamped to (-inf, -0.5) and exp(-exp(w)) in RWKV7_CLAMPW_CUDA kernel
         k = self.key(xk)
         v = self.value(xv)
         if self.layer_id == 0:
@@ -187,7 +188,7 @@ class RWKV_Tmix_x070(MyModule):
         kk = F.normalize(kk.view(B,T,H,-1), dim=-1, p=2.0).view(B,T,C)
         k = k * (1 + (a-1) * self.k_a)
 
-        x = RUN_CUDA_RWKV7g(r, w, k, v, -kk, kk*a)
+        x = RWKV7_CLAMPW_CUDA(r, w, k, v, -kk, kk*a)
         x = self.ln_x(x.view(B * T, C)).view(B, T, C)
 
         x = x + ((r.view(B,T,H,-1)*k.view(B,T,H,-1)*self.r_k).sum(dim=-1, keepdim=True) * v.view(B,T,H,-1)).view(B,T,C)

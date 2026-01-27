@@ -210,7 +210,7 @@ if __name__ == "__main__":
 
     rank_zero_info(f"########## Loading {args.load_model}... ##########")
     try:
-        load_dict = torch.load(args.load_model, map_location="cpu")
+        load_dict = torch.load(args.load_model, map_location="cpu", weights_only=True, mmap=True)
         load_keys = list(load_dict.keys())
         for k in load_keys:
             if k.startswith('_forward_module.'):
@@ -226,7 +226,7 @@ if __name__ == "__main__":
                 args.load_model = f"{args.proj_dir}/rwkv-{max_p}.pth"
             args.epoch_begin = max_p + 1
             rank_zero_info(f"Trying {args.load_model}")
-            load_dict = torch.load(args.load_model, map_location="cpu")
+            load_dict = torch.load(args.load_model, map_location="cpu", weights_only=True, mmap=True)
 
     if args.load_partial == 1:
         load_keys = load_dict.keys()
