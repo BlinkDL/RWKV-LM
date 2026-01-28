@@ -135,6 +135,9 @@ your out/....../train_log.txt should have losses similar to:
 ```
 
 RWKV-7 weight example for 1.5B (L24-D2048, vocab 65536):
+
+**Make sure you only apply wd to large tensors (with "wdecay" in comment) here**, or the performance will be much worse.
+
 | name                | shape         | comment      | initialization  |
 |---------------------|---------------|--------------|-----------------|
 | emb.weight          | [65536, 2048] | wdecay       | see code        |
