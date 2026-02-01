@@ -1,4 +1,4 @@
-# RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv" (rʌkuv in IPA), from 4 major params: R W K V)
+<img width="3318" height="2475" alt="image" src="https://github.com/user-attachments/assets/e3ed3ea5-36c5-4799-9435-f35b873a9ccb" /># RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv" (rʌkuv in IPA), from 4 major params: R W K V)
 
 RWKV website: https://rwkv.com (with 150+ papers training various RWKV models)
 
@@ -46,6 +46,12 @@ This is because RWKV-7 is the whole model with carefully set stuffs, including d
 But the price to pay is there is no good simple "RWKV-7 layer" because a pytorch layer can't make sure itself is using correct init and hyperparameters.
 
 So if you need to use RWKV-7 for another task, please study train_temp code (only several hundred lines) and change it to suit you.
+
+See: https://github.com/YS-Tang/RWKV-FLA-comparison
+
+<img width="3318" height="2475" alt="image" src="https://github.com/user-attachments/assets/d9f019c2-a178-4837-8539-3a360c0e6801" />
+
+<img width="2656" height="1956" alt="image" src="https://github.com/user-attachments/assets/871d358b-dcd4-4b86-a04b-45c1bcc910b7" />
 
 ===
 
