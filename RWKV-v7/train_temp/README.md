@@ -44,6 +44,12 @@ But the price to pay is there is no good simple "RWKV-7 layer" because a pytorch
 
 So if you need to use RWKV-7 for another task, please study train_temp code (only several hundred lines) and change it to suit you.
 
+See: https://github.com/YS-Tang/RWKV-FLA-comparison
+
+<img width="3318" height="2475" alt="image" src="https://github.com/user-attachments/assets/d9f019c2-a178-4837-8539-3a360c0e6801" />
+
+<img width="2656" height="1956" alt="image" src="https://github.com/user-attachments/assets/871d358b-dcd4-4b86-a04b-45c1bcc910b7" />
+
 RWKV-7 weight example for 1.5B (L24-D2048, vocab 65536):
 
 **Make sure you only apply wd to large tensors (with "wdecay" in comment) here**, or the performance will be much worse.
