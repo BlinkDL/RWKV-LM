@@ -1,4 +1,4 @@
-<img width="3318" height="2475" alt="image" src="https://github.com/user-attachments/assets/e3ed3ea5-36c5-4799-9435-f35b873a9ccb" /># RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv" (rʌkuv in IPA), from 4 major params: R W K V)
+# RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv" (rʌkuv in IPA), from 4 major params: R W K V)
 
 RWKV website: https://rwkv.com (with 150+ papers training various RWKV models)
 
