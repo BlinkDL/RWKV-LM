@@ -16,6 +16,10 @@ https://github.com/x-0D/RASP
 
 <img src="../RWKV-8-ROSA.png">
 
+260212_rosa1bitLM_L12.py - pure ROSA1bit + FFN (no RWKV), and only trained on minipile (1.5B tokens), yet it can already copy & count (here is completion of "When"):
+
+<img width="1455" height="485" alt="image" src="https://github.com/user-attachments/assets/31be7f4c-211d-45f6-9bc6-9a3a4d60ca95" />
+
 <img src="../RWKV-8-ROSA-260120.png">
 
 251105_reverse_run.py - RWKV7+ROSA with 40K params (L2-D32) reversing 1-60 digits input with 99.8% (can reach 100% if trained longer) digit accuracy:
