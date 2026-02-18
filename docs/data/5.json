@@ -1,0 +1,547 @@
+{
+    "500": {
+        "file_id": 27,
+        "content": "        self.time_mix_r = nn.Parameter(torch.ones(1,1,RWKV_CFG.n_embd))\n        self.key = nn.Linear(RWKV_CFG.n_embd, RWKV_CFG.n_embd, bias=False)\n        self.value = nn.Linear(RWKV_CFG.n_embd, RWKV_CFG.n_embd, bias=False)\n        self.receptance = nn.Linear(RWKV_CFG.n_embd, RWKV_CFG.n_embd, bias=False)\n        self.output = nn.Linear(RWKV_CFG.n_embd, RWKV_CFG.n_embd, bias=False)\n    def forward(self, x):\n        B, T, C = x.size()\n        xx = self.time_shift(x)\n        xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)\n        xv = x * self.time_mix_v + xx * (1 - self.time_mix_v)\n        xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)\n        k = self.key(xk)\n        v = self.value(xv)\n        r = self.receptance(xr)\n        rwkv = torch.sigmoid(r) * RUN_CUDA(B, T, C, self.time_decay, self.time_first, k, v)\n        rwkv = self.output(rwkv)\n        return rwkv\nclass Block(nn.Module):\n    def __init__(self, layer_id):\n        super().__init__()\n        self.layer_id = layer_id\n        self.ln1 = nn.LayerNorm(RWKV_CFG.n_embd)",
+        "type": "code",
+        "location": "/RWKV-v4/src/model_run.py:125-155"
+    },
+    "501": {
+        "file_id": 27,
+        "content": "The code initializes a module with time-based mixing parameters and applies a series of linear transformations to the input. The forward function performs time-shifted operations, then multiplies with learned coefficients for key, value, and receptance components. The results are passed through a sigmoid activation, another layer normalization, and a final linear transformation before returning the final output. This block is part of the RWKV model implementation.",
+        "type": "comment"
+    },
+    "502": {
+        "file_id": 27,
+        "content": "        self.ln2 = nn.LayerNorm(RWKV_CFG.n_embd)\n        if self.layer_id == 0:\n            self.ln0 = nn.LayerNorm(RWKV_CFG.n_embd)\n        if self.layer_id == 0 and RWKV_CFG.model_type == 'RWKV-ffnPre':\n            self.ffnPre = RWKV_ChannelMix(layer_id+1000)\n        else:\n            self.att = RWKV_TimeMix(layer_id)\n        self.ffn = RWKV_ChannelMix(layer_id)\n    def forward(self, x):\n        if self.layer_id == 0:\n            x = self.ln0(x)\n        if self.layer_id == 0 and RWKV_CFG.model_type == 'RWKV-ffnPre':\n            x = x + self.ffnPre(self.ln1(x))\n        else:\n            x = x + self.att(self.ln1(x))\n        x = x + self.ffn(self.ln2(x))\n        return x\nclass RWKV_GPT(nn.Module):\n    def __init__(self, MODEL_NAME, RUN_DEVICE, model_type, vocab_size, n_layer, n_embd, ctx_len):\n        global RWKV_CFG\n        super().__init__()\n        RWKV_CFG.RUN_DEVICE = RUN_DEVICE\n        RWKV_CFG.model_type = model_type\n        RWKV_CFG.vocab_size = vocab_size\n        RWKV_CFG.n_layer = n_layer\n        RWKV_CFG.n_embd = n_embd",
+        "type": "code",
+        "location": "/RWKV-v4/src/model_run.py:156-186"
+    },
+    "503": {
+        "file_id": 27,
+        "content": "This code initializes a RWKV-GPT model instance with specified configuration, and includes layer normalization and different forward pass depending on the layer ID and model type. The forward method performs layer normalization and adds the outputs of specific layers or modules, resulting in the final output.",
+        "type": "comment"
+    },
+    "504": {
+        "file_id": 27,
+        "content": "        RWKV_CFG.ctx_len = ctx_len\n        print('\\nloading RWKV-GPT', MODEL_NAME)\n        self.emb = nn.Embedding(vocab_size, n_embd)\n        self.blocks = nn.Sequential(*[Block(i) for i in range(n_layer)])\n        self.ln_out = nn.LayerNorm(n_embd)\n        self.head = nn.Linear(n_embd, vocab_size, bias=False)\n        if RWKV_HEAD_QK_DIM > 0:\n            self.head_q = nn.Linear(n_embd, RWKV_HEAD_QK_DIM, bias=False)\n            self.head_q.scale_init = 0\n            self.head_k = nn.Linear(n_embd, RWKV_HEAD_QK_DIM, bias=False)\n            self.head_k.scale_init = 0.1\n            self.register_buffer(\"copy_mask\", torch.tril(\n                torch.ones(ctx_len, ctx_len)))\n        self.ctx_len = ctx_len\n        self.eval()\n        self.load_state_dict(torch.load(MODEL_NAME + '.pth'))\n        self.eval()\n    def forward(self, idx):\n        B, T = idx.size()\n        assert T <= self.ctx_len, \"Cannot forward, because len(input) > model ctx_len.\"\n        x = self.emb(idx)\n        x = self.blocks(x)\n        x = self.ln_out(x)",
+        "type": "code",
+        "location": "/RWKV-v4/src/model_run.py:187-217"
+    },
+    "505": {
+        "file_id": 27,
+        "content": "This code initializes an RWKV model, sets its context length, and loads the state dictionary from a saved file. It also includes optional head layers for QK vectors and a copy mechanism. The forward pass performs embedding, passes through blocks, applies layer normalization, and returns the output.",
+        "type": "comment"
+    },
+    "506": {
+        "file_id": 27,
+        "content": "        if RWKV_HEAD_QK_DIM > 0:\n            q = self.head_q(x)[:, :T, :]\n            k = self.head_k(x)[:, :T, :]\n            c = (q @ k.transpose(-2, -1)) * (1.0 / RWKV_HEAD_QK_DIM)\n            c = c.masked_fill(self.copy_mask[:T, :T] == 0, 0)\n            if '32' in os.environ['RWKV_FLOAT_MODE']:\n                c = c @ F.one_hot(idx, num_classes=RWKV_CFG.vocab_size)\n            elif os.environ['RWKV_FLOAT_MODE'] == 'fp16':\n                c = c @ F.one_hot(idx, num_classes=RWKV_CFG.vocab_size).half()\n            elif os.environ['RWKV_FLOAT_MODE'] == 'bf16':\n                c = c @ F.one_hot(idx, num_classes=RWKV_CFG.vocab_size).bfloat16()\n            x = self.head(x) + c\n        else:\n            x = self.head(x)        \n        return x\n############################################################################################################\nclass RWKV_RNN(): # this is running in FP32 at this moment\n    def __init__(self, MODEL_NAME, RUN_DEVICE, model_type, n_layer, n_embd, ctx_len):\n        self.RUN_DEVICE = RUN_DEVICE",
+        "type": "code",
+        "location": "/RWKV-v4/src/model_run.py:219-242"
+    },
+    "507": {
+        "file_id": 27,
+        "content": "This code segment is part of a model training process. It performs a head-multihead attention mechanism and then applies the result to the input. If RWKV_HEAD_QK_DIM is greater than 0, it calculates and applies the attention matrix, otherwise it simply passes through the input. The floating point mode is set based on the environment variable, with options for FP32, FP16, or BF16 precision. The class RWKV_RNN initializes a model with specified parameters like device, model type, number of layers, embedding size, and context length.",
+        "type": "comment"
+    },
+    "508": {
+        "file_id": 27,
+        "content": "        self.model_type = model_type\n        self.n_layer = n_layer\n        self.n_embd = n_embd\n        self.ctx_len = ctx_len\n        self.w = types.SimpleNamespace()\n        w = torch.load(MODEL_NAME + '.pth',\n                       map_location=torch.device(RUN_DEVICE))\n        for x in w.keys():\n            w[x] = w[x].float()\n            if '.time_' in x:\n                w[x] = w[x].squeeze()\n            if '.time_decay' in x:\n                w[x] = -torch.exp(w[x])\n            if DEBUG_TIME and '.time_' in x:\n                print(x, w[x].squeeze().cpu().numpy())\n            xx = x.split('.')\n            here = self.w\n            for i in range(len(xx)):\n                if xx[i].isdigit():\n                    ii = int(xx[i])\n                    if ii not in here:\n                        here[ii] = types.SimpleNamespace()\n                    here = here[ii]\n                else:\n                    if i == len(xx) - 1:\n                        setattr(here, xx[i], w[x])\n                    elif not hasattr(here, xx[i]):",
+        "type": "code",
+        "location": "/RWKV-v4/src/model_run.py:243-272"
+    },
+    "509": {
+        "file_id": 27,
+        "content": "This code loads a pre-trained RWKV-v4 model from a file and assigns the weights to the corresponding layers. It also performs some processing on time-related parameters, such as squeezing them and applying exponential decay. The code then organizes the loaded weights into a nested namespace structure based on their names, following a hierarchical pattern with layer numbers and layer types.",
+        "type": "comment"
+    },
+    "510": {
+        "file_id": 27,
+        "content": "                        if xx[i+1].isdigit():\n                            setattr(here, xx[i], {})\n                        else:\n                            setattr(here, xx[i], types.SimpleNamespace())\n                    here = getattr(here, xx[i])\n        self.clear()\n    def clear(self):\n        self.xx = {}\n        self.aa = {}\n        self.bb = {}\n        self.pp = {}\n        self.hk = None\n    def save(self, target):\n        target.xx = copy.deepcopy(self.xx)\n        target.aa = copy.deepcopy(self.aa)\n        target.bb = copy.deepcopy(self.bb)\n        target.pp = copy.deepcopy(self.pp)\n        target.hk = copy.deepcopy(self.hk)\n    def load(self, target):\n        self.xx = copy.deepcopy(target.xx)\n        self.aa = copy.deepcopy(target.aa)\n        self.bb = copy.deepcopy(target.bb)\n        self.pp = copy.deepcopy(target.pp)\n        self.hk = copy.deepcopy(target.hk)\n    def LN(self, xx, w):\n        return F.layer_norm(xx, (self.n_embd,), weight=w.weight, bias=w.bias)\n    def FF(self, xx, w, name):\n        if name not in self.xx:",
+        "type": "code",
+        "location": "/RWKV-v4/src/model_run.py:273-306"
+    },
+    "511": {
+        "file_id": 27,
+        "content": "This code represents a class that can load, clear, and save various variables (xx, aa, bb, pp). It also contains methods to perform layer normalization (LN) and feed-forward operations (FF). The code uses the `getattr` function to dynamically access attributes based on input, and it initializes certain attributes as SimpleNamespace or empty dictionaries. The `clear`, `save`, and `load` functions are used to manage the state of the class variables.",
+        "type": "comment"
+    },
+    "512": {
+        "file_id": 27,
+        "content": "            self.xx[name] = torch.zeros(self.n_embd, device=self.RUN_DEVICE)\n        xk = xx * w.time_mix_k + self.xx[name] * (1 - w.time_mix_k)\n        xr = xx * w.time_mix_r + self.xx[name] * (1 - w.time_mix_r)\n        self.xx[name] = xx\n        r = torch.sigmoid(w.receptance.weight @ xr)\n        k = torch.square(torch.relu(w.key.weight @ xk))\n        kv = w.value.weight @ k\n        return r * kv\n    def SA(self, xx, w, name):\n        if name not in self.xx:\n            self.xx[name] = torch.zeros(self.n_embd, device=self.RUN_DEVICE)\n            self.aa[name] = torch.zeros(self.n_embd, device=self.RUN_DEVICE)\n            self.bb[name] = torch.zeros(self.n_embd, device=self.RUN_DEVICE)\n            self.pp[name] = torch.zeros(self.n_embd, device=self.RUN_DEVICE) - 1e30\n        xk = xx * w.time_mix_k + self.xx[name] * (1 - w.time_mix_k)\n        xv = xx * w.time_mix_v + self.xx[name] * (1 - w.time_mix_v)\n        xr = xx * w.time_mix_r + self.xx[name] * (1 - w.time_mix_r)\n        self.xx[name] = xx\n        r = torch.sigmoid(w.receptance.weight @ xr)",
+        "type": "code",
+        "location": "/RWKV-v4/src/model_run.py:307-330"
+    },
+    "513": {
+        "file_id": 27,
+        "content": "Code is a part of an attention mechanism in a transformer model. It calculates the key, value and returns a weighted sum. The SA function initializes variables for each name.",
+        "type": "comment"
+    },
+    "514": {
+        "file_id": 27,
+        "content": "        k = w.key.weight @ xk\n        v = w.value.weight @ xv\n        pp = self.pp[name]\n        aa = self.aa[name]\n        bb = self.bb[name]\n        ww = w.time_first + k\n        p = torch.maximum(pp, ww)\n        e1 = torch.exp(pp - p)\n        e2 = torch.exp(ww - p)\n        a = e1 * aa + e2 * v\n        b = e1 * bb + e2\n        ww = pp + w.time_decay\n        p = torch.maximum(ww, k)\n        e1 = torch.exp(ww - p)\n        e2 = torch.exp(k - p)\n        self.aa[name] = e1 * aa + e2 * v\n        self.bb[name] = e1 * bb + e2\n        self.pp[name] = p\n        rwkv = r * a / b\n        return w.output.weight @ rwkv\n    def run(self, ctx):\n        w = self.w\n        x = w.emb.weight[ctx[-1]]\n        for i in range(self.n_layer):\n            if i == 0:\n                x = self.LN(x, w.blocks[i].ln0)\n            if i == 0 and self.model_type == 'RWKV-ffnPre':\n                x = x + self.FF(self.LN(x, w.blocks[i].ln1), w.blocks[i].ffnPre, f'ffnPre.{i}')\n            else:\n                x = x + self.SA(self.LN(x, w.blocks[i].ln1), w.blocks[i].att, f'att.{i}')",
+        "type": "code",
+        "location": "/RWKV-v4/src/model_run.py:332-366"
+    },
+    "515": {
+        "file_id": 27,
+        "content": "Function defines the operation of a RWKV model. It applies layers like LN, FFN, and SA in a loop to transform input x. The function uses variables pp, aa, bb, and ww for intermediate calculations related to time-decaying weights and exponential operations. Output is the weighted sum of input x transformed by the applied layers.",
+        "type": "comment"
+    },
+    "516": {
+        "file_id": 27,
+        "content": "            x = x + self.FF(self.LN(x, w.blocks[i].ln2), w.blocks[i].ffn, f'ffn.{i}')\n        x = self.LN(x, w.ln_out)\n        if RWKV_HEAD_QK_DIM > 0:\n            if self.hk == None:\n                self.hk = (w.head_k.weight @ x).unsqueeze(0)\n            else:\n                self.hk = torch.cat(\n                    [self.hk, (w.head_k.weight @ x).unsqueeze(0)], dim=0)\n            if self.hk.shape[0] > self.ctx_len:\n                self.hk = self.hk[-self.ctx_len:, :]\n            q = w.head_q.weight @ x\n            x = w.head.weight @ x\n            x = x.cpu().numpy().tolist()\n            c = (self.hk @ q) / RWKV_HEAD_QK_DIM\n            for i in range(len(c)):\n                x[ctx[i]] += c[i]\n        else:\n            x = w.head.weight @ x\n            x = x.cpu().numpy().tolist()\n        return x",
+        "type": "code",
+        "location": "/RWKV-v4/src/model_run.py:367-392"
+    },
+    "517": {
+        "file_id": 27,
+        "content": "This code applies a feed-forward network (FFN) and layer normalization (LN) to the input 'x' and updates it based on the context length ('ctx_len'). It also handles the case when RWKV_HEAD_QK_DIM is greater than 0, calculating the head key matrix ('hk') and updating 'x' accordingly. Finally, it returns the updated 'x'.",
+        "type": "comment"
+    },
+    "518": {
+        "file_id": 28,
+        "content": "/RWKV-v4/src/trainer.py",
+        "type": "filepath"
+    },
+    "519": {
+        "file_id": 28,
+        "content": "The code establishes the RWKV Language Model trainer, trains a model with specified parameters, updates optimizer, handles multi-GPU, averages losses, logs progress, and saves states at each epoch.",
+        "type": "summary"
+    },
+    "520": {
+        "file_id": 28,
+        "content": "########################################################################################################\n# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM\n########################################################################################################\nimport os\nNUM_GPUS = int(os.environ['RWKV_NUM_GPUS'])\nUSE_WANDB = (int(os.environ['USE_WANDB']) == 1)\nfrom torch.utils.data.dataloader import DataLoader\nimport torch\nfrom tqdm.auto import tqdm\nimport logging\nimport datetime\nimport math\nfrom pytorch_lightning.lite import LightningLite\nimport gc\nlogger = logging.getLogger(__name__)\ntorch.backends.cudnn.benchmark = True\nif os.environ['RWKV_FLOAT_MODE'] == 'fp32':\n    torch.backends.cudnn.allow_tf32 = False\n    torch.backends.cuda.matmul.allow_tf32 = False\nelse:\n    torch.backends.cudnn.allow_tf32 = True\n    torch.backends.cuda.matmul.allow_tf32 = True\nclass TrainerConfig:\n    batch_size = 64\n    learning_rate = 4e-4\n    betas = (0.9, 0.99)\n    eps = 1e-8\n    grad_norm_clip = 1.0\n    warmup_tokens = 0",
+        "type": "code",
+        "location": "/RWKV-v4/src/trainer.py:1-34"
+    },
+    "521": {
+        "file_id": 28,
+        "content": "This code sets up the trainer configuration for the RWKV Language Model. It defines the batch size, learning rate, optimizer parameters, gradient norm clip, and warmup tokens. The code also ensures proper CUDA backend configurations based on the environment variables.",
+        "type": "comment"
+    },
+    "522": {
+        "file_id": 28,
+        "content": "    final_tokens = 0\n    epoch_save_frequency = 0\n    epoch_save_path = 'trained-'\n    num_workers = 0  # for DataLoader\n    def __init__(self, **kwargs):\n        for k, v in kwargs.items():\n            setattr(self, k, v)\nfrom src.model import GPT, GPTConfig\nclass Trainer(LightningLite):\n    def get_run_name(self):\n        raw_model = self.model.module if hasattr(\n            self.model, \"module\") else self.model\n        cfg = raw_model.config\n        run_name = str(cfg.vocab_size) + '-' + str(cfg.ctx_len) + '-' + \\\n            cfg.model_type + '-' + str(cfg.n_layer) + '-' + str(cfg.n_embd)\n        return run_name\n    def run(self, m_cfg, train_dataset, test_dataset, config):\n        self.cuda_id = int(str(self.device).strip('cuda:'))\n        print('[0]')\n        model = GPT(GPTConfig(train_dataset.vocab_size, train_dataset.ctx_len, model_type=m_cfg.model_type,\n                        n_layer=m_cfg.n_layer, n_embd=m_cfg.n_embd))\n        print('[1]')\n        with torch.no_grad():\n            if m_cfg.LOAD_MODEL:",
+        "type": "code",
+        "location": "/RWKV-v4/src/trainer.py:35-63"
+    },
+    "523": {
+        "file_id": 28,
+        "content": "The code defines a Trainer class that initializes various variables and contains methods for model training. The `get_run_name` method generates the run name based on the model's configuration, `run` method prepares the model, and in this snippet, it checks if a pre-trained model should be loaded.",
+        "type": "comment"
+    },
+    "524": {
+        "file_id": 28,
+        "content": "                print('loading', m_cfg.MODEL_NAME)\n                m2 = torch.load(m_cfg.MODEL_NAME + '.pth', map_location='cpu')\n                model.load_state_dict(m2)\n                del m2\n        model.to(self.device)\n        self.model = model\n        self.train_dataset = train_dataset\n        self.test_dataset = test_dataset\n        self.config = config\n        self.avg_loss = -1\n        self.EPOCH_BEGIN = m_cfg.EPOCH_BEGIN\n        self.steps = self.EPOCH_BEGIN * (len(self.train_dataset) // (config.batch_size // NUM_GPUS))\n        if self.cuda_id == 0:\n            log_file = open(\"mylog.txt\", \"a\")\n            if USE_WANDB:\n                print('logging to wandb... (comment it if you don\\'t have wandb)')\n                import wandb # comment this if you don't have wandb\n                cfg = model.config\n                for k in config.__dict__:\n                    setattr(cfg, k, config.__dict__[k]) # combine cfg\n                wandb.init(project=\"RWKV-LM\", name=self.get_run_name() + '-' + datetime.datetime.today().strftime('%Y-%m-%d-%H-%M-%S'), config=cfg, save_code=False)",
+        "type": "code",
+        "location": "/RWKV-v4/src/trainer.py:64-87"
+    },
+    "525": {
+        "file_id": 28,
+        "content": "Loading model, transferring it to GPU, and initializing logging for training.\nThe code loads the model from a specified file path, transfers it to the device's GPU, and opens a log file if necessary. If WandB is enabled, it initializes WandB with project details and a unique run name based on the current date and time. The configuration is combined and saved without saving the code itself.",
+        "type": "comment"
+    },
+    "526": {
+        "file_id": 28,
+        "content": "        model, config = self.model, self.config\n        raw_model = model.module if hasattr(self.model, \"module\") else model\n        optimizer = raw_model.configure_optimizers(config)\n        model, optimizer = self.setup(model, optimizer)\n        print('[3]')\n        def run_epoch(split):\n            is_train = split == 'train'\n            model.train(is_train)\n            data = self.train_dataset if is_train else self.test_dataset\n            data.idx_begin = self.steps * config.batch_size + 1\n            data.cuda_id = self.cuda_id\n            if config.num_workers > 0:\n                loader = DataLoader(data, shuffle=False, pin_memory=True,\n                                    batch_size=config.batch_size // NUM_GPUS,\n                                    num_workers=config.num_workers)\n            else:\n                loader = DataLoader(data, shuffle=False,\n                                    batch_size=config.batch_size // NUM_GPUS,\n                                    num_workers=config.num_workers)",
+        "type": "code",
+        "location": "/RWKV-v4/src/trainer.py:89-109"
+    },
+    "527": {
+        "file_id": 28,
+        "content": "This code defines a function \"run_epoch\" that takes in a split (train or test) and performs the necessary configurations for training or testing. It sets the model to train mode if split is 'train'. Then, it assigns the corresponding dataset (train or test) to the variable data. The data's idx_begin is set to the current steps multiplied by config.batch_size + 1, and cuda_id is set to self.cuda_id. Finally, it creates a DataLoader for the dataset with specified batch size and number of workers based on config settings.",
+        "type": "comment"
+    },
+    "528": {
+        "file_id": 28,
+        "content": "            pbar = tqdm(enumerate(loader), total=len(\n                loader), bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}') if is_train else enumerate(loader)\n            loader = self.setup_dataloaders(loader)\n            gc.collect()\n            torch.cuda.empty_cache()\n            for it, (x, y) in pbar:\n                with torch.set_grad_enabled(is_train):\n                    loss = model(x, y) # forward the model\n                if os.environ['RWKV_DEEPSPEED'] == '0':\n                    all_loss = [loss.clone()]\n                else:\n                    all_loss = [loss.clone() for _ in range(NUM_GPUS)]\n                    torch.distributed.all_gather(all_loss, loss)\n                if is_train:  # backprop and update the parameters\n                    model.zero_grad()\n                    self.backward(loss)\n                    # deepspeed will handle gradient_clipping\n                    optimizer.step()\n                    # decay the learning rate based on our progress\n                    self.tokens += (y >= 0).sum() # number of tokens processed this step (i.e. label is not -100)",
+        "type": "code",
+        "location": "/RWKV-v4/src/trainer.py:111-136"
+    },
+    "529": {
+        "file_id": 28,
+        "content": "This code sets up a dataloader and trains an RWKV model. It iterates over the dataloader, forwards data through the model, calculates loss, and performs backpropagation if training. Depending on the DEEPSPEED environment variable, it handles all_gather for multi-GPU scenarios. Finally, it updates the optimizer and decay the learning rate based on progress.",
+        "type": "comment"
+    },
+    "530": {
+        "file_id": 28,
+        "content": "                    lr_final_factor = config.lr_final / config.learning_rate\n                    if self.tokens < config.warmup_tokens:\n                        # linear warmup\n                        lr_mult = lr_final_factor + \\\n                            (1 - lr_final_factor) * float(self.tokens) / \\\n                            float(config.warmup_tokens)\n                        progress = 0\n                    else:\n                        # exponential learning rate decay\n                        progress = float(self.tokens - config.warmup_tokens) / float(max(1, config.final_tokens - config.warmup_tokens))\n                        if progress >= 1:\n                            lr_mult = lr_final_factor\n                        else:\n                            lr_mult = math.exp(math.log(lr_final_factor) * pow(progress, 1))\n                    lr = config.learning_rate * lr_mult\n                    for param_group in optimizer.param_groups:\n                        param_group['lr'] = lr\n                    self.lr = lr",
+        "type": "code",
+        "location": "/RWKV-v4/src/trainer.py:137-156"
+    },
+    "531": {
+        "file_id": 28,
+        "content": "This code determines the learning rate (lr) for training a model using the RWKV algorithm. It uses config parameters such as lr_final, learning_rate, warmup_tokens, and final_tokens to calculate the learning rate based on whether the current token count is in the warm-up phase or not. If in the warm-up phase (tokens < warmup_tokens), it performs linear interpolation. If past warm-up phase, it does exponential decay. The calculated lr is then applied to optimizer's param_groups and stored in self.lr.",
+        "type": "comment"
+    },
+    "532": {
+        "file_id": 28,
+        "content": "                    self.steps += 1\n                    now_loss = 0\n                    for gg in range(NUM_GPUS):\n                        now_loss += all_loss[gg].item()\n                    now_loss = now_loss / NUM_GPUS # report progress                    \n                    if USE_WANDB and self.cuda_id == 0:\n                        wandb.log({\"loss\": now_loss}, step = self.steps)\n                    if self.avg_loss < 0:\n                        self.avg_loss = now_loss\n                    else:\n                        factor = 1 / (it + 1)\n                        self.avg_loss = self.avg_loss * (1.0 - factor) + now_loss * factor\n                    pbar.set_description(f\"miniE {epoch+1+self.EPOCH_BEGIN} s {self.steps} prog {progress*100.0:.2f}% : ppl {math.exp(self.avg_loss):.6f} loss {self.avg_loss:.6f} lr {lr:e}\")\n        self.tokens = 0  # counter used for learning rate decay\n        for epoch in range(99999999):\n            run_epoch('train')\n            if math.isnan(self.avg_loss):\n                exit(0)",
+        "type": "code",
+        "location": "/RWKV-v4/src/trainer.py:157-179"
+    },
+    "533": {
+        "file_id": 28,
+        "content": "The code calculates the average loss over multiple GPUs, updates a moving average of the loss, logs the current loss to Wandb (if applicable), and sets the progress description. It also resets the tokens counter for learning rate decay and runs an epoch.",
+        "type": "comment"
+    },
+    "534": {
+        "file_id": 28,
+        "content": "            if self.cuda_id == 0:\n                log_file.write(f'{epoch+1+self.EPOCH_BEGIN} {self.avg_loss:.6f} {math.exp(self.avg_loss):.4f} {self.lr:.8f} {datetime.datetime.now()} {epoch+1} \\n')\n                log_file.flush()\n                if (self.config.epoch_save_frequency > 0 and epoch % self.config.epoch_save_frequency == 0) or (epoch == config.max_epochs - 1):\n                    raw_model = self.model.module if hasattr(self.model, \"module\") else self.model\n                    torch.save(raw_model.state_dict(), self.config.epoch_save_path + str(epoch+1+self.EPOCH_BEGIN) + '.pth')",
+        "type": "code",
+        "location": "/RWKV-v4/src/trainer.py:181-187"
+    },
+    "535": {
+        "file_id": 28,
+        "content": "This code snippet saves the model's state every time an epoch ends, or if the current epoch is a multiple of `config.epoch_save_frequency`. If using GPU, it saves the model's state dict as a .pth file with the epoch number in the filename and path specified by `config.epoch_save_path`. Additionally, it logs loss values during each epoch.",
+        "type": "comment"
+    },
+    "536": {
+        "file_id": 29,
+        "content": "/RWKV-v4/src/utils.py",
+        "type": "filepath"
+    },
+    "537": {
+        "file_id": 29,
+        "content": "The code imports libraries, defines a Dataset class for data handling, sets vocabulary size, generates unique tokens, maps characters to integers, prints data and token sizes, initializes a tokenizer, calculates dataset length, samples logits, applies softmax with soft constraints on newlines, includes \"probs_sample\" function, converts tensor to float value, and sets random seeds for Python, numpy, and PyTorch.",
+        "type": "summary"
+    },
+    "538": {
+        "file_id": 29,
+        "content": "########################################################################################################\n# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM\n########################################################################################################\nimport os\ntry:\n    NUM_GPUS = int(os.environ['RWKV_NUM_GPUS'])\nexcept:\n    NUM_GPUS = 1\nimport json\nimport random\nimport numpy as np\nimport torch\nfrom torch.nn import functional as F\nfrom torch.utils.data import Dataset\nclass Dataset(Dataset):\n    def __init__(self, data, ctx_len, epoch_length_fixed):\n        self.ctx_len = ctx_len\n        self.epoch_length_fixed = epoch_length_fixed\n        self.data = data\n        if 'MMapIndexedDataset' in str(type(self.data)):\n            self.vocab_size = int(os.environ['VOCAB_SIZE'])\n            print('current vocab size =', self.vocab_size, \"(make sure it's correct)\")\n            self.data_size = len(self.data._bin_buffer) // 2\n            print(f'data has {self.data_size} tokens.')\n        elif 'numpy' in str(type(self.data)):",
+        "type": "code",
+        "location": "/RWKV-v4/src/utils.py:1-29"
+    },
+    "539": {
+        "file_id": 29,
+        "content": "The code is importing necessary libraries and defining a class Dataset for handling data. It checks the number of GPUs, reads input data, and determines the vocabulary size. It prints current vocabulary size and data token count for verification.",
+        "type": "comment"
+    },
+    "540": {
+        "file_id": 29,
+        "content": "            self.vocab_size = int(os.environ['VOCAB_SIZE'])\n            print('current vocab size =', self.vocab_size, \"(make sure it's correct)\")\n            self.data_size = len(self.data)\n            print(f'data has {self.data_size} tokens.')\n        else:\n            print('building token list...', end=' ')\n            unique = sorted(list(set(data)))\n            self.vocab_size = len(unique)\n            # print()\n            # for u in unique:\n            #     print(u, end=' ')\n            # print('\\n\\n')\n            xx = 0\n            xxObj = {}\n            for u in unique:\n                xxObj[xx] = u\n                xx += 1\n            with open('vocab.json', \"w\", encoding=\"utf-16\") as vocab_file:\n                vocab_file.write(json.dumps(xxObj, ensure_ascii=False))\n            self.data_size = len(self.data)\n            print('data has %d tokens, %d unique.' % (self.data_size, self.vocab_size))\n            self.stoi = {ch: i for i, ch in enumerate(unique)}\n            self.itos = {i: ch for i, ch in enumerate(unique)}",
+        "type": "code",
+        "location": "/RWKV-v4/src/utils.py:30-53"
+    },
+    "541": {
+        "file_id": 29,
+        "content": "This code sets the vocabulary size based on environment variable 'VOCAB_SIZE'. If the size is not specified, it generates a unique token list from data and stores it in 'vocab.json', then calculates the vocabulary and data sizes. It also maps characters to unique integers and inverse mapping. Finally, it prints the data size and number of unique tokens.",
+        "type": "comment"
+    },
+    "542": {
+        "file_id": 29,
+        "content": "    def __len__(self):\n        return self.epoch_length_fixed // NUM_GPUS\n    def __getitem__(self, idx):\n        #\n        # we are cheating: pick a random spot in dataset\n        #\n        i = np.random.randint(0, self.data_size - (self.ctx_len + 1))\n        if 'MMapIndexedDataset' in str(type(self.data)):\n            dix = self.data.get(idx=0, offset=i, length=self.ctx_len + 1).astype(int)\n        elif 'numpy' in str(type(self.data)):\n            dix = self.data[i:i+self.ctx_len+1]\n        else:\n            dix = [self.stoi[s] for s in self.data[i:i+self.ctx_len+1]]\n        x = torch.tensor(dix[:-1], dtype=torch.long)\n        y = torch.tensor(dix[1:], dtype=torch.long)\n        return x, y\nclass TOKENIZER():\n    def __init__(self, WORD_NAME, UNKNOWN_CHAR='\\ue083'):\n        if 'list' in str(type(WORD_NAME)):\n            self.charMode = False\n            if WORD_NAME[0] == WORD_NAME[1]:\n                from transformers import PreTrainedTokenizerFast\n                self.tokenizer = PreTrainedTokenizerFast(tokenizer_file=WORD_NAME[0])",
+        "type": "code",
+        "location": "/RWKV-v4/src/utils.py:55-81"
+    },
+    "543": {
+        "file_id": 29,
+        "content": "This code defines a class that initializes a tokenizer using pre-trained word embeddings. It also includes methods to calculate the length and retrieve items from the dataset, handling different data types like MMapIndexedDataset or numpy arrays. The tokenizer is initialized with a list of words or a PreTrainedTokenizerFast instance based on the input argument.",
+        "type": "comment"
+    },
+    "544": {
+        "file_id": 29,
+        "content": "            else:\n                from transformers import GPT2TokenizerFast\n                self.tokenizer = GPT2TokenizerFast(WORD_NAME[0], WORD_NAME[1])\n            self.vocab_size = len(self.tokenizer)\n        else:\n            self.charMode = True\n            with open(WORD_NAME + '.json', \"r\", encoding=\"utf-16\") as result_file:\n                self.word_table = json.load(result_file)\n            self.vocab_size = len(self.word_table)\n            self.stoi = {v: int(k) for k, v in self.word_table.items()}\n            self.itos = {int(k): v for k, v in self.word_table.items()}\n            self.UNKNOWN_CHAR = self.stoi[UNKNOWN_CHAR]\n    def refine_context(self, context):\n        context = context.strip().split('\\n')\n        for c in range(len(context)):\n            context[c] = context[c].strip().strip('\\u3000').strip('\\r')\n        context = list(filter(lambda c: c != '', context))\n        context = '\\n' + ('\\n'.join(context)).strip()\n        if context == '':\n            context = '\\n'\n        return context",
+        "type": "code",
+        "location": "/RWKV-v4/src/utils.py:82-106"
+    },
+    "545": {
+        "file_id": 29,
+        "content": "This code checks if a tokenizer or word table is provided, initializes them accordingly and sets the vocabulary size. It also refines the context input by stripping unnecessary characters and returning an empty string if no content is found.",
+        "type": "comment"
+    },
+    "546": {
+        "file_id": 29,
+        "content": "    def sample_logits(self, out, x, ctx_len, temperature=1.0, top_p_usual=None, top_p_newline=None):\n        # out[self.UNKNOWN_CHAR] = -float('Inf')\n        lastChar = int(x[-1])\n        probs = F.softmax(torch.tensor(out), dim=-1)\n        if self.charMode:\n            if self.itos[lastChar] == '\\n':\n                top_p = top_p_newline\n            else:\n                top_p = top_p_usual\n        else:\n            top_p = top_p_usual\n        sorted_probs, s_index = torch.sort(probs, descending=True)\n        # for j in range(30):\n        #     pp = sorted_probs[j].item()\n        #     if pp < 0.005:\n        #         break\n        #     ss = self.itos[int(s_index[j])].replace('\\n','_')\n        #     print(f'{math.floor(pp*100):>3.0f}{ss}', end='')\n        # print('')\n        cumulative_probs = torch.cumsum(sorted_probs, dim=-1).numpy()\n        cutoff = float(sorted_probs[np.argmax(cumulative_probs > top_p)])\n        probs[probs < cutoff] = 0\n        # print(\"[\" + str(round(cutoff,4)) + ' ' + str(round(to_float(sum(probs)),3)) + \"]\", end = \"\")",
+        "type": "code",
+        "location": "/RWKV-v4/src/utils.py:108-137"
+    },
+    "547": {
+        "file_id": 29,
+        "content": "This function samples logits from the output of the model and applies softmax to obtain probabilities. It handles newlines by changing the top_p value when last character is a newline, otherwise it uses top_p_usual. It then sorts probabilities in descending order, finds the cutoff for sampling, and sets probabilities below this cutoff to 0.",
+        "type": "comment"
+    },
+    "548": {
+        "file_id": 29,
+        "content": "        if temperature != 1.0:\n            probs = probs.pow(1.0 / temperature)\n        return torch.multinomial(probs, num_samples=1)[0]\ndef to_float(x):\n    return x.cpu().detach().numpy().flatten()[0].astype(float)\ndef set_seed(seed):\n    random.seed(seed)\n    np.random.seed(seed)\n    torch.manual_seed(seed)\n    torch.cuda.manual_seed_all(seed)",
+        "type": "code",
+        "location": "/RWKV-v4/src/utils.py:139-153"
+    },
+    "549": {
+        "file_id": 29,
+        "content": "This code snippet contains three functions: \"probs_sample\" which samples one sample from the multinomial distribution if temperature is not 1, \"to_float\" that converts a tensor to a float value, and \"set_seed\" for setting random seeds in Python, numpy, and PyTorch.",
+        "type": "comment"
+    },
+    "550": {
+        "file_id": 30,
+        "content": "/RWKV-v4/train.py",
+        "type": "filepath"
+    },
+    "551": {
+        "file_id": 30,
+        "content": "The code sets up a RWKV model trainer, configures the Trainer object with DeepSpeed, and enables FP16 mode for efficient RWKV-v4 language model training.",
+        "type": "summary"
+    },
+    "552": {
+        "file_id": 30,
+        "content": "########################################################################################################\n# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM\n########################################################################################################\nimport os\nimport logging, types\nfrom src.utils import Dataset\nimport torch\nimport numpy as np\nfrom src.binidx import MMapIndexedDataset\nnp.set_printoptions(precision=4, suppress=True, linewidth=200)\nlogging.basicConfig(format=\"%(asctime)s - %(levelname)s - %(name)s - %(message)s\",\n                    datefmt=\"%Y-%m-%d %H:%M:%S\", level=logging.INFO,)\n# if False: # True False ---> Set to False if you don't understand it\n#     print(\"\\n\\n[[[ SPECIAL DEBUG MODE FOR MYSELF. DON'T ENABLE THIS IF YOU DON'T UNDERSTAND IT ]]]\\n\\n\")\n#     import src.utils\n#     src.utils.set_seed(42) # make training deterministic (including dataloader). if you are doing this, remember to change seed when you load a model (otherwise the dataloader loads old samples)",
+        "type": "code",
+        "location": "/RWKV-v4/train.py:1-19"
+    },
+    "553": {
+        "file_id": 30,
+        "content": "This code is an import section for a language model, specifically RWKV-v4. It sets up logging, imports necessary modules, and includes options to set debug mode or seed the training process for determinism. The code is part of the 'train.py' file in the RWKV-LM repository.",
+        "type": "comment"
+    },
+    "554": {
+        "file_id": 30,
+        "content": "########################################################################################################\n# Step 1: set training data & cfg\n########################################################################################################\nEXPRESS_PILE_MODE = False # True: express mode for fine-tuning a pile model // False: usual training\nEXPRESS_PILE_MODEL_NAME = 'RWKV-4-Pile-169M-20220807-8023'\nEXPRESS_PILE_MODEL_TYPE = 'RWKV-4-Pile-169M'\n# EXPRESS_PILE_MODEL_NAME = 'RWKV-4-Pile-430M-20220808-8066'\n# EXPRESS_PILE_MODEL_TYPE = 'RWKV-4-Pile-430M'\n# EXPRESS_PILE_MODEL_NAME = 'RWKV-4-Pile-1B5-20220903-8040'\n# EXPRESS_PILE_MODEL_TYPE = 'RWKV-4-Pile-1B5'\n########################################################################################################\ndatafile = \"../data/enwik8\" # your data\ndatafile_encoding = 'utf-8' # 'utf-8' / 'utf-16le' / 'numpy' (for fine-tuning pile models) / 'binidx' (the Megatron-LM 'binidx' format)\n# datafile = 'my-gpt_seq_document'\n# datafile_encoding = 'binidx'\nif EXPRESS_PILE_MODE:",
+        "type": "code",
+        "location": "/RWKV-v4/train.py:21-42"
+    },
+    "555": {
+        "file_id": 30,
+        "content": "This code sets the training data and configuration for a text generation model. It uses the RWKV-LM's Pile model and can be fine-tuned with different model names and types. The datafile specifies where to find the training data, and datafile_encoding specifies the file encoding format. If EXPRESS_PILE_MODE is True, the code uses a specific pile model for fine-tuning.",
+        "type": "comment"
+    },
+    "556": {
+        "file_id": 30,
+        "content": "    datafile = 'train.npy' # use 'prepare-data.py' in https://github.com/BlinkDL/RWKV-v2-RNN-Pile/tree/main/RWKV-v3 to tokenize .txt into .npy\n    datafile_encoding = 'numpy'\n#\n# set VOCAB_SIZE = 0 (auto-compute) if you are training a char-level LM from scratch\n# set VOCAB_SIZE = 50277 for fine-tuning pile models\n# set VOCAB_SIZE = your_vocab_size for 'binidx' data\n#\nos.environ['VOCAB_SIZE'] = '0'\nif EXPRESS_PILE_MODE:\n    os.environ['VOCAB_SIZE'] = '50277'\n#\n# Currently it's slow to initialize a new model. Hence I suggest this procedure for multi-GPU training:\n# 1) set RWKV_NUM_GPUS = '1' and let it run for 1 miniEpoch and it will save a trained-1.pth\n# 2) set RWKV_NUM_GPUS = '8' (or your #GPU), batch_size = single_gpu_batchsz * RWKV_NUM_GPUS,\n#    EPOCH_BEGIN = 1, LOAD_MODEL = True, and it will load 'trained-1.pth' and continue the training from it\n#\nos.environ['RWKV_NUM_GPUS'] = '1' # num of GPUs to use\n#\n# 'bf16' (fast & stable)\n# 'fp16' (fast & will overflow after training a large model for very long. can be solved in the future)",
+        "type": "code",
+        "location": "/RWKV-v4/train.py:43-65"
+    },
+    "557": {
+        "file_id": 30,
+        "content": "This code sets the datafile, datafile_encoding, and VOCAB_SIZE environment variables for RWKV-v4 training. It also suggests a procedure for multi-GPU training involving setting RWKV_NUM_GPUS and other parameters. The supported precisions are 'bf16' and 'fp16'.",
+        "type": "comment"
+    },
+    "558": {
+        "file_id": 30,
+        "content": "# 'tf32' (decent speed & stable)\n# 'fp32' (!!!very slow!!! only for verification)\nos.environ['RWKV_FLOAT_MODE'] = 'bf16'\nos.environ['RWKV_DEEPSPEED'] = '1' # Use DeepSpeed? 0 = False, 1 = True\nif int(os.environ['RWKV_NUM_GPUS']) == 1: # Usually you don't need DeepSpeed for 1 GPU training.\n    os.environ['RWKV_DEEPSPEED'] = '0'    # However, sometimes DeepSpeed saves VRAM even for 1 GPU training. So you shall try it.\nos.environ['USE_WANDB'] = '0' # wandb logging. 0 = False, 1 = True\n########################################################################################################\n# Step 2: set model details\n########################################################################################################\nEPOCH_BEGIN = 0 # begins with miniEpoch = EPOCH_BEGIN\nLOAD_MODEL = False # shall we load the #EPOCH_BEGIN model and continue the training from it?\nn_layer = 6\nn_embd = 512\nctx_len = 1024 # increase T_MAX in src/model.py if your ctx_len is longer\nmodel_type = 'RWKV' # 'RWKV' or 'RWKV-ffnPre' (sometimes better)",
+        "type": "code",
+        "location": "/RWKV-v4/train.py:66-88"
+    },
+    "559": {
+        "file_id": 30,
+        "content": "The code is setting the environment variables for the training process. It allows choosing different float modes and deciding whether to use DeepSpeed for improved efficiency or not. Additionally, it sets the model details such as number of layers, embedding size, and context length.",
+        "type": "comment"
+    },
+    "560": {
+        "file_id": 30,
+        "content": "# there is also a RWKV_HEAD_QK_DIM in model.py and model_run.py\n# set it to 256, then it's using my headQK trick (a tiny attention) to improve loss\n# set it to 0, then it's a pure RNN (attention-free)\nif EXPRESS_PILE_MODE:\n    LOAD_MODEL = True\n    if EXPRESS_PILE_MODEL_TYPE == 'RWKV-4-Pile-169M':\n        n_layer = 12\n        n_embd = 768\n        ctx_len = 1024\n    elif EXPRESS_PILE_MODEL_TYPE == 'RWKV-4-Pile-430M':\n        n_layer = 24\n        n_embd = 1024\n        ctx_len = 1024\n    elif EXPRESS_PILE_MODEL_TYPE == 'RWKV-4-Pile-1B5':\n        n_layer = 24\n        n_embd = 2048\n        ctx_len = 1024\n########################################################################################################\n# Step 3: set batch size & learning rate etc.\n########################################################################################################\n# if you see \"CUDA out of memory\", reduce batch_size. Use nvidia-smi to find the highest value for your GPU.\nbatch_size = 12 * int(os.environ['RWKV_NUM_GPUS'])",
+        "type": "code",
+        "location": "/RWKV-v4/train.py:90-114"
+    },
+    "561": {
+        "file_id": 30,
+        "content": "The code is setting the hyperparameters and model configuration for the RWKV-v4 language model based on the chosen EXPRESS_PILE_MODEL_TYPE. It defines the number of layers, embedding dimension, context length, and batch size according to the selected model type. The code also advises reducing the batch size if encountering \"CUDA out of memory\" error.",
+        "type": "comment"
+    },
+    "562": {
+        "file_id": 30,
+        "content": "assert (batch_size % int(os.environ['RWKV_NUM_GPUS']) == 0)\n# By default we are using exponential LR decay.\n# Here are my suggestions for training.\n# Let's say you are training a L6-D512 model.\n# 1) Set lr_init = lr_final = 8e-4. Let it run for some mini-epochs, until you feel like reducing LR.\n# 2) Check epoch_save_frequency and make sure the partially-trained model is saved. Ctrl+C to stop the run.\n# 3) Set lr_init = 8e-4, lr_final = 1e-5, betas = (0.9, 0.999).\n# 4) Set EPOCH_BEGIN & LOAD_MODEL to load the partially-trained model. Continue the training.\n# \n# For L12-D768, set lr_init = 6e-4. For L24-D1024, set lr_init = 4e-4. For L24-D2048, set lr_init = 3e-4.\nlr_init = 8e-4\nlr_final = 1e-5\n# the mini-epoch is very short and of fixed length (length = ctx_len * epoch_length_fixed tokens)\nn_epoch = 500\nepoch_length_fixed = (10000 // batch_size) * batch_size # feel free to increase it if you have lots of GPU\n# epoch_save_frequency 0 = never, 1 = every mini-epoch, 2 = every two mini-epochs, ...\nepoch_save_frequency = 10",
+        "type": "code",
+        "location": "/RWKV-v4/train.py:115-135"
+    },
+    "563": {
+        "file_id": 30,
+        "content": "The code provides suggestions for training an RWKV-v4 model. It recommends setting the initial and final learning rates (lr_init and lr_final) based on the model size, saving partially trained models with epoch_save_frequency, and adjusting the epoch length and batch size according to available GPU resources.",
+        "type": "comment"
+    },
+    "564": {
+        "file_id": 30,
+        "content": "epoch_save_path = 'trained-'\nif EXPRESS_PILE_MODE:\n    if EXPRESS_PILE_MODEL_TYPE == 'RWKV-4-Pile-169M':\n        lr_init = 2e-5\n    else:\n        lr_init = 1e-5\n    lr_final = 1e-5\n    n_epoch = 100000\n### misc stuffs ########################################################################################\nif LOAD_MODEL and EPOCH_BEGIN > 0: # we are not saving gradients, so let's have some warmup if we load a model\n    warmup_tokens = 50 * ctx_len * batch_size // NUM_GPUS\nelse:\n    warmup_tokens = 0\nbetas = (0.9, 0.99) # set betas = (0.9, 0.999) if your model has been trained for a while\neps = 1e-8\nnum_workers = 1 # DataLoader worker. I only tested num_workers = 1\nNUM_GPUS = int(os.environ['RWKV_NUM_GPUS'])\nos.environ['RWKV_LOAD_MODEL'] = str(LOAD_MODEL)\nMODEL_NAME = epoch_save_path + str(EPOCH_BEGIN)\nif EXPRESS_PILE_MODE:\n    betas = (0.9, 0.999)\n    MODEL_NAME = EXPRESS_PILE_MODEL_NAME\ntorch.backends.cudnn.benchmark = True\nif os.environ['RWKV_FLOAT_MODE'] == 'fp32':\n    torch.backends.cudnn.allow_tf32 = False",
+        "type": "code",
+        "location": "/RWKV-v4/train.py:136-168"
+    },
+    "565": {
+        "file_id": 30,
+        "content": "This code sets up various parameters for model training, such as learning rate, epoch number, warmup tokens, betas for optimizer, epsilon, number of data loader workers, and number of GPUs. It also configures some environment variables and enables CUDA benchmarking based on the floating point mode. The code then assigns a model name based on the epoch number or the express pile mode if enabled.",
+        "type": "comment"
+    },
+    "566": {
+        "file_id": 30,
+        "content": "    torch.backends.cuda.matmul.allow_tf32 = False\nelse:\n    torch.backends.cudnn.allow_tf32 = True\n    torch.backends.cuda.matmul.allow_tf32 = True\n########################################################################################################\n# Load data\n########################################################################################################\nprint(f'loading {datafile_encoding} data... ' + datafile)\nif datafile_encoding == 'binidx':\n    train_dataset = Dataset(MMapIndexedDataset(datafile), ctx_len, epoch_length_fixed)\nelif datafile_encoding == 'numpy':\n    train_dataset = Dataset(np.load(datafile).astype('int'), ctx_len, epoch_length_fixed)\nelse:\n    train_dataset = Dataset(open(datafile, \"r\", encoding=datafile_encoding).read(), ctx_len, epoch_length_fixed)\n########################################################################################################\n# Train model\n########################################################################################################\nif __name__ == '__main__':",
+        "type": "code",
+        "location": "/RWKV-v4/train.py:169-190"
+    },
+    "567": {
+        "file_id": 30,
+        "content": "Loading and preparing data for training the model, with support for different data file formats (binidx, numpy, or text file). Ensures CUDA and cudnn settings are properly configured based on the environment.",
+        "type": "comment"
+    },
+    "568": {
+        "file_id": 30,
+        "content": "    from src.trainer import Trainer, TrainerConfig\n    print('\\nmodel', model_type, os.environ['RWKV_FLOAT_MODE'], 'epoch', n_epoch, 'batchsz', batch_size, 'betas',\n          betas, 'eps', eps, 'ctx', ctx_len, 'layer', n_layer, 'embd', n_embd, '\\n')\n    tconf = TrainerConfig(model_type=model_type, max_epochs=n_epoch, batch_size=batch_size,\n                          learning_rate=lr_init, lr_decay=True, lr_final=lr_final, betas=betas, eps=eps,\n                          warmup_tokens=warmup_tokens, final_tokens=n_epoch*len(train_dataset)*ctx_len, num_workers=num_workers, epoch_save_frequency=epoch_save_frequency, epoch_save_path=epoch_save_path)\n    m_cfg = types.SimpleNamespace()\n    m_cfg.model_type = model_type\n    m_cfg.n_layer = n_layer\n    m_cfg.n_embd = n_embd\n    m_cfg.EPOCH_BEGIN = EPOCH_BEGIN\n    m_cfg.LOAD_MODEL = LOAD_MODEL\n    m_cfg.MODEL_NAME = MODEL_NAME\n    if os.environ['RWKV_DEEPSPEED'] == '0':\n        if os.environ['RWKV_FLOAT_MODE'] == 'fp16':\n            trainer = Trainer(devices=NUM_GPUS, accelerator=\"gpu\", precision=16)            ",
+        "type": "code",
+        "location": "/RWKV-v4/train.py:191-209"
+    },
+    "569": {
+        "file_id": 30,
+        "content": "This code sets up a trainer for the RWKV model. It prints out information such as the model type, float mode, epoch count, and other relevant parameters before configuring the Trainer object with these details. The code also checks if DeepSpeed should be used based on an environment variable and sets up the Trainer accordingly, using either FP16 precision for GPU acceleration or regular floating point precision for CPU-only execution.",
+        "type": "comment"
+    },
+    "570": {
+        "file_id": 30,
+        "content": "        elif os.environ['RWKV_FLOAT_MODE'] == 'bf16':\n            trainer = Trainer(devices=NUM_GPUS, accelerator=\"gpu\", precision='bf16')\n        elif '32' in os.environ['RWKV_FLOAT_MODE']:\n            trainer = Trainer(devices=NUM_GPUS, accelerator=\"gpu\", precision=32)\n    else:\n        from pytorch_lightning.strategies import DeepSpeedStrategy\n        DEEPSPEED_CFG = {\n            \"zero_allow_untested_optimizer\":True,\n            \"zero_optimization\":{\n                \"stage\":2,\n                \"contiguous_gradients\":True,\n                \"overlap_comm\":True,\n                \"allgather_partitions\":True,\n                \"reduce_scatter\":True,\n                \"allgather_bucket_size\":200000000,\n                \"reduce_bucket_size\":200000000,\n                \"sub_group_size\":1000000000000\n            },\n            \"activation_checkpointing\":{\n                \"partition_activations\":False,\n                \"cpu_checkpointing\":False,\n                \"contiguous_memory_optimization\":False,\n                \"synchronize_checkpoint_boundary\":False",
+        "type": "code",
+        "location": "/RWKV-v4/train.py:210-233"
+    },
+    "571": {
+        "file_id": 30,
+        "content": "This code checks the value of the environment variable \"RWKV_FLOAT_MODE\" to determine the trainer type and precision for training. If it's 'bf16', a GPU trainer with bf16 precision is used, otherwise if it contains '32', a GPU trainer with 32-bit precision is used. Otherwise, a DeepSpeedStrategy is imported, and its configuration is set up for further optimization during the training process.",
+        "type": "comment"
+    },
+    "572": {
+        "file_id": 30,
+        "content": "            },\n            \"aio\":{\n                \"block_size\":1048576,\n                \"queue_depth\":8,\n                \"single_submit\":False,\n                \"overlap_events\":True,\n                \"thread_count\":1\n            },\n            \"gradient_clipping\": 1.0,\n            \"gradient_accumulation_steps\": 1,\n        }\n        if NUM_GPUS == 1:\n            DEEPSPEED_CFG['zero_optimization'] = {\n                \"stage\":1, # saves some VRAM\n                \"contiguous_gradients\":False,\n                \"overlap_comm\":False,\n                \"allgather_partitions\":False,\n                \"reduce_scatter\":False,\n                \"allgather_bucket_size\":200000000,\n                \"reduce_bucket_size\":200000000,\n                \"sub_group_size\":1000000000000\n            }\n        if os.environ['RWKV_FLOAT_MODE'] == 'fp16':\n            DEEPSPEED_CFG[\"fp16\"] = {\n                \"fp16\": True,\n                \"enabled\": True,\n                \"loss_scale\": 0,\n                \"initial_scale_power\": 12,\n                \"loss_scale_window\": 1000,",
+        "type": "code",
+        "location": "/RWKV-v4/train.py:234-263"
+    },
+    "573": {
+        "file_id": 30,
+        "content": "This code configures DeepSpeed settings for RWKV-v4 model training. It includes various options such as block size, queue depth, and overlap events for the aio section, gradient clipping and accumulation steps, and DeepSpeed optimization settings like stage, contiguous gradients, and bucket sizes when using 1 GPU. Additionally, it enables FP16 mode if RWKV_FLOAT_MODE is set to 'fp16'.",
+        "type": "comment"
+    },
+    "574": {
+        "file_id": 30,
+        "content": "                \"hysteresis\": 2,\n                \"min_loss_scale\": 1\n            }\n            trainer = Trainer(strategy=DeepSpeedStrategy(config=DEEPSPEED_CFG), devices=NUM_GPUS, accelerator=\"gpu\", precision=16)\n        elif os.environ['RWKV_FLOAT_MODE'] == 'bf16':\n            DEEPSPEED_CFG[\"bf16\"] = {\n                \"enabled\": True\n            }\n            trainer = Trainer(strategy=DeepSpeedStrategy(config=DEEPSPEED_CFG), devices=NUM_GPUS, accelerator=\"gpu\", precision='bf16')\n        elif '32' in os.environ['RWKV_FLOAT_MODE']:\n            trainer = Trainer(strategy=DeepSpeedStrategy(config=DEEPSPEED_CFG), devices=NUM_GPUS, accelerator=\"gpu\", precision=32)\n        print(trainer._strategy.config)\n    trainer.run(m_cfg, train_dataset, None, tconf)",
+        "type": "code",
+        "location": "/RWKV-v4/train.py:264-280"
+    },
+    "575": {
+        "file_id": 30,
+        "content": "The code checks the environment variable 'RWKV_FLOAT_MODE' and configures the DeepSpeed strategy accordingly. If it is set to 'fp16', it enables fp16 mode with hysteresis and minimum loss scale. If it is set to 'bf16', it enables bf16 mode. If '32' is present in the environment variable, it uses 32-bit precision. The trainer is then initialized with these configurations and the training process starts using the specified strategy.",
+        "type": "comment"
+    },
+    "576": {
+        "file_id": 31,
+        "content": "/RWKV-v4/verify.py",
+        "type": "filepath"
+    },
+    "577": {
+        "file_id": 31,
+        "content": "This code initializes and compares the outputs of RWKV-GPT and RWKV-RNN models, tokenizing input context and training model_train on GPU with tensor data. It sets environment variables for hardware mode and floating-point precision.",
+        "type": "summary"
+    },
+    "578": {
+        "file_id": 31,
+        "content": "########################################################################################################\n# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM\n########################################################################################################\n# this is for verifying the results of different models and make sure they agree with each other\nimport numpy as np\nnp.set_printoptions(precision=4, suppress=True, linewidth=200)\nimport os\nos.environ[\"CUDA_VISIBLE_DEVICES\"] = \"0\"\nos.environ['RWKV_FLOAT_MODE'] = 'bf16' # 'bf16' (stable) or 'fp16' (will overflow after training a large model for very long. can be solved in the future)\nos.environ['RWKV_RUN_DEVICE'] = 'cuda'\nRUN_DEVICE = os.environ['RWKV_RUN_DEVICE']\nimport torch\nfrom src.model_run import RWKV_RNN, RWKV_GPT\nfrom src.model import GPT, GPTConfig\nTOKEN_MODE = 'pile' # char / pile\nif TOKEN_MODE == 'char':\n    MODEL_NAME = 'trained-1'\n    WORD_NAME = 'vocab'         # the .json vocab (generated by train.py)\n    ctx_len = 1024\n    n_layer = 6",
+        "type": "code",
+        "location": "/RWKV-v4/verify.py:1-26"
+    },
+    "579": {
+        "file_id": 31,
+        "content": "This code verifies the results of different models to ensure consistency. It imports necessary libraries, sets environment variables for hardware mode and floating-point precision, defines the model to run (RWKV_RNN or GPT), specifies token mode as either character or pile, and defines variables for model name, vocabulary file, context length, and number of layers.",
+        "type": "comment"
+    },
+    "580": {
+        "file_id": 31,
+        "content": "    n_embd = 512\n    UNKNOWN_CHAR = ' '   # here we just set it to [space] for simplicity\nelif TOKEN_MODE == 'pile':\n    WORD_NAME = ['20B_tokenizer.json', '20B_tokenizer.json']\n    MODEL_NAME = 'RWKV-4-Pile-169M-20220807-8023'\n    ctx_len = 1024\n    n_layer = 12\n    n_embd = 768\n    UNKNOWN_CHAR = None\nmodel_type = 'RWKV'\nfrom src.utils import TOKENIZER\ntokenizer = TOKENIZER(WORD_NAME, UNKNOWN_CHAR=UNKNOWN_CHAR)\nif TOKEN_MODE == 'pile':\n    tokenizer.vocab_size = 50277\n########################################################################################################\nmodel_train = GPT(GPTConfig(tokenizer.vocab_size, ctx_len, model_type=model_type, n_layer=n_layer, n_embd=n_embd)).cuda()\nif os.environ['RWKV_FLOAT_MODE'] == 'fp16':\n    model_train = model_train.half()\nelif os.environ['RWKV_FLOAT_MODE'] == 'bf16':\n    model_train = model_train.bfloat16()\nprint('loading ' + MODEL_NAME)\nm2 = torch.load(MODEL_NAME + '.pth', map_location=RUN_DEVICE)\nmodel_train.load_state_dict(m2)\nmodel_rnn = RWKV_RNN(MODEL_NAME, RUN_DEVICE, model_type, n_layer, n_embd, ctx_len)",
+        "type": "code",
+        "location": "/RWKV-v4/verify.py:27-57"
+    },
+    "581": {
+        "file_id": 31,
+        "content": "The code is initializing a model for the RWKV language model, specifically the \"RWKV-v4\" variant. It checks the TOKEN_MODE and sets up the tokenizer and model accordingly. The tokenizer's vocab_size is set to 50277 if in 'pile' mode, and the model is loaded from a specific .pth file. The model is also converted to fp16 or bf16 depending on the environment variable RWKV_FLOAT_MODE.",
+        "type": "comment"
+    },
+    "582": {
+        "file_id": 31,
+        "content": "model_gpt = RWKV_GPT(MODEL_NAME, RUN_DEVICE, model_type, tokenizer.vocab_size, n_layer, n_embd, ctx_len).cuda()\n########################################################################################################\n# context = '\\nIn a'\ncontext = '\\nIn a shocking finding, scientist discovered a herd of dragons living in a remote, previously unexplored valley, in Tibet. Even more surprising to the researchers was the fact that the dragons spoke perfect Chinese.'\nif TOKEN_MODE == 'char':\n    ctx = [tokenizer.stoi.get(s, tokenizer.UNKNOWN_CHAR) for s in context]\nelif TOKEN_MODE == 'pile':\n    ctx = tokenizer.tokenizer.encode(context)\nprint(f'input len {len(ctx)} data {ctx}')\n########################################################################################################\nprint('\\nRWKV-GPT output')\nout = model_gpt.forward(torch.tensor(ctx).unsqueeze(0).cuda())[0].detach().cpu().numpy()\nprint(out)\nprint('\\nRWKV-RNN output')\nmodel_rnn.clear()\nsrc_len = len(ctx)\nfor i in range(src_len):\n    x = ctx[:i+1]",
+        "type": "code",
+        "location": "/RWKV-v4/verify.py:58-81"
+    },
+    "583": {
+        "file_id": 31,
+        "content": "The code initializes an RWKV-GPT model, tokenizes input context in either character or pile mode, and prints the output of both RWKV-GPT and RWKV-RNN models for the given input.",
+        "type": "comment"
+    },
+    "584": {
+        "file_id": 31,
+        "content": "    out = model_rnn.run(x)\n    if i < 3 or i >= src_len - 3:\n        print(torch.tensor(out).detach().cpu().numpy())\n    if i == 2:\n        print('...')\nprint('\\nRWKV-train output')\nout = model_train.forward(torch.tensor([ctx]).cuda())[0][0].detach().cpu().float().numpy()\nprint(out, '\\n')",
+        "type": "code",
+        "location": "/RWKV-v4/verify.py:82-90"
+    },
+    "585": {
+        "file_id": 31,
+        "content": "This code snippet is checking the output of RWKV-v4 model at specific indices and then prints the RWKV-train output. It first runs the model_rnn on input x and checks if i (index) is less than 3 or greater than src\\_len - 3, printing the detached output to CPU numpy array. If i equals 2, it prints '...'. Then, it trains the model_train on cuda with ctx tensor, gets the forward output and prints it as float numpy array.",
+        "type": "comment"
+    },
+    "586": {
+        "file_id": 32,
+        "content": "/RWKV-v4neo/chat.py",
+        "type": "filepath"
+    },
+    "587": {
+        "file_id": 32,
+        "content": "The code sets up an RWKV Language Model environment for English/Chinese, creates a multilingual chatbot in Python with response generation commands and independent question prompts, handling user input and generating text from the model.",
+        "type": "summary"
+    },
+    "588": {
+        "file_id": 32,
+        "content": "########################################################################################################\n# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM\n########################################################################################################\nprint('Loading...')\nfrom src.model_run import RWKV_RNN\nimport numpy as np\nimport os, copy, types, gc, sys\nimport torch\nfrom src.utils import TOKENIZER\ntry:\n    os.environ[\"CUDA_VISIBLE_DEVICES\"] = sys.argv[1]\nexcept:\n    pass\ntorch.backends.cudnn.benchmark = True\ntorch.backends.cudnn.allow_tf32 = True\ntorch.backends.cuda.matmul.allow_tf32 = True\nnp.set_printoptions(precision=4, suppress=True, linewidth=200)\nCHAT_LANG = 'English' # English Chinese\nWORD_NAME = [\n    \"20B_tokenizer.json\",\n    \"20B_tokenizer.json\",\n]  # [vocab, vocab] for Pile model\nUNKNOWN_CHAR = None\ntokenizer = TOKENIZER(WORD_NAME, UNKNOWN_CHAR=UNKNOWN_CHAR)\nargs = types.SimpleNamespace()\nargs.RUN_DEVICE = \"cuda\"  # 'cpu' (already very fast) // 'cuda'\nargs.FLOAT_MODE = \"fp16\" # fp32 (good for CPU) // fp16 (recommended for GPU) // bf16 (less accurate)",
+        "type": "code",
+        "location": "/RWKV-v4neo/chat.py:1-31"
+    },
+    "589": {
+        "file_id": 32,
+        "content": "Loading RWKV Language Model and setting up environment with specified device, float mode, and tokenizer for English/Chinese language.",
+        "type": "comment"
+    },
+    "590": {
+        "file_id": 32,
+        "content": "args.vocab_size = 50277\nargs.head_qk = 0\nargs.pre_ffn = 0\nargs.grad_cp = 0\nargs.my_pos_emb = 0\nargs.MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-14b/RWKV-4-Pile-14B-20230108-5170'\nargs.n_layer = 40\nargs.n_embd = 5120\nargs.ctx_len = 1024\n# args.MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-7b/RWKV-4-Pile-7B-20221115-8047'\n# args.n_layer = 32\n# args.n_embd = 4096\n# args.ctx_len = 1024\n# args.MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-3b/RWKV-4-Pile-3B-20221008-8023'\n# args.n_layer = 32\n# args.n_embd = 2560\n# args.ctx_len = 1024\nif CHAT_LANG == 'English':\n    user = \"User\"\n    bot = \"Bot\"\n    interface = \":\"\n    # The following is a verbose and detailed conversation between an AI assistant called {bot}, and a human user called {user}. {bot} is intelligent, knowledgeable, wise and polite.\n    # The following is a conversation between a highly knowledgeable and intelligent AI called {bot}, and a human called {user}. In the following interactions, {user} and {bot} converse in natural language, and {bot}",
+        "type": "code",
+        "location": "/RWKV-v4neo/chat.py:32-59"
+    },
+    "591": {
+        "file_id": 32,
+        "content": "Code is setting hyperparameters for RWKV-v4neo model, including vocabulary size, dimensions, and layers. It also has multiple conditionals to change these values based on the chat language, and provides aliases for user and bot.",
+        "type": "comment"
+    },
+    "592": {
+        "file_id": 32,
+        "content": " do its best to answer {user}'s questions. {bot} is respectful, polite and inclusive. {bot} knows a lot, and always tells the truth.\n    init_prompt = f'''\nThe following is a verbose and detailed conversation between an AI assistant called {bot}, and a human user called {user}. {bot} is intelligent, knowledgeable, wise and polite.\n{user}{interface} french revolution what year\n{bot}{interface} The French Revolution started in 1789, and lasted 10 years until 1799.\n{user}{interface} 3+5=?\n{bot}{interface} The answer is 8.\n{user}{interface} guess i marry who ?\n{bot}{interface} Only if you tell me more about yourself - what are your interests?\n{user}{interface} solve for a: 9-a=2\n{bot}{interface} The answer is a = 7, because 9 - 7 = 2.\n{user}{interface} wat is lhc\n{bot}{interface} LHC is a high-energy particle collider, built by CERN, and completed in 2008. They used it to confirm the existence of the Higgs boson in 2012.\n'''\n    HELP_MSG = '''Commands:\nsay something --> chat with bot. use \\\\n for new line.",
+        "type": "code",
+        "location": "/RWKV-v4neo/chat.py:59-86"
+    },
+    "593": {
+        "file_id": 32,
+        "content": "This code contains a sample conversation between an AI assistant named {bot} and a user. The assistant provides answers to questions, is respectful and polite, and always tells the truth. The code also includes instructions for using the chat functionality and commands like 'say something' to initiate the conversation with the bot.",
+        "type": "comment"
+    },
+    "594": {
+        "file_id": 32,
+        "content": "+alt --> alternate chat reply\n+reset --> reset chat\n+gen YOUR PROMPT --> free generation with any prompt. use \\\\n for new line.\n+qa YOUR QUESTION --> free generation - ask any question (just ask the question). use \\\\n for new line.\n+more --> continue last free generation (only for +gen / +qa)\n+retry --> retry last free generation (only for +gen / +qa)\nNow talk with the bot and enjoy. Remember to +reset periodically to clean up the bot's memory. Use RWKV-4 14B for best results.\nThis is not instruct-tuned for conversation yet, so don't expect good quality. Better use +gen for free generation.\n'''\nelif CHAT_LANG == 'Chinese':\n    args.MODEL_NAME = '/fsx/BlinkDL/CODE/_PUBLIC_/RWKV-LM/RWKV-v4neo/7-run3z/rwkv-293'\n    args.n_layer = 32\n    args.n_embd = 4096\n    args.ctx_len = 1024\n    user = \"Q\"\n    bot = \"A\"\n    interface = \":\"\n    init_prompt = '''\nQ: 企鹅会飞吗？\nA: 企鹅是不会飞的。它们的翅膀主要用于游泳和平衡，而不是飞行。\nQ: 西瓜是什么\nA: 西瓜是一种常见的水果，是一种多年生蔓生藤本植物。西瓜的果实呈圆形或卵形，通常是绿色的，里面有红色或黄色的肉和很多的籽。西瓜味甜，多吃可以增加水分，是夏季非常受欢迎的水果之一。\n'''\n    HELP_MSG = '''指令:",
+        "type": "code",
+        "location": "/RWKV-v4neo/chat.py:87-118"
+    },
+    "595": {
+        "file_id": 32,
+        "content": "This code is for a chatbot implemented in Python using the RWKV-v4neo language model. It supports Chinese and English languages, allowing users to ask questions or generate free text. The code provides specific parameters and prompts for Chinese and English interactions, with the ability to reset the bot's memory, and instructions on how to use the chatbot effectively.",
+        "type": "comment"
+    },
+    "596": {
+        "file_id": 32,
+        "content": "直接输入内容 --> 和机器人聊天，用\\\\n代表换行\n+alt --> 让机器人换个回答\n+reset --> 重置对话\n+gen 某某内容 --> 续写任何中英文内容，用\\\\n代表换行\n+qa 某某问题 --> 问独立的问题（忽略上下文），用\\\\n代表换行\n+more --> 继续 +gen / +qa 的回答\n+retry --> 换个 +gen / +qa 的回答\n现在可以输入内容和机器人聊天（注意它不怎么懂中文，它可能更懂英文）。请经常使用 +reset 重置机器人记忆。\n'''\n# Load Model\nos.environ[\"RWKV_RUN_DEVICE\"] = args.RUN_DEVICE\nMODEL_NAME = args.MODEL_NAME\nprint(f'loading... {MODEL_NAME}')\nmodel = RWKV_RNN(args)\nmodel_tokens = []\ncurrent_state = None\n########################################################################################################\ndef run_rnn(tokens, newline_adj = 0):\n    global model_tokens, current_state\n    for i in range(len(tokens)):\n        model_tokens += [int(tokens[i])]\n        if i == len(tokens) - 1:\n            out, current_state = model.forward(model_tokens, current_state)\n        else:\n            current_state = model.forward(model_tokens, current_state, preprocess_only = True)\n    # print(f'### model ###\\n[{tokenizer.tokenizer.decode(model_tokens)}]')\n    out[0] = -999999999  # disable <|endoftext|>",
+        "type": "code",
+        "location": "/RWKV-v4neo/chat.py:119-156"
+    },
+    "597": {
+        "file_id": 32,
+        "content": "This code is part of an interactive chatbot that uses the RWKV model for natural language processing. It supports various commands to generate or reset responses, and prompts for independent questions. The code loads the model and defines a function run_rnn() which takes input tokens, processes them through the RWKV model, and generates output.",
+        "type": "comment"
+    },
+    "598": {
+        "file_id": 32,
+        "content": "    out[187] += newline_adj\n    # if newline_adj > 0:\n    #     out[15] += newline_adj / 2 # '.'\n    return out\nall_state = {}\ndef save_all_stat(srv, name, last_out):\n    n = f'{name}_{srv}'\n    all_state[n] = {}\n    all_state[n]['out'] = last_out\n    all_state[n]['rnn'] = copy.deepcopy(current_state)\n    all_state[n]['token'] = copy.deepcopy(model_tokens)\ndef load_all_stat(srv, name):\n    global model_tokens, current_state\n    n = f'{name}_{srv}'\n    current_state = copy.deepcopy(all_state[n]['rnn'])\n    model_tokens = copy.deepcopy(all_state[n]['token'])\n    return all_state[n]['out']\n########################################################################################################\n# Run inference\nprint(f'\\nRun prompt...')\nout = run_rnn(tokenizer.tokenizer.encode(init_prompt))\ngc.collect()\ntorch.cuda.empty_cache()\nsave_all_stat('', 'chat_init', out)\nsrv_list = ['dummy_server']\nfor s in srv_list:\n    save_all_stat(s, 'chat', out)\nprint(f'### prompt ###\\n[{tokenizer.tokenizer.decode(model_tokens)}]\\n')\ndef reply_msg(msg):",
+        "type": "code",
+        "location": "/RWKV-v4neo/chat.py:157-194"
+    },
+    "599": {
+        "file_id": 32,
+        "content": "This code is used for saving and loading all-state, running inference, and replying to messages. The all-state contains the RNN state, model tokens, and output. Inference is run on a prompt, and the output is saved and printed with decoded tokens. The reply_msg function can be used to reply to received messages.",
+        "type": "comment"
+    }
+}

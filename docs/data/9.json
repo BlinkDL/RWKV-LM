@@ -1,0 +1,547 @@
+{
+    "900": {
+        "file_id": 47,
+        "content": "import os, math, time, datetime, subprocess\nimport torch\nfrom torch.utils.data import DataLoader\nimport pytorch_lightning as pl\nfrom pytorch_lightning.utilities import rank_zero_info, rank_zero_only\ndef my_save(args, trainer, dd, ff):\n    if '14b-run1' in ff:\n        fn = ff.split('/')[-1]\n        fff = '/dev/shm/' + fn\n        torch.save(dd, fff)\n        subprocess.Popen(f\" aws s3 mv {fff} s3://rwkv-14b-4k/{fn} --quiet\", shell=True)\n    elif ('world/14b' in ff) or ('world/7b' in ff):\n        aa = ff.split('/')[1]\n        fn = ff.split('/')[-1]\n        fff = f'/dev/shm/{aa}-{fn}'\n        torch.save(dd, fff)\n        subprocess.Popen(f\" aws s3 mv {fff} s3://rwkv-world/{aa}-{fn} --quiet\", shell=True)\n    else:\n        if 'deepspeed_stage_3' in args.strategy:\n            trainer.save_checkpoint(ff, weights_only=True)\n        else:\n            torch.save(dd, ff)\nclass train_callback(pl.Callback):\n    def __init__(self, args):\n        super().__init__()\n        self.args = args\n    def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/trainer.py:1-30"
+    },
+    "901": {
+        "file_id": 47,
+        "content": "This code defines a function `my_save()` that saves the model's data depending on the file path (`ff`) and calls another function `train_callback()`, which is a PyTorch Lightning callback class. The code also uses subprocess to move saved files to AWS S3 storage and incorporates the usage of Deepspeed for distributed training.",
+        "type": "comment"
+    },
+    "902": {
+        "file_id": 47,
+        "content": "        args = self.args\n        # if args.cuda_cleanup > 0:\n        #     torch.cuda.empty_cache()\n        real_step = trainer.global_step + args.epoch_begin * args.epoch_steps\n        # LR schedule\n        w_step = args.warmup_steps\n        if args.lr_final == args.lr_init or args.epoch_count == 0:\n            lr = args.lr_init\n        else:\n            decay_step = real_step - args.my_pile_edecay * args.epoch_steps\n            decay_total = (args.epoch_count - args.my_pile_edecay) * args.epoch_steps\n            progress = (decay_step - w_step + 1) / (decay_total - w_step)\n            progress = min(1, max(0, progress))\n            if args.lr_final == 0 or args.lr_init == 0:  # linear decay\n                lr = args.lr_init + (args.lr_final - args.lr_init) * progress\n            else:  # exp decay\n                lr = args.lr_init * math.exp(math.log(args.lr_final / args.lr_init) * pow(progress, 1))\n            # if trainer.is_global_zero:\n            #     print(trainer.global_step, decay_step, decay_total, w_step, progress, lr)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/trainer.py:31-51"
+    },
+    "903": {
+        "file_id": 47,
+        "content": "Code snippet handles learning rate (LR) scheduling and potentially clears GPU cache based on provided arguments. It calculates the real training step, determines if LR should be adjusted based on epoch count and warmup steps, and applies linear or exponential decay to adjust the learning rate. It also prints some info if it's the global zero trainer.",
+        "type": "comment"
+    },
+    "904": {
+        "file_id": 47,
+        "content": "        if args.my_exit_tokens != 0: # cosine decay\n            real_tokens = real_step * args.ctx_len * args.real_bsz\n            warmup_tokens = w_step * args.ctx_len * args.real_bsz\n            progress = (real_tokens - warmup_tokens) / (abs(args.my_exit_tokens) - warmup_tokens)\n            progress = max(0, min(1, progress))\n            lr_final_factor = args.lr_final / args.lr_init                \n            lr_mult = (0.5 + lr_final_factor / 2) + (0.5 - lr_final_factor / 2) * math.cos(math.pi * progress)\n            if args.my_exit_tokens > 0:\n                lr = args.lr_init * lr_mult\n            else:\n                lr = (lr + args.lr_init * lr_mult) / 2\n            if progress >= 1:\n                if (trainer.is_global_zero) or ('deepspeed_stage_3' in args.strategy):\n                    my_save(\n                        args, trainer,\n                        pl_module.state_dict(),\n                        f\"{args.proj_dir}/rwkv-final.pth\",\n                    )\n                    exit(0)\n        if trainer.global_step < w_step:",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/trainer.py:53-72"
+    },
+    "905": {
+        "file_id": 47,
+        "content": "This code is setting the learning rate (lr) based on the exit tokens. If my_exit_tokens > 0, lr = lr_init * lr_mult. If my_exit_tokens < 0, lr = (lr + lr_init * lr_mult) / 2. The code also saves and exits if progress >= 1 or if global step is less than w_step. This appears to be part of a training process where the learning rate dynamically adjusts during training based on exit tokens.",
+        "type": "comment"
+    },
+    "906": {
+        "file_id": 47,
+        "content": "            lr = lr * (0.2 + 0.8 * trainer.global_step / w_step)\n        if args.weight_decay_final > 0:\n            wd_now = args.weight_decay * math.exp(math.log(args.weight_decay_final / args.weight_decay) * progress)\n        else:\n            wd_now = args.weight_decay\n        for param_group in trainer.optimizers[0].param_groups:\n            if param_group[\"weight_decay\"] > 0:\n                param_group[\"weight_decay\"] = wd_now\n            if args.layerwise_lr > 0:\n                param_group[\"lr\"] = lr * param_group[\"my_lr_scale\"]\n                # print(param_group[\"lr\"], param_group[\"my_lr_scale\"])\n            else:\n                param_group[\"lr\"] = lr\n        trainer.my_lr = lr\n        trainer.my_wd = wd_now\n        # rank_zero_info(f\"{real_step} {lr}\")\n        if trainer.global_step == 0:\n            if trainer.is_global_zero:  # logging\n                trainer.my_loss_sum = 0\n                trainer.my_loss_count = 0\n                trainer.my_log = open(args.proj_dir + \"/train_log.txt\", \"a\")",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/trainer.py:73-97"
+    },
+    "907": {
+        "file_id": 47,
+        "content": "The code sets the learning rate (lr) based on a decay formula and updates the weight decay (wd_now). It iterates through each param group, setting the lr and wd accordingly. If layerwise learning rate is enabled, it adjusts the lr further based on my_lr_scale. The trainer's current lr and wd are stored for future reference, and logging is initialized if this is the first global step.",
+        "type": "comment"
+    },
+    "908": {
+        "file_id": 47,
+        "content": "                trainer.my_log.write(f\"NEW RUN {args.my_timestamp}\\n{vars(self.args)}\\n\")\n                try:\n                    print(f\"\\n{trainer.strategy.config}\\n\")\n                    trainer.my_log.write(f\"{trainer.strategy.config}\\n\")\n                except:\n                    pass\n                trainer.my_log.flush()\n                if len(args.wandb) > 0:\n                    print(\"Login to wandb...\")\n                    import wandb\n                    wandb.init(\n                        project=args.wandb,\n                        name=args.run_name + \" \" + args.my_timestamp,\n                        config=args,\n                        save_code=False,\n                    )\n                    trainer.my_wandb = wandb\n    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):\n        args = self.args\n        token_per_step = args.ctx_len * args.real_bsz\n        real_step = trainer.global_step + args.epoch_begin * args.epoch_steps\n        if trainer.is_global_zero:  # logging",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/trainer.py:98-120"
+    },
+    "909": {
+        "file_id": 47,
+        "content": "Writes log information to file, tries printing strategy configuration but handles exceptions, flushes the log, initializes W&B if enabled. In on_train_batch_end, calculates token per step, determines real step, logs only on global_step 0 (zero-based indexing).",
+        "type": "comment"
+    },
+    "910": {
+        "file_id": 47,
+        "content": "            t_now = time.time_ns()\n            kt_s = 0\n            try:\n                t_cost = (t_now - trainer.my_time_ns) / 1e9\n                kt_s = token_per_step / t_cost / 1000\n                self.log(\"REAL it/s\", 1.0 / t_cost, prog_bar=True, on_step=True)\n                self.log(\"Kt/s\", kt_s, prog_bar=True, on_step=True)\n            except:\n                pass\n            trainer.my_time_ns = t_now\n            if pl.__version__[0]=='2':\n                trainer.my_loss = outputs[\"loss\"]\n            else:\n                trainer.my_loss = trainer.my_loss_all.float().mean().item()\n            trainer.my_loss_sum += trainer.my_loss\n            trainer.my_loss_count += 1\n            trainer.my_epoch_loss = trainer.my_loss_sum / trainer.my_loss_count\n            self.log(\"lr\", trainer.my_lr, prog_bar=True, on_step=True)\n            self.log(\"loss\", trainer.my_epoch_loss, prog_bar=True, on_step=True)\n            # self.log(\"s\", real_step, prog_bar=True, on_step=True)\n            if len(args.wandb) > 0:",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/trainer.py:121-142"
+    },
+    "911": {
+        "file_id": 47,
+        "content": "Code block calculates the time taken for training step, real iterations per second (it/s), and kilo-tokens per second (Kt/s). It also logs the learning rate (lr) and current loss for progress tracking. If using PyTorch 2 version, it retrieves loss value differently. It also logs the epoch loss and optionally sends information to W&B if specified in arguments.",
+        "type": "comment"
+    },
+    "912": {
+        "file_id": 47,
+        "content": "                lll = {\"loss\": trainer.my_loss, \"lr\": trainer.my_lr, \"wd\": trainer.my_wd, \"Gtokens\": real_step * token_per_step / 1e9}\n                if kt_s > 0:\n                    lll[\"kt/s\"] = kt_s\n                trainer.my_wandb.log(lll, step=int(real_step))\n        if (trainer.is_global_zero) or ('deepspeed_stage_3' in args.strategy): # save pth\n            if args.magic_prime > 0:\n                expand_factor = 2 if args.my_qa_mask > 0 else 1\n                if int(real_step) == int(args.magic_prime * expand_factor // args.real_bsz) - 1 + int(args.my_random_steps):\n                    to_save_dict = pl_module.state_dict()\n                    my_save(\n                        args, trainer,\n                        to_save_dict,\n                        f\"{args.proj_dir}/rwkv-final.pth\",\n                    )\n    def on_train_epoch_start(self, trainer, pl_module):\n        args = self.args\n        if pl.__version__[0]=='2':\n            dataset = trainer.train_dataloader.dataset\n        else:\n            dataset = trainer.train_dataloader.dataset.datasets",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/trainer.py:143-164"
+    },
+    "913": {
+        "file_id": 47,
+        "content": "This code is responsible for logging training metrics and saving the model checkpoint. It checks if it's the global zero or using DeepSpeed, and saves the model state dictionary as \"rwkv-final.pth\" when the current step meets certain conditions related to batch size and random steps. The logging includes loss, learning rate, weight decay, and token count per second (if applicable).",
+        "type": "comment"
+    },
+    "914": {
+        "file_id": 47,
+        "content": "        assert \"MyDataset\" in str(dataset)\n        dataset.global_rank = trainer.global_rank\n        dataset.real_epoch = int(args.epoch_begin + trainer.current_epoch)\n        dataset.world_size = trainer.world_size\n        # print(f'########## world_size {dataset.world_size} global_rank {dataset.global_rank} real_epoch {dataset.real_epoch} ##########')\n    def on_train_epoch_end(self, trainer, pl_module):\n        args = self.args\n        to_save_dict = {}\n        if (trainer.is_global_zero) or ('deepspeed_stage_3' in args.strategy):  # save pth\n            if (args.epoch_save > 0 and trainer.current_epoch % args.epoch_save == 0) or (trainer.current_epoch == args.epoch_count - 1):\n                if args.data_type == 'wds_img':\n                    raw_dict = pl_module.state_dict()\n                    for k in raw_dict:\n                        if k.startswith('encoder.') or k.startswith('decoder.'):\n                            to_save_dict[k] = raw_dict[k]\n                else:\n                    to_save_dict = pl_module.state_dict()",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/trainer.py:165-182"
+    },
+    "915": {
+        "file_id": 47,
+        "content": "This code snippet is part of the trainer class and defines a method 'on_train_epoch_end'. It asserts that the dataset has the name 'MyDataset' and assigns values to the dataset object properties. If global_zero or 'deepspeed_stage_3' strategy is used, it saves the model state at specified epoch intervals.",
+        "type": "comment"
+    },
+    "916": {
+        "file_id": 47,
+        "content": "                try:\n                    my_save(\n                        args, trainer,\n                        to_save_dict,\n                        f\"{args.proj_dir}/rwkv-{args.epoch_begin + trainer.current_epoch}.pth\",\n                    )\n                except Exception as e:\n                    print('Error\\n\\n', e, '\\n\\n')\n        if trainer.is_global_zero:  # logging\n            trainer.my_log.write(f\"{args.epoch_begin + trainer.current_epoch} {trainer.my_epoch_loss:.6f} {math.exp(trainer.my_epoch_loss):.4f} {trainer.my_lr:.8f} {datetime.datetime.now()} {trainer.current_epoch}\\n\")\n            trainer.my_log.flush()\n            trainer.my_loss_sum = 0\n            trainer.my_loss_count = 0\n            if (args.epoch_begin + trainer.current_epoch) >= args.my_exit:\n                exit(0)\n@rank_zero_only\ndef generate_init_weight(model, init_weight_name):\n    mm = model.generate_init_weight()\n    if model.args.my_pile_stage == 1:\n        if len(model.args.load_model) > 0:\n            print(f\"Combine weights from {model.args.load_model}...\")",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/trainer.py:183-208"
+    },
+    "917": {
+        "file_id": 47,
+        "content": "Trying to save the model, log epoch information, and optionally exit if the current epoch exceeds a specified limit. Additionally, there's a function for generating initial weights, combining with pre-existing ones if available.",
+        "type": "comment"
+    },
+    "918": {
+        "file_id": 47,
+        "content": "            load_dict = torch.load(model.args.load_model, map_location=\"cpu\")\n            for k in load_dict:\n                try:\n                    assert k in mm\n                except:\n                    print('missing', k)\n                    exit(0)\n                src = load_dict[k]\n                try:\n                    mm[k] = src.reshape(mm[k].shape)\n                except:\n                    tmp = mm[k].squeeze().clone()\n                    print(k, src.shape, '-->', mm[k].shape)\n                    ss = src.shape[0]\n                    dd = tmp.shape[0]\n                    for i in range(dd):\n                        pos = i / dd * ss\n                        if pos >= ss - 1:\n                            tmp[i] = src[ss-1]\n                        else:\n                            p0 = int(math.floor(pos))\n                            ii = pos - p0\n                            tmp[i] = src[p0] * (1-ii) + src[p0+1] * (ii)\n                    mm[k] = tmp.reshape(mm[k].shape)\n                    sss = src.squeeze().float().cpu().numpy()",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/trainer.py:209-233"
+    },
+    "919": {
+        "file_id": 47,
+        "content": "The code loads a dictionary from the specified model file, checks if all keys are present in 'mm' dictionary, and reshapes the loaded source to match the shape of existing data in 'mm'. If source shape doesn't match, it performs a linear interpolation to fit the new data. Finally, converts the source to float and cpu numpy array.",
+        "type": "comment"
+    },
+    "920": {
+        "file_id": 47,
+        "content": "                    print(sss[:10], '...', sss[-10:])\n                    mmm = mm[k].squeeze().float().cpu().numpy()\n                    print(mmm[:10], '...', mmm[-10:])\n    print(f\"Save to {init_weight_name}...\")\n    torch.save(mm, init_weight_name)\n    if model.args.my_pile_stage == 1:\n        print(\"Done. Now go for stage 2.\")\n        exit(0)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/trainer.py:234-243"
+    },
+    "921": {
+        "file_id": 47,
+        "content": "This code segment prints parts of 'sss' and 'mmm', saves 'mm' to a file, and if in stage 1, suggests moving on to stage 2. It seems to be part of a model training process where it displays data, saves an intermediate model checkpoint, and moves to the next phase.",
+        "type": "comment"
+    },
+    "922": {
+        "file_id": 48,
+        "content": "/RWKV-v4neo/src/utils.py",
+        "type": "filepath"
+    },
+    "923": {
+        "file_id": 48,
+        "content": "The code imports libraries, defines a tokenizing class, utilizes Fermat's Little Theorem and Miller-Rabin primality test for prime number calculation, performs verification process to determine if a given number is prime, and returns True or False accordingly.",
+        "type": "summary"
+    },
+    "924": {
+        "file_id": 48,
+        "content": "import json, time, random, os\nimport numpy as np\nimport torch\nfrom torch.nn import functional as F\ntime_slot = {}\ntime_ref = time.time_ns()\ndef record_time(name):\n    if name not in time_slot:\n        time_slot[name] = 1e20\n    tt = (time.time_ns() - time_ref) / 1e9\n    if tt < time_slot[name]:\n        time_slot[name] = tt\nclass TOKENIZER():\n    def __init__(self, WORD_NAME, UNKNOWN_CHAR='\\ue083'):\n        if 'list' in str(type(WORD_NAME)):\n            self.charMode = False\n            if WORD_NAME[0] == WORD_NAME[1]:\n                from transformers import PreTrainedTokenizerFast\n                self.tokenizer = PreTrainedTokenizerFast(tokenizer_file=WORD_NAME[0])\n            else:\n                from transformers import GPT2TokenizerFast\n                self.tokenizer = GPT2TokenizerFast(WORD_NAME[0], WORD_NAME[1])\n            self.vocab_size = len(self.tokenizer)\n        else:\n            self.charMode = True\n            with open(WORD_NAME + '.json', \"r\", encoding=\"utf-16\") as result_file:\n                self.word_table = json.load(result_file)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/utils.py:1-30"
+    },
+    "925": {
+        "file_id": 48,
+        "content": "This code imports necessary libraries and defines a class for tokenizing text using either pre-trained tokenizers or custom word tables. It also records time usage for optimization purposes.",
+        "type": "comment"
+    },
+    "926": {
+        "file_id": 48,
+        "content": "            self.vocab_size = len(self.word_table)\n            self.stoi = {v: int(k) for k, v in self.word_table.items()}\n            self.itos = {int(k): v for k, v in self.word_table.items()}\n            self.UNKNOWN_CHAR = self.stoi[UNKNOWN_CHAR]\n    def refine_context(self, context):\n        context = context.strip().split('\\n')\n        for c in range(len(context)):\n            context[c] = context[c].strip().strip('\\u3000').strip('\\r')\n        context = list(filter(lambda c: c != '', context))\n        context = '\\n' + ('\\n'.join(context)).strip()\n        if context == '':\n            context = '\\n'\n        return context\n    def sample_logits(self, out, x, ctx_len, temperature=1.0, top_p_usual=None, top_p_newline=None):\n        # out[self.UNKNOWN_CHAR] = -float('Inf')\n        lastChar = int(x[-1])\n        probs = F.softmax(out, dim=-1)\n        if self.charMode:\n            if self.itos[lastChar] == '\\n':\n                top_p = top_p_newline\n            else:\n                top_p = top_p_usual\n        else:",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/utils.py:32-60"
+    },
+    "927": {
+        "file_id": 48,
+        "content": "This code snippet is part of a model for text generation. The 'utils' class contains methods to refine the context by removing extra whitespace and unwanted characters, set vocabulary size based on the word table, map words to integers and vice versa, and sample logits to generate text using softmax function with option to specify temperature and top probabilities for specific characters.",
+        "type": "comment"
+    },
+    "928": {
+        "file_id": 48,
+        "content": "            top_p = top_p_usual\n        if os.environ[\"RWKV_RUN_DEVICE\"] == \"cpu\":\n            probs = probs.numpy()\n            sorted_probs = np.sort(probs)[::-1]\n            cumulative_probs = np.cumsum(sorted_probs)\n            cutoff = float(sorted_probs[np.argmax(cumulative_probs > top_p)])\n            probs[probs < cutoff] = 0\n            if temperature != 1.0:\n                probs = probs.pow(1.0 / temperature)\n            probs = probs / np.sum(probs)\n            out = np.random.choice(a=len(probs), p=probs)\n            return out\n        else:\n            sorted_probs = torch.sort(probs, descending=True)[0]\n            cumulative_probs = torch.cumsum(sorted_probs, dim=-1).cpu().numpy()\n            cutoff = float(sorted_probs[np.argmax(cumulative_probs > top_p)])\n            probs[probs < cutoff] = 0\n            if temperature != 1.0:\n                probs = probs.pow(1.0 / temperature)\n            out = torch.multinomial(probs, num_samples=1)[0]\n            return out\ndef MaybeIsPrime(number):\n    if FermatPrimalityTest(number) and MillerRabinPrimalityTest(number):",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/utils.py:61-85"
+    },
+    "929": {
+        "file_id": 48,
+        "content": "This function calculates prime numbers using Fermat's Little Theorem and Miller-Rabin primality test. The prime number check is done only if the environment variable RWKV_RUN_DEVICE is set to \"cpu\". If not, it uses torch.multinomial() for selection.",
+        "type": "comment"
+    },
+    "930": {
+        "file_id": 48,
+        "content": "        return True\n    else:\n        return False\ndef FermatPrimalityTest(number):\n    if number > 1:\n        for time in range(3):\n            randomNumber = random.randint(2, number) - 1\n            if pow(randomNumber, number - 1, number) != 1:\n                return False\n        return True\n    else:\n        return False\ndef MillerRabinPrimalityTest(number):\n    if number == 2:\n        return True\n    elif number == 1 or number % 2 == 0:\n        return False\n    oddPartOfNumber = number - 1\n    timesTwoDividNumber = 0\n    while oddPartOfNumber % 2 == 0:\n        oddPartOfNumber = oddPartOfNumber // 2\n        timesTwoDividNumber = timesTwoDividNumber + 1\n    for time in range(3):\n        while True:\n            randomNumber = random.randint(2, number) - 1\n            if randomNumber != 0 and randomNumber != 1:\n                break\n        randomNumberWithPower = pow(randomNumber, oddPartOfNumber, number)\n        if (randomNumberWithPower != 1) and (randomNumberWithPower != number - 1):\n            iterationNumber = 1",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/utils.py:86-122"
+    },
+    "931": {
+        "file_id": 48,
+        "content": "The code contains three functions: 1) FermatPrimalityTest checks if a number is prime using the Fermat Little Theorem; it returns True if number is greater than 1, and False otherwise. 2) MillerRabinPrimalityTest checks if a number is prime using the Miller-Rabin algorithm; it returns True for number=2, False for number=1 or even numbers, and starts by simplifying the odd part of the number. 3) The code uses a while loop to calculate the odd part of the number and determines the maximum iterations needed. The function then uses another loop to randomly select randomNumbers and test them for primality using the calculated parameters.",
+        "type": "comment"
+    },
+    "932": {
+        "file_id": 48,
+        "content": "            while (iterationNumber <= timesTwoDividNumber - 1) and (randomNumberWithPower != number - 1):\n                randomNumberWithPower = pow(randomNumberWithPower, 2, number)\n                iterationNumber = iterationNumber + 1\n            if randomNumberWithPower != (number - 1):\n                return False\n    return True",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/utils.py:124-130"
+    },
+    "933": {
+        "file_id": 48,
+        "content": "This code performs a verification process where it checks if the given number can be determined as prime. It does this by iterating through a range of values, squaring a random number and calculating its modulo with the input number until either all iterations are completed or the value no longer matches the expected result. If the latter occurs, it returns False indicating that the number is not prime. Otherwise, it returns True.",
+        "type": "comment"
+    },
+    "934": {
+        "file_id": 49,
+        "content": "/RWKV-v4neo/train.py",
+        "type": "filepath"
+    },
+    "935": {
+        "file_id": 49,
+        "content": "This code trains an RWKV language model with PyTorch Lightning, supports customizable training parameters, fine-tunes on enwik8 data, and saves models every 5 epochs using 'argparse' for command line arguments. It includes essential setup tasks like version assertions and learning rate schedule configuration.",
+        "type": "summary"
+    },
+    "936": {
+        "file_id": 49,
+        "content": "########################################################################################################\n# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM\n########################################################################################################\nimport logging\nlogging.basicConfig(level=logging.INFO)\nif __name__ == \"__main__\":\n    from argparse import ArgumentParser\n    from pytorch_lightning import Trainer\n    from pytorch_lightning.utilities import rank_zero_info, rank_zero_only\n    import pytorch_lightning as pl\n    rank_zero_info(\"########## work in progress ##########\")\n    ########################################################################################################\n    #\n    # example: train a simple L12-D768 RWKV on dummy data\n    #\n    # python train.py --load_model \"\" --wandb \"\" --proj_dir \"out\" \\\n    # --data_file \"\" --data_type \"dummy\" --vocab_size 0 \\\n    # --ctx_len 128 --epoch_steps 1000 --epoch_count 20 --epoch_begin 0 --epoch_save 10 \\\n    # --micro_bsz 16 --n_layer 12 --n_embd 768 --pre_ffn 0 --head_qk 0 \\",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:1-23"
+    },
+    "937": {
+        "file_id": 49,
+        "content": "This code is for training an RWKV language model using PyTorch Lightning framework. It includes basic configuration, argument parsing, and example usage for training a simple L12-D768 RWKV model on dummy data. The user can specify various parameters like load_model, wandb, proj_dir, data_file, data_type, vocab_size, ctx_len, epoch_steps, epoch_count, epoch_begin, epoch_save, micro_bsz, n_layer, n_embd, pre_ffn, and head_qk.",
+        "type": "comment"
+    },
+    "938": {
+        "file_id": 49,
+        "content": "    # --lr_init 6e-4 --lr_final 1e-5 --warmup_steps 0 --beta1 0.9 --beta2 0.99 --adam_eps 1e-8 \\\n    # --accelerator gpu --devices 1 --precision bf16 --strategy ddp_find_unused_parameters_false --grad_cp 0\n    # example: train a simple L6-D512 RWKV from scratch on enwik8\n    #\n    # python train.py --load_model \"\" --wandb \"\" --proj_dir \"out\" \\\n    # --data_file \"../data/enwik8\" --data_type \"utf-8\" --vocab_size 0 \\\n    # --ctx_len 512 --epoch_steps 5000 --epoch_count 500 --epoch_begin 0 --epoch_save 5 \\\n    # --micro_bsz 12 --n_layer 6 --n_embd 512 --pre_ffn 0 --head_qk 0 \\\n    # --lr_init 8e-4 --lr_final 1e-5 --warmup_steps 0 --beta1 0.9 --beta2 0.99 --adam_eps 1e-8 \\\n    # --accelerator gpu --devices 1 --precision bf16 --strategy ddp_find_unused_parameters_false --grad_cp 0\n    # example: fine-tune RWKV 1.5B using 8xA100 40G = 1.76it/s = 115k token/s, VRAM 37477M\n    #\n    # python train.py --load_model \"/fsx/BlinkDL/CODE/FP16/out_1b2/all-8040.pth\" --wandb \"\" --proj_dir \"out\" \\\n    # --data_file \"../data/train.npy\" --data_type \"numpy\" --vocab_size 50277 \\",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:24-39"
+    },
+    "939": {
+        "file_id": 49,
+        "content": "Train a simple L6-D512 RWKV from scratch on enwik8, fine-tune RWKV 1.5B using 8xA100 40G = 1.76it/s = 115k token/s, VRAM 37477M",
+        "type": "comment"
+    },
+    "940": {
+        "file_id": 49,
+        "content": "    # --ctx_len 1024 --epoch_steps 1000 --epoch_count 1000 --epoch_begin 0 --epoch_save 5 \\\n    # --micro_bsz 8 --n_layer 24 --n_embd 2048 --pre_ffn 0 --head_qk 0 \\\n    # --lr_init 1e-5 --lr_final 1e-5 --warmup_steps 0 --beta1 0.9 --beta2 0.999 --adam_eps 1e-8 \\\n    # --accelerator gpu --devices 8 --precision bf16 --strategy deepspeed_stage_2 --grad_cp 0\n    # example: fine-tune RWKV 1.5B using 1 GPU fp16 (VRAM 16G) NOTE: fp16 might overflow\n    #\n    # python train.py --load_model \"/fsx/BlinkDL/CODE/FP16/out_1b2/all-8040.pth\" --wandb \"\" --proj_dir \"out\" \\\n    # --data_file \"../data/train.npy\" --data_type \"numpy\" --vocab_size 50277 \\\n    # --ctx_len 1024 --epoch_steps 200 --epoch_count 1000 --epoch_begin 0 --epoch_save 1 \\\n    # --micro_bsz 11 --n_layer 24 --n_embd 2048 --pre_ffn 0 --head_qk 0 \\\n    # --lr_init 1e-5 --lr_final 1e-5 --warmup_steps 0 --beta1 0.9 --beta2 0.999 --adam_eps 1e-8 \\\n    # --accelerator gpu --devices 1 --precision fp16 --strategy deepspeed_stage_2_offload --grad_cp 1\n    parser = ArgumentParser()",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:40-54"
+    },
+    "941": {
+        "file_id": 49,
+        "content": "This code configures a fine-tuning process for RWKV using 8 GPUs with BF16 precision, and saves models every 5 epochs. The command line arguments specify the model path, W&B project directory, training data file, vocabulary size, and various hyperparameters like batch size, layers, embedding dimensions, learning rate, etc. The parser is used to parse these command line arguments.",
+        "type": "comment"
+    },
+    "942": {
+        "file_id": 49,
+        "content": "    parser.add_argument(\"--load_model\", default=\"\", type=str)  # full path, with .pth\n    parser.add_argument(\"--wandb\", default=\"\", type=str)  # wandb project name. if \"\" then don't use wandb\n    parser.add_argument(\"--proj_dir\", default=\"out\", type=str)\n    parser.add_argument(\"--random_seed\", default=\"-1\", type=int)\n    parser.add_argument(\"--data_file\", default=\"\", type=str)\n    parser.add_argument(\"--data_type\", default=\"utf-8\", type=str)\n    parser.add_argument(\"--vocab_size\", default=0, type=int)  # vocab_size = 0 means auto (for char-level LM and .txt data)\n    parser.add_argument(\"--ctx_len\", default=1024, type=int)\n    parser.add_argument(\"--epoch_steps\", default=1000, type=int)  # a mini \"epoch\" has [epoch_steps] steps\n    parser.add_argument(\"--epoch_count\", default=500, type=int)  # train for this many \"epochs\". will continue afterwards with lr = lr_final\n    parser.add_argument(\"--epoch_begin\", default=0, type=int)  # if you load a model trained for x \"epochs\", set epoch_begin = x\n ",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:56-69"
+    },
+    "943": {
+        "file_id": 49,
+        "content": "This code is using the 'argparse' module to add command line arguments for specifying a model load path, Wandb project name, project directory, random seed, data file, data type, vocabulary size, context length, epoch steps, training epochs count, and epoch begin point. These arguments control how the program behaves during execution.",
+        "type": "comment"
+    },
+    "944": {
+        "file_id": 49,
+        "content": "   parser.add_argument(\"--epoch_save\", default=5, type=int)  # save the model every [epoch_save] \"epochs\"\n    parser.add_argument(\"--micro_bsz\", default=12, type=int)  # micro batch size (batch size per GPU)\n    parser.add_argument(\"--n_layer\", default=6, type=int)\n    parser.add_argument(\"--n_embd\", default=512, type=int)\n    parser.add_argument(\"--dim_att\", default=0, type=int)\n    parser.add_argument(\"--dim_ffn\", default=0, type=int)\n    parser.add_argument(\"--pre_ffn\", default=0, type=int)  # replace first att layer by ffn (sometimes better)\n    parser.add_argument(\"--head_qk\", default=0, type=int)  # my headQK trick\n    parser.add_argument(\"--tiny_att_dim\", default=0, type=int)  # tiny attention dim\n    parser.add_argument(\"--tiny_att_layer\", default=-999, type=int)  # tiny attention @ which layer\n    parser.add_argument(\"--lr_init\", default=6e-4, type=float)  # 6e-4 for L12-D768, 4e-4 for L24-D1024, 3e-4 for L24-D2048\n    parser.add_argument(\"--lr_final\", default=1e-5, type=float)\n    parser.add_argument(\"--warmup_steps\", default=-1, type=int)  # try 50 if you load a model",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:69-83"
+    },
+    "945": {
+        "file_id": 49,
+        "content": "This code snippet from \"RWKV-LM/RWKV-v4neo/train.py\" provides default values and types for various command line arguments used in model training. These parameters control aspects like epoch save frequency, batch size per GPU, model layers, embedding dimension, activation function settings, and learning rate configurations. The code also includes optional features like the \"headQK trick\", tiny attention dimensions, and layer placement.",
+        "type": "comment"
+    },
+    "946": {
+        "file_id": 49,
+        "content": "    parser.add_argument(\"--beta1\", default=0.9, type=float)\n    parser.add_argument(\"--beta2\", default=0.99, type=float)  # use 0.999 when your model is close to convergence\n    parser.add_argument(\"--adam_eps\", default=1e-8, type=float)\n    parser.add_argument(\"--grad_cp\", default=0, type=int)  # gradient checkpt: saves VRAM, but slower\n    parser.add_argument(\"--dropout\", default=0, type=float) # try 0.01 / 0.02 / 0.05 / 0.1\n    parser.add_argument(\"--weight_decay\", default=0, type=float) # try 0.1 / 0.01 / 0.001\n    parser.add_argument(\"--weight_decay_final\", default=-1, type=float)\n    parser.add_argument(\"--my_pile_version\", default=1, type=int)  # my special pile version\n    parser.add_argument(\"--my_pile_stage\", default=0, type=int)  # my special pile mode\n    parser.add_argument(\"--my_pile_shift\", default=-1, type=int)  # my special pile mode - text shift\n    parser.add_argument(\"--my_pile_edecay\", default=0, type=int)\n    parser.add_argument(\"--layerwise_lr\", default=1, type=int)  # layerwise lr for faster convergence (but slower it/s)",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:84-96"
+    },
+    "947": {
+        "file_id": 49,
+        "content": "The code is using the 'argparse' module to add arguments for hyperparameters, such as beta1 and beta2 values for Adam optimizer, Adam epsilon, gradient checkpoint frequency, dropout rate, weight decay, special pile version and stage, text shift for special pile, and layerwise learning rate.",
+        "type": "comment"
+    },
+    "948": {
+        "file_id": 49,
+        "content": "    parser.add_argument(\"--ds_bucket_mb\", default=200, type=int)  # deepspeed bucket size in MB. 200 seems enough\n    # parser.add_argument(\"--cuda_cleanup\", default=0, type=int)  # extra cuda cleanup (sometimes helpful)\n    parser.add_argument(\"--my_img_version\", default=0, type=str)\n    parser.add_argument(\"--my_img_size\", default=0, type=int)\n    parser.add_argument(\"--my_img_bit\", default=0, type=int)\n    parser.add_argument(\"--my_img_clip\", default='x', type=str)\n    parser.add_argument(\"--my_img_clip_scale\", default=1, type=float)\n    parser.add_argument(\"--my_img_l1_scale\", default=0, type=float)\n    parser.add_argument(\"--my_img_encoder\", default='x', type=str)\n    # parser.add_argument(\"--my_img_noise_scale\", default=0, type=float)\n    parser.add_argument(\"--my_sample_len\", default=0, type=int)\n    parser.add_argument(\"--my_ffn_shift\", default=1, type=int)\n    parser.add_argument(\"--my_att_shift\", default=1, type=int)\n    parser.add_argument(\"--head_size_a\", default=64, type=int) # can try larger values for larger models",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:97-111"
+    },
+    "949": {
+        "file_id": 49,
+        "content": "This code snippet contains various command line arguments used in a training process. It defines the default values and types for these arguments, such as --ds_bucket_mb, --cuda_cleanup, --my_img_version, etc. These options control different aspects of the model's behavior or performance during training. For instance, --my_sample_len specifies the length of samples to use while training, and --head_size_a sets the size of attention heads for the model. The code provides default values that should be sufficient for most cases but can be modified if needed.",
+        "type": "comment"
+    },
+    "950": {
+        "file_id": 49,
+        "content": "    parser.add_argument(\"--head_size_divisor\", default=8, type=int)\n    parser.add_argument(\"--my_pos_emb\", default=0, type=int)\n    parser.add_argument(\"--load_partial\", default=0, type=int)\n    parser.add_argument(\"--magic_prime\", default=0, type=int)\n    parser.add_argument(\"--my_qa_mask\", default=0, type=int)\n    parser.add_argument(\"--my_random_steps\", default=0, type=int)\n    parser.add_argument(\"--my_testing\", default='', type=str)\n    parser.add_argument(\"--my_exit\", default=99999999, type=int)\n    parser.add_argument(\"--my_exit_tokens\", default=0, type=int)\n    if pl.__version__[0]=='2':\n        parser.add_argument(\"--accelerator\", default=\"gpu\", type=str)\n        parser.add_argument(\"--strategy\", default=\"auto\", type=str)\n        parser.add_argument(\"--devices\", default=1, type=int)\n        parser.add_argument(\"--num_nodes\", default=1, type=int)\n        parser.add_argument(\"--precision\", default=\"fp16\", type=str)\n        parser.add_argument(\"--accumulate_grad_batches\", default=1, type=int)\n    else:",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:112-129"
+    },
+    "951": {
+        "file_id": 49,
+        "content": "This code defines command-line arguments for a program using the 'argparse' module. The options include settings for model training (like head size, loading partial data, magic prime), as well as accelerator configuration in case of running on PyTorch Lightning (PL) with Python 2. No comments are needed as this is just defining command-line arguments.",
+        "type": "comment"
+    },
+    "952": {
+        "file_id": 49,
+        "content": "        parser = Trainer.add_argparse_args(parser)\n    args = parser.parse_args()\n    ########################################################################################################\n    import os, warnings, math, datetime, sys, time\n    import numpy as np\n    import torch\n    from torch.utils.data import DataLoader\n    if \"deepspeed\" in args.strategy:\n        import deepspeed\n    from pytorch_lightning import seed_everything\n    if args.random_seed >= 0:\n        print(f\"########## WARNING: GLOBAL SEED {args.random_seed} THIS WILL AFFECT MULTIGPU SAMPLING ##########\\n\" * 3)\n        seed_everything(args.random_seed)\n    np.set_printoptions(precision=4, suppress=True, linewidth=200)\n    warnings.filterwarnings(\"ignore\", \".*Consider increasing the value of the `num_workers` argument*\")\n    warnings.filterwarnings(\"ignore\", \".*The progress bar already tracks a metric with the*\")\n    # os.environ[\"WDS_SHOW_SEED\"] = \"1\"\n    args.my_timestamp = datetime.datetime.today().strftime(\"%Y-%m-%d-%H-%M-%S\")\n    args.enable_checkpointing = False",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:130-153"
+    },
+    "953": {
+        "file_id": 49,
+        "content": "This code snippet is importing necessary libraries and setting up global seed for multi-GPU sampling. It also configures print options, ignores certain warnings, and sets the timestamp for experiment name.",
+        "type": "comment"
+    },
+    "954": {
+        "file_id": 49,
+        "content": "    args.replace_sampler_ddp = False\n    args.logger = False\n    args.gradient_clip_val = 1.0\n    args.num_sanity_val_steps = 0\n    args.check_val_every_n_epoch = int(1e20)\n    args.log_every_n_steps = int(1e20)\n    args.max_epochs = -1  # continue forever\n    args.betas = (args.beta1, args.beta2)\n    args.real_bsz = int(args.num_nodes) * int(args.devices) * args.micro_bsz\n    os.environ[\"RWKV_T_MAX\"] = str(args.ctx_len)\n    os.environ[\"RWKV_MY_TESTING\"] = args.my_testing\n    os.environ[\"RWKV_HEAD_SIZE_A\"] = str(args.head_size_a)\n    if args.dim_att <= 0:\n        args.dim_att = args.n_embd\n    if args.dim_ffn <= 0:\n        if 'r3' in args.my_testing:\n            args.dim_ffn = int((args.n_embd * 3.5) // 32 * 32)\n        else:\n            args.dim_ffn = args.n_embd * 4\n    if args.data_type == \"wds_img\":\n        args.run_name = f\"v{args.my_img_version}-{args.my_img_size}-{args.my_img_bit}bit-{args.my_img_clip}x{args.my_img_clip_scale}\"\n        args.proj_dir = f\"{args.proj_dir}-{args.run_name}\"\n    else:\n        args.run_name = f\"{args.vocab_size} ctx{args.ctx_len} L{args.n_layer} D{args.n_embd}\"",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:154-178"
+    },
+    "955": {
+        "file_id": 49,
+        "content": "The code sets various arguments for model training, including disabling DDP sampler and logger, setting gradient clip value, and modifying batch size based on the number of nodes and devices. It also adjusts the dimensions of attention and feedforward layers if necessary, and customizes run name based on data type or vocabulary size, context length, layer count, and embedding dimension.",
+        "type": "comment"
+    },
+    "956": {
+        "file_id": 49,
+        "content": "    if not os.path.exists(args.proj_dir):\n        os.makedirs(args.proj_dir)\n    if args.my_pile_stage > 0:\n        magic_prime_bak = args.magic_prime\n        if args.my_pile_version == 1:\n            if args.ctx_len == 1024:\n                args.magic_prime = 324331313\n            elif args.ctx_len == 2048:\n                args.magic_prime = 162165671\n            elif args.ctx_len == 4096:\n                args.magic_prime = 81082817\n            elif args.ctx_len == 8192:\n                args.magic_prime = 40541399\n        else:\n            if args.ctx_len == 1024:\n                args.magic_prime = 1670239709\n            elif args.ctx_len == 2048:\n                args.magic_prime = 835119767\n            elif args.ctx_len == 4096:\n                args.magic_prime = 417559889\n            elif args.ctx_len == 6144:\n                args.magic_prime = 278373239\n            elif args.ctx_len == 8192:\n                args.magic_prime = 208779911\n        if args.my_pile_shift < 0:\n            args.my_pile_shift = 0\n        if magic_prime_bak > 0:",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:179-208"
+    },
+    "957": {
+        "file_id": 49,
+        "content": "This code checks if a directory exists, creates it if not, adjusts magic_prime and my_pile_shift values based on ctx_len, and sets my_pile_shift to 0 if it's negative.",
+        "type": "comment"
+    },
+    "958": {
+        "file_id": 49,
+        "content": "            args.magic_prime = magic_prime_bak\n        if args.my_qa_mask == 2:\n            args.epoch_count = 2 * args.magic_prime // 40320\n        else:\n            args.epoch_count = args.magic_prime // 40320\n        args.epoch_steps = 40320 // args.real_bsz\n        assert args.epoch_steps * args.real_bsz == 40320\n        # if args.my_pile_stage == 2:\n        #     assert args.lr_final == args.lr_init\n        if args.my_pile_stage >= 2:  # find latest saved model\n            list_p = []\n            for p in os.listdir(args.proj_dir):\n                if p.startswith(\"rwkv\") and p.endswith(\".pth\"):\n                    p = ((p.split(\"-\"))[1].split(\".\"))[0]\n                    if p != \"final\":\n                        if p == \"init\":\n                            p = -1\n                        else:\n                            p = int(p)\n                        list_p += [p]\n            list_p.sort()\n            max_p = list_p[-1]\n            if len(list_p) > 1:\n                args.my_pile_prev_p = list_p[-2]  # in case max_p is corrupted",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:209-233"
+    },
+    "959": {
+        "file_id": 49,
+        "content": "This code sets the epoch count based on magic_prime and my_qa_mask, determines epoch steps for batch size, asserts that their product equals 40320, and checks if my_pile_stage is 2 to find the latest saved model. If my_pile_stage >= 2, it lists all models in proj_dir, sorts them, sets max_p as last one, and my_pile_prev_p if there are more than one.",
+        "type": "comment"
+    },
+    "960": {
+        "file_id": 49,
+        "content": "            if max_p == -1:\n                args.load_model = f\"{args.proj_dir}/rwkv-init.pth\"\n            else:\n                args.load_model = f\"{args.proj_dir}/rwkv-{max_p}.pth\"\n                if args.warmup_steps < 0:\n                    if args.my_pile_stage == 2:\n                        args.warmup_steps = 10\n                    else:\n                        args.warmup_steps = 30\n            args.epoch_begin = max_p + 1\n    samples_per_epoch = args.epoch_steps * args.real_bsz\n    tokens_per_epoch = samples_per_epoch * args.ctx_len\n    try:\n        deepspeed_version = deepspeed.__version__\n    except:\n        deepspeed_version = None\n        pass\n    rank_zero_info(\n        f\"\"\"\n############################################################################\n#\n# RWKV-4 {args.precision.upper()} on {args.num_nodes}x{args.devices} {args.accelerator.upper()}, bsz {args.num_nodes}x{args.devices}x{args.micro_bsz}={args.real_bsz}, {args.strategy} {'with grad_cp' if args.grad_cp > 0 else ''}\n#\n# Data = {args.data_file} ({args.data_type}), ProjDir = {args.proj_dir}",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:234-258"
+    },
+    "961": {
+        "file_id": 49,
+        "content": "If max_p is -1, the model will be loaded from rwkv-init.pth in args.proj_dir. Else, it will load from rwkv-{max_p}.pth in args.proj_dir. If warmup_steps is less than 0, set warmup_steps depending on my_pile_stage. Calculate samples_per_epoch and tokens_per_epoch based on epoch_steps and ctx_len respectively. Retrieve deepspeed version. Display rank_zero_info message with relevant information about the model, data, and project directory.",
+        "type": "comment"
+    },
+    "962": {
+        "file_id": 49,
+        "content": "#\n# Epoch = {args.epoch_begin} to {args.epoch_begin + args.epoch_count - 1} (will continue afterwards), save every {args.epoch_save} epoch\n#\n# Each \"epoch\" = {args.epoch_steps} steps, {samples_per_epoch} samples, {tokens_per_epoch} tokens\n#\n# Model = {args.n_layer} n_layer, {args.n_embd} n_embd, {args.ctx_len} ctx_len\n#\n# Adam = lr {args.lr_init} to {args.lr_final}, warmup {args.warmup_steps} steps, beta {args.betas}, eps {args.adam_eps}\n#\n# Found torch {torch.__version__}, recommend 1.13.1+cu117 or newer\n# Found deepspeed {deepspeed_version}, recommend 0.7.0 (faster than newer versions)\n# Found pytorch_lightning {pl.__version__}, recommend 1.9.5\n#\n############################################################################\n\"\"\"\n    )\n    rank_zero_info(str(vars(args)) + \"\\n\")\n    assert args.data_type in [\"utf-8\", \"utf-16le\", \"numpy\", \"binidx\", \"dummy\", \"wds_img\", \"uint16\"]\n    if args.lr_final == 0 or args.lr_init == 0:\n        rank_zero_info(\"\\n\\nNote: lr_final = 0 or lr_init = 0. Using linear LR schedule instead.\\n\\n\")",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:259-280"
+    },
+    "963": {
+        "file_id": 49,
+        "content": "Code snippet defines variables for epochs, steps, samples, tokens, model layers, embedding size, context length, learning rate schedule, warmup steps, beta, and epsilon. It also mentions required Python libraries versions and their recommendations. The code asserts the data type and provides a note if either final or initial learning rate is zero, suggesting that it will use a linear learning rate schedule instead.",
+        "type": "comment"
+    },
+    "964": {
+        "file_id": 49,
+        "content": "    assert args.precision in [\"fp32\", \"tf32\", \"fp16\", \"bf16\"]\n    os.environ[\"RWKV_FLOAT_MODE\"] = args.precision\n    if args.precision == \"fp32\":\n        for i in range(10):\n            rank_zero_info(\"\\n\\nNote: you are using fp32 (very slow). Try bf16 / tf32 for faster training.\\n\\n\")\n    if args.precision == \"fp16\":\n        rank_zero_info(\"\\n\\nNote: you are using fp16 (might overflow). Try bf16 / tf32 for stable training.\\n\\n\")\n    os.environ[\"RWKV_JIT_ON\"] = \"1\"\n    if \"deepspeed_stage_3\" in args.strategy:\n        os.environ[\"RWKV_JIT_ON\"] = \"0\"\n    torch.backends.cudnn.benchmark = True\n    torch.backends.cudnn.enabled = True\n    if args.precision == \"fp32\":\n        torch.backends.cudnn.allow_tf32 = False\n        torch.backends.cuda.matmul.allow_tf32 = False\n    else:\n        torch.backends.cudnn.allow_tf32 = True\n        torch.backends.cuda.matmul.allow_tf32 = True\n    if \"32\" in args.precision:\n        args.precision = 32\n    elif args.precision == \"fp16\":\n        args.precision = 16\n    else:\n        args.precision = \"bf16\"",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:282-308"
+    },
+    "965": {
+        "file_id": 49,
+        "content": "This code sets the precision argument, adjusts relevant environment variables and configurations for faster training with different precision types. If using fp32, it provides a note suggesting to use bf16 or tf32 for better performance. It also sets up cudnn settings and allows tf32 in certain precision cases.",
+        "type": "comment"
+    },
+    "966": {
+        "file_id": 49,
+        "content": "    ########################################################################################################\n    from src.trainer import train_callback, generate_init_weight\n    from src.dataset import MyDataset\n    train_data = MyDataset(args)\n    args.vocab_size = train_data.vocab_size\n    if args.data_type == 'wds_img':\n        from src.model_img import RWKV_IMG\n        model = RWKV_IMG(args)\n    else:\n        from src.model import RWKV\n        model = RWKV(args)\n    if len(args.load_model) == 0 or args.my_pile_stage == 1:  # shall we build the initial weights?\n        init_weight_name = f\"{args.proj_dir}/rwkv-init.pth\"\n        generate_init_weight(model, init_weight_name)  # save initial weights\n        args.load_model = init_weight_name\n    rank_zero_info(f\"########## Loading {args.load_model}... ##########\")\n    try:\n        load_dict = torch.load(args.load_model, map_location=\"cpu\")\n        load_keys = list(load_dict.keys())\n        for k in load_keys:\n            if k.startswith('_forward_module.'):",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:310-335"
+    },
+    "967": {
+        "file_id": 49,
+        "content": "Initializing and loading the RWKV model with specified arguments, generating initial weights if none are loaded or if at MyPile stage 1. Saving initial weights in specified directory and then attempting to load pre-trained model from given path.",
+        "type": "comment"
+    },
+    "968": {
+        "file_id": 49,
+        "content": "                load_dict[k.replace('_forward_module.','')] = load_dict[k]\n                del load_dict[k]\n    except:\n        rank_zero_info(f\"Bad checkpoint {args.load_model}\")\n        if args.my_pile_stage >= 2:  # try again using another checkpoint\n            max_p = args.my_pile_prev_p\n            if max_p == -1:\n                args.load_model = f\"{args.proj_dir}/rwkv-init.pth\"\n            else:\n                args.load_model = f\"{args.proj_dir}/rwkv-{max_p}.pth\"\n            args.epoch_begin = max_p + 1\n            rank_zero_info(f\"Trying {args.load_model}\")\n            load_dict = torch.load(args.load_model, map_location=\"cpu\")\n    if args.load_partial == 1:\n        load_keys = load_dict.keys()\n        for k in model.state_dict():\n            if k not in load_keys:\n                load_dict[k] = model.state_dict()[k]\n    model.load_state_dict(load_dict)\n    if pl.__version__[0]=='2':\n        trainer = Trainer(accelerator=args.accelerator,strategy=args.strategy,devices=args.devices,num_nodes=args.num_nodes,precision=args.precision,",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:336-358"
+    },
+    "969": {
+        "file_id": 49,
+        "content": "This code attempts to load a model checkpoint. It first checks if the provided checkpoint file exists, and if not, it tries another one. Then, it loads the dictionary of state parameters from the checkpoint into memory. If loading only part of the model, it also adds missing keys from the original model's state dictionary to the loaded dictionary. Finally, it loads the state dictionary into the model for training or inference.",
+        "type": "comment"
+    },
+    "970": {
+        "file_id": 49,
+        "content": "        logger=args.logger,callbacks=[train_callback(args)],max_epochs=args.max_epochs,check_val_every_n_epoch=args.check_val_every_n_epoch,num_sanity_val_steps=args.num_sanity_val_steps,\n        log_every_n_steps=args.log_every_n_steps,enable_checkpointing=args.enable_checkpointing,accumulate_grad_batches=args.accumulate_grad_batches,gradient_clip_val=args.gradient_clip_val)\n    else:\n        trainer = Trainer.from_argparse_args(\n            args,\n            callbacks=[train_callback(args)],\n        )\n    if trainer.global_rank == 0:\n        for n in model.state_dict():\n            shape = model.state_dict()[n].shape\n            shape = [i for i in shape if i != 1]\n            if len(shape) > 1:\n                print(f\"{str(shape[0]).ljust(5)} {str(shape[1]).ljust(5)} {n}\")\n            else:\n                print(f\"{str(shape[0]).ljust(5)}       {n}\")\n    if \"deepspeed\" in args.strategy:\n        trainer.strategy.config[\"zero_optimization\"][\"allgather_bucket_size\"] = args.ds_bucket_mb * 1000 * 1000\n  ",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:359-378"
+    },
+    "971": {
+        "file_id": 49,
+        "content": "The code creates a trainer object with specified arguments, including a callback for training. If the model has state dictionaries with shapes larger than 1D, it prints the shape and name of each such dictionary. The code then checks if the strategy used is \"deepspeed\" and sets the bucket size accordingly.",
+        "type": "comment"
+    },
+    "972": {
+        "file_id": 49,
+        "content": "      trainer.strategy.config[\"zero_optimization\"][\"reduce_bucket_size\"] = args.ds_bucket_mb * 1000 * 1000\n    # must set shuffle=False, persistent_workers=False (because worker is in another thread)\n    data_loader = DataLoader(train_data, shuffle=False, pin_memory=True, batch_size=args.micro_bsz, num_workers=1, persistent_workers=False, drop_last=True)\n    trainer.fit(model, data_loader)",
+        "type": "code",
+        "location": "/RWKV-v4neo/train.py:378-383"
+    },
+    "973": {
+        "file_id": 49,
+        "content": "This code sets the bucket size for zero optimization and configures a data loader with specific parameters before fitting the model in a trainer.",
+        "type": "comment"
+    },
+    "974": {
+        "file_id": 50,
+        "content": "/RWKV-v4neo/verify.py",
+        "type": "filepath"
+    },
+    "975": {
+        "file_id": 50,
+        "content": "This code initializes and trains a RWKV language model, sets layers and context length, creates tokenizer, loads model file, and prints select RWKV-RNN outputs.",
+        "type": "summary"
+    },
+    "976": {
+        "file_id": 50,
+        "content": "########################################################################################################\n# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM\n########################################################################################################\n# this is for verifying the results of different models and make sure they agree with each other\nimport os, sys, types\nimport numpy as np\nimport torch\nnp.set_printoptions(precision=4, suppress=True, linewidth=200)\ntry:\n    os.environ[\"CUDA_VISIBLE_DEVICES\"] = sys.argv[1]\nexcept:\n    pass\ntorch.backends.cudnn.benchmark = True\ntorch.backends.cudnn.allow_tf32 = False\ntorch.backends.cuda.matmul.allow_tf32 = False\nos.environ['RWKV_FLOAT_MODE'] = 'bf16' # bf16 or fp32\nos.environ['RWKV_RUN_DEVICE'] = 'cuda' # currently model_train requires CUDA\nRUN_DEVICE = os.environ['RWKV_RUN_DEVICE']\nTOKEN_MODE = 'pile'\nif TOKEN_MODE == 'pile':\n    WORD_NAME = ['20B_tokenizer.json', '20B_tokenizer.json']\n    MODEL_NAME = '/fsx/BlinkDL/HF-MODEL/rwkv-4-pile-3b/RWKV-4-Pile-3B-20221003-6783'",
+        "type": "code",
+        "location": "/RWKV-v4neo/verify.py:1-27"
+    },
+    "977": {
+        "file_id": 50,
+        "content": "The code imports necessary libraries and sets environment variables for running the RWKV Language Model, which verifies results from different models to ensure consistency. It also specifies the device (CPU or GPU) to run the model and tokenization method (Pile).",
+        "type": "comment"
+    },
+    "978": {
+        "file_id": 50,
+        "content": "    n_layer = 32\n    n_embd = 2560\n    ctx_len = 1024\n    UNKNOWN_CHAR = None\nfrom src.utils import TOKENIZER\ntokenizer = TOKENIZER(WORD_NAME, UNKNOWN_CHAR=UNKNOWN_CHAR)\nif TOKEN_MODE == 'pile':\n    tokenizer.vocab_size = 50277\n########################################################################################################\nos.environ[\"RWKV_JIT_ON\"] = \"1\"\nos.environ[\"RWKV_T_MAX\"] = str(ctx_len)\nfrom src.model_run import RWKV_RNN\nfrom src.model import RWKV\nargs = types.SimpleNamespace()\nargs.vocab_size = tokenizer.vocab_size\nargs.ctx_len = ctx_len\nargs.n_embd = n_embd\nargs.n_layer = n_layer\nargs.head_qk = 0\nargs.pre_ffn = 0\nargs.grad_cp = 0\nargs.my_pos_emb = 0\nmodel_train = RWKV(args).to(RUN_DEVICE)\nif os.environ['RWKV_FLOAT_MODE'] == 'fp16':\n    model_train = model_train.half()\nelif os.environ['RWKV_FLOAT_MODE'] == 'bf16':\n    model_train = model_train.bfloat16()\nprint('loading ' + MODEL_NAME)\nm2 = torch.load(MODEL_NAME + '.pth', map_location='cpu')\nmodel_train.load_state_dict(m2)\nif os.environ['RWKV_FLOAT_MODE'] == 'fp16':",
+        "type": "code",
+        "location": "/RWKV-v4neo/verify.py:28-66"
+    },
+    "979": {
+        "file_id": 50,
+        "content": "This code initializes a RWKV model for training. It sets the number of layers, embedding dimension, and context length. The tokenizer is created based on the given word name and unknown character. The environment variables are set to define the maximum context length and enable JIT compilation. The model is then loaded from the specified file using appropriate float mode.",
+        "type": "comment"
+    },
+    "980": {
+        "file_id": 50,
+        "content": "    model_train = model_train.half()\nelif os.environ['RWKV_FLOAT_MODE'] == 'bf16':\n    model_train = model_train.bfloat16()\nargs.MODEL_NAME = MODEL_NAME\nargs.RUN_DEVICE = RUN_DEVICE\nargs.FLOAT_MODE = os.environ['RWKV_FLOAT_MODE']\nmodel_rnn = RWKV_RNN(args)\n########################################################################################################\nprint(f\"\\nVerifying {os.environ['RWKV_RUN_DEVICE']} {os.environ['RWKV_FLOAT_MODE']}\")\n# context = '\\nIn a'\ncontext = '\\nIn a shocking finding, scientist discovered a herd of dragons living in a remote, previously unexplored valley, in Tibet. Even more surprising to the researchers was the fact that the dragons spoke perfect Chinese.'\nif TOKEN_MODE == 'pile':\n    ctx = tokenizer.tokenizer.encode(context)\nprint(f'input len {len(ctx)} data {ctx}')\n########################################################################################################\nwith torch.no_grad():\n    print('\\nRWKV-train output')\n    out = model_train.forward(torch.tensor([ctx]).to(RUN_DEVICE))[0].detach().cpu().float().numpy()",
+        "type": "code",
+        "location": "/RWKV-v4neo/verify.py:67-91"
+    },
+    "981": {
+        "file_id": 50,
+        "content": "This code checks the RWKV_FLOAT_MODE environment variable and sets the appropriate float mode for the model_train. It then verifies the device and float mode, encodes a context string into tokens using the tokenizer, and generates output from the model_train in forward pass with no gradient calculation (torch.no_grad()).",
+        "type": "comment"
+    },
+    "982": {
+        "file_id": 50,
+        "content": "    print(out, '\\n')\n    print('\\nRWKV-RNN output')\n    state = None\n    out = None\n    src_len = len(ctx)\n    for i in range(src_len):\n        x = ctx[:i+1]\n        out, state = model_rnn.forward(x, state)\n        if i < 3 or i >= src_len - 3:\n            print(out.detach().cpu().numpy())\n        if i == 2:\n            print('...')",
+        "type": "code",
+        "location": "/RWKV-v4neo/verify.py:92-104"
+    },
+    "983": {
+        "file_id": 50,
+        "content": "This code prints RWKV-RNN output at certain positions in the sequence. It uses a for loop to iterate through the context, calling the forward function of model_rnn. The first three outputs and the third one are printed using `print(out.detach().cpu().numpy())`, with ellipsis ('...') printed after the second output.",
+        "type": "comment"
+    },
+    "984": {
+        "file_id": 51,
+        "content": "/RWKV-v5/cuda/wkv5_cuda.cu",
+        "type": "filepath"
+    },
+    "985": {
+        "file_id": 51,
+        "content": "This CUDA code optimizes neural network forward pass with shared memory, efficient matrix operations, and parallel computation. It performs convolution using kernel functions, shared memory, synchronization, and unrolled loops. Assertions ensure efficient GPU computation.",
+        "type": "summary"
+    },
+    "986": {
+        "file_id": 51,
+        "content": "#include <stdio.h>\n#include <assert.h>\n#include \"ATen/ATen.h\"\ntypedef at::BFloat16 bf16;\ntemplate <typename F>\n__global__ void kernel_forward(const int B, const int T, const int C, const int H,\n                               const F *__restrict__ const _r, const F *__restrict__ const _k, const F *__restrict__ const _v, const float *__restrict__ _w, const F *__restrict__ _u,\n                               F *__restrict__ const _y)\n{\n    const int b = blockIdx.x / H;\n    const int h = blockIdx.x % H;\n    const int i = threadIdx.x;\n    _w += h*_N_;\n    _u += h*_N_;\n    __shared__ float r[_N_], k[_N_], u[_N_], w[_N_];\n    float state[_N_] = {0};\n    __syncthreads();\n    w[i] = _w[i];\n    u[i] = float(_u[i]);\n    __syncthreads();\n    for (int t = b*T*C + h*_N_ + i; t < (b+1)*T*C + h*_N_ + i; t += C)\n    {\n        __syncthreads();\n        r[i] = float(_r[t]);\n        k[i] = float(_k[t]);\n        __syncthreads();\n        const float v = float(_v[t]);\n        float y = 0;\n        #pragma unroll\n        for (int j = 0; j < _N_; j+=4)",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv5_cuda.cu:1-36"
+    },
+    "987": {
+        "file_id": 51,
+        "content": "Code implements a CUDA kernel for the forward pass of a neural network layer, where each thread calculates output values based on input data and pre-stored parameters. It uses shared memory to store intermediate results and synchronizes threads with `__syncthreads()`. The loop iterates over time steps, applying element-wise operations to calculate output values.",
+        "type": "comment"
+    },
+    "988": {
+        "file_id": 51,
+        "content": "        {\n            const float4& r_ = (float4&)(r[j]);\n            const float4& k_ = (float4&)(k[j]);\n            const float4& w_ = (float4&)(w[j]);\n            const float4& u_ = (float4&)(u[j]);\n            float4& s = (float4&)(state[j]);\n            float4 x;\n            x.x = k_.x * v;\n            x.y = k_.y * v;\n            x.z = k_.z * v;\n            x.w = k_.w * v;\n            y += r_.x * (u_.x * x.x + s.x);\n            y += r_.y * (u_.y * x.y + s.y);\n            y += r_.z * (u_.z * x.z + s.z);\n            y += r_.w * (u_.w * x.w + s.w);\n            s.x = s.x * w_.x + x.x;\n            s.y = s.y * w_.y + x.y;\n            s.z = s.z * w_.z + x.z;\n            s.w = s.w * w_.w + x.w;\n        }\n        _y[t] = F(y);\n    }\n}\ntemplate <typename F>\n__global__ void kernel_backward(const int B, const int T, const int C, const int H,\n    const F *__restrict__ const _r, const F *__restrict__ const _k, const F *__restrict__ const _v, const float *__restrict__ _w, const float *__restrict__ __w, const F *__restrict__ _u, const F *__restrict__ const _gy,",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv5_cuda.cu:37-66"
+    },
+    "989": {
+        "file_id": 51,
+        "content": "This code is performing a matrix multiplication operation using CUDA. It takes in four input matrices, calculates the dot product between two sets of vectors, and updates the state vector accordingly. The result is then passed to a function F for further processing.",
+        "type": "comment"
+    },
+    "990": {
+        "file_id": 51,
+        "content": "    F *__restrict__ const _gr, F *__restrict__ const _gk, F *__restrict__ const _gv, F *__restrict__ const _gw, F *__restrict__ const _gu)\n{\n    const int b = blockIdx.x / H;\n    const int h = blockIdx.x % H;\n    const int i = threadIdx.x;\n    _w += h*_N_;\n    _u += h*_N_;\n    __w += h*_N_;\n    __shared__ float w_[_N_], u_[_N_];\n    __shared__ float r[_N_], k[_N_], v[_N_], gy[_N_];\n    __syncthreads();\n    w_[i] = _w[i];\n    u_[i] = float(_u[i]);\n    __syncthreads();\n    const float w = w_[i];\n    const float ww = __w[i];\n    const float u = u_[i];\n    float state[_N_] = {0}, saaaa[_N_] = {0}, sbbbb[_N_] = {0}, scccc[_N_] = {0}, sdddd[_N_] = {0};\n    float gw = 0, gu = 0;\n    const int t000 = b*T*C + h*_N_ + i;\n    const int t111 = (b+1)*T*C + h*_N_ + i;\n    const int t222 = t111 - 2*C;\n    for (int t = t000; t < t111; t += C)\n    {\n        __syncthreads();\n        v[i] = float(_v[t]);\n        gy[i] = float(_gy[t]);\n        __syncthreads();\n        const float k = float(_k[t]);\n        float gr = 0, gu_ = 0;\n        #pragma unroll",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv5_cuda.cu:67-104"
+    },
+    "991": {
+        "file_id": 51,
+        "content": "This function calculates the recurrent weight updates in a neural network using CUDA. It uses shared memory for efficient parallel computation and synchronizes threads with `__syncthreads()`. The variables `w`, `u` represent input and output tensors, while `v` and `gy` store intermediate results. The loop iterates over the time dimension (T) and channel dimension (C).",
+        "type": "comment"
+    },
+    "992": {
+        "file_id": 51,
+        "content": "        for (int j = 0; j < _N_; j++)\n        {\n            float& s = state[j];\n            float x = k * v[j];\n            gr += (u * x + s) * gy[j];\n            gu_ += x * gy[j];\n            s = s * w + x;\n        }\n        _gr[t] = F(gr);\n        gu += float(_r[t]) * gu_;\n    }\n    _gu[b*C + h*_N_ + i] = F(gu);\n    for (int t = t000; t < t222; t += C)\n    {\n        __syncthreads();\n        v[i] = float(_v[t]);\n        gy[i] = float(_gy[t + 2*C]);\n        __syncthreads();\n        const float k = float(_k[t]);\n        float gw_ = 0;\n        #pragma unroll\n        for (int j = 0; j < _N_; j++)\n        {\n            float& s = saaaa[j];\n            float& s2 = sbbbb[j];\n            float x = k * v[j];\n            float tmp = w * (x + s);\n            s = tmp;\n            s2 = tmp + w * s2;\n            gw_ += s2 * gy[j];\n        }\n        gw += float(_r[t + 2*C]) * gw_;\n    }    \n    _gw[b*C + h*_N_ + i] = F(ww * gw);\n    for (int t = t111 - C; t >= t000; t -= C)\n    {\n        __syncthreads();\n        v[i] = float(_v[t]);\n        gy[i] = float(_gy[t]);",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv5_cuda.cu:105-149"
+    },
+    "993": {
+        "file_id": 51,
+        "content": "This code appears to be performing element-wise operations on arrays, such as adding and multiplying elements. It uses a for loop to iterate through the array elements, with each iteration updating the state variables and accumulating results for later use. The code also includes synchronization points (__syncthreads) for thread coordination, and it utilizes arrays with names like _gr, _gu, and _gw for storing intermediate and final results. Overall, this code seems to be part of a larger computation involving array manipulation and synchronization.",
+        "type": "comment"
+    },
+    "994": {
+        "file_id": 51,
+        "content": "        __syncthreads();\n        const float rr = float(_r[t]);\n        float gk = 0;\n        #pragma unroll\n        for (int j = 0; j < _N_; j++)\n        {\n            float& s = scccc[j];\n            float x = rr * gy[j];\n            gk += (u * x + s) * v[j];\n            s = x + s * w;\n        }\n        _gk[t] = F(gk);\n    }\n    for (int t = t111 - C; t >= t000; t -= C)\n    {\n        __syncthreads();\n        r[i] = float(_r[t]);\n        k[i] = float(_k[t]);\n        __syncthreads();\n        const float gyy = float(_gy[t]);\n        float gv = 0;\n        #pragma unroll\n        for (int j = 0; j < _N_; j++)\n        {\n            float& s = sdddd[j];\n            float x = gyy * r[j];\n            gv += (u_[j] * x + s) * k[j];\n            s = x + s * w_[j];\n        }\n        _gv[t] = F(gv);\n    }\n}\nvoid cuda_forward(int B, int T, int C, int H, bf16 *r, bf16 *k, bf16 *v, float *w, bf16 *u, bf16 *y)\n{\n    assert(H*_N_ == C);\n    assert(_N_%4 == 0);\n    kernel_forward<<<dim3(B * H), dim3(_N_)>>>(B, T, C, H, r, k, v, w, u, y);\n}\nvo",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv5_cuda.cu:150-197"
+    },
+    "995": {
+        "file_id": 51,
+        "content": "The code is performing a convolution operation in CUDA. It first executes a kernel function that processes the data in blocks and threads, then calls another kernel function to compute the final results. The code uses shared memory, synchronization, and unrolling of loops for efficient computation. The `cuda_forward` function initializes the necessary variables and launches the kernel functions with appropriate dimensions.",
+        "type": "comment"
+    },
+    "996": {
+        "file_id": 51,
+        "content": "id cuda_backward(int B, int T, int C, int H, bf16 *r, bf16 *k, bf16 *v, float *w, float *ww, bf16 *u, bf16 *gy, bf16 *gr, bf16 *gk, bf16 *gv, bf16 *gw, bf16 *gu)\n{\n    assert(H*_N_ == C);\n    assert(_N_%4 == 0);\n    kernel_backward<<<dim3(B * H), dim3(_N_)>>>(B, T, C, H, r, k, v, w, ww, u, gy, gr, gk, gv, gw, gu);\n}",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv5_cuda.cu:197-202"
+    },
+    "997": {
+        "file_id": 51,
+        "content": "Function `cuda_backward` is a CUDA kernel launcher, taking input/output parameters and invoking the `kernel_backward` kernel with appropriate grid and block dimensions. The assertions ensure correct memory layouts and alignment for efficient GPU computation.",
+        "type": "comment"
+    },
+    "998": {
+        "file_id": 52,
+        "content": "/RWKV-v5/cuda/wkv5_op.cpp",
+        "type": "filepath"
+    },
+    "999": {
+        "file_id": 52,
+        "content": "This C++ code implements forward and backward neural network operations using PyTorch tensors, optimized for CUDA execution. It includes functions for BFloat16 data type, with Python module \"wkv5\" for forward and backward operations.",
+        "type": "summary"
+    }
+}

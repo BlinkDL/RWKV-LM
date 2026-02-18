@@ -1,0 +1,320 @@
+{
+    "url": {
+        "full": "https://github.com/BlinkDL/RWKV-LM",
+        "partial": "BlinkDL/RWKV-LM"
+    },
+    "file_mapping": {
+        "0": {
+            "filepath": "/README.md",
+            "entry_id": 0,
+            "language_id": "markdown"
+        },
+        "1": {
+            "filepath": "/RWKV-v1/src/model.py",
+            "entry_id": 88,
+            "language_id": "python"
+        },
+        "2": {
+            "filepath": "/RWKV-v1/src/trainer.py",
+            "entry_id": 132,
+            "language_id": "python"
+        },
+        "3": {
+            "filepath": "/RWKV-v1/src/utils.py",
+            "entry_id": 146,
+            "language_id": "python"
+        },
+        "4": {
+            "filepath": "/RWKV-v1/train.py",
+            "entry_id": 152,
+            "language_id": "python"
+        },
+        "5": {
+            "filepath": "/RWKV-v2-RNN/cuda/timex_cuda.cu",
+            "entry_id": 168,
+            "language_id": "cuda"
+        },
+        "6": {
+            "filepath": "/RWKV-v2-RNN/cuda/timex_op.cpp",
+            "entry_id": 182,
+            "language_id": "c++"
+        },
+        "7": {
+            "filepath": "/RWKV-v2-RNN/run.py",
+            "entry_id": 188,
+            "language_id": "python"
+        },
+        "8": {
+            "filepath": "/RWKV-v2-RNN/src/model.py",
+            "entry_id": 200,
+            "language_id": "python"
+        },
+        "9": {
+            "filepath": "/RWKV-v2-RNN/src/model_run.py",
+            "entry_id": 228,
+            "language_id": "python"
+        },
+        "10": {
+            "filepath": "/RWKV-v2-RNN/src/trainer.py",
+            "entry_id": 240,
+            "language_id": "python"
+        },
+        "11": {
+            "filepath": "/RWKV-v2-RNN/src/utils.py",
+            "entry_id": 256,
+            "language_id": "python"
+        },
+        "12": {
+            "filepath": "/RWKV-v2-RNN/train.py",
+            "entry_id": 266,
+            "language_id": "python"
+        },
+        "13": {
+            "filepath": "/RWKV-v3/cuda/timex_cuda.cu",
+            "entry_id": 276,
+            "language_id": "cuda"
+        },
+        "14": {
+            "filepath": "/RWKV-v3/cuda/timex_op.cpp",
+            "entry_id": 290,
+            "language_id": "c++"
+        },
+        "15": {
+            "filepath": "/RWKV-v3/run.py",
+            "entry_id": 296,
+            "language_id": "python"
+        },
+        "16": {
+            "filepath": "/RWKV-v3/src/model.py",
+            "entry_id": 306,
+            "language_id": "python"
+        },
+        "17": {
+            "filepath": "/RWKV-v3/src/model_run.py",
+            "entry_id": 336,
+            "language_id": "python"
+        },
+        "18": {
+            "filepath": "/RWKV-v3/src/trainer.py",
+            "entry_id": 360,
+            "language_id": "python"
+        },
+        "19": {
+            "filepath": "/RWKV-v3/src/utils.py",
+            "entry_id": 376,
+            "language_id": "python"
+        },
+        "20": {
+            "filepath": "/RWKV-v3/train.py",
+            "entry_id": 386,
+            "language_id": "python"
+        },
+        "21": {
+            "filepath": "/RWKV-v3/verify.py",
+            "entry_id": 400,
+            "language_id": "python"
+        },
+        "22": {
+            "filepath": "/RWKV-v4/cuda/wkv_cuda.cu",
+            "entry_id": 408,
+            "language_id": "cuda"
+        },
+        "23": {
+            "filepath": "/RWKV-v4/cuda/wkv_op.cpp",
+            "entry_id": 420,
+            "language_id": "c++"
+        },
+        "24": {
+            "filepath": "/RWKV-v4/run.py",
+            "entry_id": 426,
+            "language_id": "python"
+        },
+        "25": {
+            "filepath": "/RWKV-v4/src/binidx.py",
+            "entry_id": 440,
+            "language_id": "python"
+        },
+        "26": {
+            "filepath": "/RWKV-v4/src/model.py",
+            "entry_id": 456,
+            "language_id": "python"
+        },
+        "27": {
+            "filepath": "/RWKV-v4/src/model_run.py",
+            "entry_id": 488,
+            "language_id": "python"
+        },
+        "28": {
+            "filepath": "/RWKV-v4/src/trainer.py",
+            "entry_id": 518,
+            "language_id": "python"
+        },
+        "29": {
+            "filepath": "/RWKV-v4/src/utils.py",
+            "entry_id": 536,
+            "language_id": "python"
+        },
+        "30": {
+            "filepath": "/RWKV-v4/train.py",
+            "entry_id": 550,
+            "language_id": "python"
+        },
+        "31": {
+            "filepath": "/RWKV-v4/verify.py",
+            "entry_id": 576,
+            "language_id": "python"
+        },
+        "32": {
+            "filepath": "/RWKV-v4neo/chat.py",
+            "entry_id": 586,
+            "language_id": "python"
+        },
+        "33": {
+            "filepath": "/RWKV-v4neo/cuda/wkv5_cuda.cu",
+            "entry_id": 612,
+            "language_id": "cuda"
+        },
+        "34": {
+            "filepath": "/RWKV-v4neo/cuda/wkv5_op.cpp",
+            "entry_id": 626,
+            "language_id": "c++"
+        },
+        "35": {
+            "filepath": "/RWKV-v4neo/cuda/wkv_cuda.cu",
+            "entry_id": 632,
+            "language_id": "cuda"
+        },
+        "36": {
+            "filepath": "/RWKV-v4neo/cuda/wkv_cuda_bf16.cu",
+            "entry_id": 644,
+            "language_id": "cuda"
+        },
+        "37": {
+            "filepath": "/RWKV-v4neo/cuda/wkv_op.cpp",
+            "entry_id": 656,
+            "language_id": "c++"
+        },
+        "38": {
+            "filepath": "/RWKV-v4neo/cuda/wkv_op_bf16.cpp",
+            "entry_id": 662,
+            "language_id": "c++"
+        },
+        "39": {
+            "filepath": "/RWKV-v4neo/img_demoAE.py",
+            "entry_id": 668,
+            "language_id": "python"
+        },
+        "40": {
+            "filepath": "/RWKV-v4neo/math_demo/run.py",
+            "entry_id": 682,
+            "language_id": "python"
+        },
+        "41": {
+            "filepath": "/RWKV-v4neo/run.py",
+            "entry_id": 696,
+            "language_id": "python"
+        },
+        "42": {
+            "filepath": "/RWKV-v4neo/src/binidx.py",
+            "entry_id": 714,
+            "language_id": "python"
+        },
+        "43": {
+            "filepath": "/RWKV-v4neo/src/dataset.py",
+            "entry_id": 734,
+            "language_id": "python"
+        },
+        "44": {
+            "filepath": "/RWKV-v4neo/src/model.py",
+            "entry_id": 760,
+            "language_id": "python"
+        },
+        "45": {
+            "filepath": "/RWKV-v4neo/src/model_img.py",
+            "entry_id": 844,
+            "language_id": "python"
+        },
+        "46": {
+            "filepath": "/RWKV-v4neo/src/model_run.py",
+            "entry_id": 878,
+            "language_id": "python"
+        },
+        "47": {
+            "filepath": "/RWKV-v4neo/src/trainer.py",
+            "entry_id": 898,
+            "language_id": "python"
+        },
+        "48": {
+            "filepath": "/RWKV-v4neo/src/utils.py",
+            "entry_id": 922,
+            "language_id": "python"
+        },
+        "49": {
+            "filepath": "/RWKV-v4neo/train.py",
+            "entry_id": 934,
+            "language_id": "python"
+        },
+        "50": {
+            "filepath": "/RWKV-v4neo/verify.py",
+            "entry_id": 974,
+            "language_id": "python"
+        },
+        "51": {
+            "filepath": "/RWKV-v5/cuda/wkv5_cuda.cu",
+            "entry_id": 984,
+            "language_id": "cuda"
+        },
+        "52": {
+            "filepath": "/RWKV-v5/cuda/wkv5_op.cpp",
+            "entry_id": 998,
+            "language_id": "c++"
+        },
+        "53": {
+            "filepath": "/RWKV-v5/demo.jsonl",
+            "entry_id": 1004,
+            "language_id": "text"
+        },
+        "54": {
+            "filepath": "/RWKV-v5/make_data.py",
+            "entry_id": 1604,
+            "language_id": "python"
+        },
+        "55": {
+            "filepath": "/RWKV-v5/src/binidx.py",
+            "entry_id": 1616,
+            "language_id": "python"
+        },
+        "56": {
+            "filepath": "/RWKV-v5/src/dataset.py",
+            "entry_id": 1636,
+            "language_id": "python"
+        },
+        "57": {
+            "filepath": "/RWKV-v5/src/model.py",
+            "entry_id": 1656,
+            "language_id": "python"
+        },
+        "58": {
+            "filepath": "/RWKV-v5/src/trainer.py",
+            "entry_id": 1706,
+            "language_id": "python"
+        },
+        "59": {
+            "filepath": "/RWKV-v5/src/utils.py",
+            "entry_id": 1730,
+            "language_id": "python"
+        },
+        "60": {
+            "filepath": "/RWKV-v5/tokenizer/rwkv_tokenizer.py",
+            "entry_id": 1742,
+            "language_id": "python"
+        },
+        "61": {
+            "filepath": "/RWKV-v5/train.py",
+            "entry_id": 1750,
+            "language_id": "python"
+        }
+    },
+    "project_name": "RWKV-LM",
+    "split_count": 18
+}
