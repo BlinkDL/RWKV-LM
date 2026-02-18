@@ -1,0 +1,46 @@
+version: "3"
+
+x-train-base: &train-base
+  command: >
+    bash -c "export SHELL=/bin/bash && source ~/.bashrc
+    && jupyter lab --allow-root --no-browser --ip=0.0.0.0 --port=8888 --NotebookApp.token='' --NotebookApp.password=''"
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+  logging:
+    driver: json-file
+    options:
+      max-size: 50m
+  restart: unless-stopped
+  stdin_open: true
+  shm_size: 2gb    # shared memory setting for pytorch DataLoader
+  tty: true
+  working_dir: /workspace/prj
+  volumes:
+    - .:/workspace/prj
+  ports:
+    - "8888:8888"  # jupyter lab
+
+
+services:
+  train-v4:
+    <<: *train-base
+    container_name: train-v4
+    build:
+      context: ./RWKV-v4
+      dockerfile: Dockerfile
+    profiles: ["v4"]
+
+  train-v4neo:
+    <<: *train-base
+    container_name: train-v4neo
+    build:
+      context: ./RWKV-v4neo
+      dockerfile: Dockerfile
+    profiles: ["v4neo"]
+
+
