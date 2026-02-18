@@ -1030,19 +1030,6 @@ Green: MHA+Rotary+GeGLU+Token_shift. 17.2M params.
 
 Blue: MHA_pro (MHA with various tweaks & RWKV-type-FFN) - slow - needs more VRAM - good performance. 16.6M params.
 
-```
-@software{peng_bo_2021_5196578,
-  author       = {PENG Bo},
-  title        = {BlinkDL/RWKV-LM: 0.01},
-  month        = aug,
-  year         = 2021,
-  publisher    = {Zenodo},
-  version      = {0.01},
-  doi          = {10.5281/zenodo.5196577},
-  url          = {https://doi.org/10.5281/zenodo.5196577}
-}
-```
-
 # Initialization
 
 We use careful initialization for RWKV to get fast convergence - orthogonal matrices with proper scaling, and special time_w curves. Check model.py for details.
@@ -1050,3 +1037,20 @@ We use careful initialization for RWKV to get fast convergence - orthogonal matr
 Some learned time_w examples:
 
 ![RWKV-time-w](RWKV-time-w.png)
+
+# Relevant publications 
+
+If you use RWKV in your research, please consider citing our paper.
+
+Peng B, Alcaide E, Anthony Q, Albalak A, Arcadinho S, Cao H, Cheng X, Chung M, Grella M, GV KK, He X, et al. RWKV: Reinventing RNNs for the Transformer Era. arXiv preprint arXiv:2305.13048. 2023.
+
+[Link](https://arxiv.org/abs/2305.13048) to paper.
+
+```
+@article{peng2023rwkv,
+  title={RWKV: Reinventing RNNs for the Transformer Era},
+  author={Peng, Bo and Alcaide, Eric and Anthony, Quentin and Albalak, Alon and Arcadinho, Samuel and Cao, Huanqi and Cheng, Xin and Chung, Michael and Grella, Matteo and GV, Kranthi Kiran and others},
+  journal={arXiv preprint arXiv:2305.13048},
+  year={2023}
+}
+```
