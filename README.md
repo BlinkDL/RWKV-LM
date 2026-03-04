@@ -107,8 +107,6 @@ RWKV-6 demo code: https://github.com/BlinkDL/ChatRWKV/blob/main/RWKV_v6_demo.py
 
 For reference, use python 3.10+, torch 2.5+, cuda 12.4+, latest deepspeed, but **keep pytorch-lightning==1.9.5**
 
-### Note: seems deepspeed 0.17.x is buggy (worse loss or divergence). Use 0.16.8 for reference (maybe --layerwise_lr 0 can fix it)
-
 **Train RWKV-7:**
 ```
 # you can use latest torch + latest cuda (not limited to cu121)
