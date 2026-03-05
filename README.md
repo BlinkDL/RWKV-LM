@@ -15,6 +15,9 @@ RWKV is a [Linux Foundation AI project](https://lfaidata.foundation/projects/rwk
 You are welcome to ask the RWKV community (such as [RWKV discord](https://discord.gg/bDSBUMeFpc)) for advice on upgrading your attention/ssm models to rwkv7 models :)
 
 **Efficient inference project**: https://github.com/BlinkDL/Albatross
+* 145+ token/s RWKV-7 7.2B fp16 bsz1 decoding @ RTX5090 (always const speed)
+* 10250+ token/s RWKV-7 7.2B fp16 bsz960 decoding @ RTX5090 (always const speed)
+* 11289 token/s RWKV-7 7.2B fp16 bsz1 prefill @ RTX5090 (always const speed)
 
 Latest RWKV weights: https://huggingface.co/BlinkDL
 
@@ -22,7 +25,7 @@ GGUF: https://huggingface.co/collections/shoumenchougou/rwkv7-gxx-gguf
 
 **Fast RWKV-7 CUDA kernels (vanilla, state-tuning, state-passing infctx)**: https://github.com/BlinkDL/RWKV-CUDA/tree/main/rwkv7_fast_fused
 
-My current RWKV7 kernel is 2x slower for 0.1/0.4B, but you can reach good speed with 7B+. RWKV7 7.2B training on 4x8xH100 ctx8192 zero2+cp = 206k tokens/s.
+My current RWKV7 kernel is 2x slower for 0.1/0.4B vs optimized transformer, but you can reach good speed with 7B+. RWKV7 7.2B training on 4x8xH100 ctx8192 zero2+cp = 206k tokens/s.
 
 **RWKV APP**: https://github.com/RWKV-APP/RWKV_APP (local inference for Android / iOS)
 
