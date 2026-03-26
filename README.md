@@ -15,9 +15,10 @@ RWKV is a [Linux Foundation AI project](https://lfaidata.foundation/projects/rwk
 You are welcome to ask the RWKV community (such as [RWKV discord](https://discord.gg/bDSBUMeFpc)) for advice on upgrading your attention/ssm models to rwkv7 models :)
 
 **Efficient inference project**: https://github.com/BlinkDL/Albatross
-* 145+ token/s RWKV-7 7.2B fp16 bsz1 decoding @ RTX5090 (always const speed)
-* 10250+ token/s RWKV-7 7.2B fp16 bsz960 decoding @ RTX5090 (always const speed)
-* 11289 token/s RWKV-7 7.2B fp16 bsz1 prefill @ RTX5090 (always const speed)
+* 145+ token/s RWKV-7 7.2B fp16 bsz1 decoding @ RTX5090 (always const speed & vram)
+* 10250+ token/s RWKV-7 7.2B fp16 bsz960 decoding @ RTX5090 (always const speed & vram)
+* 9650+ token/s RWKV-7 7.2B fp16 bsz320 decoding @ RTX5090 (always const speed & vram)
+* 11289 token/s RWKV-7 7.2B fp16 bsz1 prefill @ RTX5090 (always const speed & vram)
 
 Latest RWKV weights: https://huggingface.co/BlinkDL
 
