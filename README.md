@@ -14,34 +14,36 @@ RWKV is a [Linux Foundation AI project](https://lfaidata.foundation/projects/rwk
 
 You are welcome to ask the RWKV community (such as [RWKV discord](https://discord.gg/bDSBUMeFpc)) for advice on upgrading your attention/ssm models to rwkv7 models :)
 
-**Efficient inference project**: https://github.com/BlinkDL/Albatross
-* 145+ token/s RWKV-7 7.2B fp16 bsz1 decoding @ RTX5090 (always const speed & vram)
-* 10250+ token/s RWKV-7 7.2B fp16 bsz960 decoding @ RTX5090 (always const speed & vram)
-* 9650+ token/s RWKV-7 7.2B fp16 bsz320 decoding @ RTX5090 (always const speed & vram)
-* 11289 token/s RWKV-7 7.2B fp16 bsz1 prefill @ RTX5090 (always const speed & vram)
+---
+
+RWKV Chat: https://rwkv.halowang.cloud/ (local inference for mobile/desktop) and https://github.com/RWKV-APP/RWKV_APP
 
 Latest RWKV weights: https://huggingface.co/BlinkDL
 
 GGUF: https://huggingface.co/collections/shoumenchougou/rwkv7-gxx-gguf
 
-**Fast RWKV-7 CUDA kernels (vanilla, state-tuning, state-passing infctx)**: https://github.com/BlinkDL/RWKV-CUDA/tree/main/rwkv7_fast_fused
+Efficient inference: https://github.com/BlinkDL/Albatross
+* 145+ token/s RWKV-7 7.2B fp16 bsz1 decoding @ RTX5090 (always const speed & vram)
+* 10250+ token/s RWKV-7 7.2B fp16 bsz960 decoding @ RTX5090 (always const speed & vram)
+* 9650+ token/s RWKV-7 7.2B fp16 bsz320 decoding @ RTX5090 (always const speed & vram)
+* 11289 token/s RWKV-7 7.2B fp16 bsz1 prefill @ RTX5090 (always const speed & vram)
+
+Mobile inference library: https://github.com/MollySophia/rwkv-mobile
+
+---
+
+Fast RWKV-7 CUDA kernels (vanilla, state-tuning, state-passing infctx): https://github.com/BlinkDL/RWKV-CUDA/tree/main/rwkv7_fast_fused
 
 My current RWKV7 kernel is 2x slower for 0.1/0.4B vs optimized transformer, but you can reach good speed with 7B+. RWKV7 7.2B training on 4x8xH100 ctx8192 zero2+cp = 206k tokens/s.
 
-**RWKV APP**: https://github.com/RWKV-APP/RWKV_APP (local inference for Android / iOS)
+**Please use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp as RWKV-7 reference implementation**. The default config only requires 1 GPU with 10G VRAM (you can reduce bsz if you have less VRAM), so it's easy to test.
 
-**Simplified RWKV-7 training demo**: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/train_temp/rwkv7_train_simplified.py
+Simplified RWKV-7 training demo: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/train_temp/rwkv7_train_simplified.py
 
 **Important** (all shown in rwkv7_train_simplified.py):
 * Use PreLN LayerNorm (instead of RMSNorm) for RWKV. I think it's related to better initial state, because I am not using trainable initial state (found it useless when using LayerNorm).
 * Only apply weight decay to large matrix parameters (basically projections) in your model instead of all parameters. THIS IS VERY IMPORTANT.
 * Use correct initialization.
-
-Improving RNNs: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-8.md
-
-===
-
-**Please use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp as RWKV-7 reference implementation**. The default config only requires 1 GPU with 10G VRAM (you can reduce bsz if you have less VRAM), so it's easy to test.
 
 Note FLA RWKV-7 is NOT aligned with reference implementation yet, and you will get less performance.
 
@@ -62,6 +64,8 @@ See: https://github.com/YS-Tang/RWKV-FLA-comparison
 RWKV-8:
 
 <img src="RWKV-8-ROSA.png">
+
+Improving RNNs: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-8.md
 
 ===
 
