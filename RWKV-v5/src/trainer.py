@@ -20,7 +20,14 @@ def my_save(args, trainer, dd, ff):
         if 'deepspeed_stage_3' in args.strategy:
             trainer.save_checkpoint(ff, weights_only=True)
         else:
-            torch.save(dd, ff)
+            if args.train_type == 'states':
+                ddd = {}
+                for k, v in dd.items():
+                    if 'time_sta' in k:
+                        ddd[k] = v.clone()
+                torch.save(ddd, ff)
+            else:
+                torch.save(dd, ff)
 
 class train_callback(pl.Callback):
     def __init__(self, args):
@@ -70,7 +77,7 @@ class train_callback(pl.Callback):
                     )
                     exit(0)
         if trainer.global_step < w_step:
-            lr = lr * (0.2 + 0.8 * trainer.global_step / w_step)
+            lr = lr * (0.01 + 0.99 * trainer.global_step / w_step)
 
         if args.weight_decay_final > 0:
             wd_now = args.weight_decay * math.exp(math.log(args.weight_decay_final / args.weight_decay) * progress)

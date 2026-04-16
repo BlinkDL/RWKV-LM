@@ -1,0 +1,88 @@
+{
+  "builder_name": "parquet",
+  "citation": "",
+  "config_name": "all",
+  "dataset_name": "mmlu",
+  "dataset_size": 168871380,
+  "description": "",
+  "download_checksums": {
+    "hf://datasets/cais/mmlu@c30699e8356da336a370243923dbaf21066bb9fe/all/test-00000-of-00001.parquet": {
+      "num_bytes": 3504718,
+      "checksum": null
+    },
+    "hf://datasets/cais/mmlu@c30699e8356da336a370243923dbaf21066bb9fe/all/validation-00000-of-00001.parquet": {
+      "num_bytes": 408449,
+      "checksum": null
+    },
+    "hf://datasets/cais/mmlu@c30699e8356da336a370243923dbaf21066bb9fe/all/dev-00000-of-00001.parquet": {
+      "num_bytes": 76504,
+      "checksum": null
+    },
+    "hf://datasets/cais/mmlu@c30699e8356da336a370243923dbaf21066bb9fe/all/auxiliary_train-00000-of-00001.parquet": {
+      "num_bytes": 47513731,
+      "checksum": null
+    }
+  },
+  "download_size": 51503402,
+  "features": {
+    "question": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "subject": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "choices": {
+      "feature": {
+        "dtype": "string",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    },
+    "answer": {
+      "names": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "_type": "ClassLabel"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 220374782,
+  "splits": {
+    "test": {
+      "name": "test",
+      "num_bytes": 6969209,
+      "num_examples": 14042,
+      "dataset_name": "mmlu"
+    },
+    "validation": {
+      "name": "validation",
+      "num_bytes": 763676,
+      "num_examples": 1531,
+      "dataset_name": "mmlu"
+    },
+    "dev": {
+      "name": "dev",
+      "num_bytes": 125389,
+      "num_examples": 285,
+      "dataset_name": "mmlu"
+    },
+    "auxiliary_train": {
+      "name": "auxiliary_train",
+      "num_bytes": 161013106,
+      "num_examples": 99842,
+      "dataset_name": "mmlu"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}

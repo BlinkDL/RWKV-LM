@@ -1,0 +1,43 @@
+# RWKV-8 "Heron" with ROSA (Rapid Online Suffix Automaton)
+
+### Community ROSA Projects
+
+https://github.com/wjie98/rosa_soft (training ROSA)
+
+https://github.com/johanwind/wind_rosa (training ROSA)
+
+https://github.com/zyaaa-ux/ROSA-Tuning (training ROSA)
+
+https://github.com/bcml-ai/rosa-plus
+
+https://github.com/x-0D/RASP
+
+### Introducing ROSA 
+
+<img src="../RWKV-8-ROSA.png">
+
+260212_rosa1bitLM_L12.py - pure ROSA1bit + FFN (no RWKV), and only trained on minipile (1.5B tokens), yet it can already copy & count (here is completion of "When"):
+
+<img width="1455" height="485" alt="image" src="https://github.com/user-attachments/assets/31be7f4c-211d-45f6-9bc6-9a3a4d60ca95" />
+
+<img src="../RWKV-8-ROSA-260120.png">
+
+251105_reverse_run.py - RWKV7+ROSA with 40K params (L2-D32) reversing 1-60 digits input with 99.8% (can reach 100% if trained longer) digit accuracy:
+
+<img width="1836" height="411" alt="image" src="https://github.com/user-attachments/assets/2af98f3e-721d-484f-8db3-ecd4ad777872" />
+
+251024_rosaQKV_run.py for arithmetic demo (1M params can solve 40 digits plus/minus with 99% digit accuracy, without CoT):
+
+<img width="1563" height="1008" alt="image" src="https://github.com/user-attachments/assets/12134e7c-85f3-4788-9664-8070152e7e72" />
+
+251016_rosa_1bit_run.py for multi-layer ROSA demo:
+
+<img width="1198" height="1198" alt="image" src="https://github.com/user-attachments/assets/ea2121b6-b571-4a95-9d5b-91e84c5d5e4a" />
+
+251014_rosa_onlyemb_train.py will reach loss ~0.65
+
+251014_rosa_1bit_train.py will reach loss ~0.4
+
+251018_rosa_4bit_train.py will reach loss ~0.25
+
+<img src="251014_rosa_1bit.png">

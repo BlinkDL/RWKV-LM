@@ -19,6 +19,7 @@ if __name__ == "__main__":
     parser.add_argument("--wandb", default="", type=str)  # wandb project name. if "" then don't use wandb
     parser.add_argument("--proj_dir", default="out", type=str)
     parser.add_argument("--random_seed", default="-1", type=int)
+    parser.add_argument("--train_type", default="", type=str) # ""/"states"
 
     parser.add_argument("--data_file", default="", type=str)
     parser.add_argument("--data_type", default="utf-8", type=str)
@@ -42,14 +43,15 @@ if __name__ == "__main__":
 
     parser.add_argument("--lr_init", default=6e-4, type=float)  # 6e-4 for L12-D768, 4e-4 for L24-D1024, 3e-4 for L24-D2048
     parser.add_argument("--lr_final", default=1e-5, type=float)
-    parser.add_argument("--warmup_steps", default=-1, type=int)  # try 50 if you load a model
+    parser.add_argument("--warmup_steps", default=-1, type=int)  # try 20 if you load a model
     parser.add_argument("--beta1", default=0.9, type=float)
-    parser.add_argument("--beta2", default=0.99, type=float)  # use 0.999 when your model is close to convergence
+    parser.add_argument("--beta2", default=0.99, type=float)  # use 0.95 if you see spikes
     parser.add_argument("--adam_eps", default=1e-8, type=float)
     parser.add_argument("--grad_cp", default=0, type=int)  # gradient checkpt: saves VRAM, but slower
     parser.add_argument("--dropout", default=0, type=float) # try 0.01 / 0.02 / 0.05 / 0.1
-    parser.add_argument("--weight_decay", default=0, type=float) # try 0.1 / 0.01 / 0.001
+    parser.add_argument("--weight_decay", default=0, type=float) # try 0.1
     parser.add_argument("--weight_decay_final", default=-1, type=float)
+    parser.add_argument("--grad_clip", default=1.0, type=float) # reduce it to 0.7 / 0.5 / 0.3 / 0.2 for problematic samples
 
     parser.add_argument("--my_pile_version", default=1, type=int)  # my special pile version
     parser.add_argument("--my_pile_stage", default=0, type=int)  # my special pile mode
@@ -69,7 +71,7 @@ if __name__ == "__main__":
     parser.add_argument("--magic_prime", default=0, type=int)
     parser.add_argument("--my_qa_mask", default=0, type=int)
     parser.add_argument("--my_random_steps", default=0, type=int)
-    parser.add_argument("--my_testing", default='', type=str)
+    parser.add_argument("--my_testing", default='x052', type=str)
     parser.add_argument("--my_exit", default=99999999, type=int)
     parser.add_argument("--my_exit_tokens", default=0, type=int)
 
@@ -107,7 +109,7 @@ if __name__ == "__main__":
     args.enable_checkpointing = False
     args.replace_sampler_ddp = False
     args.logger = False
-    args.gradient_clip_val = 1.0
+    args.gradient_clip_val = args.grad_clip
     args.num_sanity_val_steps = 0
     args.check_val_every_n_epoch = int(1e20)
     args.log_every_n_steps = int(1e20)
@@ -115,11 +117,16 @@ if __name__ == "__main__":
     args.betas = (args.beta1, args.beta2)
     args.real_bsz = int(args.num_nodes) * int(args.devices) * args.micro_bsz
     os.environ["RWKV_MY_TESTING"] = args.my_testing
+    os.environ["RWKV_CTXLEN"] = str(args.ctx_len)
     os.environ["RWKV_HEAD_SIZE_A"] = str(args.head_size_a)
+    os.environ["RWKV_TRAIN_TYPE"] = args.train_type
     if args.dim_att <= 0:
         args.dim_att = args.n_embd
     if args.dim_ffn <= 0:
-        args.dim_ffn = int((args.n_embd * 3.5) // 32 * 32) # default = 3.5x emb size
+        if '-f4' in os.environ["RWKV_MY_TESTING"]:
+            args.dim_ffn = int((args.n_embd * 4) // 32 * 32)
+        else:
+            args.dim_ffn = int((args.n_embd * 3.5) // 32 * 32) # default = 3.5x emb size
 
     if args.data_type == "wds_img":
         args.run_name = f"v{args.my_img_version}-{args.my_img_size}-{args.my_img_bit}bit-{args.my_img_clip}x{args.my_img_clip_scale}"
@@ -195,8 +202,8 @@ if __name__ == "__main__":
 #
 # Adam = lr {args.lr_init} to {args.lr_final}, warmup {args.warmup_steps} steps, beta {args.betas}, eps {args.adam_eps}
 #
-# Found torch {torch.__version__}, recommend 1.13.1+cu117 or newer
-# Found deepspeed {deepspeed_version}, recommend 0.7.0 (faster than newer versions)
+# Found torch {torch.__version__}, recommend latest torch
+# Found deepspeed {deepspeed_version}, recommend latest deepspeed
 # Found pytorch_lightning {pl.__version__}, recommend 1.9.5
 #
 ############################################################################
@@ -273,6 +280,13 @@ if __name__ == "__main__":
             rank_zero_info(f"Trying {args.load_model}")
             load_dict = torch.load(args.load_model, map_location="cpu")
 
+    state_file = f"{args.proj_dir}/rwkv-init-state.pth"
+    if os.path.isfile(state_file):
+        rank_zero_info(f"########## Loading State {state_file}... ##########")
+        state_dict = torch.load(state_file, map_location="cpu")
+        for k in state_dict:
+            load_dict[k] = state_dict[k]
+
     if args.load_partial == 1:
         load_keys = load_dict.keys()
         for k in model.state_dict():
@@ -293,11 +307,11 @@ if __name__ == "__main__":
     if trainer.global_rank == 0:
         for n in model.state_dict():
             shape = model.state_dict()[n].shape
-            shape = [i for i in shape if i != 1]
-            if len(shape) > 1:
-                print(f"{str(shape[0]).ljust(5)} {str(shape[1]).ljust(5)} {n}")
-            else:
-                print(f"{str(shape[0]).ljust(5)}       {n}")
+            s0 = str(shape[0]) if len(shape) > 0 else ""
+            s1 = str(shape[1]) if len(shape) > 1 else ""
+            s2 = str(shape[2]) if len(shape) > 2 else ""
+            s3 = str(shape[3]) if len(shape) > 3 else ""
+            print(f"{s0.ljust(5)} {s1.ljust(5)} {s2.ljust(5)} {s3.ljust(5)} {n}")
 
     if "deepspeed" in args.strategy:
         trainer.strategy.config["zero_optimization"]["allgather_bucket_size"] = args.ds_bucket_mb * 1000 * 1000
@@ -305,5 +319,13 @@ if __name__ == "__main__":
 
     # must set shuffle=False, persistent_workers=False (because worker is in another thread)
     data_loader = DataLoader(train_data, shuffle=False, pin_memory=True, batch_size=args.micro_bsz, num_workers=1, persistent_workers=False, drop_last=True)
+
+    # if args.train_type == 'states':
+    #     model.requires_grad_(False)
+    #     for name, module in model.named_modules():
+    #         for pname, param in module.named_parameters():
+    #             if pname.endswith('.time_state') and pname.startswith('blocks.'):
+    #                 print(pname)
+    #                 param.requires_grad = True
 
     trainer.fit(model, data_loader)
