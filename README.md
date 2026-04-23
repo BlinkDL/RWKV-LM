@@ -34,7 +34,7 @@ Mobile inference library: https://github.com/MollySophia/rwkv-mobile
 
 Fast RWKV-7 CUDA kernels (vanilla, state-tuning, state-passing infctx): https://github.com/BlinkDL/RWKV-CUDA/tree/main/rwkv7_fast_fused
 
-My current RWKV7 kernel is 2x slower for 0.1/0.4B vs optimized transformer, but you can reach good speed with 7B+. RWKV7 7.2B training on 4x8xH100 ctx8192 zero2+cp = 206k tokens/s.
+My current RWKV7 kernel is 2x slower for 0.1/0.4B vs optimized transformer, but you can reach good speed with 7B+. RWKV7 7.2B training on 4x8xH100 ctx8192 zero2+cp = 206k (UPDATE: 224k in latest version) tokens/s.
 
 **Please use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp as RWKV-7 reference implementation**. The default config only requires 1 GPU with 10G VRAM (you can reduce bsz if you have less VRAM), so it's easy to test.
 
