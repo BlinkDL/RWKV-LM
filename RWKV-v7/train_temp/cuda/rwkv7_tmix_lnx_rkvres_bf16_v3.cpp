@@ -2,7 +2,7 @@
 
 #include <vector>
 
-std::vector<torch::Tensor> tmix_lnx_rkvres_forward_cuda(
+std::vector<torch::Tensor> tmix_lnx_rkvres_v3_forward_cuda(
     torch::Tensor x,
     torch::Tensor r,
     torch::Tensor k,
@@ -11,7 +11,7 @@ std::vector<torch::Tensor> tmix_lnx_rkvres_forward_cuda(
     torch::Tensor weight,
     torch::Tensor bias);
 
-std::vector<torch::Tensor> tmix_lnx_rkvres_backward_cuda(
+std::vector<torch::Tensor> tmix_lnx_rkvres_v3_backward_cuda(
     torch::Tensor grad_y,
     torch::Tensor x,
     torch::Tensor r,
@@ -20,8 +20,7 @@ std::vector<torch::Tensor> tmix_lnx_rkvres_backward_cuda(
     torch::Tensor r_k,
     torch::Tensor weight,
     torch::Tensor mean,
-    torch::Tensor rstd,
-    torch::Tensor scale);
+    torch::Tensor rstd);
 
 namespace {
 
@@ -46,7 +45,7 @@ void check_vec(const torch::Tensor& x, int64_t c, const char* name) {
 
 } // namespace
 
-std::vector<torch::Tensor> tmix_lnx_rkvres_forward(
+std::vector<torch::Tensor> forward(
     torch::Tensor x,
     torch::Tensor r,
     torch::Tensor k,
@@ -71,10 +70,10 @@ std::vector<torch::Tensor> tmix_lnx_rkvres_forward(
     TORCH_CHECK(r_k.size(0) == c / kHeadSize && r_k.size(1) == kHeadSize, "r_k shape mismatch");
     check_vec(weight, c, "weight");
     check_vec(bias, c, "bias");
-    return tmix_lnx_rkvres_forward_cuda(x, r, k, v, r_k, weight, bias);
+    return tmix_lnx_rkvres_v3_forward_cuda(x, r, k, v, r_k, weight, bias);
 }
 
-std::vector<torch::Tensor> tmix_lnx_rkvres_backward(
+std::vector<torch::Tensor> backward(
     torch::Tensor grad_y,
     torch::Tensor x,
     torch::Tensor r,
@@ -83,8 +82,7 @@ std::vector<torch::Tensor> tmix_lnx_rkvres_backward(
     torch::Tensor r_k,
     torch::Tensor weight,
     torch::Tensor mean,
-    torch::Tensor rstd,
-    torch::Tensor scale) {
+    torch::Tensor rstd) {
     check_bf16_cuda(grad_y, "grad_y");
     check_bf16_cuda(x, "x");
     check_bf16_cuda(r, "r");
@@ -94,7 +92,6 @@ std::vector<torch::Tensor> tmix_lnx_rkvres_backward(
     check_bf16_cuda(weight, "weight");
     check_f32_cuda(mean, "mean");
     check_f32_cuda(rstd, "rstd");
-    check_f32_cuda(scale, "scale");
     TORCH_CHECK(grad_y.sizes() == x.sizes(), "grad_y shape mismatch");
     TORCH_CHECK(r.sizes() == x.sizes(), "r shape mismatch");
     TORCH_CHECK(k.sizes() == x.sizes(), "k shape mismatch");
@@ -106,16 +103,15 @@ std::vector<torch::Tensor> tmix_lnx_rkvres_backward(
     check_vec(weight, c, "weight");
     TORCH_CHECK(mean.dim() == 3 && mean.size(0) == x.size(0) && mean.size(1) == x.size(1) && mean.size(2) == c / kHeadSize, "mean shape mismatch");
     TORCH_CHECK(rstd.dim() == 3 && rstd.size(0) == x.size(0) && rstd.size(1) == x.size(1) && rstd.size(2) == c / kHeadSize, "rstd shape mismatch");
-    TORCH_CHECK(scale.dim() == 3 && scale.size(0) == x.size(0) && scale.size(1) == x.size(1) && scale.size(2) == c / kHeadSize, "scale shape mismatch");
-    return tmix_lnx_rkvres_backward_cuda(grad_y, x, r, k, v, r_k, weight, mean, rstd, scale);
+    return tmix_lnx_rkvres_v3_backward_cuda(grad_y, x, r, k, v, r_k, weight, mean, rstd);
 }
 
-TORCH_LIBRARY(rwkv7_tmix_lnx_rkvres_bf16, m) {
+TORCH_LIBRARY(rwkv7_tmix_lnx_rkvres_bf16_v3, m) {
     m.def("forward(Tensor x, Tensor r, Tensor k, Tensor v, Tensor r_k, Tensor weight, Tensor bias) -> Tensor[]");
-    m.def("backward(Tensor grad_y, Tensor x, Tensor r, Tensor k, Tensor v, Tensor r_k, Tensor weight, Tensor mean, Tensor rstd, Tensor scale) -> Tensor[]");
+    m.def("backward(Tensor grad_y, Tensor x, Tensor r, Tensor k, Tensor v, Tensor r_k, Tensor weight, Tensor mean, Tensor rstd) -> Tensor[]");
 }
 
-TORCH_LIBRARY_IMPL(rwkv7_tmix_lnx_rkvres_bf16, CUDA, m) {
-    m.impl("forward", &tmix_lnx_rkvres_forward);
-    m.impl("backward", &tmix_lnx_rkvres_backward);
+TORCH_LIBRARY_IMPL(rwkv7_tmix_lnx_rkvres_bf16_v3, CUDA, m) {
+    m.impl("forward", &forward);
+    m.impl("backward", &backward);
 }

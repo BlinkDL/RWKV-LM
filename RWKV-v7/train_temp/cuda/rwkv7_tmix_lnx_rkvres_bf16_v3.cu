@@ -9,6 +9,9 @@
 namespace {
 
 constexpr int kHeadSize = 64;
+constexpr int kWarpSize = 32;
+constexpr int kRowsPerBlock = 16;
+constexpr int kThreads = kWarpSize * kRowsPerBlock;
 constexpr float kLnXEps = 64e-5f;
 
 __device__ inline __nv_bfloat162 load_bf16x2(const at::BFloat16* ptr) {
@@ -34,7 +37,7 @@ inline int64_t ceil_div(int64_t n, int64_t d) {
     return (n + d - 1) / d;
 }
 
-__global__ void tmix_lnx_rkvres_forward_kernel(
+__global__ void tmix_lnx_rkvres_v3_forward_kernel(
     const at::BFloat16* __restrict__ x,
     const at::BFloat16* __restrict__ r,
     const at::BFloat16* __restrict__ k,
@@ -45,49 +48,47 @@ __global__ void tmix_lnx_rkvres_forward_kernel(
     at::BFloat16* __restrict__ y,
     float* __restrict__ mean,
     float* __restrict__ rstd,
-    float* __restrict__ scale,
     int64_t ngroups,
     int64_t nrows) {
-    const int64_t ng = static_cast<int64_t>(blockIdx.x);
-    if (ng >= nrows * ngroups) {
+    const int warp = threadIdx.x >> 5;
+    const int lane = threadIdx.x & 31;
+    const int64_t group = static_cast<int64_t>(blockIdx.x);
+    const int64_t row = static_cast<int64_t>(blockIdx.y) * kRowsPerBlock + warp;
+    if (row >= nrows) {
         return;
     }
 
-    const int lane = threadIdx.x;
-    const int64_t row = ng / ngroups;
-    const int64_t group = ng % ngroups;
     const int64_t c0 = group * kHeadSize;
     const int64_t base = row * (ngroups * kHeadSize) + c0;
     const int64_t idx = base + static_cast<int64_t>(lane) * 2;
     const int64_t c = c0 + static_cast<int64_t>(lane) * 2;
+    const int64_t ng = row * ngroups + group;
 
     const __nv_bfloat162 xv2 = load_bf16x2(x + idx);
     const float x0 = __low2float(xv2);
     const float x1 = __high2float(xv2);
 
-    float sum = x0 + x1;
-    sum = warp_sum(sum);
+    float sum = warp_sum(x0 + x1);
     const float mean_val = __shfl_sync(0xffffffffu, sum, 0) * (1.0f / kHeadSize);
 
     const float d0 = x0 - mean_val;
     const float d1 = x1 - mean_val;
-    float sq = d0 * d0 + d1 * d1;
-    sq = warp_sum(sq);
+    float sq = warp_sum(d0 * d0 + d1 * d1);
     const float var_val = __shfl_sync(0xffffffffu, sq, 0) * (1.0f / kHeadSize);
     const float rstd_val = rsqrtf(var_val + kLnXEps);
 
     const __nv_bfloat162 rv2 = load_bf16x2(r + idx);
     const __nv_bfloat162 kv2 = load_bf16x2(k + idx);
     const __nv_bfloat162 rk2 = load_bf16x2(r_k + c);
-    const float scale_local =
+    float scale_sum =
         __low2float(rv2) * __low2float(kv2) * __low2float(rk2) +
         __high2float(rv2) * __high2float(kv2) * __high2float(rk2);
-    const float scale_val = __shfl_sync(0xffffffffu, warp_sum(scale_local), 0);
+    scale_sum = warp_sum(scale_sum);
+    const float scale_val = __shfl_sync(0xffffffffu, scale_sum, 0);
 
     if (lane == 0) {
         mean[ng] = mean_val;
         rstd[ng] = rstd_val;
-        scale[ng] = scale_val;
     }
 
     const __nv_bfloat162 vv2 = load_bf16x2(v + idx);
@@ -98,7 +99,7 @@ __global__ void tmix_lnx_rkvres_forward_kernel(
     store_bf16x2(y + idx, y0, y1);
 }
 
-__global__ void tmix_lnx_rkvres_backward_kernel(
+__global__ void tmix_lnx_rkvres_v3_backward_kernel(
     const at::BFloat16* __restrict__ grad_y,
     const at::BFloat16* __restrict__ x,
     const at::BFloat16* __restrict__ r,
@@ -108,7 +109,6 @@ __global__ void tmix_lnx_rkvres_backward_kernel(
     const at::BFloat16* __restrict__ weight,
     const float* __restrict__ mean,
     const float* __restrict__ rstd,
-    const float* __restrict__ scale,
     at::BFloat16* __restrict__ grad_x,
     at::BFloat16* __restrict__ grad_r,
     at::BFloat16* __restrict__ grad_k,
@@ -118,75 +118,123 @@ __global__ void tmix_lnx_rkvres_backward_kernel(
     float* __restrict__ grad_bias,
     int64_t ngroups,
     int64_t nrows) {
-    const int64_t ng = static_cast<int64_t>(blockIdx.x);
-    if (ng >= nrows * ngroups) {
-        return;
-    }
+    __shared__ float s_gw0[kRowsPerBlock][kWarpSize];
+    __shared__ float s_gw1[kRowsPerBlock][kWarpSize];
+    __shared__ float s_gb0[kRowsPerBlock][kWarpSize];
+    __shared__ float s_gb1[kRowsPerBlock][kWarpSize];
+    __shared__ float s_grk0[kRowsPerBlock][kWarpSize];
+    __shared__ float s_grk1[kRowsPerBlock][kWarpSize];
 
-    const int lane = threadIdx.x;
-    const int64_t row = ng / ngroups;
-    const int64_t group = ng % ngroups;
+    const int warp = threadIdx.x >> 5;
+    const int lane = threadIdx.x & 31;
+    const int64_t group = static_cast<int64_t>(blockIdx.x);
+    const int64_t row = static_cast<int64_t>(blockIdx.y) * kRowsPerBlock + warp;
+    const bool valid = row < nrows;
+
     const int64_t c0 = group * kHeadSize;
+    const int64_t c = c0 + static_cast<int64_t>(lane) * 2;
+    const int64_t ng = row * ngroups + group;
     const int64_t base = row * (ngroups * kHeadSize) + c0;
     const int64_t idx = base + static_cast<int64_t>(lane) * 2;
-    const int64_t c = c0 + static_cast<int64_t>(lane) * 2;
 
-    const float mean_val = mean[ng];
-    const float rstd_val = rstd[ng];
-    const float scale_val = scale[ng];
+    float gw0 = 0.0f;
+    float gw1 = 0.0f;
+    float gb0 = 0.0f;
+    float gb1 = 0.0f;
+    float grk0 = 0.0f;
+    float grk1 = 0.0f;
 
-    const __nv_bfloat162 xv2 = load_bf16x2(x + idx);
-    const __nv_bfloat162 gy2 = load_bf16x2(grad_y + idx);
-    const __nv_bfloat162 w2 = load_bf16x2(weight + c);
-    const __nv_bfloat162 vv2 = load_bf16x2(v + idx);
+    if (valid) {
+        const float mean_val = mean[ng];
+        const float rstd_val = rstd[ng];
 
-    const float x0 = __low2float(xv2);
-    const float x1 = __high2float(xv2);
-    const float gy0 = __low2float(gy2);
-    const float gy1 = __high2float(gy2);
-    const float w0 = __low2float(w2);
-    const float w1 = __high2float(w2);
-    const float xhat0 = (x0 - mean_val) * rstd_val;
-    const float xhat1 = (x1 - mean_val) * rstd_val;
-    const float dxhat0 = gy0 * w0;
-    const float dxhat1 = gy1 * w1;
+        const __nv_bfloat162 xv2 = load_bf16x2(x + idx);
+        const __nv_bfloat162 gy2 = load_bf16x2(grad_y + idx);
+        const __nv_bfloat162 w2 = load_bf16x2(weight + c);
+        const __nv_bfloat162 vv2 = load_bf16x2(v + idx);
 
-    float sum_dxhat = dxhat0 + dxhat1;
-    float sum_dxhat_xhat = dxhat0 * xhat0 + dxhat1 * xhat1;
-    sum_dxhat = warp_sum(sum_dxhat);
-    sum_dxhat_xhat = warp_sum(sum_dxhat_xhat);
-    const float total_dxhat = __shfl_sync(0xffffffffu, sum_dxhat, 0);
-    const float total_dxhat_xhat = __shfl_sync(0xffffffffu, sum_dxhat_xhat, 0);
-    const float inv_m = 1.0f / kHeadSize;
+        const float x0 = __low2float(xv2);
+        const float x1 = __high2float(xv2);
+        const float gy0 = __low2float(gy2);
+        const float gy1 = __high2float(gy2);
+        const float w0 = __low2float(w2);
+        const float w1 = __high2float(w2);
+        const float xhat0 = (x0 - mean_val) * rstd_val;
+        const float xhat1 = (x1 - mean_val) * rstd_val;
+        const float dxhat0 = gy0 * w0;
+        const float dxhat1 = gy1 * w1;
 
-    const float gx0 = (dxhat0 - total_dxhat * inv_m - xhat0 * total_dxhat_xhat * inv_m) * rstd_val;
-    const float gx1 = (dxhat1 - total_dxhat * inv_m - xhat1 * total_dxhat_xhat * inv_m) * rstd_val;
-    store_bf16x2(grad_x + idx, gx0, gx1);
+        float total_dxhat = warp_sum(dxhat0 + dxhat1);
+        float total_dxhat_xhat = warp_sum(dxhat0 * xhat0 + dxhat1 * xhat1);
+        total_dxhat = __shfl_sync(0xffffffffu, total_dxhat, 0);
+        total_dxhat_xhat = __shfl_sync(0xffffffffu, total_dxhat_xhat, 0);
+        const float inv_m = 1.0f / kHeadSize;
 
-    atomicAdd(grad_weight + c + 0, gy0 * xhat0);
-    atomicAdd(grad_weight + c + 1, gy1 * xhat1);
-    atomicAdd(grad_bias + c + 0, gy0);
-    atomicAdd(grad_bias + c + 1, gy1);
+        const float gx0 = (dxhat0 - total_dxhat * inv_m - xhat0 * total_dxhat_xhat * inv_m) * rstd_val;
+        const float gx1 = (dxhat1 - total_dxhat * inv_m - xhat1 * total_dxhat_xhat * inv_m) * rstd_val;
+        store_bf16x2(grad_x + idx, gx0, gx1);
 
-    const float v0 = __low2float(vv2);
-    const float v1 = __high2float(vv2);
-    const float q = __shfl_sync(0xffffffffu, warp_sum(gy0 * v0 + gy1 * v1), 0);
-    store_bf16x2(grad_v + idx, gy0 * scale_val, gy1 * scale_val);
+        gw0 = gy0 * xhat0;
+        gw1 = gy1 * xhat1;
+        gb0 = gy0;
+        gb1 = gy1;
 
-    const __nv_bfloat162 rv2 = load_bf16x2(r + idx);
-    const __nv_bfloat162 kv2 = load_bf16x2(k + idx);
-    const __nv_bfloat162 rk2 = load_bf16x2(r_k + c);
-    const float r0 = __low2float(rv2);
-    const float r1 = __high2float(rv2);
-    const float k0 = __low2float(kv2);
-    const float k1 = __high2float(kv2);
-    const float rk0 = __low2float(rk2);
-    const float rk1 = __high2float(rk2);
+        const __nv_bfloat162 rv2 = load_bf16x2(r + idx);
+        const __nv_bfloat162 kv2 = load_bf16x2(k + idx);
+        const __nv_bfloat162 rk2 = load_bf16x2(r_k + c);
+        const float r0 = __low2float(rv2);
+        const float r1 = __high2float(rv2);
+        const float k0 = __low2float(kv2);
+        const float k1 = __high2float(kv2);
+        const float rk0 = __low2float(rk2);
+        const float rk1 = __high2float(rk2);
 
-    store_bf16x2(grad_r + idx, q * k0 * rk0, q * k1 * rk1);
-    store_bf16x2(grad_k + idx, q * r0 * rk0, q * r1 * rk1);
-    atomicAdd(grad_r_k + c + 0, q * r0 * k0);
-    atomicAdd(grad_r_k + c + 1, q * r1 * k1);
+        float scale_sum = r0 * k0 * rk0 + r1 * k1 * rk1;
+        scale_sum = warp_sum(scale_sum);
+        const float scale_val = __shfl_sync(0xffffffffu, scale_sum, 0);
+
+        const float v0 = __low2float(vv2);
+        const float v1 = __high2float(vv2);
+        const float q = __shfl_sync(0xffffffffu, warp_sum(gy0 * v0 + gy1 * v1), 0);
+        store_bf16x2(grad_v + idx, gy0 * scale_val, gy1 * scale_val);
+        store_bf16x2(grad_r + idx, q * k0 * rk0, q * k1 * rk1);
+        store_bf16x2(grad_k + idx, q * r0 * rk0, q * r1 * rk1);
+
+        grk0 = q * r0 * k0;
+        grk1 = q * r1 * k1;
+    }
+
+    s_gw0[warp][lane] = gw0;
+    s_gw1[warp][lane] = gw1;
+    s_gb0[warp][lane] = gb0;
+    s_gb1[warp][lane] = gb1;
+    s_grk0[warp][lane] = grk0;
+    s_grk1[warp][lane] = grk1;
+    __syncthreads();
+
+    if (warp == 0) {
+        float sum_gw0 = 0.0f;
+        float sum_gw1 = 0.0f;
+        float sum_gb0 = 0.0f;
+        float sum_gb1 = 0.0f;
+        float sum_grk0 = 0.0f;
+        float sum_grk1 = 0.0f;
+#pragma unroll
+        for (int w = 0; w < kRowsPerBlock; ++w) {
+            sum_gw0 += s_gw0[w][lane];
+            sum_gw1 += s_gw1[w][lane];
+            sum_gb0 += s_gb0[w][lane];
+            sum_gb1 += s_gb1[w][lane];
+            sum_grk0 += s_grk0[w][lane];
+            sum_grk1 += s_grk1[w][lane];
+        }
+        atomicAdd(grad_weight + c + 0, sum_gw0);
+        atomicAdd(grad_weight + c + 1, sum_gw1);
+        atomicAdd(grad_bias + c + 0, sum_gb0);
+        atomicAdd(grad_bias + c + 1, sum_gb1);
+        atomicAdd(grad_r_k + c + 0, sum_grk0);
+        atomicAdd(grad_r_k + c + 1, sum_grk1);
+    }
 }
 
 __global__ void cast_float_to_bf16_kernel(
@@ -202,7 +250,7 @@ __global__ void cast_float_to_bf16_kernel(
 
 } // namespace
 
-std::vector<torch::Tensor> tmix_lnx_rkvres_forward_cuda(
+std::vector<torch::Tensor> tmix_lnx_rkvres_v3_forward_cuda(
     torch::Tensor x,
     torch::Tensor r,
     torch::Tensor k,
@@ -217,11 +265,10 @@ std::vector<torch::Tensor> tmix_lnx_rkvres_forward_cuda(
     const int64_t ngroups = c / kHeadSize;
     auto mean = torch::empty({b, t, ngroups}, x.options().dtype(torch::kFloat32));
     auto rstd = torch::empty({b, t, ngroups}, x.options().dtype(torch::kFloat32));
-    auto scale = torch::empty({b, t, ngroups}, x.options().dtype(torch::kFloat32));
 
     auto stream = at::cuda::getCurrentCUDAStream();
-    const int64_t total_groups = b * t * ngroups;
-    tmix_lnx_rkvres_forward_kernel<<<static_cast<int>(total_groups), 32, 0, stream>>>(
+    const dim3 blocks(static_cast<unsigned int>(ngroups), static_cast<unsigned int>(ceil_div(b * t, static_cast<int64_t>(kRowsPerBlock))));
+    tmix_lnx_rkvres_v3_forward_kernel<<<blocks, kThreads, 0, stream>>>(
         x.data_ptr<at::BFloat16>(),
         r.data_ptr<at::BFloat16>(),
         k.data_ptr<at::BFloat16>(),
@@ -232,14 +279,13 @@ std::vector<torch::Tensor> tmix_lnx_rkvres_forward_cuda(
         y.data_ptr<at::BFloat16>(),
         mean.data_ptr<float>(),
         rstd.data_ptr<float>(),
-        scale.data_ptr<float>(),
         ngroups,
         b * t);
     C10_CUDA_KERNEL_LAUNCH_CHECK();
-    return {y, mean, rstd, scale};
+    return {y, mean, rstd};
 }
 
-std::vector<torch::Tensor> tmix_lnx_rkvres_backward_cuda(
+std::vector<torch::Tensor> tmix_lnx_rkvres_v3_backward_cuda(
     torch::Tensor grad_y,
     torch::Tensor x,
     torch::Tensor r,
@@ -248,8 +294,7 @@ std::vector<torch::Tensor> tmix_lnx_rkvres_backward_cuda(
     torch::Tensor r_k,
     torch::Tensor weight,
     torch::Tensor mean,
-    torch::Tensor rstd,
-    torch::Tensor scale) {
+    torch::Tensor rstd) {
     auto grad_x = torch::empty_like(x);
     auto grad_r = torch::empty_like(r);
     auto grad_k = torch::empty_like(k);
@@ -264,10 +309,11 @@ std::vector<torch::Tensor> tmix_lnx_rkvres_backward_cuda(
     const int64_t b = x.size(0);
     const int64_t t = x.size(1);
     const int64_t c = x.size(2);
+    const int64_t nrows = b * t;
     const int64_t ngroups = c / kHeadSize;
-    const int64_t total_groups = b * t * ngroups;
     auto stream = at::cuda::getCurrentCUDAStream();
-    tmix_lnx_rkvres_backward_kernel<<<static_cast<int>(total_groups), 32, 0, stream>>>(
+    const dim3 blocks(static_cast<unsigned int>(ngroups), static_cast<unsigned int>(ceil_div(nrows, static_cast<int64_t>(kRowsPerBlock))));
+    tmix_lnx_rkvres_v3_backward_kernel<<<blocks, kThreads, 0, stream>>>(
         grad_y.data_ptr<at::BFloat16>(),
         x.data_ptr<at::BFloat16>(),
         r.data_ptr<at::BFloat16>(),
@@ -277,7 +323,6 @@ std::vector<torch::Tensor> tmix_lnx_rkvres_backward_cuda(
         weight.data_ptr<at::BFloat16>(),
         mean.data_ptr<float>(),
         rstd.data_ptr<float>(),
-        scale.data_ptr<float>(),
         grad_x.data_ptr<at::BFloat16>(),
         grad_r.data_ptr<at::BFloat16>(),
         grad_k.data_ptr<at::BFloat16>(),
@@ -286,7 +331,7 @@ std::vector<torch::Tensor> tmix_lnx_rkvres_backward_cuda(
         grad_weight_fp32.data_ptr<float>(),
         grad_bias_fp32.data_ptr<float>(),
         ngroups,
-        b * t);
+        nrows);
     C10_CUDA_KERNEL_LAUNCH_CHECK();
 
     const int threads = 256;

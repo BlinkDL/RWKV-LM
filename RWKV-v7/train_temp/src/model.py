@@ -73,14 +73,14 @@ if 'x070' in os.environ["RWKV_MY_TESTING"]:
 
 ########################################################################################################
 
-load(name="rwkv7_cmix_bf16_v2", sources=["cuda/rwkv7_cmix_bf16_v2.cpp","cuda/rwkv7_cmix_bf16_v2.cu"], extra_cflags=["-O3"],
+load(name="rwkv7_cmix_bf16_v5", sources=["cuda/rwkv7_cmix_bf16_v5.cpp","cuda/rwkv7_cmix_bf16_v5.cu"], extra_cflags=["-O3"],
      extra_cuda_cflags=['-res-usage', "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization"],
      is_python_module=False, verbose=True)
 
 class _CmixLayerV2Fn(torch.autograd.Function):
     @staticmethod
     def forward(ctx, x, x_k, key_weight, value_weight):
-        out, mixed, act = torch.ops.rwkv7_cmix_bf16_v2.forward(
+        out, mixed, act = torch.ops.rwkv7_cmix_bf16_v5.forward(
             x.contiguous(),
             x_k.contiguous(),
             key_weight.contiguous(),
@@ -92,7 +92,7 @@ class _CmixLayerV2Fn(torch.autograd.Function):
     @staticmethod
     def backward(ctx, grad_out):
         x, x_k, key_weight, value_weight, mixed, act = ctx.saved_tensors
-        grad_x, grad_x_k, grad_key_weight, grad_value_weight = torch.ops.rwkv7_cmix_bf16_v2.backward(
+        grad_x, grad_x_k, grad_key_weight, grad_value_weight = torch.ops.rwkv7_cmix_bf16_v5.backward(
             grad_out.contiguous(),
             x,
             x_k,
@@ -105,7 +105,7 @@ class _CmixLayerV2Fn(torch.autograd.Function):
 
 ########################################################################################################
 
-load(name="rwkv7_tmix_mix6_bf16_v2", sources=["cuda/rwkv7_tmix_mix6_bf16_v2.cpp","cuda/rwkv7_tmix_mix6_bf16_v2.cu"], extra_cflags=["-O3"],
+load(name="rwkv7_tmix_mix6_bf16_v5", sources=["cuda/rwkv7_tmix_mix6_bf16_v5.cpp","cuda/rwkv7_tmix_mix6_bf16_v5.cu"], extra_cflags=["-O3"],
      extra_cuda_cflags=['-res-usage', "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization"],
      is_python_module=False, verbose=True)
 
@@ -116,7 +116,7 @@ def _setup_context(ctx, inputs, output):
     ctx.save_for_backward(*inputs)
 
 def _backward(ctx, grads):
-    return tuple(torch.ops.rwkv7_tmix_mix6_bf16_v2.backward(
+    return tuple(torch.ops.rwkv7_tmix_mix6_bf16_v5.backward(
         grads[0].contiguous(),
         grads[1].contiguous(),
         grads[2].contiguous(),
@@ -127,13 +127,13 @@ def _backward(ctx, grads):
     ))
 
 torch.library.register_autograd(
-    "rwkv7_tmix_mix6_bf16_v2::forward",
+    "rwkv7_tmix_mix6_bf16_v5::forward",
     _backward,
     setup_context=_setup_context,
 )
 
 def _forward_op(x, x_r, x_w, x_k, x_v, x_a, x_g):
-    return torch.ops.rwkv7_tmix_mix6_bf16_v2.forward(
+    return torch.ops.rwkv7_tmix_mix6_bf16_v5.forward(
         x.contiguous(),
         x_r.contiguous(),
         x_w.contiguous(),
@@ -144,7 +144,7 @@ def _forward_op(x, x_r, x_w, x_k, x_v, x_a, x_g):
     )
 
 @torch.jit.script
-def _tmix_mix6_bf16_v2_jit(
+def _tmix_mix6_bf16_v5_jit(
     x: torch.Tensor,
     x_r: torch.Tensor,
     x_w: torch.Tensor,
@@ -153,36 +153,36 @@ def _tmix_mix6_bf16_v2_jit(
     x_a: torch.Tensor,
     x_g: torch.Tensor,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    outs = torch.ops.rwkv7_tmix_mix6_bf16_v2.forward(x.contiguous(), x_r.contiguous(), x_w.contiguous(), x_k.contiguous(), x_v.contiguous(), x_a.contiguous(), x_g.contiguous())
+    outs = torch.ops.rwkv7_tmix_mix6_bf16_v5.forward(x.contiguous(), x_r.contiguous(), x_w.contiguous(), x_k.contiguous(), x_v.contiguous(), x_a.contiguous(), x_g.contiguous())
     return outs[0], outs[1], outs[2], outs[3], outs[4], outs[5]
 
 if os.environ.get("RWKV_JIT_ON") == "1":
-    def tmix_mix6_bf16_v2(x, x_r, x_w, x_k, x_v, x_a, x_g):
-        return _tmix_mix6_bf16_v2_jit(x, x_r, x_w, x_k, x_v, x_a, x_g)
+    def tmix_mix6_bf16_v5(x, x_r, x_w, x_k, x_v, x_a, x_g):
+        return _tmix_mix6_bf16_v5_jit(x, x_r, x_w, x_k, x_v, x_a, x_g)
 else:
-    def tmix_mix6_bf16_v2(x, x_r, x_w, x_k, x_v, x_a, x_g):
+    def tmix_mix6_bf16_v5(x, x_r, x_w, x_k, x_v, x_a, x_g):
         return tuple(_forward_op(x, x_r, x_w, x_k, x_v, x_a, x_g))
 
 ########################################################################################################
 
-load(name="rwkv7_tmix_kk_pre_bf16_v2", sources=["cuda/rwkv7_tmix_kk_pre_bf16_v2.cpp","cuda/rwkv7_tmix_kk_pre_bf16_v2.cu"], extra_cflags=["-O3"],
+load(name="rwkv7_tmix_kk_pre_bf16_v5", sources=["cuda/rwkv7_tmix_kk_pre_bf16_v5.cpp","cuda/rwkv7_tmix_kk_pre_bf16_v5.cu"], extra_cflags=["-O3"],
      extra_cuda_cflags=['-res-usage', "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization"],
      is_python_module=False, verbose=True)
 
 assert HEAD_SIZE == 64
 
 def _setup_context(ctx, inputs, output):
-    k, k_k, a, k_a, _ = inputs
-    neg_kk = output[1]
-    denom = output[3]
-    ctx.save_for_backward(k, k_k, a, k_a, neg_kk, denom)
+     k, k_k, a, k_a, _head_size = inputs
+     inv_d = output[3]
+     ctx.save_for_backward(k, k_k, a, k_a, inv_d)
 
 def _backward(ctx, grads):
-    k, k_k, a, k_a, neg_kk, denom = ctx.saved_tensors
+    k, k_k, a, k_a, inv_d = ctx.saved_tensors
     grad_new_k = grads[0].contiguous()
     grad_neg_kk = grads[1].contiguous()
     grad_kka = grads[2].contiguous()
-    return tuple(torch.ops.rwkv7_tmix_kk_pre_bf16_v2.backward(
+
+    return tuple(torch.ops.rwkv7_tmix_kk_pre_bf16_v5.backward(
         grad_new_k,
         grad_neg_kk,
         grad_kka,
@@ -190,19 +190,18 @@ def _backward(ctx, grads):
         k_k,
         a,
         k_a,
-        neg_kk,
-        denom,
+        inv_d,
         64,
     )) + (None,)
 
 torch.library.register_autograd(
-    "rwkv7_tmix_kk_pre_bf16_v2::forward",
+    "rwkv7_tmix_kk_pre_bf16_v5::forward",
     _backward,
     setup_context=_setup_context,
 )
 
 def _forward_op(k, k_k, a, k_a):
-    outs = torch.ops.rwkv7_tmix_kk_pre_bf16_v2.forward(
+    outs = torch.ops.rwkv7_tmix_kk_pre_bf16_v5.forward(
         k.contiguous(),
         k_k.contiguous(),
         a.contiguous(),
@@ -212,13 +211,13 @@ def _forward_op(k, k_k, a, k_a):
     return outs[0], outs[1], outs[2]
 
 @torch.jit.script
-def _tmix_kk_pre_bf16_v2_jit(
+def _tmix_kk_pre_bf16_v5_jit(
     k: torch.Tensor,
     k_k: torch.Tensor,
     a: torch.Tensor,
     k_a: torch.Tensor,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    outs = torch.ops.rwkv7_tmix_kk_pre_bf16_v2.forward(
+    outs = torch.ops.rwkv7_tmix_kk_pre_bf16_v5.forward(
         k.contiguous(),
         k_k.contiguous(),
         a.contiguous(),
@@ -228,15 +227,15 @@ def _tmix_kk_pre_bf16_v2_jit(
     return outs[0], outs[1], outs[2]
 
 if os.environ.get("RWKV_JIT_ON") == "1":
-    def tmix_kk_pre_bf16_v2(k, k_k, a, k_a):
-        return _tmix_kk_pre_bf16_v2_jit(k, k_k, a, k_a)
+    def tmix_kk_pre_bf16_v5(k, k_k, a, k_a):
+        return _tmix_kk_pre_bf16_v5_jit(k, k_k, a, k_a)
 else:
-    def tmix_kk_pre_bf16_v2(k, k_k, a, k_a):
+    def tmix_kk_pre_bf16_v5(k, k_k, a, k_a):
         return tuple(_forward_op(k, k_k, a, k_a))
 
 ########################################################################################################
 
-load(name="rwkv7_tmix_lnx_rkvres_bf16", sources=["cuda/rwkv7_tmix_lnx_rkvres_bf16.cpp","cuda/rwkv7_tmix_lnx_rkvres_bf16.cu"], extra_cflags=["-O3"],
+load(name="rwkv7_tmix_lnx_rkvres_bf16_v3", sources=["cuda/rwkv7_tmix_lnx_rkvres_bf16_v3.cpp","cuda/rwkv7_tmix_lnx_rkvres_bf16_v3.cu"], extra_cflags=["-O3"],
      extra_cuda_cflags=['-res-usage', "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization"],
      is_python_module=False, verbose=True)
 
@@ -244,13 +243,12 @@ def _setup_context(ctx, inputs, output):
     x, r, k, v, r_k, weight, bias = inputs
     mean = output[1]
     rstd = output[2]
-    scale = output[3]
-    ctx.save_for_backward(x, r, k, v, r_k, weight, mean, rstd, scale)
+    ctx.save_for_backward(x, r, k, v, r_k, weight, mean, rstd)
 
 def _backward(ctx, grads):
-    x, r, k, v, r_k, weight, mean, rstd, scale = ctx.saved_tensors
+    x, r, k, v, r_k, weight, mean, rstd = ctx.saved_tensors
     grad_y = grads[0].contiguous()
-    return tuple(torch.ops.rwkv7_tmix_lnx_rkvres_bf16.backward(
+    return tuple(torch.ops.rwkv7_tmix_lnx_rkvres_bf16_v3.backward(
         grad_y,
         x,
         r,
@@ -260,17 +258,16 @@ def _backward(ctx, grads):
         weight,
         mean,
         rstd,
-        scale,
     ))
 
 torch.library.register_autograd(
-    "rwkv7_tmix_lnx_rkvres_bf16::forward",
+    "rwkv7_tmix_lnx_rkvres_bf16_v3::forward",
     _backward,
     setup_context=_setup_context,
 )
 
 def _forward_op(x, r, k, v, r_k, weight, bias):
-    outs = torch.ops.rwkv7_tmix_lnx_rkvres_bf16.forward(
+    outs = torch.ops.rwkv7_tmix_lnx_rkvres_bf16_v3.forward(
         x.contiguous(),
         r.contiguous(),
         k.contiguous(),
@@ -282,7 +279,7 @@ def _forward_op(x, r, k, v, r_k, weight, bias):
     return outs[0]
 
 @torch.jit.script
-def _tmix_lnx_rkvres_bf16_jit(
+def _tmix_lnx_rkvres_bf16_v3_jit(
     x: torch.Tensor,
     r: torch.Tensor,
     k: torch.Tensor,
@@ -291,7 +288,7 @@ def _tmix_lnx_rkvres_bf16_jit(
     weight: torch.Tensor,
     bias: torch.Tensor,
 ) -> torch.Tensor:
-    outs = torch.ops.rwkv7_tmix_lnx_rkvres_bf16.forward(
+    outs = torch.ops.rwkv7_tmix_lnx_rkvres_bf16_v3.forward(
         x.contiguous(),
         r.contiguous(),
         k.contiguous(),
@@ -303,10 +300,10 @@ def _tmix_lnx_rkvres_bf16_jit(
     return outs[0]
 
 if os.environ.get("RWKV_JIT_ON") == "1":
-    def tmix_lnx_rkvres_bf16(x, r, k, v, r_k, weight, bias):
-        return _tmix_lnx_rkvres_bf16_jit(x, r, k, v, r_k, weight, bias)
+    def tmix_lnx_rkvres_bf16_v3(x, r, k, v, r_k, weight, bias):
+        return _tmix_lnx_rkvres_bf16_v3_jit(x, r, k, v, r_k, weight, bias)
 else:
-    def tmix_lnx_rkvres_bf16(x, r, k, v, r_k, weight, bias):
+    def tmix_lnx_rkvres_bf16_v3(x, r, k, v, r_k, weight, bias):
         return _forward_op(x, r, k, v, r_k, weight, bias)
 
 ########################################################################################################
@@ -414,7 +411,7 @@ class RWKV_Tmix_x070(MyModule):
         # xg = x + xx * self.x_g
         ############################################################
         # much faster CUDA version
-        xr, xw, xk, xv, xa, xg = tmix_mix6_bf16_v2(
+        xr, xw, xk, xv, xa, xg = tmix_mix6_bf16_v5(
             x,
             self.x_r.view(-1),
             self.x_w.view(-1),
@@ -444,7 +441,7 @@ class RWKV_Tmix_x070(MyModule):
         # x = RWKV7_CLAMPW_CUDA(r, w, k, v, -kk, kk*a)
         ############################################################
         # much faster CUDA version (!!! fixed eps=1e-12f same as pytorch !!!)
-        k, neg_kk, kka = tmix_kk_pre_bf16_v2(
+        k, neg_kk, kka = tmix_kk_pre_bf16_v5(
             k,
             self.k_k.view(-1),
             a,
@@ -459,7 +456,7 @@ class RWKV_Tmix_x070(MyModule):
         # x = x + ((r.view(B,T,H,-1)*k.view(B,T,H,-1)*self.r_k).sum(dim=-1, keepdim=True) * v.view(B,T,H,-1)).view(B,T,C)
         ############################################################
         # much faster CUDA version (!!! fixed eps=64e-5 and H=64 !!!)
-        x = tmix_lnx_rkvres_bf16(
+        x = tmix_lnx_rkvres_bf16_v3(
                 x,
                 r,
                 k,

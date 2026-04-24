@@ -2,7 +2,7 @@
 
 #include <vector>
 
-std::vector<torch::Tensor> tmix_mix6_forward_v2_cuda(
+std::vector<torch::Tensor> tmix_mix6_forward_v5_cuda(
     torch::Tensor x,
     torch::Tensor x_r,
     torch::Tensor x_w,
@@ -11,7 +11,7 @@ std::vector<torch::Tensor> tmix_mix6_forward_v2_cuda(
     torch::Tensor x_a,
     torch::Tensor x_g);
 
-std::vector<torch::Tensor> tmix_mix6_backward_v2_cuda(
+std::vector<torch::Tensor> tmix_mix6_backward_v5_cuda(
     torch::Tensor grad_r,
     torch::Tensor grad_w,
     torch::Tensor grad_k,
@@ -58,14 +58,14 @@ std::vector<torch::Tensor> forward(
     check_bf16_cuda(x_g, "x_g");
     TORCH_CHECK(x.dim() == 3, "x must have shape [B, T, C]");
     int64_t c = x.size(2);
-    TORCH_CHECK((c % 2) == 0, "tmix_mix6_v2 currently requires even C");
+    TORCH_CHECK((c % 2) == 0, "tmix_mix6_v5 currently requires even C");
     check_vec(x_r, c, "x_r");
     check_vec(x_w, c, "x_w");
     check_vec(x_k, c, "x_k");
     check_vec(x_v, c, "x_v");
     check_vec(x_a, c, "x_a");
     check_vec(x_g, c, "x_g");
-    return tmix_mix6_forward_v2_cuda(x, x_r, x_w, x_k, x_v, x_a, x_g);
+    return tmix_mix6_forward_v5_cuda(x, x_r, x_w, x_k, x_v, x_a, x_g);
 }
 
 std::vector<torch::Tensor> backward(
@@ -101,16 +101,16 @@ std::vector<torch::Tensor> backward(
     TORCH_CHECK(grad_v.sizes() == x.sizes(), "grad_v shape mismatch");
     TORCH_CHECK(grad_a.sizes() == x.sizes(), "grad_a shape mismatch");
     TORCH_CHECK(grad_g.sizes() == x.sizes(), "grad_g shape mismatch");
-    TORCH_CHECK((x.size(2) % 2) == 0, "tmix_mix6_v2 currently requires even C");
-    return tmix_mix6_backward_v2_cuda(grad_r, grad_w, grad_k, grad_v, grad_a, grad_g, x, x_r, x_w, x_k, x_v, x_a, x_g);
+    TORCH_CHECK((x.size(2) % 2) == 0, "tmix_mix6_v5 currently requires even C");
+    return tmix_mix6_backward_v5_cuda(grad_r, grad_w, grad_k, grad_v, grad_a, grad_g, x, x_r, x_w, x_k, x_v, x_a, x_g);
 }
 
-TORCH_LIBRARY(rwkv7_tmix_mix6_bf16_v2, m) {
+TORCH_LIBRARY(rwkv7_tmix_mix6_bf16_v5, m) {
     m.def("forward(Tensor x, Tensor x_r, Tensor x_w, Tensor x_k, Tensor x_v, Tensor x_a, Tensor x_g) -> Tensor[]");
     m.def("backward(Tensor grad_r, Tensor grad_w, Tensor grad_k, Tensor grad_v, Tensor grad_a, Tensor grad_g, Tensor x, Tensor x_r, Tensor x_w, Tensor x_k, Tensor x_v, Tensor x_a, Tensor x_g) -> Tensor[]");
 }
 
-TORCH_LIBRARY_IMPL(rwkv7_tmix_mix6_bf16_v2, CUDA, m) {
+TORCH_LIBRARY_IMPL(rwkv7_tmix_mix6_bf16_v5, CUDA, m) {
     m.impl("forward", &forward);
     m.impl("backward", &backward);
 }
