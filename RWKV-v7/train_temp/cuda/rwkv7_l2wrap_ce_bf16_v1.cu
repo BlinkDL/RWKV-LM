@@ -192,7 +192,7 @@ __global__ void l2wrap_ce_backward_v2_kernel(
     const int max_idx = argmax[row];
     const float inv_rows = 1.0f / static_cast<float>(rows);
     const float ce_scale = grad_loss[0] * inv_rows;
-    const float l2_val = max_vals[row] * (1.0e-4f * inv_rows);
+    const float l2_val = max_vals[row] * (grad_loss[0] * 1.0e-4f * inv_rows);
     const float row_lse = lse[row];
 
     for (int64_t col = tid; col < vocab; col += BLOCK_SIZE) {
@@ -200,7 +200,6 @@ __global__ void l2wrap_ce_backward_v2_kernel(
         if (static_cast<int>(col) == target) {
             g -= ce_scale;
         }
-        // Match original L2Wrap: sparse grad is not multiplied by grad_loss.
         if (static_cast<int>(col) == max_idx) {
             g += l2_val;
         }

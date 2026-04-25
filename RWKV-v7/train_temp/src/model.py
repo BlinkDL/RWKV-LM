@@ -727,7 +727,7 @@ class L2Wrap(torch.autograd.Function):
         maxx, ids = torch.max(y, -1, keepdim=True)
         gy = torch.zeros_like(y)
         gy.scatter_(-1, ids, maxx * factor)
-        return (grad_output, gy)
+        return (grad_output, grad_output * gy) # original (grad_output, gy) is buggy when grad_output != 1 !!!
 
 
 class RWKV(pl.LightningModule):
