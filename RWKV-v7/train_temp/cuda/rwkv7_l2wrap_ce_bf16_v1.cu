@@ -9,7 +9,6 @@
 
 namespace {
 
-constexpr int64_t L2WRAP_CE_VOCAB = 65536;
 constexpr float NEG_INF_F = -3.4028234663852886e+38F;
 
 template <typename scalar_t>
@@ -58,14 +57,15 @@ __device__ inline float warp_reduce_sum(float value) {
 }
 
 template <typename scalar_t, int BLOCK_SIZE>
-__global__ void l2wrap_ce_forward_v1_kernel(
+__global__ void l2wrap_ce_forward_v2_kernel(
     const scalar_t* __restrict__ logits,
     const int64_t* __restrict__ targets,
     float* __restrict__ lse,
     float* __restrict__ max_vals,
     int* __restrict__ argmax,
     float* __restrict__ loss_rows,
-    int64_t rows) {
+    int64_t rows,
+    int64_t vocab) {
     int64_t row = static_cast<int64_t>(blockIdx.x);
     if (row >= rows) {
         return;
@@ -75,14 +75,14 @@ __global__ void l2wrap_ce_forward_v1_kernel(
     const int lane = tid & 31;
     const int warp = tid >> 5;
     constexpr int kWarps = BLOCK_SIZE / 32;
-    const int64_t base = row * L2WRAP_CE_VOCAB;
+    const int64_t base = row * vocab;
     const int target = static_cast<int>(targets[row]);
 
     float local_max = NEG_INF_F;
     int local_idx = 0;
     float local_target = 0.0f;
 
-    for (int64_t col = tid; col < L2WRAP_CE_VOCAB; col += BLOCK_SIZE) {
+    for (int64_t col = tid; col < vocab; col += BLOCK_SIZE) {
         const float v = scalar_to_float(logits[base + col]);
         reduce_max_first(local_max, local_idx, v, static_cast<int>(col));
         if (static_cast<int>(col) == target) {
@@ -121,7 +121,7 @@ __global__ void l2wrap_ce_forward_v1_kernel(
 
     const float block_max = shared_max;
     float local_sum = 0.0f;
-    for (int64_t col = tid; col < L2WRAP_CE_VOCAB; col += BLOCK_SIZE) {
+    for (int64_t col = tid; col < vocab; col += BLOCK_SIZE) {
         local_sum += __expf(scalar_to_float(logits[base + col]) - block_max);
     }
     local_sum = warp_reduce_sum(local_sum);
@@ -171,7 +171,7 @@ __global__ void reduce_loss_kernel(
 }
 
 template <typename scalar_t, int BLOCK_SIZE>
-__global__ void l2wrap_ce_backward_v1_kernel(
+__global__ void l2wrap_ce_backward_v2_kernel(
     const float* __restrict__ grad_loss,
     const scalar_t* __restrict__ logits,
     const int64_t* __restrict__ targets,
@@ -179,14 +179,15 @@ __global__ void l2wrap_ce_backward_v1_kernel(
     const float* __restrict__ max_vals,
     const int* __restrict__ argmax,
     scalar_t* __restrict__ grad_logits,
-    int64_t rows) {
+    int64_t rows,
+    int64_t vocab) {
     int64_t row = static_cast<int64_t>(blockIdx.x);
     if (row >= rows) {
         return;
     }
 
     const int tid = threadIdx.x;
-    const int64_t base = row * L2WRAP_CE_VOCAB;
+    const int64_t base = row * vocab;
     const int target = static_cast<int>(targets[row]);
     const int max_idx = argmax[row];
     const float inv_rows = 1.0f / static_cast<float>(rows);
@@ -194,7 +195,7 @@ __global__ void l2wrap_ce_backward_v1_kernel(
     const float l2_val = max_vals[row] * (1.0e-4f * inv_rows);
     const float row_lse = lse[row];
 
-    for (int64_t col = tid; col < L2WRAP_CE_VOCAB; col += BLOCK_SIZE) {
+    for (int64_t col = tid; col < vocab; col += BLOCK_SIZE) {
         float g = __expf(scalar_to_float(logits[base + col]) - row_lse) * ce_scale;
         if (static_cast<int>(col) == target) {
             g -= ce_scale;
@@ -208,7 +209,7 @@ __global__ void l2wrap_ce_backward_v1_kernel(
 }
 
 template <typename scalar_t, int BLOCK_SIZE>
-void launch_l2wrap_ce_forward_v1_kernel(
+void launch_l2wrap_ce_forward_v2_kernel(
     const scalar_t* logits,
     const int64_t* targets,
     float* lse,
@@ -216,20 +217,22 @@ void launch_l2wrap_ce_forward_v1_kernel(
     int* argmax,
     float* loss_rows,
     int64_t rows,
+    int64_t vocab,
     cudaStream_t stream) {
     dim3 blocks(static_cast<unsigned int>(rows));
-    l2wrap_ce_forward_v1_kernel<scalar_t, BLOCK_SIZE><<<blocks, BLOCK_SIZE, 0, stream>>>(
+    l2wrap_ce_forward_v2_kernel<scalar_t, BLOCK_SIZE><<<blocks, BLOCK_SIZE, 0, stream>>>(
         logits,
         targets,
         lse,
         max_vals,
         argmax,
         loss_rows,
-        rows);
+        rows,
+        vocab);
 }
 
 template <typename scalar_t, int BLOCK_SIZE>
-void launch_l2wrap_ce_backward_v1_kernel(
+void launch_l2wrap_ce_backward_v2_kernel(
     const float* grad_loss,
     const scalar_t* logits,
     const int64_t* targets,
@@ -238,9 +241,10 @@ void launch_l2wrap_ce_backward_v1_kernel(
     const int* argmax,
     scalar_t* grad_logits,
     int64_t rows,
+    int64_t vocab,
     cudaStream_t stream) {
     dim3 blocks(static_cast<unsigned int>(rows));
-    l2wrap_ce_backward_v1_kernel<scalar_t, BLOCK_SIZE><<<blocks, BLOCK_SIZE, 0, stream>>>(
+    l2wrap_ce_backward_v2_kernel<scalar_t, BLOCK_SIZE><<<blocks, BLOCK_SIZE, 0, stream>>>(
         grad_loss,
         logits,
         targets,
@@ -248,13 +252,17 @@ void launch_l2wrap_ce_backward_v1_kernel(
         max_vals,
         argmax,
         grad_logits,
-        rows);
+        rows,
+        vocab);
 }
 
 } // namespace
 
-std::vector<torch::Tensor> l2wrap_ce_forward_v1_cuda(torch::Tensor logits, torch::Tensor targets) {
-    const int64_t rows = logits.numel() / L2WRAP_CE_VOCAB;
+std::vector<torch::Tensor> l2wrap_ce_forward_v2_cuda(
+    torch::Tensor logits,
+    torch::Tensor targets,
+    int64_t vocab) {
+    const int64_t rows = logits.numel() / vocab;
     auto meta_opts = torch::TensorOptions().device(logits.device()).dtype(torch::kFloat32);
     auto int_opts = torch::TensorOptions().device(logits.device()).dtype(torch::kInt32);
     auto lse = torch::empty({rows}, meta_opts);
@@ -266,7 +274,7 @@ std::vector<torch::Tensor> l2wrap_ce_forward_v1_cuda(torch::Tensor logits, torch
     auto stream = at::cuda::getCurrentCUDAStream();
     constexpr int threads = 512;
     if (logits.scalar_type() == torch::kBFloat16) {
-        launch_l2wrap_ce_forward_v1_kernel<at::BFloat16, threads>(
+        launch_l2wrap_ce_forward_v2_kernel<at::BFloat16, threads>(
             logits.data_ptr<at::BFloat16>(),
             targets.data_ptr<int64_t>(),
             lse.data_ptr<float>(),
@@ -274,9 +282,10 @@ std::vector<torch::Tensor> l2wrap_ce_forward_v1_cuda(torch::Tensor logits, torch
             argmax.data_ptr<int>(),
             loss_rows.data_ptr<float>(),
             rows,
+            vocab,
             stream);
     } else {
-        launch_l2wrap_ce_forward_v1_kernel<float, threads>(
+        launch_l2wrap_ce_forward_v2_kernel<float, threads>(
             logits.data_ptr<float>(),
             targets.data_ptr<int64_t>(),
             lse.data_ptr<float>(),
@@ -284,6 +293,7 @@ std::vector<torch::Tensor> l2wrap_ce_forward_v1_cuda(torch::Tensor logits, torch
             argmax.data_ptr<int>(),
             loss_rows.data_ptr<float>(),
             rows,
+            vocab,
             stream);
     }
     reduce_loss_kernel<<<1, 256, 0, stream>>>(loss_rows.data_ptr<float>(), loss.data_ptr<float>(), rows);
@@ -291,19 +301,20 @@ std::vector<torch::Tensor> l2wrap_ce_forward_v1_cuda(torch::Tensor logits, torch
     return {loss, lse, max_vals, argmax};
 }
 
-torch::Tensor l2wrap_ce_backward_v1_cuda(
+torch::Tensor l2wrap_ce_backward_v2_cuda(
     torch::Tensor grad_loss,
     torch::Tensor logits,
     torch::Tensor targets,
     torch::Tensor lse,
     torch::Tensor max_vals,
-    torch::Tensor argmax) {
-    const int64_t rows = logits.numel() / L2WRAP_CE_VOCAB;
+    torch::Tensor argmax,
+    int64_t vocab) {
+    const int64_t rows = logits.numel() / vocab;
     auto grad_logits = torch::empty_like(logits);
     auto stream = at::cuda::getCurrentCUDAStream();
     constexpr int threads = 512;
     if (logits.scalar_type() == torch::kBFloat16) {
-        launch_l2wrap_ce_backward_v1_kernel<at::BFloat16, threads>(
+        launch_l2wrap_ce_backward_v2_kernel<at::BFloat16, threads>(
             grad_loss.data_ptr<float>(),
             logits.data_ptr<at::BFloat16>(),
             targets.data_ptr<int64_t>(),
@@ -312,9 +323,10 @@ torch::Tensor l2wrap_ce_backward_v1_cuda(
             argmax.data_ptr<int>(),
             grad_logits.data_ptr<at::BFloat16>(),
             rows,
+            vocab,
             stream);
     } else {
-        launch_l2wrap_ce_backward_v1_kernel<float, threads>(
+        launch_l2wrap_ce_backward_v2_kernel<float, threads>(
             grad_loss.data_ptr<float>(),
             logits.data_ptr<float>(),
             targets.data_ptr<int64_t>(),
@@ -323,6 +335,7 @@ torch::Tensor l2wrap_ce_backward_v1_cuda(
             argmax.data_ptr<int>(),
             grad_logits.data_ptr<float>(),
             rows,
+            vocab,
             stream);
     }
     C10_CUDA_KERNEL_LAUNCH_CHECK();
