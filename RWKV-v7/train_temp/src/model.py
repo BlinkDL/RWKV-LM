@@ -421,12 +421,34 @@ else:
 
 ########################################################################################################
 
-L2WRAP_CUDA_V2 = load(name="rwkv7_l2wrap_bf16_v2", sources=["cuda/rwkv7_l2wrap_bf16_v2.cpp","cuda/rwkv7_l2wrap_bf16_v2.cu"], extra_cflags=["-O3"],
+L2WRAP_CE_CUDA_V1 = load(name="rwkv7_l2wrap_ce_bf16_v1", sources=["cuda/rwkv7_l2wrap_ce_bf16_v1.cpp","cuda/rwkv7_l2wrap_ce_bf16_v1.cu"], extra_cflags=["-O3"],
      extra_cuda_cflags=['-res-usage', "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization"],
      verbose=True)
 
-def l2wrap_backward_cuda_v2(y):
-    return L2WRAP_CUDA_V2.backward(y.contiguous())
+class L2WrapCrossEntropyCUDA(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, logits, targets):
+        logits = logits.contiguous()
+        targets = targets.contiguous()
+        loss, lse, max_vals, argmax = L2WRAP_CE_CUDA_V1.forward(logits, targets)
+        ctx.save_for_backward(logits, targets.view(-1), lse, max_vals, argmax)
+        return loss
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        logits, targets, lse, max_vals, argmax = ctx.saved_tensors
+        grad_logits = L2WRAP_CE_CUDA_V1.backward(
+            grad_output.contiguous().float(),
+            logits,
+            targets,
+            lse,
+            max_vals,
+            argmax,
+        )
+        return grad_logits, None
+
+def l2wrap_cross_entropy(logits, targets):
+    return L2WrapCrossEntropyCUDA.apply(logits, targets)
 
 ########################################################################################################
 
@@ -701,26 +723,11 @@ class L2Wrap(torch.autograd.Function):
     @staticmethod
     def backward(ctx, grad_output):
         y = ctx.saved_tensors[0]
-
-        ############################################################
-        # slow pytorch version
-        # to encourage the logits to be close to 0
         factor = 1e-4 / (y.shape[0] * y.shape[1])
         maxx, ids = torch.max(y, -1, keepdim=True)
         gy = torch.zeros_like(y)
         gy.scatter_(-1, ids, maxx * factor)
         return (grad_output, gy)
-        ############################################################
-        # # fast CUDA version, disabled, stay tuned for more speedups
-        # if (
-        #     y.is_cuda
-        #     and y.is_contiguous()
-        #     and y.dim() >= 2
-        #     and y.size(-1) == 65536
-        #     and y.dtype in (torch.bfloat16, torch.float32)
-        # ):
-        #     return (grad_output, l2wrap_backward_cuda_v2(y))
-        ############################################################
 
 
 class RWKV(pl.LightningModule):
@@ -811,8 +818,14 @@ class RWKV(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         idx, targets = batch
         logits = self(idx)
-        loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
-        return L2Wrap.apply(loss, logits)
+      
+        ############################################################
+        # slow pytorch version (!!! SLOW AND TAKES 40% MORE VRAM !!!)
+        # loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+        # return L2Wrap.apply(loss, logits)
+        ############################################################
+        # much faster CUDA version (!!! fixed vocab 65536 and fixed 1e-4 factor !!!)
+        return l2wrap_cross_entropy(logits, targets)
 
     def training_step_end(self, batch_parts):
         all = self.all_gather(batch_parts)
