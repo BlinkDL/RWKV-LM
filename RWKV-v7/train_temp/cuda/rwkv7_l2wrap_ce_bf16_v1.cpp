@@ -2,8 +2,8 @@
 
 #include <vector>
 
-std::vector<torch::Tensor> l2wrap_ce_forward_v1_cuda(torch::Tensor logits, torch::Tensor targets, int64_t vocab);
-torch::Tensor l2wrap_ce_backward_v1_cuda(
+std::vector<torch::Tensor> l2wrap_ce_forward_v2_cuda(torch::Tensor logits, torch::Tensor targets, int64_t vocab);
+torch::Tensor l2wrap_ce_backward_v2_cuda(
     torch::Tensor grad_loss,
     torch::Tensor logits,
     torch::Tensor targets,
@@ -37,7 +37,7 @@ int64_t check_logits_targets(const torch::Tensor& logits, const torch::Tensor& t
 
 std::vector<torch::Tensor> forward(torch::Tensor logits, torch::Tensor targets) {
     const int64_t vocab = check_logits_targets(logits, targets);
-    return l2wrap_ce_forward_v1_cuda(logits, targets, vocab);
+    return l2wrap_ce_forward_v2_cuda(logits, targets, vocab);
 }
 
 torch::Tensor backward(
@@ -61,7 +61,7 @@ torch::Tensor backward(
     TORCH_CHECK(lse.numel() == rows, "lse shape mismatch");
     TORCH_CHECK(max_vals.numel() == rows, "max_vals shape mismatch");
     TORCH_CHECK(argmax.numel() == rows, "argmax shape mismatch");
-    return l2wrap_ce_backward_v1_cuda(grad_loss, logits, targets, lse, max_vals, argmax, vocab);
+    return l2wrap_ce_backward_v2_cuda(grad_loss, logits, targets, lse, max_vals, argmax, vocab);
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
