@@ -421,7 +421,7 @@ else:
 
 ########################################################################################################
 
-L2WRAP_CE_CUDA_V1 = load(name="rwkv7_l2wrap_ce_bf16_v1", sources=["cuda/rwkv7_l2wrap_ce_bf16_v1.cpp","cuda/rwkv7_l2wrap_ce_bf16_v1.cu"], extra_cflags=["-O3"],
+L2WRAP_CE_CUDA_V2 = load(name="rwkv7_l2wrap_ce_bf16_v2", sources=["cuda/rwkv7_l2wrap_ce_bf16_v2.cpp","cuda/rwkv7_l2wrap_ce_bf16_v2.cu"], extra_cflags=["-O3"],
      extra_cuda_cflags=['-res-usage', "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization"],
      verbose=True)
 
@@ -430,14 +430,14 @@ class L2WrapCrossEntropyCUDA(torch.autograd.Function):
     def forward(ctx, logits, targets):
         logits = logits.contiguous()
         targets = targets.contiguous()
-        loss, lse, max_vals, argmax = L2WRAP_CE_CUDA_V1.forward(logits, targets)
+        loss, lse, max_vals, argmax = L2WRAP_CE_CUDA_V2.forward(logits, targets)
         ctx.save_for_backward(logits, targets.view(-1), lse, max_vals, argmax)
         return loss
 
     @staticmethod
     def backward(ctx, grad_output):
         logits, targets, lse, max_vals, argmax = ctx.saved_tensors
-        grad_logits = L2WRAP_CE_CUDA_V1.backward(
+        grad_logits = L2WRAP_CE_CUDA_V2.backward(
             grad_output.contiguous().float(),
             logits,
             targets,
