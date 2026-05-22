@@ -27,7 +27,7 @@ lr0,lr1=4e-3,1e-6
 
 DIGIT_MAX=60
 
-print("This is a simplified RWKV7 training demo")
+print("This is a simplified RWKV7 training demo (slow & different results)")
 
 ############################################################################################################################################
 

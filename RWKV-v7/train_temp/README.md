@@ -109,4 +109,4 @@ RWKV-7 weight example for 1.5B (L24-D2048, vocab 65536):
 | ln_out.bias   | [2048]        |        | 0         |
 | head.weight   | [65536, 2048] | wdecay | see code  |
 
-**Simplified RWKV-7 training demo (different results)**: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/train_temp/rwkv7_train_simplified.py
+**Simplified RWKV-7 training demo (slow & different results)**: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/train_temp/rwkv7_train_simplified.py
