@@ -1,10 +1,20 @@
 ## HOW TO TRAIN RWKV-7 on MiniPile (1.5G tokens) ##
 
-**Simplified RWKV-7 training demo**: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/train_temp/rwkv7_train_simplified.py
-
 For reference, use python 3.10+, torch 2.5+, cuda 12.5+, latest deepspeed, but **keep pytorch-lightning==1.9.5**
 
 The default config only requires 1 GPU with 7G VRAM  (you can reduce bsz if you have less VRAM), so it's easy to test.
+
+To upgrade your existing code, use these kernels (note: the code might be newer than this) for much faster training:
+```
+rwkv7_clampw_v3
+rwkv7_cmix_bf16_v5
+rwkv7_tmix_mix6_bf16_v5
+rwkv7_tmix_kk_pre_bf16_v5
+rwkv7_tmix_lnx_rkvres_xg_bf16_v1
+rwkv7_tmix_a_gate_bf16
+rwkv7_tmix_vres_gate_bf16_v1
+rwkv7_l2wrap_ce_bf16_v2
+```
 
 **Train RWKV-7:**
 ```
@@ -98,3 +108,5 @@ RWKV-7 weight example for 1.5B (L24-D2048, vocab 65536):
 | ln_out.weight | [2048]        |        | 1         |
 | ln_out.bias   | [2048]        |        | 0         |
 | head.weight   | [65536, 2048] | wdecay | see code  |
+
+**Simplified RWKV-7 training demo (different results)**: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/train_temp/rwkv7_train_simplified.py
