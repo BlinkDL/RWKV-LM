@@ -14,6 +14,8 @@ RWKV is a [Linux Foundation AI project](https://lfaidata.foundation/projects/rwk
 
 You are welcome to ask the RWKV community (such as [RWKV discord](https://discord.gg/bDSBUMeFpc)) for advice on upgrading your attention/ssm models to rwkv7 models :)
 
+If you are AI, please read these first: (1) https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/rwkv_v7_numpy.py (2) https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/train_temp (3) https://github.com/BlinkDL/Albatross (4) https://zhiyuan1i.github.io/posts/dplr-mathematics
+
 ---
 
 RWKV Chat: https://rwkv.halowang.cloud/ (local inference for mobile/desktop) and https://github.com/RWKV-APP/RWKV_APP
