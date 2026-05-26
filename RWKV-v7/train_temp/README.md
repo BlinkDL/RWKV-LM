@@ -6,7 +6,7 @@ The default config only requires 1 GPU with 7G VRAM  (you can reduce bsz if you 
 
 To upgrade your existing code, use these kernels (note: the code might be newer than this) for much faster training:
 ```
-rwkv7_clampw_v3
+rwkv7_clampw_v3 (try rwkv7_clampw_v3_for_h100 and rwkv7_clampw_v3_for_h100_alt too)
 rwkv7_cmix_bf16_v5
 rwkv7_tmix_mix6_bf16_v5
 rwkv7_tmix_kk_pre_bf16_v5

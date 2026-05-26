@@ -47,6 +47,7 @@ if 'x070' in os.environ["RWKV_MY_TESTING"]:
     # check https://github.com/BlinkDL/RWKV-CUDA/blob/main/rwkv7_fast_fused/rwkv7_cuda_benchmark.py
     #
     # use rwkv7_clampw_v3.cpp and rwkv7_clampw_v3_for_h100.cu for 20% faster fwd & bwd kernel on H100s and some consumer GPUS (for some Bsz*Headcount)
+    # note: sometimes rwkv7_clampw_v3_for_h100_alt is faster
 
     flags = ['-res-usage', f'-D_N_={HEAD_SIZE}', f"-D_CHUNK_LEN_={CHUNK_LEN}", "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization"]
     if "@rwkv3" in os.environ["RWKV_KERNEL"]:
