@@ -6,7 +6,7 @@ RWKV twitter: https://twitter.com/BlinkDL_AI (lastest news)
 
 RWKV discord: https://discord.gg/bDSBUMeFpc
 
-RWKV-7 "Goose" is the strongest **linear-time** & **constant-space** (no kv-cache) & **attention-free** & 100% RNN architecture on this planet at this moment, suitable for LLM and multimodal applications and more (see [rwkv.com](https://rwkv.com)).
+RWKV-7 "Goose" is a strong **linear-time** & **constant-space** (no kv-cache) & **attention-free** & 100% RNN architecture, suitable for LLM and multimodal applications and more (see [rwkv.com](https://rwkv.com)).
 
 RWKV-7 is a [meta-in-context learner](https://raw.githubusercontent.com/BlinkDL/RWKV-LM/main/RWKV-v7.png), test-time-training its state on the context via in-context gradient descent at every token.
 
@@ -34,22 +34,22 @@ Mobile inference library: https://github.com/MollySophia/rwkv-mobile
 
 ---
 
-RWKV7 7.2B bf16 training on 4x8xH100 ctx8192 DeepSpeed zero2+gradcp = **263k tokens/s** = 36% MFU (note: current RWKV7 kernel gets faster as you increase Bsz*HeadCount)
+RWKV-7 7.2B bf16 training on 4x8xH100 ctx8192 DeepSpeed zero2+gradcp = **263k tokens/s** = 36% MFU (note: current RWKV7 kernel gets faster as you increase Bsz*HeadCount)
 
 **Please use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp as RWKV-7 reference implementation**. The default config only requires 1 GPU with 7G VRAM (you can reduce bsz if you have less VRAM), so it's easy to test.
 
-Fast RWKV-7 CUDA kernels (vanilla, state-tuning, state-passing infctx): https://github.com/BlinkDL/RWKV-CUDA/tree/main/rwkv7_fast_fused
+More RWKV-7 CUDA kernels (vanilla, state-tuning, state-passing infctx): https://github.com/BlinkDL/RWKV-CUDA/tree/main/rwkv7_fast_fused
 
 ---
 
-Simplified RWKV-7 training demo: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/train_temp/rwkv7_train_simplified.py
+Simplified (slower and different) RWKV-7 training demo: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/train_temp/rwkv7_train_simplified.py
 
 **Important** (all shown in rwkv7_train_simplified.py):
 * Use PreLN LayerNorm (instead of RMSNorm) for RWKV. I think it's related to better initial state, because I am not using trainable initial state (found it useless when using LayerNorm).
 * Only apply weight decay to large matrix parameters (basically projections) in your model instead of all parameters. THIS IS VERY IMPORTANT.
 * Use correct initialization.
 
-Note FLA RWKV-7 is NOT aligned with reference implementation yet, and you will get less performance.
+Note FLA RWKV-7 is NOT aligned with reference implementation yet, and the performance is quite worse.
 
 This is because RWKV-7 is the whole model with carefully set stuffs, including different init / wd / lr for each parameter, so it's readily scalable and very stable (spike-free).
 
