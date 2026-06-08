@@ -12,52 +12,52 @@ RWKV-7 L24-D1024 #state_params = L*(2*D+64*D) = 1.622016 M
 Qwen3.5 L24-D1024 #state_params = L*3/4*(3*6*D+2*128*D) + L/4*(2*2*256*T) = 5.050368 + 6.144*(T/1000) M
 ```
 
-| RWKV-7 | shape | numel | dtype | | Qwen3.5 GDN | shape | numel | dtype | | Qwen3.5 attention | shape | numel | dtype |
-|---|---:|---:|---|---|---|---:|---:|---|---|---|---:|---:|---|
-| emb.weight | [65536,1024] | 67108864 | bfloat16 |  | embed_tokens.weight | [248320,1024] | 254279680 | bfloat16 |  |  |  |  |  |
-| blocks.0.ln0.weight | [1024] | 1024 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-| blocks.0.ln0.bias | [1024] | 1024 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.ln1.weight | [1024] | 1024 | bfloat16 |  | layers.0.input_layernorm.weight | [1024] | 1024 | bfloat16 |  |  |  |  |  |
-| blocks.*.ln1.bias | [1024] | 1024 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.ln2.weight | [1024] | 1024 | bfloat16 |  | layers.0.post_attention_layernorm.weight | [1024] | 1024 | bfloat16 |  |  |  |  |  |
-| blocks.*.ln2.bias | [1024] | 1024 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-| ln_out.weight | [1024] | 1024 | bfloat16 |  | norm.weight | [1024] | 1024 | bfloat16 |  |  |  |  |  |
-| ln_out.bias | [1024] | 1024 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-| head.weight | [65536,1024] | 67108864 | bfloat16 |  | embed_tokens.weight | [248320,1024] | 254279680 | bfloat16 |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.att.x_r | [1,1,1024] | 1024 | bfloat16 |  | layers.0.linear_attn.conv1d.weight[q] | [2048,1,4] | 8192 | bfloat16 |  | layers.3.self_attn.q_norm.weight | [256] | 256 | bfloat16 |
-| blocks.*.att.receptance.weight | [1024,1024] | 1048576 | bfloat16 |  | layers.0.linear_attn.in_proj_qkv.weight[q] | [2048,1024] | 2097152 | bfloat16 |  | layers.3.self_attn.q_proj.weight[q] | [2048,1024] | 2097152 | bfloat16 |
-|  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.att.x_w | [1,1,1024] | 1024 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.att.w0 | [1,1,1024] | 1024 | bfloat16 |  | layers.0.linear_attn.dt_bias | [16] | 16 | bfloat16 |  |  |  |  |  |
-| blocks.*.att.w1 | [1024,64] | 65536 | bfloat16 |  | layers.0.linear_attn.in_proj_a.weight | [16,1024] | 16384 | bfloat16 |  |  |  |  |  |
-| blocks.*.att.w2 | [64,1024] | 65536 | bfloat16 |  | layers.0.linear_attn.A_log | [16] | 16 | float32 |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.att.x_k | [1,1,1024] | 1024 | bfloat16 |  | layers.0.linear_attn.conv1d.weight[k] | [2048,1,4] | 8192 | bfloat16 |  | layers.3.self_attn.k_norm.weight | [256] | 256 | bfloat16 |
-| blocks.*.att.key.weight | [1024,1024] | 1048576 | bfloat16 |  | layers.0.linear_attn.in_proj_qkv.weight[k] | [2048,1024] | 2097152 | bfloat16 |  | layers.3.self_attn.k_proj.weight | [512,1024] | 524288 | bfloat16 |
-| blocks.*.att.k_k | [1,1,1024] | 1024 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.att.k_a | [1,1,1024] | 1024 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.att.x_v | [1,1,1024] | 1024 | bfloat16 |  | layers.0.linear_attn.conv1d.weight[v] | [2048,1,4] | 8192 | bfloat16 |  |  |  |  |  |
-| blocks.*.att.value.weight | [1024,1024] | 1048576 | bfloat16 |  | layers.0.linear_attn.in_proj_qkv.weight[v] | [2048,1024] | 2097152 | bfloat16 |  | layers.3.self_attn.v_proj.weight | [512,1024] | 524288 | bfloat16 |
-| blocks.*.att.v0 | [1,1,1024] | 1024 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.att.v1 | [1024,32] | 32768 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.att.v2 | [32,1024] | 32768 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.att.x_a | [1,1,1024] | 1024 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.att.a0 | [1,1,1024] | 1024 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.att.a1 | [1024,64] | 65536 | bfloat16 |  | layers.0.linear_attn.in_proj_b.weight | [16,1024] | 16384 | bfloat16 |  |  |  |  |  |
-| blocks.*.att.a2 | [64,1024] | 65536 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.att.x_g | [1,1,1024] | 1024 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.att.g1 | [1024,128] | 131072 | bfloat16 |  | layers.0.linear_attn.in_proj_z.weight | [2048,1024] | 2097152 | bfloat16 |  | layers.3.self_attn.q_proj.weight[g] | [2048,1024] | 2097152 | bfloat16 |
-| blocks.*.att.g2 | [128,1024] | 131072 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.att.ln_x.weight | [1024] | 1024 | bfloat16 |  | layers.0.linear_attn.norm.weight | [128] | 128 | float32 |  |  |  |  |  |
-| blocks.*.att.ln_x.bias | [1024] | 1024 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.att.r_k | [16,64] | 1024 | bfloat16 |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.att.output.weight | [1024,1024] | 1048576 | bfloat16 |  | layers.0.linear_attn.out_proj.weight | [1024,2048] | 2097152 | bfloat16 |  | layers.3.self_attn.o_proj.weight | [1024,2048] | 2097152 | bfloat16 |
-|  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| blocks.*.ffn.x_k | [1,1,1024] | 1024 | bfloat16 |  | layers.0.mlp.gate_proj.weight | [3584,1024] | 3670016 | bfloat16 |  |  |  |  |  |
-| blocks.*.ffn.key.weight | [4096,1024] | 4194304 | bfloat16 |  | layers.0.mlp.up_proj.weight | [3584,1024] | 3670016 | bfloat16 |  |  |  |  |  |
-| blocks.*.ffn.value.weight | [1024,4096] | 4194304 | bfloat16 |  | layers.0.mlp.down_proj.weight | [1024,3584] | 3670016 | bfloat16 |  |  |  |  |  |
+| RWKV-7 | shape | | Qwen3.5 GDN | shape | | Qwen3.5 GQA | shape |
+|---|---:|---|---|---:|---|---|---:|
+| emb.weight | [65536,1024] |  | embed_tokens.weight | [248320,1024] |  |  |  |
+| blocks.0.ln0.weight | [1024] |  |  |  |  |  |  |
+| blocks.0.ln0.bias | [1024] |  |  |  |  |  |  |
+| blocks.*.ln1.weight | [1024] |  | layers.0.input_layernorm.weight | [1024] |  |  |  |
+| blocks.*.ln1.bias | [1024] |  |  |  |  |  |  |
+| blocks.*.ln2.weight | [1024] |  | layers.0.post_attention_layernorm.weight | [1024] |  |  |  |
+| blocks.*.ln2.bias | [1024] |  |  |  |  |  |  |
+| ln_out.weight | [1024] |  | norm.weight | [1024] |  |  |  |
+| ln_out.bias | [1024] |  |  |  |  |  |  |
+| head.weight | [65536,1024] |  | embed_tokens.weight | [248320,1024] |  |  |  |
+|  |  |  |  |  |  |  |  |
+| blocks.*.att.x_r | [1,1,1024] |  | layers.0.linear_attn.conv1d.weight[q] | [2048,1,4] |  | layers.3.self_attn.q_norm.weight | [256] |
+| blocks.*.att.receptance.weight | [1024,1024] |  | layers.0.linear_attn.in_proj_qkv.weight[q] | [2048,1024] |  | layers.3.self_attn.q_proj.weight[q] | [2048,1024] |
+|  |  |  |  |  |  |  |  |
+| blocks.*.att.x_w | [1,1,1024] |  |  |  |  |  |  |
+| blocks.*.att.w0 | [1,1,1024] |  | layers.0.linear_attn.dt_bias | [16] |  |  |  |
+| blocks.*.att.w1 | [1024,64] |  | layers.0.linear_attn.in_proj_a.weight | [16,1024] |  |  |  |
+| blocks.*.att.w2 | [64,1024] |  | layers.0.linear_attn.A_log | [16] |  |  |  |
+|  |  |  |  |  |  |  |  |
+| blocks.*.att.x_k | [1,1,1024] |  | layers.0.linear_attn.conv1d.weight[k] | [2048,1,4] |  | layers.3.self_attn.k_norm.weight | [256] |
+| blocks.*.att.key.weight | [1024,1024] |  | layers.0.linear_attn.in_proj_qkv.weight[k] | [2048,1024] |  | layers.3.self_attn.k_proj.weight | [512,1024] |
+| blocks.*.att.k_k | [1,1,1024] |  |  |  |  |  |  |
+| blocks.*.att.k_a | [1,1,1024] |  |  |  |  |  |  |
+|  |  |  |  |  |  |  |  |
+| blocks.*.att.x_v | [1,1,1024] |  | layers.0.linear_attn.conv1d.weight[v] | [2048,1,4] |  |  |  |
+| blocks.*.att.value.weight | [1024,1024] |  | layers.0.linear_attn.in_proj_qkv.weight[v] | [2048,1024] |  | layers.3.self_attn.v_proj.weight | [512,1024] |
+| blocks.*.att.v0 | [1,1,1024] |  |  |  |  |  |  |
+| blocks.*.att.v1 | [1024,32] |  |  |  |  |  |  |
+| blocks.*.att.v2 | [32,1024] |  |  |  |  |  |  |
+|  |  |  |  |  |  |  |  |
+| blocks.*.att.x_a | [1,1,1024] |  |  |  |  |  |  |
+| blocks.*.att.a0 | [1,1,1024] |  |  |  |  |  |  |
+| blocks.*.att.a1 | [1024,64] |  | layers.0.linear_attn.in_proj_b.weight | [16,1024] |  |  |  |
+| blocks.*.att.a2 | [64,1024] |  |  |  |  |  |  |
+|  |  |  |  |  |  |  |  |
+| blocks.*.att.x_g | [1,1,1024] |  |  |  |  |  |  |
+| blocks.*.att.g1 | [1024,128] |  | layers.0.linear_attn.in_proj_z.weight | [2048,1024] |  | layers.3.self_attn.q_proj.weight[g] | [2048,1024] |
+| blocks.*.att.g2 | [128,1024] |  |  |  |  |  |  |
+|  |  |  |  |  |  |  |  |
+| blocks.*.att.ln_x.weight | [1024] |  | layers.0.linear_attn.norm.weight | [128] |  |  |  |
+| blocks.*.att.ln_x.bias | [1024] |  |  |  |  |  |  |
+| blocks.*.att.r_k | [16,64] |  |  |  |  |  |  |
+| blocks.*.att.output.weight | [1024,1024] |  | layers.0.linear_attn.out_proj.weight | [1024,2048] |  | layers.3.self_attn.o_proj.weight | [1024,2048] |
+|  |  |  |  |  |  |  |  |
+| blocks.*.ffn.x_k | [1,1,1024] |  | layers.0.mlp.gate_proj.weight | [3584,1024] |  |  |  |
+| blocks.*.ffn.key.weight | [4096,1024] |  | layers.0.mlp.up_proj.weight | [3584,1024] |  |  |  |
+| blocks.*.ffn.value.weight | [1024,4096] |  | layers.0.mlp.down_proj.weight | [1024,3584] |  |  |  |
