@@ -4,7 +4,7 @@ from rwkv.utils import PIPELINE
 from transformers import AutoTokenizer
 
 PROBE_TEXT = " Eiffel"
-Qwen35_PTH = "/home/qwen35_0_8b_text.pth" # use run_qwen35_make_pth.py to extract it from HF
+Qwen35_PTH = "/home/qwen35_0_8b_text.pth" # use run_qwen35_make_pth.py to extract it from HF. check run_rwkv7_qwen35.md for tensor comparison
 RWKV7_PTH = "/home/rwkv7-g1d-0.4b-20260210-ctx8192.pth" # from https://huggingface.co/BlinkDL/rwkv7-g1/tree/main
 
 class LLM:
