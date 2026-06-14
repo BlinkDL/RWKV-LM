@@ -38,7 +38,7 @@ class train_callback(pl.Callback):
         args = self.args
         # if args.cuda_cleanup > 0:
         #     torch.cuda.empty_cache()
-        real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
+        real_step = trainer.global_step + args.epoch_begin * (args.epoch_steps // args.accumulate_grad_batches)
 
         # LR schedule
         w_step = args.warmup_steps
@@ -58,8 +58,8 @@ class train_callback(pl.Callback):
             #     print(trainer.global_step, decay_step, decay_total, w_step, progress, lr)
 
         if args.my_exit_tokens != 0: # cosine decay
-            real_tokens = real_step * args.ctx_len * args.real_bsz
-            warmup_tokens = w_step * args.ctx_len * args.real_bsz
+            real_tokens = real_step * args.ctx_len * args.real_bsz * args.accumulate_grad_batches
+            warmup_tokens = w_step * args.ctx_len * args.real_bsz * args.accumulate_grad_batches
             progress = (real_tokens - warmup_tokens) / (abs(args.my_exit_tokens) - warmup_tokens)
             progress = max(0, min(1, progress))
             lr_final_factor = args.lr_final / args.lr_init                
@@ -123,7 +123,7 @@ class train_callback(pl.Callback):
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         args = self.args
         token_per_step = args.ctx_len * args.real_bsz
-        real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
+        real_step = trainer.global_step + args.epoch_begin * (args.epoch_steps // args.accumulate_grad_batches)
         if trainer.is_global_zero:  # logging
             t_now = time.time_ns()
             kt_s = 0
