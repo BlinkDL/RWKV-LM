@@ -47,11 +47,7 @@ jobs:
         run: |
           git add rsi_metaforge/
           if ! git diff-index --quiet HEAD; then
-            git commit -m "feat(integration): port rsi-metaforge-core key algorithms to RWKV-LM
-
-- Modularized Stack VM, Budgeted Stochastic Search, and S1-S4 multi-mechanism layers.
-- Integrated Kuramoto solver and HDC Symbolic Analogical Transfer.
-- Added verification demo script."
+            git commit -m "feat(integration): port rsi-metaforge-core key algorithms"
             git push origin feature/rsi-metaforge-integration --force
           else
             echo "No changes to commit."
