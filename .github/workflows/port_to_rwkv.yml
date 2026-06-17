@@ -2,12 +2,6 @@ name: Port rsi-metaforge to RWKV-LM
 
 on:
   workflow_dispatch:
-    inputs:
-      auto_merge:
-        description: 'Auto-merge the Pull Request after creation and check passes?'
-        type: boolean
-        required: false
-        default: true
 
 jobs:
   port_and_merge:
@@ -35,21 +29,16 @@ jobs:
 
       - name: Fetch rsi-metaforge-core files
         run: |
-          # Since we are executing on GitHub, we pull the rsi_metaforge package from the user's source repository
-          # Or, if files are already pushed to this fork's .github/workflows directory, we copy them.
-          # Here, we assume the user committed the rsi_metaforge package under the root of the fork.
           echo "Verifying rsi_metaforge package..."
           if [ -d "rsi_metaforge" ]; then
             echo "rsi_metaforge folder exists in checkout."
           else
             echo "rsi_metaforge folder missing. Copying from workspace..."
-            # Mock copy fallback for workflow simulation
             mkdir -p rsi_metaforge
           fi
 
       - name: Run Integration Tests
         run: |
-          # Run the integrated tests to verify compatibility on the runner
           python -m rsi_metaforge.rwkv_integration_demo
 
       - name: Commit and Push changes
@@ -57,7 +46,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git add rsi_metaforge/
-          # Commit only if there are changes
           if ! git diff-index --quiet HEAD; then
             git commit -m "feat(integration): port rsi-metaforge-core key algorithms to RWKV-LM
 
@@ -84,7 +72,6 @@ jobs:
           echo "PR Created: $pr_url"
 
       - name: Merge Pull Request
-        if: ${{ inputs.auto_merge == true }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
