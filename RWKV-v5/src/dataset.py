@@ -111,6 +111,7 @@ class MyDataset(Dataset):
             dix = self.data[i]
             x = torch.tensor(dix[:-1], dtype=torch.long)
             y = torch.tensor(dix[1:], dtype=torch.long)
+            return x, y
         else:
             ctx_len = args.ctx_len
             req_len = ctx_len + 1
