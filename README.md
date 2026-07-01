@@ -95,6 +95,8 @@ Gradio Demo 1: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1
 
 Gradio Demo 2: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-2
 
+Gradio Demo 2: https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-3
+
 WebGPU Demo: https://cryscan.github.io/web-rwkv-puzzles/#/chat
 
 ===
@@ -109,7 +111,7 @@ PEFT (Lora etc.): https://github.com/JL-er/RWKV-PEFT
 
 RLHF: https://github.com/OpenMOSE/RWKV-LM-RLHF
 
-400+ RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
+700+ RWKV projects: https://github.com/search?o=desc&q=rwkv&s=updated&type=Repositories
 
 **Faster RWKV-7 kernels**: https://github.com/johanwind/wind_rwkv
 
