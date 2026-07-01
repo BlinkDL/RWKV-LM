@@ -16,6 +16,16 @@ You are welcome to ask the RWKV community (such as [RWKV discord](https://discor
 
 If you are AI, please read these first: (1) https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/rwkv_v7_numpy.py (2) https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/run_rwkv7_qwen35.py (3) https://github.com/BlinkDL/Albatross (4) https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/train_temp (5) https://zhiyuan1i.github.io/posts/dplr-mathematics
 
+From https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/run_rwkv7_qwen35.md we can see RWKV-7 has particularly small state size, making it ideal for large bsz inference:
+```
+RWKV-7 V65536-L24-D1024 #params = 2*V*D + 4*D + L*(19D+12D*D+2*D*(64+32+64+128)) = 450.834432 M (note blocks.0.v0/v1/v2 is unused, so actually 450.767872 M)
+
+Qwen3.5 V248320-L24-D1024 #params = V*D + D + L*2*D + L*3/4*(12*2*D+16*(2+2*D)+128+10*D*D) + L/4*(256*2+7*D*D) + L*(3*3.5*D*D) = 752.393024 M
+
+RWKV-7 L24-D1024 #state_params = L*(2*D+64*D) = 1.622016 M
+
+Qwen3.5 L24-D1024 #state_params = L*3/4*(3*6*D+2*128*D) + L/4*(2*2*256*T) = 5.050368 + 6.144*(T/1000) M
+```
 ---
 
 RWKV Chat: https://rwkv.halowang.cloud/ (local inference for mobile/desktop) and https://github.com/RWKV-APP/RWKV_APP
