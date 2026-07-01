@@ -1,4 +1,4 @@
-Here we compare RWKV-7 and Qwen3.5 tensors.
+Here we compare RWKV-7 and Qwen3.5 tensors. Code: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/run_rwkv7_qwen35.py
 
 Note: these are tensors with similar (but usually not exactly the same) functions.
 
