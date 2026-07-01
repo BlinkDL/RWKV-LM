@@ -48,7 +48,13 @@ RWKV-7 7.2B bf16 training on 4x8xH100 ctx8192 DeepSpeed zero2+gradcp = **263k to
 
 **Please use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp as RWKV-7 reference implementation**. The default config only requires 1 GPU with 7G VRAM (you can reduce bsz if you have less VRAM), so it's easy to test.
 
-More RWKV-7 CUDA kernels (vanilla, state-tuning, state-passing infctx): https://github.com/BlinkDL/RWKV-CUDA/tree/main/rwkv7_fast_fused
+Fastest CUDA kernels:
+
+https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp/cuda
+
+https://github.com/BlinkDL/Albatross/blob/main/faster3a_2605/rwkv7_fast_v3a.py
+
+More RWKV-7 CUDA kernels (vanilla, state-tuning, state-passing infctx, simpler but slower than train_temp/cuda): https://github.com/BlinkDL/RWKV-CUDA/tree/main/rwkv7_fast_fused
 
 ---
 
