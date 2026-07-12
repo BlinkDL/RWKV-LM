@@ -7,7 +7,7 @@ def clean_txt(txt):
 
 Basic templates:
 
-"User: xxx\n\nAssistant:" 
+"User: xxx\n\nAssistant:"
 "User: xxx\n\nAssistant: xxx\n\nUser: xxx\n\nAssistant:"
 
 "System: xxx\n\nUser: xxx\n\nAssistant:"
