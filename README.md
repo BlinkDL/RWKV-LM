@@ -44,7 +44,7 @@ Mobile inference library: https://github.com/MollySophia/rwkv-mobile
 
 ---
 
-RWKV-7 7.2B bf16 training on 4x8xH100 ctx8192 DeepSpeed zero2+gradcp = **263k tokens/s** = 36% MFU (note: current RWKV7 kernel gets faster as you increase Bsz*HeadCount)
+RWKV-7 7.2B bf16 training on 4x8xH100 ctx10240 DeepSpeed zero2+gradcp = **270k tokens/s** = 37% MFU (note: current RWKV7 kernel gets faster as you increase Bsz*HeadCount)
 
 **Please use https://github.com/BlinkDL/RWKV-LM/tree/main/RWKV-v7/train_temp as RWKV-7 reference implementation**. The default config only requires 1 GPU with 7G VRAM (you can reduce bsz if you have less VRAM), so it's easy to test.
 
