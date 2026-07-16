@@ -372,7 +372,7 @@ else:
 
 ########################################################################################################
 
-load(name="rwkv7_tmix_vres_gate_bf16_v1", sources=["cuda/rwkv7_tmix_vres_gate_bf16_v1.cpp","cuda/rwkv7_tmix_vres_gate_bf16_v1.cu"], extra_cflags=["-O3"],
+load(name="rwkv7_tmix_vres_gate_bf16_v3", sources=["cuda/rwkv7_tmix_vres_gate_bf16_v3.cpp","cuda/rwkv7_tmix_vres_gate_bf16_v3.cu"], extra_cflags=["-O3"],
      extra_cuda_cflags=['-res-usage', "--use_fast_math", "-O3", "-Xptxas -O3", "--extra-device-vectorization"],
      is_python_module=False, verbose=True)
 
@@ -383,24 +383,22 @@ def _setup_context(ctx, inputs, output):
 
 def _backward(ctx, grad_out):
     v, v_first, v0, v12 = ctx.saved_tensors
-    grad_v, grad_v_first, grad_pre = torch.ops.rwkv7_tmix_vres_gate_bf16_v1.backward(
+    return tuple(torch.ops.rwkv7_tmix_vres_gate_bf16_v3.backward(
         grad_out.contiguous(),
         v,
         v_first,
         v0,
         v12,
-    )
-    grad_v0 = grad_pre.sum(dim=(0, 1), keepdim=True)
-    return grad_v, grad_v_first, grad_v0.to(v0.dtype), grad_pre.to(v12.dtype)
+    ))
 
 torch.library.register_autograd(
-    "rwkv7_tmix_vres_gate_bf16_v1::forward",
+    "rwkv7_tmix_vres_gate_bf16_v3::forward",
     _backward,
     setup_context=_setup_context,
 )
 
 def _forward_op(v, v_first, v0, v12):
-    return torch.ops.rwkv7_tmix_vres_gate_bf16_v1.forward(
+    return torch.ops.rwkv7_tmix_vres_gate_bf16_v3.forward(
         v.contiguous(),
         v_first.contiguous(),
         v0.contiguous(),
@@ -408,13 +406,13 @@ def _forward_op(v, v_first, v0, v12):
     )
 
 @torch.jit.script
-def _tmix_vres_gate_bf16_v1_jit(
+def _tmix_vres_gate_bf16_v3_jit(
     v: torch.Tensor,
     v_first: torch.Tensor,
     v0: torch.Tensor,
     v12: torch.Tensor,
 ) -> torch.Tensor:
-    return torch.ops.rwkv7_tmix_vres_gate_bf16_v1.forward(
+    return torch.ops.rwkv7_tmix_vres_gate_bf16_v3.forward(
         v.contiguous(),
         v_first.contiguous(),
         v0.contiguous(),
@@ -422,10 +420,10 @@ def _tmix_vres_gate_bf16_v1_jit(
     )
 
 if os.environ.get("RWKV_JIT_ON") == "1":
-    def tmix_vres_gate_bf16_v1(v, v_first, v0, v12):
-        return _tmix_vres_gate_bf16_v1_jit(v, v_first, v0, v12)
+    def tmix_vres_gate_bf16_v3(v, v_first, v0, v12):
+        return _tmix_vres_gate_bf16_v3_jit(v, v_first, v0, v12)
 else:
-    def tmix_vres_gate_bf16_v1(v, v_first, v0, v12):
+    def tmix_vres_gate_bf16_v3(v, v_first, v0, v12):
         return _forward_op(v, v_first, v0, v12)
 
 ########################################################################################################
@@ -622,7 +620,7 @@ class RWKV_Tmix_x070(MyModule):
             ############################################################
             # much faster CUDA version
             v12 = (xv @ self.v1) @ self.v2
-            v = tmix_vres_gate_bf16_v1(v, v_first, self.v0, v12) # add value residual
+            v = tmix_vres_gate_bf16_v3(v, v_first, self.v0, v12) # add value residual
             ############################################################
 
         ############################################################
