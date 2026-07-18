@@ -1,9 +1,11 @@
 RWKV-7 G1-series trained templates
 
-Firstly, remember to clean "System:" and "User:" inputs, using something like:
+Firstly, it's better to clean "System:" and "User:" inputs, using something like:
 
 def clean_txt(txt):
     return re.sub(r'\n{2,}', '\n', txt.replace('\r\n','\n')).strip()
+
+And token id=0 means end_of_doc。Check https://huggingface.co/spaces/BlinkDL/RWKV-Gradio-1/blob/main/app.py for demo.
 
 Basic templates:
 
