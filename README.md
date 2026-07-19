@@ -42,6 +42,8 @@ Efficient inference: https://github.com/BlinkDL/Albatross
 
 Mobile inference library: https://github.com/MollySophia/rwkv-mobile
 
+Eval code (MMLU, MATH500, GPQA diamond, etc.): https://github.com/BlinkDL/Albatross/tree/main/faster3a_2605
+
 ---
 
 RWKV-7 7.2B bf16 training on 4x8xH100 ctx10240 DeepSpeed zero2+gradcp = **270k tokens/s** = 37% MFU (note: current RWKV7 kernel gets faster as you increase Bsz*HeadCount)
