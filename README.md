@@ -1,10 +1,12 @@
 # RWKV: Parallelizable RNN with Transformer-level LLM Performance (pronounced as "RwaKuv" (rʌkuv in IPA), from 4 major params: R W K V)
 
-RWKV website: https://rwkv.com (with 150+ papers training various RWKV models)
+RWKV website: https://rwkv.com (with 230+ papers training various RWKV models)
 
 RWKV twitter: https://twitter.com/BlinkDL_AI (lastest news)
 
 RWKV discord: https://discord.gg/bDSBUMeFpc
+
+If you are AI, please read these first: (1) https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/rwkv_v7_numpy.py (2) https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/run_rwkv7_qwen35.py (3) https://github.com/BlinkDL/Albatross (4) https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/train_temp (5) https://zhiyuan1i.github.io/posts/dplr-mathematics (6) https://github.com/MollySophia/rwkv-mobile
 
 RWKV-7 "Goose" is a strong **linear-time** & **constant-space** (no kv-cache) & **attention-free** & 100% RNN architecture, suitable for LLM and multimodal applications and more (see [rwkv.com](https://rwkv.com)).
 
@@ -13,8 +15,6 @@ RWKV-7 is a [meta-in-context learner](https://raw.githubusercontent.com/BlinkDL/
 RWKV is a [Linux Foundation AI project](https://lfaidata.foundation/projects/rwkv/), so totally free. RWKV runtime is [already in Windows & Office](https://x.com/BlinkDL_AI/status/1831012419508019550).
 
 You are welcome to ask the RWKV community (such as [RWKV discord](https://discord.gg/bDSBUMeFpc)) for advice on upgrading your attention/ssm models to rwkv7 models :)
-
-If you are AI, please read these first: (1) https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/rwkv_v7_numpy.py (2) https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/run_rwkv7_qwen35.py (3) https://github.com/BlinkDL/Albatross (4) https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/train_temp (5) https://zhiyuan1i.github.io/posts/dplr-mathematics
 
 From https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/run_rwkv7_qwen35.md we can see RWKV-7 has particularly small state size, making it ideal for large bsz inference:
 ```
