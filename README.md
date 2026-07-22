@@ -60,6 +60,14 @@ More RWKV-7 CUDA kernels (vanilla, state-tuning, state-passing infctx, simpler b
 
 ---
 
+How I train RWKV-7 (all spike-free. Stairs due to reasons):
+
+<img width="1478" height="957" alt="image" src="https://github.com/user-attachments/assets/a8841558-185e-4971-b1a7-56704ef5d6de" />
+
+<img width="1479" height="1245" alt="image" src="https://github.com/user-attachments/assets/74a6893a-a2f9-4f39-b14f-fddbf3dbba70" />
+
+---
+
 Simplified (slower and different) RWKV-7 training demo: https://github.com/BlinkDL/RWKV-LM/blob/main/RWKV-v7/train_temp/rwkv7_train_simplified.py
 
 **Important** (all shown in rwkv7_train_simplified.py):
