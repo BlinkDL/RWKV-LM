@@ -894,7 +894,7 @@ Moreover it's possible to turn it into a continuous ODE (a bit similar to State 
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=BlinkDL/RWKV-LM&type=Date)](https://star-history.com/#BlinkDL/RWKV-LM&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=BlinkDL/RWKV-LM&type=Date)](https://star-history.dera.page/#BlinkDL/RWKV-LM&Date)
 
 ## Multimodal ideas
 
