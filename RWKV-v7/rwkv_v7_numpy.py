@@ -9,6 +9,7 @@ from torch import load as torch_load
 layer_norm = lambda x, w, b : (x - x.mean()) / (x.var() + 1e-5)**0.5 * w + b
 group_norm = lambda x, w, b : ((x - x.mean(axis=1,keepdims=1)) / (x.var(axis=1,keepdims=1) + 64e-5)**0.5).flatten() * w + b
 sigmoid = lambda x : 1/(1+np.exp(-x))
+mT = lambda x : np.swapaxes(x, -1, -2) # matrix transpose (equivalent to ndarray.mT, which requires NumPy >= 2.0)
 
 def time_mixing(x, v0, last_x, S, params):
     # use this and remove other param[] if you are testing models trained by RWKV-LM
@@ -36,7 +37,7 @@ def time_mixing(x, v0, last_x, S, params):
     r,w,k,v,kk,a,r_k = [i.reshape(N_HEAD, HEAD_SIZE, 1) for i in [r,w,k,v,kk,a,r_k]]
     kk /= np.maximum(np.linalg.norm(kk, axis=1,keepdims=1), 1e-12)
 
-    S = S * w.mT - S @ kk * (kk*a).mT + v * k.mT
+    S = S * mT(w) - S @ kk * mT(kk*a) + v * mT(k)
     y = S @ r
 
     y = group_norm(y, ln_w, ln_b)
