@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<!-- created with Free Online Sitemap Generator www.xml-sitemaps.com -->
+
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/README.md</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v1/src/model.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v1/src/trainer.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v1/src/utils.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v1/train.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v2-RNN/cuda/timex_cuda.cu</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v2-RNN/cuda/timex_op.cpp</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v2-RNN/run.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v2-RNN/src/model.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v2-RNN/src/model_run.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v2-RNN/src/trainer.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v2-RNN/src/utils.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v2-RNN/train.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v3/cuda/timex_cuda.cu</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v3/cuda/timex_op.cpp</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v3/run.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v3/src/model.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v3/src/model_run.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v3/src/trainer.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v3/src/utils.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v3/train.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v3/verify.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4/cuda/wkv_cuda.cu</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4/cuda/wkv_op.cpp</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4/run.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4/src/binidx.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4/src/model.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4/src/model_run.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4/src/trainer.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4/src/utils.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4/train.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4/verify.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/chat.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/cuda/wkv5_cuda.cu</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/cuda/wkv5_op.cpp</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/cuda/wkv_cuda.cu</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/cuda/wkv_cuda_bf16.cu</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/cuda/wkv_op.cpp</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/cuda/wkv_op_bf16.cpp</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/img_demoAE.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/math_demo/run.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/run.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/src/binidx.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/src/dataset.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/src/model.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/src/model_img.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/src/model_run.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/src/trainer.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/src/utils.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/train.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v4neo/verify.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v5/cuda/wkv5_cuda.cu</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v5/cuda/wkv5_op.cpp</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v5/demo.jsonl</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v5/make_data.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v5/src/binidx.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v5/src/dataset.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v5/src/model.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v5/src/trainer.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v5/src/utils.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v5/tokenizer/rwkv_tokenizer.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM?q=/RWKV-v5/train.py</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+<url>
+  <loc>https://james4ever0.github.io/RWKV-LM/tree.html?full=true</loc>
+  <lastmod>2023-12-28T09:21:02+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+
+</urlset>

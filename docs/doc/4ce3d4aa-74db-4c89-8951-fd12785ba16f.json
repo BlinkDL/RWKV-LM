@@ -1,0 +1,15 @@
+{
+    "summary": "This code defines a CUDA kernel for timex forward and backward operations in PyTorch, with the given snippet being the closing brace of a function or class definition.",
+    "details": [
+        {
+            "comment": "This code defines a CUDA kernel for the timex forward and backward operations, which are then exposed to PyTorch through extension modules. The functions take in torch tensors, perform computations on them using the CUDA kernels, and return the results.",
+            "location": "\"/media/root/Prima/works/RWKV-LM/docs/src/RWKV-v2-RNN/cuda/timex_op.cpp\":0-19",
+            "content": "#include <torch/extension.h>\nvoid cuda_forward(const float *w, const float *k, float *x, float eps, int B, int C, int T);\nvoid cuda_backward(const float *w, const float *k, const float *gwk, float *gw, float *gk, int B, int C, int T);\nvoid forward(torch::Tensor &w, const torch::Tensor &k, torch::Tensor &x, double eps, int64_t B, int64_t C, int64_t T) {\n    cuda_forward((const float *)w.data_ptr(), (const float *)k.data_ptr(), (float *)x.data_ptr(), eps, B, C, T);\n}\nvoid backward(torch::Tensor &w, const torch::Tensor &k, const torch::Tensor &gwk, torch::Tensor &gw, torch::Tensor &gk, int64_t B, int64_t C, int64_t T) {\n    cuda_backward((const float *)w.data_ptr(), (const float *)k.data_ptr(), (const float *)gwk.data_ptr(), (float *)gw.data_ptr(), (float *)gk.data_ptr(), B, C, T);\n}\nPYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {\n    m.def(\"forward\", &forward, \"timex forward\");\n    m.def(\"backward\", &backward, \"timex backward\");\n}\nTORCH_LIBRARY(timex, m) {\n    m.def(\"forward\", forward);\n    m.def(\"backward\", backward);"
+        },
+        {
+            "comment": "This code snippet is the closing brace (}) for a function or class definition, marking the end of a block.",
+            "location": "\"/media/root/Prima/works/RWKV-LM/docs/src/RWKV-v2-RNN/cuda/timex_op.cpp\":20-20",
+            "content": "}"
+        }
+    ]
+}
