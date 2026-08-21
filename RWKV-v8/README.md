@@ -2,6 +2,8 @@
 
 ### Community ROSA Projects
 
+https://github.com/aabbdev/rosa (training ROSA)
+
 https://github.com/wjie98/rosa_soft (training ROSA)
 
 https://github.com/johanwind/wind_rosa (training ROSA)
