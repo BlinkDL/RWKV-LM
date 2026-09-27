@@ -1,0 +1,4 @@
+.*
+*.{png,cff,json}
+LICENSE
+docs

@@ -1,0 +1,549 @@
+{
+    "800": {
+        "file_id": 44,
+        "content": "        x = self.output(x * g)\n        return x\n    def forward(self, x):\n        B, T, C = x.size()\n        H = self.n_head\n        r, k, v, g = self.jit_func(x)\n        x = RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w=self.time_decay, u=self.time_faaaa)\n        return self.jit_func_2(x, g)\n########################################################################################################\n# RWKV: RWKV Time-mix + RWKV Channel-mix\n########################################################################################################\nclass RWKV_TimeMix(MyModule):\n    def __init__(self, args, layer_id):\n        super().__init__()\n        self.args = args\n        self.layer_id = layer_id\n        self.ctx_len = args.ctx_len\n        self.n_embd = args.n_embd\n        with torch.no_grad():  # fancy init\n            ratio_0_to_1 = layer_id / (args.n_layer - 1)  # 0 to 1\n            ratio_1_to_almost0 = 1.0 - (layer_id / args.n_layer)  # 1 to ~0\n            ddd = torch.ones(1, 1, args.n_embd)\n            for i in range(args.n_embd):",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:442-472"
+    },
+    "801": {
+        "file_id": 44,
+        "content": "This code defines a class `RWKV_TimeMix` that inherits from `MyModule`. It initializes attributes such as `args`, `layer_id`, `ctx_len`, and `n_embd`. It also performs a fancy init by calculating ratios based on the layer ID and number of layers.",
+        "type": "comment"
+    },
+    "802": {
+        "file_id": 44,
+        "content": "                ddd[0, 0, i] = i / args.n_embd\n            # fancy time_decay\n            decay_speed = torch.ones(args.dim_att)\n            for h in range(args.dim_att):\n                decay_speed[h] = -5 + 8 * (h / (args.dim_att - 1)) ** (0.7 + 1.3 * ratio_0_to_1)\n            self.time_decay = nn.Parameter(decay_speed)\n            # print(layer_id, self.time_decay.flatten()[:3].cpu().numpy(), '...', self.time_decay.flatten()[-3:].cpu().numpy())\n            # fancy time_first\n            zigzag = torch.tensor([(i + 1) % 3 - 1 for i in range(args.dim_att)]) * 0.5\n            self.time_first = nn.Parameter(torch.ones(args.dim_att) * math.log(0.3) + zigzag)\n            # fancy time_mix\n            self.time_mix_k = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))\n            self.time_mix_v = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0) + 0.3 * ratio_0_to_1)\n            self.time_mix_r = nn.Parameter(torch.pow(ddd, 0.5 * ratio_1_to_almost0))\n        self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))\n        self.key = nn.Linear(args.n_embd, args.dim_att, bias=False)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:473-492"
+    },
+    "803": {
+        "file_id": 44,
+        "content": "This code is initializing parameters for a time-based transformer model layer. It sets the decay rate, first value in time series, and mixing coefficients using fancy techniques to achieve more complexity in the attention mechanism. The time shift operation pads the input, and a linear transformation is applied to create the key values.",
+        "type": "comment"
+    },
+    "804": {
+        "file_id": 44,
+        "content": "        self.value = nn.Linear(args.n_embd, args.dim_att, bias=False)\n        self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)\n        self.output = nn.Linear(args.dim_att, args.n_embd, bias=False)\n        if 'a' in os.environ[\"RWKV_MY_TESTING\"]:\n            self.register_buffer(\"att_mask\", torch.tril(torch.ones(args.ctx_len, args.ctx_len)))\n            d_qkv = args.n_embd // 16\n            self.qq = nn.Linear(args.n_embd, d_qkv, bias=False)\n            self.kk = nn.Linear(args.n_embd, d_qkv, bias=False)\n            self.vv = nn.Linear(args.n_embd, d_qkv, bias=False)\n            self.oo = nn.Linear(d_qkv, args.n_embd, bias=False)\n            with torch.no_grad():\n                self.time_mix_qq = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))\n                self.time_mix_kk = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))\n                self.time_mix_vv = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0) + 0.3 * ratio_0_to_1)\n    if 'a' not in os.environ[\"RWKV_MY_TESTING\"]:\n        @MyFunction",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:493-510"
+    },
+    "805": {
+        "file_id": 44,
+        "content": "This code initializes layers for a transformer model and includes optional testing-specific buffers and parameters. The 'MyFunction' decorator suggests additional functionality is defined elsewhere.",
+        "type": "comment"
+    },
+    "806": {
+        "file_id": 44,
+        "content": "        def jit_func(self, x):\n            xx = self.time_shift(x) # Mix x with the previous timestep to produce xk, xv, xr\n            xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)\n            xv = x * self.time_mix_v + xx * (1 - self.time_mix_v)\n            xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)\n            k = self.key(xk)\n            v = self.value(xv)\n            r = self.receptance(xr)\n            sr = torch.sigmoid(r)\n            return sr, k, v\n        def forward(self, x):\n            B, T, C = x.size()  # x = (Batch,Time,Channel)\n            sr, k, v = self.jit_func(x)\n            rwkv = sr * RUN_CUDA(B, T, self.args.dim_att, self.time_decay, self.time_first, k, v)\n            return self.output(rwkv)\n    if 'a' in os.environ[\"RWKV_MY_TESTING\"]:\n        @MyFunction\n        def QKV(self, q, k, v):\n            att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))\n            att = att.masked_fill(self.att_mask == 0, float('-inf'))\n            att = F.softmax(att, dim = -1)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:511-533"
+    },
+    "807": {
+        "file_id": 44,
+        "content": "This function defines jit_func, which mixes the current timestep with the previous one for x, k, and v. Then forward function calculates RWKV using these variables and applies softmax to attentions. QKV function computes attention scores between query (q) and key (k), masking zero-valued elements and applying softmax along dim=-1.",
+        "type": "comment"
+    },
+    "808": {
+        "file_id": 44,
+        "content": "            x = att @ v\n            return x\n        @MyFunction\n        def jit_funcQKV(self, x):\n            xx = self.time_shift(x) # Mix x with the previous timestep to produce xk, xv, xr\n            xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)\n            xv = x * self.time_mix_v + xx * (1 - self.time_mix_v)\n            xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)\n            xqq = x * self.time_mix_qq + xx * (1 - self.time_mix_qq)\n            xkk = x * self.time_mix_kk + xx * (1 - self.time_mix_kk)\n            xvv = x * self.time_mix_vv + xx * (1 - self.time_mix_vv)\n            k = self.key(xk)\n            v = self.value(xv)\n            r = self.receptance(xr)\n            sr = torch.sigmoid(r)\n            qq = self.qq(xqq)\n            kk = self.kk(xkk)\n            vv = self.vv(xvv)\n            return sr, k, v, qq, kk, vv\n        def forward(self, x):\n            B, T, C = x.size()  # x = (Batch,Time,Channel)\n            sr, k, v, qq, kk, vv = self.jit_funcQKV(x)\n            rwkv = sr * RUN_CUDA(B, T, self.args.dim_att, self.time_decay, self.time_first, k, v)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:534-558"
+    },
+    "809": {
+        "file_id": 44,
+        "content": "The code defines a function `jit_funcQKV` that takes an input tensor `x`, applies time shifting and mixing, then extracts key, value, receptance, qq, kk, vv from the result. The forward function reshapes input tensor `x` to (Batch, Time, Channel) and calls `jit_funcQKV` to compute sr, k, v, qq, kk, vv. It then uses these outputs with another function `RUN_CUDA` to calculate the final output rwkv.",
+        "type": "comment"
+    },
+    "810": {
+        "file_id": 44,
+        "content": "            rwkv = self.output(rwkv) + self.oo(self.QKV(qq, kk, vv))\n            return rwkv\n########################################################################################################\nclass RWKV_ChannelMix(MyModule):\n    def __init__(self, args, layer_id):\n        super().__init__()\n        self.args = args\n        self.layer_id = layer_id\n        self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))\n        with torch.no_grad():  # fancy init of time_mix\n            ratio_1_to_almost0 = 1.0 - (layer_id / args.n_layer)  # 1 to ~0\n            ddd = torch.ones(1, 1, args.n_embd)\n            for i in range(args.n_embd):\n                ddd[0, 0, i] = i / args.n_embd\n            self.time_mix_k = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))\n            self.time_mix_r = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))\n        self.key = nn.Linear(args.n_embd, args.dim_ffn, bias=False)\n        self.receptance = nn.Linear(args.n_embd, args.n_embd, bias=False)\n        self.value = nn.Linear(args.dim_ffn, args.n_embd, bias=False)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:559-581"
+    },
+    "811": {
+        "file_id": 44,
+        "content": "The code defines a class `RWKV_ChannelMix` that extends the `MyModule` class. It initializes the layer with parameters based on the input arguments and layer ID, and includes time mixing and linear layers for key, receptance, and value operations.",
+        "type": "comment"
+    },
+    "812": {
+        "file_id": 44,
+        "content": "    @MyFunction\n    def forward(self, x):\n        xx = self.time_shift(x)\n        xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)\n        xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)\n        k = self.key(xk)\n        k = torch.relu(k) ** 2\n        kv = self.value(k)\n        return torch.sigmoid(self.receptance(xr)) * kv\nclass MishGLU(MyModule):\n    def __init__(self, args, layer_id):\n        super().__init__()\n        self.args = args\n        self.layer_id = layer_id\n        self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))\n        with torch.no_grad():\n            ratio_1_to_almost0 = 1.0 - (layer_id / args.n_layer)\n            x = torch.ones(1, 1, args.n_embd)\n            for i in range(args.n_embd):\n                x[0, 0, i] = i / args.n_embd\n            self.time_mix_k = nn.Parameter(torch.pow(x, ratio_1_to_almost0))\n            self.time_mix_r = nn.Parameter(torch.pow(x, ratio_1_to_almost0))\n            self.aa = nn.Linear(args.n_embd, args.dim_ffn, bias=False)\n            self.bb = nn.Linear(args.n_embd, args.dim_ffn, bias=False)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:583-610"
+    },
+    "813": {
+        "file_id": 44,
+        "content": "The code defines a class \"MishGLU\" that inherits from \"MyModule\". It initializes the object with parameters and layers. The class contains a \"forward\" method which performs time shifting, mixing, and calculations using various linear layers and functions. It uses parameters that depend on the layer ID and number of layers for time-based mixing. The output is obtained through a combination of sigmoid and value calculation.",
+        "type": "comment"
+    },
+    "814": {
+        "file_id": 44,
+        "content": "            self.value = nn.Linear(args.dim_ffn, args.n_embd, bias=False)\n    @MyFunction\n    def forward(self, x):\n        xx = self.time_shift(x)\n        xa = x * self.time_mix_k + xx * (1 - self.time_mix_k)\n        xb = x * self.time_mix_r + xx * (1 - self.time_mix_r)\n        a = self.aa(xa)\n        b = self.bb(xb)\n        return self.value(a * F.mish(b))\n########################################################################################################\n# The RWKV Model with our blocks\n########################################################################################################\nclass Block(nn.Module):\n    def __init__(self, args, layer_id):\n        super().__init__()\n        self.args = args\n        self.layer_id = layer_id\n        self.ln1 = nn.LayerNorm(args.n_embd)\n        self.ln2 = nn.LayerNorm(args.n_embd)\n        if self.layer_id == 0:\n            self.ln0 = nn.LayerNorm(args.n_embd)\n            if args.my_pos_emb > 0:\n                self.pos_emb_x = nn.Parameter(torch.zeros((1,args.my_pos_emb,args.n_embd)))",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:611-639"
+    },
+    "815": {
+        "file_id": 44,
+        "content": "The code defines a model with a block class. It contains linear layers, layer normalization, and Mish activation function. The block has different layer norms for each stage, with the first layer having an additional normalization layer. There is also a parameter for positional embedding if enabled in the arguments.",
+        "type": "comment"
+    },
+    "816": {
+        "file_id": 44,
+        "content": "                self.pos_emb_y = nn.Parameter(torch.zeros((args.my_pos_emb,1,args.n_embd)))\n        if self.layer_id == 0 and self.args.pre_ffn > 0:\n            self.ffnPre = RWKV_ChannelMix(args, 0)\n        else:\n            if 'r4' in os.environ[\"RWKV_MY_TESTING\"]:\n                self.att = RWKV_TimeMix_RWKV5(args, layer_id)\n            elif 'r' in os.environ[\"RWKV_MY_TESTING\"]:\n                self.att = RWKV_TimeMix_RWKV5_Preview(args, layer_id)\n            else:\n                self.att = RWKV_TimeMix(args, layer_id)\n        if 'g' in os.environ[\"RWKV_MY_TESTING\"]:\n            self.ffn = MishGLU(args, layer_id)\n        else:\n            self.ffn = RWKV_ChannelMix(args, layer_id)\n        if args.tiny_att_dim > 0 and self.layer_id == args.tiny_att_layer:\n            self.tiny_ln = nn.LayerNorm(args.n_embd)\n            self.tiny_q = nn.Linear(args.n_embd, args.tiny_att_dim, bias=False)\n            self.tiny_k = nn.Linear(args.n_embd, args.tiny_att_dim, bias=False)\n            self.tiny_v = nn.Linear(args.n_embd, args.n_embd, bias=False)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:640-661"
+    },
+    "817": {
+        "file_id": 44,
+        "content": "The code initializes the model's parameters, creates layers for position embedding and various attention mechanisms based on environment variables, and includes a MishGLU or RWKV_ChannelMix layer depending on the environment variable. If 'g' is in the environment variable, it uses a different ffn (fully connected feedforward) layer. Additionally, if args.tiny\\_att\\_dim is greater than 0 and the current layer matches args.tiny\\_att\\_layer, it adds specific layers for tiny attention with LayerNorm and linear layers for query, key, and value.",
+        "type": "comment"
+    },
+    "818": {
+        "file_id": 44,
+        "content": "            self.register_buffer(\"tiny_mask\", torch.tril(torch.ones(args.ctx_len, args.ctx_len)))\n        if args.dropout > 0:\n            self.drop0 = nn.Dropout(p = args.dropout)\n            self.drop1 = nn.Dropout(p = args.dropout)\n    def forward(self, x, x_emb=None):\n        args = self.args\n        B, T, C = x.size()\n        if self.layer_id == 0:\n            x = self.ln0(x)\n            if args.my_pos_emb > 0:\n                pos_emb = (self.pos_emb_x + self.pos_emb_y).reshape(T+1, -1)[:-1,:]\n                x = x + pos_emb\n        if self.args.dropout == 0:\n            if self.layer_id == 0 and args.pre_ffn > 0:\n                x = x + self.ffnPre(self.ln1(x))\n            else:\n                x = x + self.att(self.ln1(x))\n            x = x + self.ffn(self.ln2(x))\n        else:\n            if self.layer_id == 0 and args.pre_ffn > 0:\n                x = self.drop0(x + self.ffnPre(self.ln1(x)))\n            else:\n                x = self.drop0(x + self.att(self.ln1(x)))\n            x = self.drop1(x + self.ffn(self.ln2(x)))",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:662-688"
+    },
+    "819": {
+        "file_id": 44,
+        "content": "The code defines a forward function for a model and includes dropout layers, LayerNorm (lnX), attention layer (att), feed-forward network (ffnPre and ffn), position embedding (pos_emb_x and pos_emb_y), and a triangular mask (tiny_mask). It applies the layers based on input parameters like dropout rate, pre-ffn flag, and layer index.",
+        "type": "comment"
+    },
+    "820": {
+        "file_id": 44,
+        "content": "        if args.tiny_att_dim > 0 and self.layer_id == args.tiny_att_layer:\n            xx = self.tiny_ln(x)\n            q = self.tiny_q(xx)[:, :T, :]\n            k = self.tiny_k(xx)[:, :T, :]\n            c = (q @ k.transpose(-2, -1)) * (args.tiny_att_dim ** (-0.5))\n            c = c.masked_fill(self.tiny_mask[:T, :T] == 0, 0)\n            x = x + c @ self.tiny_v(x_emb)\n        return x\nclass L2Wrap(torch.autograd.Function):\n    @staticmethod\n    def forward(ctx, loss, y):\n        ctx.save_for_backward(y)\n        return loss\n    @staticmethod\n    def backward(ctx, grad_output):\n        y = ctx.saved_tensors[0]\n        # to encourage the logits to be close to 0\n        factor = 1e-4 / (y.shape[0] * y.shape[1])\n        maxx, ids = torch.max(y, -1, keepdim=True)\n        gy = torch.zeros_like(y)\n        gy.scatter_(-1, ids, maxx * factor)\n        return (grad_output, gy)\nclass RWKV(pl.LightningModule):\n    def __init__(self, args):\n        super().__init__()\n        self.args = args\n        if not hasattr(args, 'dim_att'):",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:690-721"
+    },
+    "821": {
+        "file_id": 44,
+        "content": "The code is implementing an attention mechanism in the RWKV model. It checks if the layer id matches a specific layer and if a smaller attention dimension is desired. If both conditions are met, it applies the scaled dot product attention, masks out padding tokens, and adds the result to the input. The L2Wrap function is used to implement an L2 regularization term in the loss computation.",
+        "type": "comment"
+    },
+    "822": {
+        "file_id": 44,
+        "content": "            args.dim_att = args.n_embd\n        if not hasattr(args, 'dim_ffn'):\n            args.dim_ffn = args.n_embd * 4\n        if not hasattr(args, 'tiny_att_layer'):\n            args.tiny_att_layer = -1\n        if not hasattr(args, 'tiny_att_dim'):\n            args.tiny_att_dim = -1\n        assert args.n_embd % 32 == 0\n        assert args.dim_att % 32 == 0\n        assert args.dim_ffn % 32 == 0\n        self.emb = nn.Embedding(args.vocab_size, args.n_embd)\n        self.blocks = nn.ModuleList([Block(args, i) for i in range(args.n_layer)])\n        self.ln_out = nn.LayerNorm(args.n_embd)\n        self.head = nn.Linear(args.n_embd, args.vocab_size, bias=False)\n        if args.head_qk > 0:\n            self.head_q = nn.Linear(args.n_embd, args.head_qk, bias=False)\n            self.head_k = nn.Linear(args.n_embd, args.head_qk, bias=False)\n            self.register_buffer(\"copy_mask\", torch.tril(torch.ones(args.ctx_len, args.ctx_len)))\n        if args.dropout > 0:\n            self.drop0 = nn.Dropout(p = args.dropout)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:722-745"
+    },
+    "823": {
+        "file_id": 44,
+        "content": "This code initializes a transformer model by setting attributes based on argument values, creating embedding and linear layers, and organizing blocks within the model. Assertions ensure that certain dimensions are multiples of 32 for optimization purposes. If certain attributes aren't set, the code assigns default values. Additionally, if dropout or key/query projection is enabled, corresponding layers are created.",
+        "type": "comment"
+    },
+    "824": {
+        "file_id": 44,
+        "content": "    def configure_optimizers(self):\n        args = self.args\n        lr_decay = set()\n        lr_1x = set()\n        lr_2x = set()\n        lr_3x = set()\n        for n, p in self.named_parameters():\n            if (\"time_mix\" in n) and (args.layerwise_lr > 0):\n                if args.my_pile_stage == 2:\n                    lr_2x.add(n)\n                else:\n                    lr_1x.add(n)\n            elif (\"time_decay\" in n) and (args.layerwise_lr > 0):\n                if args.my_pile_stage == 2:\n                    lr_3x.add(n)\n                else:\n                    lr_2x.add(n)\n            elif (\"time_faaaa\" in n) and (args.layerwise_lr > 0):\n                if args.my_pile_stage == 2:\n                    lr_2x.add(n)\n                else:\n                    lr_1x.add(n)\n            elif (\"time_first\" in n) and (args.layerwise_lr > 0):\n                lr_3x.add(n)\n            elif (len(p.squeeze().shape) >= 2) and (args.weight_decay > 0):\n                lr_decay.add(n)\n            else:\n                lr_1x.add(n)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:747-775"
+    },
+    "825": {
+        "file_id": 44,
+        "content": "This function sets up optimizers based on parameter names and provided arguments. It categorizes parameters into different learning rate groups: 1x, 2x, or 3x multipliers for time-related layers; decay rate for weight decay; and all others with a single learning rate.",
+        "type": "comment"
+    },
+    "826": {
+        "file_id": 44,
+        "content": "        lr_decay = sorted(list(lr_decay))\n        lr_1x = sorted(list(lr_1x))\n        lr_2x = sorted(list(lr_2x))\n        lr_3x = sorted(list(lr_3x))\n        # print('decay', lr_decay)\n        # print('1x', lr_1x)\n        # print('2x', lr_2x)\n        # print('3x', lr_3x)\n        param_dict = {n: p for n, p in self.named_parameters()}\n        if args.layerwise_lr > 0:\n            if args.my_pile_stage == 2:\n                optim_groups = [\n                    {\"params\": [param_dict[n] for n in lr_1x], \"weight_decay\": 0.0, \"my_lr_scale\": 1.0},\n                    {\"params\": [param_dict[n] for n in lr_2x], \"weight_decay\": 0.0, \"my_lr_scale\": 5.0},# test: 2e-3 / args.lr_init},\n                    {\"params\": [param_dict[n] for n in lr_3x], \"weight_decay\": 0.0, \"my_lr_scale\": 5.0},# test: 3e-3 / args.lr_init},\n                ]\n            else:\n                optim_groups = [\n                    {\"params\": [param_dict[n] for n in lr_1x], \"weight_decay\": 0.0, \"my_lr_scale\": 1.0},\n                    {\"params\": [param_dict[n] for n in lr_2x], \"weight_decay\": 0.0, \"my_lr_scale\": 2.0},",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:777-797"
+    },
+    "827": {
+        "file_id": 44,
+        "content": "This code is initializing optimizer groups for layerwise learning rate (LR) in a neural network model. It sorts the LR values and creates separate optimizer groups for each level of scaling, assigning different layers to each group based on their corresponding scaling factor. The layer-specific scaling is applied when args.my_pile_stage == 2, otherwise, it uses a different set of scales. This allows for more fine-grained control over the learning rates for different layers during training.",
+        "type": "comment"
+    },
+    "828": {
+        "file_id": 44,
+        "content": "                    {\"params\": [param_dict[n] for n in lr_3x], \"weight_decay\": 0.0, \"my_lr_scale\": 3.0},\n                ]\n        else:\n            optim_groups = [{\"params\": [param_dict[n] for n in lr_1x], \"weight_decay\": 0.0, \"my_lr_scale\": 1.0}]\n        if args.weight_decay > 0:\n            optim_groups += [{\"params\": [param_dict[n] for n in lr_decay], \"weight_decay\": args.weight_decay, \"my_lr_scale\": 1.0}]\n            if self.deepspeed_offload:\n                return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adamw_mode=True, amsgrad=False)\n            return FusedAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adam_w_mode=True, amsgrad=False)\n        else:\n            if self.deepspeed_offload:\n                return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adamw_mode=False, weight_decay=0, amsgrad=False)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:798-810"
+    },
+    "829": {
+        "file_id": 44,
+        "content": "This code initializes optimizer groups for model parameters based on learning rates and weight decay. If weight decay is provided, it adds separate optimization group with the specified weight decay. Depending on Deepspeed offload flag, it returns either DeepSpeedCPUAdam or FusedAdam optimizer instances.",
+        "type": "comment"
+    },
+    "830": {
+        "file_id": 44,
+        "content": "            return FusedAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adam_w_mode=False, weight_decay=0, amsgrad=False)\n        # return ZeroOneAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, weight_decay=0, amsgrad=False, cuda_aware=False)\n    @property\n    def deepspeed_offload(self) -> bool:\n        strategy = self.trainer.strategy\n        if isinstance(strategy, DeepSpeedStrategy):\n            cfg = strategy.config[\"zero_optimization\"]\n            return cfg.get(\"offload_optimizer\") or cfg.get(\"offload_param\")\n        return False\n    def forward(self, idx):\n        args = self.args\n        B, T = idx.size()\n        assert T <= args.ctx_len, \"Cannot forward, model ctx_len is exhausted.\"\n        x = self.emb(idx)\n        x_emb = x\n        if args.dropout > 0:\n            x = self.drop0(x)\n        if args.tiny_att_dim > 0:\n            for block in self.blocks:\n                if args.grad_cp == 1:",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:811-834"
+    },
+    "831": {
+        "file_id": 44,
+        "content": "This code snippet defines a model that uses either FusedAdam or ZeroOneAdam optimizer based on the deepspeed_offload property. The function forward takes an index and processes it through embedding, potentially dropout, and then passes it to multiple blocks if grad_cp is 1. The deepspeed_offload property checks a DeepSpeedStrategy configuration for offloading settings.",
+        "type": "comment"
+    },
+    "832": {
+        "file_id": 44,
+        "content": "                    x = deepspeed.checkpointing.checkpoint(block, x, x_emb)\n                else:\n                    x = block(x, x_emb)\n        else:\n            for block in self.blocks:\n                if args.grad_cp == 1:\n                    x = deepspeed.checkpointing.checkpoint(block, x)\n                else:\n                    x = block(x)\n        x = self.ln_out(x)\n        if args.head_qk > 0:\n            q = self.head_q(x)[:, :T, :]\n            k = self.head_k(x)[:, :T, :]\n            c = (q @ k.transpose(-2, -1)) * (1.0 / args.head_qk)\n            c = c.masked_fill(self.copy_mask[:T, :T] == 0, 0)\n            if \"32\" in os.environ[\"RWKV_FLOAT_MODE\"]:\n                c = c @ F.one_hot(idx, num_classes=args.vocab_size)\n            elif os.environ[\"RWKV_FLOAT_MODE\"] == \"fp16\":\n                c = c @ F.one_hot(idx, num_classes=args.vocab_size).half()\n            elif os.environ[\"RWKV_FLOAT_MODE\"] == \"bf16\":\n                c = c @ F.one_hot(idx, num_classes=args.vocab_size).bfloat16()\n            x = self.head(x) + c",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:835-860"
+    },
+    "833": {
+        "file_id": 44,
+        "content": "This code is responsible for handling the checkpointing and layer execution within a specific block in the RWKV model. It also handles head attention calculations and applies one-hot encoding based on the floating-point mode environment variable.",
+        "type": "comment"
+    },
+    "834": {
+        "file_id": 44,
+        "content": "        else:\n            x = self.head(x)\n        return x\n    def training_step(self, batch, batch_idx):\n        args = self.args\n        if args.my_qa_mask != 1:\n            idx, targets = batch\n            logits = self(idx)\n            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))\n            # if '0' in os.environ[\"RWKV_MY_TESTING\"]:\n            #     print('logits', logits)\n            #     torch.set_printoptions(threshold=10000)\n            #     print('idx', idx)\n            #     exit(0)\n        else:\n            idx, targets, mask = batch\n            mask = mask.view(-1)\n            sum_mask = torch.sum(mask).item()\n            # if sum_mask == 0:\n            #     return torch.tensor([0.0], requires_grad=True)\n            logits = self(idx)\n            if sum_mask == mask.shape[0]:\n                loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))\n                # print('rank', self.global_rank, 'loss', loss.item())\n            else:\n                loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), reduction='none')",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:861-889"
+    },
+    "835": {
+        "file_id": 44,
+        "content": "This code contains two methods: '__call__' and 'training_step'. The '__call__' method performs a forward pass through the model by calling the 'head' method if not in training mode, otherwise it returns the input 'x' as-is. In the 'training_step' method, it checks the argument 'args.my_qa_mask' to determine whether to perform training or not. If 'args.my_qa_mask != 1', it calculates and returns a loss using cross entropy loss function. If 'args.my_qa_mask == 1', it applies a mask to the targets during training.",
+        "type": "comment"
+    },
+    "836": {
+        "file_id": 44,
+        "content": "                # loss_raw = loss\n                loss = torch.sum(loss * mask) / sum_mask\n                # torch.set_printoptions(threshold=10000)\n                # if True: #self.global_rank == 1:\n                #     tmp = ''\n                #     sss = 0\n                #     ccc = 0\n                #     for i in range(mask.shape[0]):\n                #         if mask[i] > 0:\n                #             tmp += str(idx.view(-1)[i].item()) + ','\n                #             sss += loss_raw.view(-1)[i].float().item()\n                #             ccc += 1\n                #     print('rank', self.global_rank, 'loss', loss.item(), 'lavg', sss / ccc)#, 'tmp', tmp, 'input', idx)\n        return L2Wrap.apply(loss, logits)\n    def training_step_end(self, batch_parts):\n        if pl.__version__[0]!='2':\n            all = self.all_gather(batch_parts)\n            if self.trainer.is_global_zero:\n                self.trainer.my_loss_all = all\n    def generate_init_weight(self):\n        print(\n            f\"\"\"\n############################################################################",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:890-916"
+    },
+    "837": {
+        "file_id": 44,
+        "content": "This code is defining the model, loss calculation, and training step functions for a neural network. It calculates the loss based on a masked sum of the loss_raw values, and then performs an all-gather operation to collect the losses from all ranks before proceeding to the next steps. The output is wrapped with L2 norm using the apply function. The generate_init_weight function prints some information at the start of training.",
+        "type": "comment"
+    },
+    "838": {
+        "file_id": 44,
+        "content": "#\n# Init model weight (slow for large models)...\n#\n############################################################################\n\"\"\"\n        )\n        m = {}\n        for n in self.state_dict():\n            p = self.state_dict()[n]\n            shape = p.shape\n            gain = 1.0\n            scale = 1.0\n            if \"ln_\" in n or \".ln\" in n or \"time_\" in n or \"_mask\" in n or \"pos_emb\" in n or '.mask.' in n:\n                if 'ln_x.weight' in n:\n                    layer_scale = (1+int(n.split('.')[1])) / self.args.n_layer\n                    m[n] = (p * 0.0) + (layer_scale ** 0.7)\n                else:\n                    m[n] = p\n            else:\n                if n == \"emb.weight\":\n                    scale = -1 * self.args.lr_init\n                else:\n                    if shape[0] > shape[1]:\n                        gain = math.sqrt(shape[0] / shape[1])\n                    if 'r' in os.environ[\"RWKV_MY_TESTING\"]:\n                        zero = [\".att.output.\", \".ffn.value.\", \".ffn.receptance.\", \".ffnPre.value.\", \".ffnPre.receptance.\", \"head_q.\", '.oo.', '.rr.']",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:917-943"
+    },
+    "839": {
+        "file_id": 44,
+        "content": "Initializing model weights for large models is slow, so the code handles this process by iterating over each item in self.state_dict(). For certain specific named parameters (like 'ln_x.weight', '.att.output.', etc.), it sets values accordingly. Otherwise, it simply copies the original values. The lr_init is used to set scale and gain based on the shape of the parameter. If the environment variable RWKV_MY_TESTING contains 'r', certain parameters are excluded from initialization.",
+        "type": "comment"
+    },
+    "840": {
+        "file_id": 44,
+        "content": "                    else:\n                        zero = [\".att.key.\", \".att.receptance.\", \".att.output.\", \".ffn.value.\", \".ffn.receptance.\", \".ffnPre.value.\", \".ffnPre.receptance.\", \"head_q.\", '.oo.', '.rr.']\n                    for kk in zero:\n                        if kk in n:\n                            scale = 0\n                    if n == \"head.weight\":\n                        scale = 0.5\n                    if \"head_k.\" in n:\n                        scale = 0.1\n                    if \"head_q.\" in n:\n                        scale = 0\n                print(f\"{str(shape[0]).ljust(5)} {str(shape[1]).ljust(5)} {str(scale).ljust(4)} {n}\")\n                if self.args.accelerator.upper() == \"GPU\":\n                    m[n] = torch.empty((shape[0], shape[1]), device=\"cuda\")\n                else:\n                    m[n] = torch.empty((shape[0], shape[1]))\n                if scale == 0:\n                    nn.init.zeros_(m[n])\n                elif scale < 0:\n                    nn.init.uniform_(m[n], a=scale, b=-scale)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:944-966"
+    },
+    "841": {
+        "file_id": 44,
+        "content": "This code checks the variable 'n' to determine its scale factor. If 'n' matches a specific set of keys, it sets the scale to 0 (zero initialization), 0.5, or 0.1. It then creates an empty tensor based on GPU accelerator settings and initializes it with zero or uniform values depending on the scale.",
+        "type": "comment"
+    },
+    "842": {
+        "file_id": 44,
+        "content": "                else:\n                    nn.init.orthogonal_(m[n], gain=gain * scale)\n            m[n] = m[n].cpu()\n            if os.environ[\"RWKV_FLOAT_MODE\"] == \"fp16\":\n                m[n] = m[n].half()\n            elif os.environ[\"RWKV_FLOAT_MODE\"] == \"bf16\":\n                m[n] = m[n].bfloat16()\n            # if n == \"emb.weight\":\n            #     print(m[n])\n        gc.collect()\n        torch.cuda.empty_cache()\n        return m",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model.py:967-981"
+    },
+    "843": {
+        "file_id": 44,
+        "content": "This code initializes the model's weights using orthogonal initialization with a specified gain and scale. It then moves the weights to CPU and converts them based on the RWKV_FLOAT_MODE environment variable. Finally, it collects garbage and empties the CUDA cache before returning the updated model parameters.",
+        "type": "comment"
+    },
+    "844": {
+        "file_id": 45,
+        "content": "/RWKV-v4neo/src/model_img.py",
+        "type": "filepath"
+    },
+    "845": {
+        "file_id": 45,
+        "content": "The code utilizes DeepSpeed, VGG16 and RWKV-LM layers, VGG-19 pretrained features, L2 pooling layers, calculates distances for score calculation, and defines the RWKV-v4neo language model with Conv2d layers, BatchNorm2d, Mish activation function, LightningModule, optimizer, and encoder-decoder architecture for multi-device training support.",
+        "type": "summary"
+    },
+    "846": {
+        "file_id": 45,
+        "content": "########################################################################################################\n# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM\n########################################################################################################\nimport numpy as np\nimport os, math, gc\nimport torch\nimport torch.nn as nn\nimport torch.nn.functional as F\nimport torchvision as vision\nimport pytorch_lightning as pl\nfrom pytorch_lightning.utilities import rank_zero_info, rank_zero_only\nfrom pytorch_lightning.strategies import DeepSpeedStrategy\nimport deepspeed\nfrom deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam\n# from pytorch_msssim import MS_SSIM\ndef __nop(ob):\n    return ob\nMyModule = torch.jit.ScriptModule\n# MyFunction = __nop\nMyFunction = torch.jit.script_method\nimport clip\nfrom transformers import CLIPModel\nclass L2pooling(nn.Module):\n    def __init__(self, filter_size=5, stride=2, channels=None, pad_off=0):\n        super(L2pooling, self).__init__()\n        self.padding = (filter_size - 2) // 2",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_img.py:1-30"
+    },
+    "847": {
+        "file_id": 45,
+        "content": "This code imports necessary libraries and defines functions and modules for a machine learning model. It uses DeepSpeed for efficient training and includes functions like L2pooling for data processing.",
+        "type": "comment"
+    },
+    "848": {
+        "file_id": 45,
+        "content": "        self.stride = stride\n        self.channels = channels\n        a = np.hanning(filter_size)[1:-1]\n        g = torch.Tensor(a[:, None] * a[None, :])\n        g = g / torch.sum(g)\n        self.register_buffer(\n            \"filter\", g[None, None, :, :].repeat((self.channels, 1, 1, 1))\n        )\n    def forward(self, input):\n        input = input**2\n        out = F.conv2d(\n            input,\n            self.filter,\n            stride=self.stride,\n            padding=self.padding,\n            groups=input.shape[1],\n        )\n        return (out + 1e-12).sqrt()\nclass DISTS(torch.nn.Module):\n    def __init__(self, load_weights=True):\n        super(DISTS, self).__init__()\n        vgg_pretrained_features = vision.models.vgg16(\n            weights=\"VGG16_Weights.IMAGENET1K_V1\"\n        ).features\n        self.stage1 = torch.nn.Sequential()\n        self.stage2 = torch.nn.Sequential()\n        self.stage3 = torch.nn.Sequential()\n        self.stage4 = torch.nn.Sequential()\n        self.stage5 = torch.nn.Sequential()\n        for x in range(0, 4):",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_img.py:31-63"
+    },
+    "849": {
+        "file_id": 45,
+        "content": "This code defines a class for a neural network model. The model has stages, and each stage contains convolutional layers from the VGG16 model followed by a custom layer called RWKV-LM/RWKV-v4neo/src/model_img.py:30-62. The custom layer applies a Hanning window function to the filter, then normalizes it, and repeats it for each channel. Finally, it performs convolution with the input image using specified stride, padding, and groups.",
+        "type": "comment"
+    },
+    "850": {
+        "file_id": 45,
+        "content": "            self.stage1.add_module(str(x), vgg_pretrained_features[x])\n        self.stage2.add_module(str(4), L2pooling(channels=64))\n        for x in range(5, 9):\n            self.stage2.add_module(str(x), vgg_pretrained_features[x])\n        self.stage3.add_module(str(9), L2pooling(channels=128))\n        for x in range(10, 16):\n            self.stage3.add_module(str(x), vgg_pretrained_features[x])\n        self.stage4.add_module(str(16), L2pooling(channels=256))\n        for x in range(17, 23):\n            self.stage4.add_module(str(x), vgg_pretrained_features[x])\n        self.stage5.add_module(str(23), L2pooling(channels=512))\n        for x in range(24, 30):\n            self.stage5.add_module(str(x), vgg_pretrained_features[x])\n        self.register_buffer(\n            \"mean\", torch.tensor([0.485, 0.456, 0.406]).view(1, -1, 1, 1)\n        )\n        self.register_buffer(\n            \"std\", torch.tensor([0.229, 0.224, 0.225]).view(1, -1, 1, 1)\n        )\n        self.chns = [3, 64, 128, 256, 512, 512]\n        self.register_buffer(",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_img.py:64-86"
+    },
+    "851": {
+        "file_id": 45,
+        "content": "The code creates a model architecture by adding modules to the stages of the network. It uses VGG-19 pretrained features for each stage and adds L2 pooling layers in between. The mean and std values are registered as buffers, and a list of channel numbers is created.",
+        "type": "comment"
+    },
+    "852": {
+        "file_id": 45,
+        "content": "            \"alpha\", nn.Parameter(torch.randn(1, sum(self.chns), 1, 1))\n        )\n        self.register_buffer(\"beta\", nn.Parameter(torch.randn(1, sum(self.chns), 1, 1)))\n        self.alpha.data.normal_(0.1, 0.01)\n        self.beta.data.normal_(0.1, 0.01)\n        weights = torch.load(\"test/DISTS_weights.pt\")\n        self.alpha.data = weights[\"alpha\"]\n        self.beta.data = weights[\"beta\"]\n        for param in self.parameters():\n            param.requires_grad = False\n    def forward_once(self, x):\n        h = (x - self.mean) / self.std\n        h = self.stage1(h)\n        h_relu1_2 = h\n        h = self.stage2(h)\n        h_relu2_2 = h\n        h = self.stage3(h)\n        h_relu3_3 = h\n        h = self.stage4(h)\n        h_relu4_3 = h\n        h = self.stage5(h)\n        h_relu5_3 = h\n        return [x, h_relu1_2, h_relu2_2, h_relu3_3, h_relu4_3, h_relu5_3]\n    def forward(self, x, y, require_grad=False, batch_average=False):\n        if require_grad:\n            feats0 = self.forward_once(x)\n            feats1 = self.forward_once(y)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_img.py:87-116"
+    },
+    "853": {
+        "file_id": 45,
+        "content": "The code initializes two parameters, \"alpha\" and \"beta\", with random values and normalizes their data. It then loads weights from a file and assigns them to the respective parameters. Finally, it sets the gradient flag to False for all parameters and defines forward functions to perform calculations on input features.",
+        "type": "comment"
+    },
+    "854": {
+        "file_id": 45,
+        "content": "        else:\n            with torch.no_grad():\n                feats0 = self.forward_once(x)\n                feats1 = self.forward_once(y)\n        dist1 = 0\n        dist2 = 0\n        c1 = 1e-6\n        c2 = 1e-6\n        w_sum = self.alpha.sum() + self.beta.sum()\n        alpha = torch.split(self.alpha / w_sum, self.chns, dim=1)\n        beta = torch.split(self.beta / w_sum, self.chns, dim=1)\n        for k in range(len(self.chns)):\n            x_mean = feats0[k].mean([2, 3], keepdim=True)\n            y_mean = feats1[k].mean([2, 3], keepdim=True)\n            S1 = (2 * x_mean * y_mean + c1) / (x_mean**2 + y_mean**2 + c1)\n            dist1 = dist1 + (alpha[k] * S1).sum(1, keepdim=True)\n            x_var = ((feats0[k] - x_mean) ** 2).mean([2, 3], keepdim=True)\n            y_var = ((feats1[k] - y_mean) ** 2).mean([2, 3], keepdim=True)\n            xy_cov = (feats0[k] * feats1[k]).mean(\n                [2, 3], keepdim=True\n            ) - x_mean * y_mean\n            S2 = (2 * xy_cov + c2) / (x_var + y_var + c2)\n            dist2 = dist2 + (beta[k] * S2).sum(1, keepdim=True)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_img.py:117-141"
+    },
+    "855": {
+        "file_id": 45,
+        "content": "This code calculates the distances between two feature embeddings and assigns weights to them based on alpha and beta. It first performs a forward pass for x and y, then normalizes alpha and beta by dividing their sums with the total number of channels. For each channel, it computes the mean and variance of x and y, and also calculates the covariance between x and y. Finally, it applies weights to the distances and sums them up for both embeddings.",
+        "type": "comment"
+    },
+    "856": {
+        "file_id": 45,
+        "content": "        score = 1 - (dist1 + dist2).squeeze()\n        if batch_average:\n            return score.mean()\n        else:\n            return score\n    class ToBinary(torch.autograd.Function):\n        @staticmethod\n        def forward(ctx, x):#, noise_scale):\n            # if noise_scale > 0:\n            #     noise_min = 0.5 - noise_scale / 2\n            #     noise_max = 0.5 + noise_scale / 2\n            #     return torch.floor(x + torch.empty_like(x).uniform_(noise_min, noise_max))\n            # else:\n            return torch.floor(x + 0.5) # no need for noise when we have plenty of data\n        @staticmethod\n        def backward(ctx, grad_output):\n            return grad_output.clone()#, None\n########################################################################################################\nclass R_ENCODER(MyModule):\n    def __init__(self, args):\n        super().__init__()\n        self.args = args\n        dd = 8\n        self.Bxx = nn.BatchNorm2d(dd*64)\n        self.CIN = nn.Conv2d(3, dd, kernel_size=3, padding=1)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_img.py:143-173"
+    },
+    "857": {
+        "file_id": 45,
+        "content": "This code contains a function that calculates a score based on distances and returns it. If batch_average is True, the score is averaged across all elements in the batch. The ToBinary class performs binary rounding of input values. The R_ENCODER class initializes a model with BatchNorm2d and Conv2d layers for image processing.",
+        "type": "comment"
+    },
+    "858": {
+        "file_id": 45,
+        "content": "        self.Cx0 = nn.Conv2d(dd, 32, kernel_size=3, padding=1)\n        self.Cx1 = nn.Conv2d(32, dd, kernel_size=3, padding=1)\n        self.B00 = nn.BatchNorm2d(dd*4)\n        self.C00 = nn.Conv2d(dd*4, 256, kernel_size=3, padding=1)\n        self.C01 = nn.Conv2d(256, dd*4, kernel_size=3, padding=1)\n        self.C02 = nn.Conv2d(dd*4, 256, kernel_size=3, padding=1)\n        self.C03 = nn.Conv2d(256, dd*4, kernel_size=3, padding=1)\n        self.B10 = nn.BatchNorm2d(dd*16)\n        self.C10 = nn.Conv2d(dd*16, 256, kernel_size=3, padding=1)\n        self.C11 = nn.Conv2d(256, dd*16, kernel_size=3, padding=1)\n        self.C12 = nn.Conv2d(dd*16, 256, kernel_size=3, padding=1)\n        self.C13 = nn.Conv2d(256, dd*16, kernel_size=3, padding=1)\n        self.B20 = nn.BatchNorm2d(dd*64)\n        self.C20 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)\n        self.C21 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)\n        self.C22 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)\n        self.C23 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_img.py:174-193"
+    },
+    "859": {
+        "file_id": 45,
+        "content": "This code defines multiple convolutional layers (Conv2d) and batch normalization layers (BatchNorm2d) for a neural network model. The layers have different input/output dimensions, kernel sizes, and padding values to perform feature extraction and normalization in the model's architecture.",
+        "type": "comment"
+    },
+    "860": {
+        "file_id": 45,
+        "content": "        # self.B21 = nn.BatchNorm2d(dd*64)\n        # self.C24 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)\n        # self.C25 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)\n        # self.C26 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)\n        # self.C27 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)\n        self.COUT = nn.Conv2d(dd*64, args.my_img_bit, kernel_size=3, padding=1)\n    @MyFunction\n    def forward(self, img):\n        ACT = F.mish\n        x = self.CIN(img)\n        xx = self.Bxx(F.pixel_unshuffle(x, 8))\n        x = x + self.Cx1(ACT(self.Cx0(x)))\n        x = F.pixel_unshuffle(x, 2)\n        x = x + self.C01(ACT(self.C00(ACT(self.B00(x)))))\n        x = x + self.C03(ACT(self.C02(x)))\n        x = F.pixel_unshuffle(x, 2)\n        x = x + self.C11(ACT(self.C10(ACT(self.B10(x)))))\n        x = x + self.C13(ACT(self.C12(x)))\n        x = F.pixel_unshuffle(x, 2)\n        x = x + self.C21(ACT(self.C20(ACT(self.B20(x)))))\n        x = x + self.C23(ACT(self.C22(x)))\n        # x = x + self.C25(ACT(self.C24(ACT(self.B21(x)))))",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_img.py:194-221"
+    },
+    "861": {
+        "file_id": 45,
+        "content": "This code defines a forward function for a neural network. It uses Mish activation functions and applies convolutional layers with batch normalization for feature extraction and image processing. The output is generated by combining the outputs of multiple convolutional layers, and pixel unshuffling is used to change the channel dimension.",
+        "type": "comment"
+    },
+    "862": {
+        "file_id": 45,
+        "content": "        # x = x + self.C27(ACT(self.C26(x)))\n        x = self.COUT(x + xx)\n        return torch.sigmoid(x)\n########################################################################################################\nclass R_DECODER(MyModule):\n    def __init__(self, args):\n        super().__init__()\n        self.args = args\n        dd = 8\n        self.CIN = nn.Conv2d(args.my_img_bit, dd*64, kernel_size=3, padding=1)\n        self.B00 = nn.BatchNorm2d(dd*64)\n        self.C00 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)\n        self.C01 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)\n        self.C02 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)\n        self.C03 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)\n        # self.B01 = nn.BatchNorm2d(dd*64)\n        # self.C04 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)\n        # self.C05 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)\n        # self.C06 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)\n        # self.C07 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_img.py:222-245"
+    },
+    "863": {
+        "file_id": 45,
+        "content": "The given code is a part of the RWKV model implementation. It defines the Decoder class which takes in arguments and initializes multiple Conv2d layers for processing. The Conv2d layers are responsible for feature extraction and down-sampling. The batch normalization layer (BatchNorm2d) helps with speeding up the training and improving model performance by reducing internal covariate shift. However, there is a comment suggesting that the BatchNorm2d could be removed or reduced to improve performance and speed. Additionally, some of the Conv2d layers are commented out, indicating they might be unused or under development.",
+        "type": "comment"
+    },
+    "864": {
+        "file_id": 45,
+        "content": "        self.B10 = nn.BatchNorm2d(dd*16)\n        self.C10 = nn.Conv2d(dd*16, 256, kernel_size=3, padding=1)\n        self.C11 = nn.Conv2d(256, dd*16, kernel_size=3, padding=1)\n        self.C12 = nn.Conv2d(dd*16, 256, kernel_size=3, padding=1)\n        self.C13 = nn.Conv2d(256, dd*16, kernel_size=3, padding=1)\n        self.B20 = nn.BatchNorm2d(dd*4)\n        self.C20 = nn.Conv2d(dd*4, 256, kernel_size=3, padding=1)\n        self.C21 = nn.Conv2d(256, dd*4, kernel_size=3, padding=1)\n        self.C22 = nn.Conv2d(dd*4, 256, kernel_size=3, padding=1)\n        self.C23 = nn.Conv2d(256, dd*4, kernel_size=3, padding=1)\n        self.Cx0 = nn.Conv2d(dd, 32, kernel_size=3, padding=1)\n        self.Cx1 = nn.Conv2d(32, dd, kernel_size=3, padding=1)\n        self.COUT = nn.Conv2d(dd, 3, kernel_size=3, padding=1)\n    @MyFunction\n    def forward(self, code):\n        ACT = F.mish\n        x = self.CIN(code)\n        x = x + self.C01(ACT(self.C00(ACT(self.B00(x)))))\n        x = x + self.C03(ACT(self.C02(x)))\n        # x = x + self.C05(ACT(self.C04(ACT(self.B01(x)))))",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_img.py:247-270"
+    },
+    "865": {
+        "file_id": 45,
+        "content": "This code defines a model for the RWKV-v4neo language model. It includes multiple convolutional and batch normalization layers, as well as the Mish activation function (F.mish). The forward function applies these layers to an input code and performs addition operations between different layer outputs.",
+        "type": "comment"
+    },
+    "866": {
+        "file_id": 45,
+        "content": "        # x = x + self.C07(ACT(self.C06(x)))\n        x = F.pixel_shuffle(x, 2)\n        x = x + self.C11(ACT(self.C10(ACT(self.B10(x)))))\n        x = x + self.C13(ACT(self.C12(x)))\n        x = F.pixel_shuffle(x, 2)\n        x = x + self.C21(ACT(self.C20(ACT(self.B20(x)))))\n        x = x + self.C23(ACT(self.C22(x)))\n        x = F.pixel_shuffle(x, 2)\n        x = x + self.Cx1(ACT(self.Cx0(x)))\n        x = self.COUT(x)\n        return torch.sigmoid(x)\n########################################################################################################`\ndef cosine_loss(x, y):\n    x = F.normalize(x, dim=-1)\n    y = F.normalize(y, dim=-1)\n    return 1 - torch.einsum('ij,ij->i',[x,y])\nclass RWKV_IMG(pl.LightningModule):\n    def __init__(self, args):\n        super().__init__()\n        self.args = args\n        self.encoder = R_ENCODER(args)\n        self.decoder = R_DECODER(args)\n        self.clip_model = None\n        clip_name = args.my_img_clip\n        if clip_name == 'B32':\n            clip_name = 'ViT-B/32'\n        elif clip_name == 'B16':",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_img.py:271-306"
+    },
+    "867": {
+        "file_id": 45,
+        "content": "This code snippet belongs to a LightningModule class in the RWKV-v4neo package. It includes a cosine_loss function and an RWKV_IMG class which has an encoder, decoder, and clip_model as its components. The encoder and decoder are instances of R_ENCODER and R_DECODER classes respectively. The code snippet defines operations to be performed on the input x using various transformations and normalizations before returning a sigmoid transformed output.",
+        "type": "comment"
+    },
+    "868": {
+        "file_id": 45,
+        "content": "            clip_name = 'ViT-B/16'\n        elif clip_name == 'L14':\n            clip_name = 'ViT-L/14'\n        elif clip_name == 'OB32':\n            clip_name = \"laion/CLIP-ViT-B-32-laion2B-s34B-b79K\"\n            self.clip_model = CLIPModel.from_pretrained(clip_name)\n            self.clip_model.encode_image = self.clip_model.get_image_features\n        if self.clip_model == None:\n            self.clip_model, _ = clip.load(clip_name, jit = True)\n        self.register_buffer(\n            \"clip_mean\", torch.tensor([0.48145466, 0.4578275, 0.40821073]).view(1, 3, 1, 1)\n        )\n        self.register_buffer(\n            \"clip_std\", torch.tensor([0.26862954, 0.26130258, 0.27577711]).view(1, 3, 1, 1)\n        )\n        for n, p in self.named_parameters():\n            if 'clip_model' in n:\n                p.requires_grad = False\n        self.loss_dists = DISTS()\n        # self.loss_ssim = MS_SSIM(data_range=1, size_average=True, channel=3)\n    def configure_optimizers(self):\n        args = self.args\n        optim_groups = [",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_img.py:307-332"
+    },
+    "869": {
+        "file_id": 45,
+        "content": "In the provided code snippet, the `clip_name` is assigned based on certain conditions. If it's 'ViT-B/16', no change. If 'L14', it's changed to 'ViT-L/14'. And if 'OB32', it becomes \"laion/CLIP-ViT-B-32-laion2B-s34B-b79K\" and a pretrained CLIP model is loaded for this case. The code also initializes `clip_mean` and `clip_std` buffers with specific values, sets parameters of 'clip_model' as non-trainable, and configures the optimizers based on 'args'.",
+        "type": "comment"
+    },
+    "870": {
+        "file_id": 45,
+        "content": "            {\"params\": [p for n, p in self.named_parameters()], \"weight_decay\": 0.0},\n        ]\n        if self.deepspeed_offload:\n            return DeepSpeedCPUAdam(\n                optim_groups,\n                lr=self.args.lr_init,\n                betas=self.args.betas,\n                eps=self.args.adam_eps,\n                bias_correction=True,\n                adamw_mode=False,\n                weight_decay=0,\n                amsgrad=False,\n            )\n        return FusedAdam(\n            optim_groups,\n            lr=self.args.lr_init,\n            betas=self.args.betas,\n            eps=self.args.adam_eps,\n            bias_correction=True,\n            adam_w_mode=False,\n            weight_decay=0,\n            amsgrad=False,\n        )\n        # return ZeroOneAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, weight_decay=0, amsgrad=False, cuda_aware=False)\n    @property\n    def deepspeed_offload(self) -> bool:\n        strategy = self.trainer.strategy",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_img.py:333-360"
+    },
+    "871": {
+        "file_id": 45,
+        "content": "This code defines an optimizer function that chooses between DeepSpeedCPUAdam and FusedAdam based on the deepspeed_offload flag. The optimizer takes in optim_groups, lr (learning rate), betas, eps (epsilon), bias_correction, adam_w_mode, weight_decay, and amsgrad as parameters. It returns an instance of either DeepSpeedCPUAdam or FusedAdam depending on whether deepspeed_offload is True or False. The @property method deepspeed_offload retrieves the strategy from the trainer.",
+        "type": "comment"
+    },
+    "872": {
+        "file_id": 45,
+        "content": "        if isinstance(strategy, DeepSpeedStrategy):\n            config = strategy.config[\"zero_optimization\"]\n            return config.get(\"offload_optimizer\") or config.get(\"offload_param\")\n        return False\n    def forward(self, img):\n        z = self.encoder(img)\n        z = ToBinary.apply(z)#, self.args.my_img_noise_scale)\n        out = self.decoder(z)\n        return out\n    def training_step(self, batch, batch_idx):\n        args = self.args\n        img, txt = batch\n        out = self(img)\n        if self.trainer.is_global_zero:\n            if (self.trainer.global_step + 1) % (100 * int(args.devices)) == 0:\n                img_dir = f\"test/image_model/{args.run_name}\"\n                if not os.path.exists(img_dir):\n                    os.makedirs(img_dir)\n                vision.utils.save_image(\n                    img[:4], f\"{img_dir}/{self.trainer.global_step}-src.jpg\"#, padding=0\n                )\n                vision.utils.save_image(\n                    out[:4], f\"{img_dir}/{self.trainer.global_step}-out.jpg\"#, padding=0",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_img.py:361-385"
+    },
+    "873": {
+        "file_id": 45,
+        "content": "This code defines a model class that takes an image as input and outputs an image. It uses an encoder and decoder for processing the input. The model also has a training step where it saves images at specific global steps during training if running on multiple devices.",
+        "type": "comment"
+    },
+    "874": {
+        "file_id": 45,
+        "content": "                )\n        # loss_ssim = 1 - self.loss_ssim(out, img)\n        loss_dists = self.loss_dists(out, img, require_grad=True, batch_average=True)\n        iii = self.clip_model.encode_image((img - self.clip_mean) / self.clip_std)\n        ooo = self.clip_model.encode_image((out - self.clip_mean) / self.clip_std)\n        loss_clip = torch.mean(cosine_loss(iii, ooo))\n        if args.my_img_l1_scale > 0:\n            loss_l1 = F.l1_loss(out, img)\n            return loss_dists + loss_clip * args.my_img_clip_scale + loss_l1 * args.my_img_l1_scale\n        else:\n            return loss_dists + loss_clip * args.my_img_clip_scale\n    def training_step_end(self, batch_parts):\n        all = self.all_gather(batch_parts)\n        if self.trainer.is_global_zero:\n            self.trainer.my_loss_all = all\n    def generate_init_weight(self):\n        print(\n            f\"\"\"\n############################################################################\n#\n# Init model weight (slow for large models)...\n#\n############################################################################",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_img.py:386-413"
+    },
+    "875": {
+        "file_id": 45,
+        "content": "This code snippet is for a deep learning model that takes input image and produces output, then calculates loss for each step during training. It uses different types of losses such as SSIM (line 396) and cosine similarity (lines 390-395). The code also handles global average pooling and all-gathering for distributed training.\n\nQuestion: What is the purpose of the 'args' argument used in this code?",
+        "type": "comment"
+    },
+    "876": {
+        "file_id": 45,
+        "content": "\"\"\"\n        )\n        m = {}\n        for n in self.state_dict():\n            scale = 1\n            p = self.state_dict()[n]\n            shape = p.shape\n            ss = n.split('.')\n            # if ss[0] in ['encoder', 'decoder']:\n            #     if ss[2] == 'bias':\n            #         scale = 0\n            #     # elif n == 'encoder.CIN.weight':\n            #     #     nn.init.dirac_(p)\n            #     else:\n            #         try:\n            #             if ss[1][0] == 'C' and (int(ss[1][2]) % 2 == 1):\n            #                 scale = 0\n            #         except:\n            #             pass\n            # m[n] = p * scale\n            m[n] = p\n            m[n] = m[n].cpu()\n            if os.environ[\"RWKV_FLOAT_MODE\"] == \"fp16\":\n                m[n] = m[n].half()\n            elif os.environ[\"RWKV_FLOAT_MODE\"] == \"bf16\":\n                m[n] = m[n].bfloat16()\n        gc.collect()\n        torch.cuda.empty_cache()\n        return m",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_img.py:414-446"
+    },
+    "877": {
+        "file_id": 45,
+        "content": "This code snippet is used to create a dictionary of model parameters, where it loads each parameter from the model's state_dict and applies necessary scaling or conversion based on its name. It also handles different float modes such as fp16 and bf16 as specified in the environment variable RWKV_FLOAT_MODE. Finally, it collects garbage, empties CUDA cache, and returns the dictionary of parameters.",
+        "type": "comment"
+    },
+    "878": {
+        "file_id": 46,
+        "content": "/RWKV-v4neo/src/model_run.py",
+        "type": "filepath"
+    },
+    "879": {
+        "file_id": 46,
+        "content": "The code initializes and optimizes an RWKV Language Model in PyTorch, creates a model class with feed-forward network, applies deep learning processing techniques, checks if current layer is rescaling, adjusts input, and performs layer normalization/feed-forward operations before returning modified input and state.",
+        "type": "summary"
+    },
+    "880": {
+        "file_id": 46,
+        "content": "########################################################################################################\n# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM\n########################################################################################################\nimport types\nimport torch\nimport math, os, gc\nfrom torch.nn import functional as F\nimport torch.nn as nn\nfrom typing import List, Dict\nMyModule = nn.Module\ndef __nop(ob):\n    return ob\nMyFunction = __nop\n# # try torchdynamo\n# import torchdynamo\n# MyFunction = torchdynamo.optimize(os.environ[\"RWKV_RUN_BACKEND\"]) # !!!BUGGY!!! wrong output\n# try torch jit --> faster for fp32, slower for fp16 (why?)\nif os.environ[\"RWKV_JIT_ON\"] == \"1\":\n    MyModule = torch.jit.ScriptModule\n    MyFunction = torch.jit.script_method\nRWKV_HEAD_QK_DIM = 0\nprint(f'\\nRWKV_HEAD_QK_DIM {RWKV_HEAD_QK_DIM} RWKV_JIT_ON {os.environ[\"RWKV_JIT_ON\"]}\\n')\nDEBUG_TIME = False   # True False - show trained time-coeffs\nRWKV_RESCALE_LAYER = 6 # set x=x/2 every X layer\n############################################################################################################",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_run.py:1-33"
+    },
+    "881": {
+        "file_id": 46,
+        "content": "This code is initializing the RWKV Language Model, which is implemented in PyTorch. It defines a module and function for optimizing the code using torchdynamo or torch jit depending on the environment variable RWKV_JIT_ON. The code also sets some variables like RWKV_HEAD_QK_DIM and DEBUG_TIME, which control certain aspects of the model's behavior.",
+        "type": "comment"
+    },
+    "882": {
+        "file_id": 46,
+        "content": "class RWKV_RNN(MyModule):\n    def __init__(self, args):\n        super().__init__()\n        self.args = args\n        self.FLOAT_MODE = args.FLOAT_MODE\n        self.RUN_DEVICE = args.RUN_DEVICE\n        with torch.no_grad():\n            w = torch.load(args.MODEL_NAME + '.pth', map_location='cpu')\n            # refine weights and send to correct device\n            keys = list(w.keys())\n            if 'pos_emb_x' in keys:\n                w['pos_emb'] = (w['pos_emb_x'] + w['pos_emb_y']).reshape(args.ctx_len+1, -1)[:-1,:]\n            keys = list(w.keys())\n            print_need_newline = False\n            for x in keys:\n                block_id = 0\n                if 'blocks.' in x:\n                    block_id = int(x.split('.')[1])\n                if 'att.output.weight' in x:\n                    w[x] = w[x] / (2 ** int(block_id // RWKV_RESCALE_LAYER))\n                if 'ffn.value.weight' in x:\n                    w[x] = w[x] / (2 ** int(block_id // RWKV_RESCALE_LAYER))\n                if '.time_' in x:\n                    w[x] = w[x].squeeze()",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_run.py:35-61"
+    },
+    "883": {
+        "file_id": 46,
+        "content": "This code defines a class for the RWKV_RNN model, initializes its attributes based on provided arguments, loads and refines weights from a pre-trained model, adjusts certain layers' weights according to block ID, and handles loading and reshaping position embedding.",
+        "type": "comment"
+    },
+    "884": {
+        "file_id": 46,
+        "content": "                    if DEBUG_TIME:\n                        print(x, w[x].numpy())\n                if '.time_decay' in x:\n                    w[x] = w[x].float()\n                    w[x] = -torch.exp(w[x])\n                elif '.time_first' in x:\n                    w[x] = w[x].float()\n                else:\n                    if self.FLOAT_MODE == \"fp32\":\n                        w[x] = w[x].float()\n                    elif self.FLOAT_MODE == \"bf16\":\n                        w[x] = w[x].bfloat16()\n                    elif self.FLOAT_MODE == \"fp16\":\n                        w[x] = w[x].half()\n                w[x].requires_grad = False\n                if args.RUN_DEVICE == 'cuda' and x != 'emb.weight':\n                    w[x] = w[x].cuda()\n                if ('blocks.' not in x) or ('blocks.0.' in x):\n                    if print_need_newline:\n                        print('\\n', end = '')\n                        print_need_newline = False\n                    print(x.ljust(40), str(w[x].dtype).replace('torch.', '').ljust(10), w[x].device)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_run.py:62-85"
+    },
+    "885": {
+        "file_id": 46,
+        "content": "This code snippet is responsible for managing the data type and device of model parameters based on specified settings. It prints information about each parameter, including its name, data type, and device it's stored in. The DEBUG_TIME flag controls whether to print activation-time weights, while FLOAT_MODE determines the desired floating-point precision (fp32, fp16, or bf16). Parameters from specific groups are not modified unless they are in a specified group ('blocks.'). If RUN_DEVICE is 'cuda', parameters are moved to GPU if they're not the embedding layer weight.",
+        "type": "comment"
+    },
+    "886": {
+        "file_id": 46,
+        "content": "                else:\n                    print_need_newline = True\n                    print('.', end = '', flush = True)\n        # store weights in self.w\n        keys = list(w.keys())\n        self.w = types.SimpleNamespace()\n        for x in keys:\n            xx = x.split('.')\n            here = self.w\n            for i in range(len(xx)):\n                if xx[i].isdigit():\n                    ii = int(xx[i])\n                    if ii not in here:\n                        here[ii] = types.SimpleNamespace()\n                    here = here[ii]\n                else:\n                    if i == len(xx) - 1:\n                        setattr(here, xx[i], w[x])\n                    elif not hasattr(here, xx[i]):\n                        if xx[i+1].isdigit():\n                            setattr(here, xx[i], {})\n                        else:\n                            setattr(here, xx[i], types.SimpleNamespace())\n                    here = getattr(here, xx[i])\n        self.eval()\n        gc.collect()\n        torch.cuda.empty_cache()",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_run.py:86-114"
+    },
+    "887": {
+        "file_id": 46,
+        "content": "This code is organizing and storing weights from a dictionary 'w' into an object 'self.w'. It uses string manipulation to split keys into components, then iteratively creates nested namespaces or dictionaries within self.w according to the key structure. Finally, it sets attributes in each namespace/dictionary using setattr(). The code also ensures garbage collection and empties CUDA cache for optimization.",
+        "type": "comment"
+    },
+    "888": {
+        "file_id": 46,
+        "content": "    def LN(self, x, w):\n        return F.layer_norm(x, (self.args.n_embd,), weight=w.weight, bias=w.bias)\n    # state[] 0=ffn_xx 1=att_xx 2=att_aa 3=att_bb 4=att_pp\n    @MyFunction\n    def FF(self, x, state, i:int, time_mix_k, time_mix_r, kw, vw, rw):\n        if self.FLOAT_MODE == \"bf16\":\n            xk = x * time_mix_k + state[5*i+0].type(torch.bfloat16) * (1 - time_mix_k)\n            xr = x * time_mix_r + state[5*i+0].type(torch.bfloat16) * (1 - time_mix_r)\n            state[5*i+0] = x.float()\n        elif self.FLOAT_MODE == \"fp16\":\n            xk = x * time_mix_k + state[5*i+0].half() * (1 - time_mix_k)\n            xr = x * time_mix_r + state[5*i+0].half() * (1 - time_mix_r)\n            state[5*i+0] = x.float()            \n        else:\n            xk = x * time_mix_k + state[5*i+0] * (1 - time_mix_k)\n            xr = x * time_mix_r + state[5*i+0] * (1 - time_mix_r)\n            state[5*i+0] = x\n        r = torch.sigmoid(rw @ xr)\n        k = torch.square(torch.relu(kw @ xk))\n        kv = vw @ k\n        return r * kv",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_run.py:116-140"
+    },
+    "889": {
+        "file_id": 46,
+        "content": "This function, \"FF\", applies a feed-forward network (FFN) to the input tensor 'x' using state information from a previous iteration. It also accounts for different floating point types ('bf16', 'fp16') and performs element-wise operations with learnable weights. The resulting output is a product of the input, kernel, and weight matrices, with elements multiplied by sigmoid and squared ReLU activation functions respectively.",
+        "type": "comment"
+    },
+    "890": {
+        "file_id": 46,
+        "content": "    @MyFunction\n    def SA(self, x, state, i:int, time_mix_k, time_mix_v, time_mix_r, time_first, time_decay, kw, vw, rw, ow):\n        if self.FLOAT_MODE == \"bf16\":\n            xk = x * time_mix_k + state[5*i+1].type(torch.bfloat16) * (1 - time_mix_k)\n            xv = x * time_mix_v + state[5*i+1].type(torch.bfloat16) * (1 - time_mix_v)\n            xr = x * time_mix_r + state[5*i+1].type(torch.bfloat16) * (1 - time_mix_r)\n            state[5*i+1] = x.float()\n        elif self.FLOAT_MODE == \"fp16\":\n            xk = x * time_mix_k + state[5*i+1].half() * (1 - time_mix_k)\n            xv = x * time_mix_v + state[5*i+1].half() * (1 - time_mix_v)\n            xr = x * time_mix_r + state[5*i+1].half() * (1 - time_mix_r)\n            state[5*i+1] = x.float()            \n        else:\n            xk = x * time_mix_k + state[5*i+1] * (1 - time_mix_k)\n            xv = x * time_mix_v + state[5*i+1] * (1 - time_mix_v)\n            xr = x * time_mix_r + state[5*i+1] * (1 - time_mix_r)\n            state[5*i+1] = x\n        r = torch.sigmoid(rw @ xr)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_run.py:142-160"
+    },
+    "891": {
+        "file_id": 46,
+        "content": "This function calculates a weighted average of three inputs (x, xv, and xr) based on mixing factors and applies them to state[5*i+1]. Depending on FLOAT_MODE, it performs the calculation with different precision (bf16, fp16, or float32). The result is passed through a sigmoid function to obtain the final output r.",
+        "type": "comment"
+    },
+    "892": {
+        "file_id": 46,
+        "content": "        k = kw @ xk\n        v = vw @ xv\n        if '16' in self.FLOAT_MODE:\n            kk = k.float()\n            vv = v.float()\n        else:\n            kk = k\n            vv = v\n        aa = state[5*i+2]\n        bb = state[5*i+3]\n        pp = state[5*i+4]\n        ww = time_first + kk\n        p = torch.maximum(pp, ww)\n        e1 = torch.exp(pp - p)\n        e2 = torch.exp(ww - p)\n        a = e1 * aa + e2 * vv\n        b = e1 * bb + e2\n        ww = pp + time_decay\n        p = torch.maximum(ww, kk)\n        e1 = torch.exp(ww - p)\n        e2 = torch.exp(kk - p)\n        state[5*i+2] = e1 * aa + e2 * vv\n        state[5*i+3] = e1 * bb + e2\n        state[5*i+4] = p\n        if self.FLOAT_MODE == \"bf16\":\n            wkv = (a / b).type(torch.bfloat16)\n        elif self.FLOAT_MODE == \"fp16\":\n            wkv = (a / b).half()\n        else:\n            wkv = a / b\n        return ow @ (r * wkv)\n    def forward(self, ctx, state, preprocess_only = False):\n        with torch.no_grad():\n            w = self.w\n            args = self.args\n            x = w.emb.weight[ctx[-1]]",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_run.py:161-200"
+    },
+    "893": {
+        "file_id": 46,
+        "content": "This code is performing a matrix multiplication operation and then applying exponential functions and maximum operations on the result. It also checks the FLOAT_MODE to handle different data types and returns the output of the operation.",
+        "type": "comment"
+    },
+    "894": {
+        "file_id": 46,
+        "content": "            if self.RUN_DEVICE == 'cuda':\n                x = x.cuda()\n            try:\n                pos_emb = w.pos_emb[len(ctx)-1]\n                x = x + pos_emb\n            except:\n                pass             \n            if state == None:\n                state = torch.zeros(args.n_layer * 5, args.n_embd, device=self.RUN_DEVICE)\n                for i in range(args.n_layer):\n                    state[5*i+4] -= 1e30\n            for i in range(args.n_layer):\n                if i == 0:\n                    x = self.LN(x, w.blocks[i].ln0)\n                ww = w.blocks[i].att\n                x = x + self.SA(self.LN(x, w.blocks[i].ln1), state, i, \n                    ww.time_mix_k, ww.time_mix_v, ww.time_mix_r, ww.time_first, ww.time_decay, \n                    ww.key.weight, ww.value.weight, ww.receptance.weight, ww.output.weight)\n                ww = w.blocks[i].ffn\n                x = x + self.FF(self.LN(x, w.blocks[i].ln2), state, i, \n                    ww.time_mix_k, ww.time_mix_r, \n                    ww.key.weight, ww.value.weight, ww.receptance.weight)",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_run.py:201-226"
+    },
+    "895": {
+        "file_id": 46,
+        "content": "This code segment is responsible for handling the input data and processing it through a sequence of layers in a deep learning model. The RUN_DEVICE variable determines whether the computation should be done on CPU or GPU. Positional embedding is added to the input, and initial state values are set if necessary. Finally, the input goes through multiple layers, including attention and feed-forward networks, with appropriate time mixing and normalization.",
+        "type": "comment"
+    },
+    "896": {
+        "file_id": 46,
+        "content": "                if (i+1) % RWKV_RESCALE_LAYER == 0:\n                    x = x / 2\n            if preprocess_only:\n                return state\n            x = self.LN(x, w.ln_out)\n            x = w.head.weight @ x\n            return x.float(), state",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/model_run.py:228-237"
+    },
+    "897": {
+        "file_id": 46,
+        "content": "This code segment checks if the current layer is a rescaling layer and adjusts the input accordingly. If preprocessing only is enabled, it returns the state; otherwise, it applies layer normalization and feed-forward operations before returning the modified input and state.",
+        "type": "comment"
+    },
+    "898": {
+        "file_id": 47,
+        "content": "/RWKV-v4neo/src/trainer.py",
+        "type": "filepath"
+    },
+    "899": {
+        "file_id": 47,
+        "content": "The code defines a `my_save()` function for saving PyTorch Lightning model data using AWS S3, handles learning rate scheduling and logs progress. It also loads, reshapes and converts a model dictionary, performs interpolation, saves epoch information, and generates initial weights for model training.",
+        "type": "summary"
+    }
+}

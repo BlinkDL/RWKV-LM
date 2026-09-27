@@ -1,0 +1,15 @@
+{
+    "summary": "The code defines CUDA functions for forward and backward torch Tensor computations, utilizing BF16 data type. Python bindings are created for these functions.",
+    "details": [
+        {
+            "comment": "This code defines a forward and backward function for torch Tensors using CUDA. The forward function calls a CUDA kernel function to compute the output tensor y based on inputs w, u, k, v. The backward function also calls a CUDA kernel function to compute gradients for w, u, k, v, gw, gu, gk, gv. BF16 (BFloat16) is used as a data type for some tensor operations.",
+            "location": "\"/media/root/Prima/works/RWKV-LM/docs/src/RWKV-v4neo/cuda/wkv_op_bf16.cpp\":0-13",
+            "content": "#include <torch/extension.h>\n#include \"ATen/ATen.h\"\ntypedef at::BFloat16 bf16;\nvoid cuda_forward(int B, int T, int C, float *w, bf16 *u, bf16 *k, bf16 *v, bf16 *y);\nvoid cuda_backward(int B, int T, int C, float *w, bf16 *u, bf16 *k, bf16 *v, bf16 *y, bf16 *gy, bf16 *gw, bf16 *gu, bf16 *gk, bf16 *gv);\nvoid forward(int64_t B, int64_t T, int64_t C, torch::Tensor &w, torch::Tensor &u, torch::Tensor &k, torch::Tensor &v, torch::Tensor &y) {\n    cuda_forward(B, T, C, w.data_ptr<float>(), u.data_ptr<bf16>(), k.data_ptr<bf16>(), v.data_ptr<bf16>(), y.data_ptr<bf16>());\n}\nvoid backward(int64_t B, int64_t T, int64_t C, torch::Tensor &w, torch::Tensor &u, torch::Tensor &k, torch::Tensor &v, torch::Tensor &y,\n    torch::Tensor &gy, torch::Tensor &gw, torch::Tensor &gu, torch::Tensor &gk, torch::Tensor &gv) {\n    cuda_backward(B, T, C, w.data_ptr<float>(), u.data_ptr<bf16>(), k.data_ptr<bf16>(), v.data_ptr<bf16>(), y.data_ptr<bf16>(),\n        gy.data_ptr<bf16>(), gw.data_ptr<bf16>(), gu.data_ptr<bf16>(), gk.data_ptr<bf16>(), gv.data_ptr<bf16>());"
+        },
+        {
+            "comment": "Defining Python bindings for the forward and backward functions of the wkv extension module.",
+            "location": "\"/media/root/Prima/works/RWKV-LM/docs/src/RWKV-v4neo/cuda/wkv_op_bf16.cpp\":14-24",
+            "content": "}\nPYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {\n    m.def(\"forward\", &forward, \"wkv forward\");\n    m.def(\"backward\", &backward, \"wkv backward\");\n}\nTORCH_LIBRARY(wkv, m) {\n    m.def(\"forward\", forward);\n    m.def(\"backward\", backward);\n}"
+        }
+    ]
+}
