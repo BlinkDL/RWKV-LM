@@ -23,6 +23,8 @@ class train_callback(pl.Callback):
         # LR schedule
         w_step = args.warmup_steps
 
+        lr = args.lr_init # constant LR (after warmup) unless my_exit_tokens enables the cosine schedule below
+
         if args.my_exit_tokens != 0: # cosine decay
             real_tokens = real_step * args.ctx_len * args.real_bsz
             warmup_tokens = w_step * args.ctx_len * args.real_bsz
