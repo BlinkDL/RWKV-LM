@@ -30,6 +30,8 @@ Qwen3.5 L24-D1024 #state_params = L*3/4*(3*6*D+2*128*D) + L/4*(2*2*256*T) = 5.05
 
 RWKV Chat: https://rwkv.halowang.cloud/ (local inference for mobile/desktop) and https://github.com/RWKV-APP/RWKV_APP
 
+**Recommended GUI (for fast batch generation)**: https://github.com/BlinkDL/Albatross/blob/main/faster3a_2607/app4b.py
+
 Latest RWKV weights: https://huggingface.co/BlinkDL
 
 GGUF: https://huggingface.co/collections/shoumenchougou/rwkv7-gxx-gguf and https://huggingface.co/HaloWang/rwkv-weights
