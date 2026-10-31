@@ -1,0 +1,15 @@
+{
+    "summary": "This code defines CUDA functions wrapped with Torch extension for PyTorch's forward and backward passes, implemented as a PyBind11 module for seamless integration.",
+    "details": [
+        {
+            "comment": "This code defines two functions, `forward` and `backward`, which perform the forward and backward passes of a computation. These functions are implemented in CUDA and wrapped with Torch extension for seamless integration with PyTorch. The `forward` function takes in Tensor inputs and calls the CUDA `cuda_forward` function to perform the computation on GPU, while `backward` performs the backward pass using the corresponding CUDA function.",
+            "location": "\"/media/root/Prima/works/RWKV-LM/docs/src/RWKV-v4neo/cuda/wkv_op.cpp\":0-9",
+            "content": "#include <torch/extension.h>\nvoid cuda_forward(int B, int T, int C, float *w, float *u, float *k, float *v, float *y);\nvoid cuda_backward(int B, int T, int C, float *w, float *u, float *k, float *v, float *y, float *gy, float *gw, float *gu, float *gk, float *gv);\nvoid forward(int64_t B, int64_t T, int64_t C, torch::Tensor &w, torch::Tensor &u, torch::Tensor &k, torch::Tensor &v, torch::Tensor &y) {\n    cuda_forward(B, T, C, w.data_ptr<float>(), u.data_ptr<float>(), k.data_ptr<float>(), v.data_ptr<float>(), y.data_ptr<float>());\n}\nvoid backward(int64_t B, int64_t T, int64_t C, torch::Tensor &w, torch::Tensor &u, torch::Tensor &k, torch::Tensor &v, torch::Tensor &y, torch::Tensor &gy, torch::Tensor &gw, torch::Tensor &gu, torch::Tensor &gk, torch::Tensor &gv) {\n    cuda_backward(B, T, C, w.data_ptr<float>(), u.data_ptr<float>(), k.data_ptr<float>(), v.data_ptr<float>(), y.data_ptr<float>(), gy.data_ptr<float>(), gw.data_ptr<float>(), gu.data_ptr<float>(), gk.data_ptr<float>(), gv.data_ptr<float>());"
+        },
+        {
+            "comment": "This code defines a PyBind11 module for the Torch library, named \"TORCH_EXTENSION_NAME\". It includes forward and backward functions with their respective definitions. The module is then linked to the library using TORCH_LIBRARY.",
+            "location": "\"/media/root/Prima/works/RWKV-LM/docs/src/RWKV-v4neo/cuda/wkv_op.cpp\":10-20",
+            "content": "}\nPYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {\n    m.def(\"forward\", &forward, \"wkv forward\");\n    m.def(\"backward\", &backward, \"wkv backward\");\n}\nTORCH_LIBRARY(wkv, m) {\n    m.def(\"forward\", forward);\n    m.def(\"backward\", backward);\n}"
+        }
+    ]
+}

@@ -1,0 +1,20 @@
+{
+    "summary": "RWKV Language Model is verified using GPT architecture, creating RWKV-GPT and RWKV-RNN models. Context data, input length, and model forward execution are performed on context tensor. Padding and batching done for compatibility with forward and backward groups. Model training forward pass executed, detaching and moving results to CPU before printing.",
+    "details": [
+        {
+            "comment": "Loading and configuring the RWKV Language Model (RWKV-LM) for verification, using GPT architecture with specific configurations and tokenizer.",
+            "location": "\"/media/root/Prima/works/RWKV-LM/docs/src/RWKV-v3/verify.py\":0-30",
+            "content": "########################################################################################################\n# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM\n########################################################################################################\n# this is for verifying the results of different models and make sure they agree with each other\nimport numpy as np\nnp.set_printoptions(precision=4, suppress=True, linewidth=200)\nimport os\nos.environ[\"CUDA_VISIBLE_DEVICES\"] = \"0\"\nRUN_DEVICE = 'cuda'\nimport torch\nfrom src.model_run import RWKV_RNN, RWKV_GPT\nfrom src.model import GPT, GPTConfig\nctx_len = 1024\nn_layer = 6\nn_embd = 512\nmodel_type = 'RWKV'\nmodel_name = 'trained-1'\nfrom src.utils import TOKENIZER\ntokenizer = TOKENIZER('vocab', UNKNOWN_CHAR=' ')\n########################################################################################################\nmodel_train = GPT(GPTConfig(tokenizer.vocab_size, ctx_len, model_type=model_type, n_layer=n_layer, n_embd=n_embd)).cuda()\nprint('loading ' + model_name)"
+        },
+        {
+            "comment": "Loading the model from a checkpoint file and creating both RWKV-GPT and RWKV-RNN models.\nPrinting input length and data for context.\nOutput of RWKV-GPT model using forward function on context tensor.\nOutput of RWKV-RNN model running on context with select indices printed.\nOutput of the train model running on context with select indices printed.",
+            "location": "\"/media/root/Prima/works/RWKV-LM/docs/src/RWKV-v3/verify.py\":31-60",
+            "content": "m2 = torch.load(model_name + '.pth', map_location=RUN_DEVICE)\nmodel_train.load_state_dict(m2)\nmodel_rnn = RWKV_RNN(model_name, RUN_DEVICE, model_type, n_layer, n_embd, ctx_len)\nmodel_gpt = RWKV_GPT(model_name, RUN_DEVICE, model_type, tokenizer.vocab_size, n_layer, n_embd, ctx_len).cuda()\n########################################################################################################\ncontext = '\\nIn a'\nctx = [tokenizer.stoi.get(s, tokenizer.UNKNOWN_CHAR) for s in context]\nprint(f'input len {len(ctx)} data {ctx}')\n########################################################################################################\nprint('\\nRWKV-GPT output')\nout = model_gpt.forward(torch.tensor(ctx).unsqueeze(0).cuda())[0].detach().cpu().numpy()\nprint(out)\nprint('\\nRWKV-RNN output')\nmodel_rnn.clear()\nsrc_len = len(ctx)\nfor i in range(src_len):\n    x = ctx[:i+1]\n    out = model_rnn.run(x)\n    if i < 3 or i >= src_len - 3:\n        print(torch.tensor(out).detach().cpu().numpy())\n    if i == 2:\n        print('...')\nprint('\\nRWKV-train output')"
+        },
+        {
+            "comment": "Padding the context list to match the length of source, then duplicating it to increase batch size for compatibility with forward and backward groups. Performs model training forward pass on padded context, detaches and moves result to CPU before printing.",
+            "location": "\"/media/root/Prima/works/RWKV-LM/docs/src/RWKV-v3/verify.py\":61-64",
+            "content": "ctx += [0] * (ctx_len - src_len) # pad to ctx_len\nctx = [ctx] * 4 # increase batch size (to make it work with B_GROUP_FORWARD & B_GROUP_BACKWARD)\nout = model_train.forward(torch.tensor(ctx).cuda())[0][0][:src_len].detach().cpu().numpy()\nprint(out, '\\n')"
+        }
+    ]
+}

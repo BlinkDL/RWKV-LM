@@ -1,0 +1,15 @@
+{
+    "summary": "This code uses top-k and top-p sampling techniques for model logits, combining them with temperature scaling and min_p_ratio control for text generation. It also allows setting a seed for reproducibility.",
+    "details": [
+        {
+            "comment": "This code defines functions for top-k, top-p sampling, and a combination of these techniques. Top-k samples from the k highest logits while setting lower logits to negative infinity. Top-p keeps the p percent of highest probabilities while setting others to zero. The sample_logits function combines these methods, applies temperature scaling, and a min_p_ratio for control over sampling behavior.",
+            "location": "\"/media/root/Prima/works/RWKV-LM/docs/src/RWKV-v1/src/utils.py\":0-31",
+            "content": "import random\nimport numpy as np\nimport torch\nimport torch.nn as nn\nfrom torch.nn import functional as F\ndef top_k_logits(logits, k):\n    v, ix = torch.topk(logits, k)\n    out = logits.clone()\n    out[out < v[:, [-1]]] = -float('Inf')\n    return out\ndef top_p_probs(probs, p):\n    out = probs.clone()\n    sorted_probs, sorted_indices = torch.sort(out, descending=True)\n    cumulative_probs = torch.cumsum(sorted_probs, dim=-1)\n    sorted_indices_to_remove = cumulative_probs > p\n    sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()\n    sorted_indices_to_remove[..., 0] = 0    \n    indices_to_remove = sorted_indices[sorted_indices_to_remove]\n    out[indices_to_remove] = 0\n    return out\n# top-p + top-k + pow&ratio sampling\ndef sample_logits(logits, pos, temperature=1.0, top_k=None, top_p=None, min_p_pow=None, min_p_ratio=None):\n    logits = logits[:, pos, :] / temperature\n    probs = F.softmax(logits, dim=-1)\n    if min_p_ratio is not None:\n        limit = torch.pow(torch.max(probs), min_p_pow) * min_p_ratio"
+        },
+        {
+            "comment": "This code snippet is performing model sampling using logits, handling top-k and top-p techniques for text generation. It also includes a seed setting function to ensure reproducibility.",
+            "location": "\"/media/root/Prima/works/RWKV-LM/docs/src/RWKV-v1/src/utils.py\":32-49",
+            "content": "        logits[probs < limit] = -float('Inf')\n    if top_k is not None:\n        logits = top_k_logits(logits, top_k)\n    probs = F.softmax(logits, dim=-1)\n    if top_p is not None:\n        probs[0] = top_p_probs(probs[0], top_p)\n    ix = torch.multinomial(probs, num_samples=1)\n    return ix[0][0].cpu()\ndef set_seed(seed):\n    random.seed(seed)\n    np.random.seed(seed)\n    torch.manual_seed(seed)\n    torch.cuda.manual_seed_all(seed)"
+        }
+    ]
+}
