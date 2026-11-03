@@ -508,7 +508,7 @@ class RWKV_Tmix_x070(MyModule):
         C = args.n_embd
 
         with torch.no_grad():
-            ratio_0_to_1 = layer_id / (args.n_layer - 1)  # 0 to 1
+            ratio_0_to_1 = layer_id / (args.n_layer - 1) if args.n_layer > 1 else 0.5  # midpoint for a single layer (#243)
             ratio_1_to_almost0 = 1.0 - (layer_id / args.n_layer)  # 1 to ~0
             ddd = torch.ones(1, 1, C)
             for i in range(C):
