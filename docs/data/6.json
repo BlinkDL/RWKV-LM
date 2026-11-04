@@ -1,0 +1,543 @@
+{
+    "600": {
+        "file_id": 32,
+        "content": "    print(f'{bot}{interface} {msg}\\n')\ndef on_message(message):\n    global model_tokens, current_state\n    srv = 'dummy_server'\n    msg = message.replace('\\\\n','\\n').strip()\n    if len(msg) > 1000:\n        reply_msg('your message is too long (max 1000 tokens)')\n        return\n    x_temp = 1.0\n    x_top_p = 0.85\n    if (\"-temp=\" in msg):\n        x_temp = float(msg.split(\"-temp=\")[1].split(\" \")[0])\n        msg = msg.replace(\"-temp=\"+f'{x_temp:g}', \"\")\n        # print(f\"temp: {x_temp}\")\n    if (\"-top_p=\" in msg):\n        x_top_p = float(msg.split(\"-top_p=\")[1].split(\" \")[0])\n        msg = msg.replace(\"-top_p=\"+f'{x_top_p:g}', \"\")\n        # print(f\"top_p: {x_top_p}\")\n    if x_temp <= 0.2:\n        x_temp = 0.2\n    if x_temp >= 5:\n        x_temp = 5\n    if x_top_p <= 0:\n        x_top_p = 0\n    if msg == '+reset':\n        out = load_all_stat('', 'chat_init')\n        save_all_stat(srv, 'chat', out)\n        reply_msg(\"Chat reset.\")\n        return\n    elif msg[:5].lower() == '+gen ' or msg[:4].lower() == '+qa ' or msg.lower() == '+more' or msg.lower() == '+retry':",
+        "type": "code",
+        "location": "/RWKV-v4neo/chat.py:195-230"
+    },
+    "601": {
+        "file_id": 32,
+        "content": "This code defines a function `on_message()` that processes incoming messages. It checks if the message is longer than 1000 tokens, applies temperature and top-p sampling parameters, handles reset requests, and possibly generates new text or asks questions based on message content. The processing includes loading and saving chat state, printing messages to console, and sending appropriate replies.",
+        "type": "comment"
+    },
+    "602": {
+        "file_id": 32,
+        "content": "        if msg[:5].lower() == '+gen ':\n            new = '\\n' + msg[5:].strip()\n            # print(f'### prompt ###\\n[{new}]')\n            current_state = None\n            out = run_rnn(tokenizer.tokenizer.encode(new))\n            save_all_stat(srv, 'gen_0', out)\n        elif msg[:4].lower() == '+qa ':\n            out = load_all_stat('', 'chat_init')\n            real_msg = msg[4:].strip()\n            new = f\"{user}{interface} {real_msg}\\n\\n{bot}{interface}\"\n            # print(f'### qa ###\\n[{new}]')\n            out = run_rnn(tokenizer.tokenizer.encode(new))\n            save_all_stat(srv, 'gen_0', out)\n            # new = f\"\\nThe following is an excellent Q&A session consists of detailed and factual information.\\n\\nQ: What is 3+5?\\nA: The answer is 8.\\n\\nQ: {msg[9:].strip()}\\nA:\"\n            # print(f'### prompt ###\\n[{new}]')\n            # current_state = None\n            # out = run_rnn(tokenizer.tokenizer.encode(new))\n            # save_all_stat(srv, 'gen_0', out)\n        elif msg.lower() == '+more':",
+        "type": "code",
+        "location": "/RWKV-v4neo/chat.py:232-255"
+    },
+    "603": {
+        "file_id": 32,
+        "content": "This code checks if the message starts with \"+gen\", \"+qa\", or \"+more\" and performs corresponding actions. If \"+gen\" is found, it generates a response based on the given prompt. If \"+qa\" is found, it loads previous chat context and continues the conversation. If \"+more\" is found, it displays more content related to the current context. It utilizes tokenizer for encoding messages and run_rnn to generate responses. The generated responses are saved in 'gen_0' state for future reference.",
+        "type": "comment"
+    },
+    "604": {
+        "file_id": 32,
+        "content": "            try:\n                out = load_all_stat(srv, 'gen_1')\n                save_all_stat(srv, 'gen_0', out)\n            except:\n                return\n        elif msg.lower() == '+retry':\n            try:\n                out = load_all_stat(srv, 'gen_0')\n            except:\n                return\n        begin = len(model_tokens)\n        out_last = begin\n        for i in range(150):\n            token = tokenizer.sample_logits(\n                out,\n                model_tokens,\n                args.ctx_len,\n                temperature=x_temp,\n                top_p_usual=x_top_p,\n                top_p_newline=x_top_p,\n            )\n            if msg[:4].lower() == '+qa ':\n                out = run_rnn([token], newline_adj=-1)\n            else:\n                out = run_rnn([token])\n            xxx = tokenizer.tokenizer.decode(model_tokens[out_last:])\n            if '\\ufffd' not in xxx:\n                print(xxx, end='', flush=True)\n                out_last = begin + i + 1\n        print('\\n')\n        # send_msg = tokenizer.tokenizer.decode(model_tokens[begin:]).strip()",
+        "type": "code",
+        "location": "/RWKV-v4neo/chat.py:256-289"
+    },
+    "605": {
+        "file_id": 32,
+        "content": "The code is performing the following tasks:\n1. Loading statistics from a server and saving them, with error handling for any exceptions that might occur.\n2. Handling user input, specifically \"+retry\" command, by loading saved statistics from an alternative source if an exception occurs during the initial load.\n3. Generating tokens using tokenizer's sample_logits function, considering various parameters like temperature and top_p values.\n4. Running RNN model on generated tokens to process them, handling different cases based on user input.\n5. Printing generated output, handling special characters, and updating the tracking variables for the next iteration.",
+        "type": "comment"
+    },
+    "606": {
+        "file_id": 32,
+        "content": "        # print(f'### send ###\\n[{send_msg}]')\n        # reply_msg(send_msg)\n        save_all_stat(srv, 'gen_1', out)\n    else:\n        if msg.lower() == '+alt':\n            try:\n                out = load_all_stat(srv, 'chat_pre')\n            except:\n                return\n        else:\n            out = load_all_stat(srv, 'chat')\n            new = f\"{user}{interface} {msg}\\n\\n{bot}{interface}\"\n            # print(f'### add ###\\n[{new}]')\n            out = run_rnn(tokenizer.tokenizer.encode(new), newline_adj=-999999999)\n            save_all_stat(srv, 'chat_pre', out)\n        begin = len(model_tokens)\n        out_last = begin\n        print(f'{bot}{interface}', end='', flush=True)\n        for i in range(999):\n            if i <= 0:\n                newline_adj = -999999999\n            elif i <= 30:\n                newline_adj = (i - 30) / 10\n            elif i <= 130:\n                newline_adj = 0\n            else:\n                newline_adj = (i - 130) * 0.25 # MUST END THE GENERATION\n            token = tokenizer.sample_logits(",
+        "type": "code",
+        "location": "/RWKV-v4neo/chat.py:290-319"
+    },
+    "607": {
+        "file_id": 32,
+        "content": "This code handles two cases: sending a message and adding a message to the chat history. If the message is \"+alt\", it loads the previous chat state. Otherwise, it loads the current chat state, generates a new message using an RNN model, saves the new message in the \"chat_pre\" file, and prints part of the output. The code also determines the appropriate newline adjustment for the generated text. It uses tokenizer.sample_logits to generate the next token based on the current state of the model.",
+        "type": "comment"
+    },
+    "608": {
+        "file_id": 32,
+        "content": "                out,\n                model_tokens,\n                args.ctx_len,\n                temperature=x_temp,\n                top_p_usual=x_top_p,\n                top_p_newline=x_top_p,\n            )\n            out = run_rnn([token], newline_adj=newline_adj)\n            xxx = tokenizer.tokenizer.decode(model_tokens[out_last:])\n            if '\\ufffd' not in xxx:\n                print(xxx, end='', flush=True)\n                out_last = begin + i + 1\n            send_msg = tokenizer.tokenizer.decode(model_tokens[begin:])\n            if '\\n\\n' in send_msg:\n                send_msg = send_msg.strip()\n                break\n            # send_msg = tokenizer.tokenizer.decode(model_tokens[begin:]).strip()\n            # if send_msg.endswith(f'{user}{interface}'): # warning: needs to fix state too !!!\n            #     send_msg = send_msg[:-len(f'{user}{interface}')].strip()\n            #     break\n            # if send_msg.endswith(f'{bot}{interface}'):\n            #     send_msg = send_msg[:-len(f'{bot}{interface}')].strip()",
+        "type": "code",
+        "location": "/RWKV-v4neo/chat.py:320-344"
+    },
+    "609": {
+        "file_id": 32,
+        "content": "This code is responsible for generating text from a model, tokenizing the output, and printing it until a newline or specified context length is reached. It also handles breaking the loop when encountering a double newline or specific user/bot messages.",
+        "type": "comment"
+    },
+    "610": {
+        "file_id": 32,
+        "content": "            #     break\n        # print(f'{model_tokens}')\n        # print(f'[{tokenizer.tokenizer.decode(model_tokens)}]')\n        # print(f'### send ###\\n[{send_msg}]')\n        # reply_msg(send_msg)\n        save_all_stat(srv, 'chat', out)\nprint(HELP_MSG)\nwhile True:\n    msg = input(f'{user}{interface} ')\n    if len(msg.strip()) > 0:\n        on_message(msg)\n    else:\n        print('Erorr: please say something')",
+        "type": "code",
+        "location": "/RWKV-v4neo/chat.py:345-361"
+    },
+    "611": {
+        "file_id": 32,
+        "content": "The code handles user input, continuously prompts the user for messages, passes them to a function `on_message()`, and saves chat data if necessary. If no valid input is provided, it prints an error message.",
+        "type": "comment"
+    },
+    "612": {
+        "file_id": 33,
+        "content": "/RWKV-v4neo/cuda/wkv5_cuda.cu",
+        "type": "filepath"
+    },
+    "613": {
+        "file_id": 33,
+        "content": "This CUDA code optimizes neural network forward pass with shared memory, efficient matrix operations, and parallel computation. It performs convolution using kernel functions, shared memory, synchronization, and unrolled loops. Assertions ensure efficient GPU computation.",
+        "type": "summary"
+    },
+    "614": {
+        "file_id": 33,
+        "content": "#include <stdio.h>\n#include <assert.h>\n#include \"ATen/ATen.h\"\ntypedef at::BFloat16 bf16;\ntemplate <typename F>\n__global__ void kernel_forward(const int B, const int T, const int C, const int H,\n                               const F *__restrict__ const _r, const F *__restrict__ const _k, const F *__restrict__ const _v, const float *__restrict__ _w, const F *__restrict__ _u,\n                               F *__restrict__ const _y)\n{\n    const int b = blockIdx.x / H;\n    const int h = blockIdx.x % H;\n    const int i = threadIdx.x;\n    _w += h*_N_;\n    _u += h*_N_;\n    __shared__ float r[_N_], k[_N_], u[_N_], w[_N_];\n    float state[_N_] = {0};\n    __syncthreads();\n    w[i] = _w[i];\n    u[i] = float(_u[i]);\n    __syncthreads();\n    for (int t = b*T*C + h*_N_ + i; t < (b+1)*T*C + h*_N_ + i; t += C)\n    {\n        __syncthreads();\n        r[i] = float(_r[t]);\n        k[i] = float(_k[t]);\n        __syncthreads();\n        const float v = float(_v[t]);\n        float y = 0;\n        #pragma unroll\n        for (int j = 0; j < _N_; j+=4)",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv5_cuda.cu:1-36"
+    },
+    "615": {
+        "file_id": 33,
+        "content": "Code implements a CUDA kernel for the forward pass of a neural network layer, where each thread calculates output values based on input data and pre-stored parameters. It uses shared memory to store intermediate results and synchronizes threads with `__syncthreads()`. The loop iterates over time steps, applying element-wise operations to calculate output values.",
+        "type": "comment"
+    },
+    "616": {
+        "file_id": 33,
+        "content": "        {\n            const float4& r_ = (float4&)(r[j]);\n            const float4& k_ = (float4&)(k[j]);\n            const float4& w_ = (float4&)(w[j]);\n            const float4& u_ = (float4&)(u[j]);\n            float4& s = (float4&)(state[j]);\n            float4 x;\n            x.x = k_.x * v;\n            x.y = k_.y * v;\n            x.z = k_.z * v;\n            x.w = k_.w * v;\n            y += r_.x * (u_.x * x.x + s.x);\n            y += r_.y * (u_.y * x.y + s.y);\n            y += r_.z * (u_.z * x.z + s.z);\n            y += r_.w * (u_.w * x.w + s.w);\n            s.x = s.x * w_.x + x.x;\n            s.y = s.y * w_.y + x.y;\n            s.z = s.z * w_.z + x.z;\n            s.w = s.w * w_.w + x.w;\n        }\n        _y[t] = F(y);\n    }\n}\ntemplate <typename F>\n__global__ void kernel_backward(const int B, const int T, const int C, const int H,\n    const F *__restrict__ const _r, const F *__restrict__ const _k, const F *__restrict__ const _v, const float *__restrict__ _w, const float *__restrict__ __w, const F *__restrict__ _u, const F *__restrict__ const _gy,",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv5_cuda.cu:37-66"
+    },
+    "617": {
+        "file_id": 33,
+        "content": "This code is performing a matrix multiplication operation using CUDA. It takes in four input matrices, calculates the dot product between two sets of vectors, and updates the state vector accordingly. The result is then passed to a function F for further processing.",
+        "type": "comment"
+    },
+    "618": {
+        "file_id": 33,
+        "content": "    F *__restrict__ const _gr, F *__restrict__ const _gk, F *__restrict__ const _gv, F *__restrict__ const _gw, F *__restrict__ const _gu)\n{\n    const int b = blockIdx.x / H;\n    const int h = blockIdx.x % H;\n    const int i = threadIdx.x;\n    _w += h*_N_;\n    _u += h*_N_;\n    __w += h*_N_;\n    __shared__ float w_[_N_], u_[_N_];\n    __shared__ float r[_N_], k[_N_], v[_N_], gy[_N_];\n    __syncthreads();\n    w_[i] = _w[i];\n    u_[i] = float(_u[i]);\n    __syncthreads();\n    const float w = w_[i];\n    const float ww = __w[i];\n    const float u = u_[i];\n    float state[_N_] = {0}, saaaa[_N_] = {0}, sbbbb[_N_] = {0}, scccc[_N_] = {0}, sdddd[_N_] = {0};\n    float gw = 0, gu = 0;\n    const int t000 = b*T*C + h*_N_ + i;\n    const int t111 = (b+1)*T*C + h*_N_ + i;\n    const int t222 = t111 - 2*C;\n    for (int t = t000; t < t111; t += C)\n    {\n        __syncthreads();\n        v[i] = float(_v[t]);\n        gy[i] = float(_gy[t]);\n        __syncthreads();\n        const float k = float(_k[t]);\n        float gr = 0, gu_ = 0;\n        #pragma unroll",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv5_cuda.cu:67-104"
+    },
+    "619": {
+        "file_id": 33,
+        "content": "This function calculates the recurrent weight updates in a neural network using CUDA. It uses shared memory for efficient parallel computation and synchronizes threads with `__syncthreads()`. The variables `w`, `u` represent input and output tensors, while `v` and `gy` store intermediate results. The loop iterates over the time dimension (T) and channel dimension (C).",
+        "type": "comment"
+    },
+    "620": {
+        "file_id": 33,
+        "content": "        for (int j = 0; j < _N_; j++)\n        {\n            float& s = state[j];\n            float x = k * v[j];\n            gr += (u * x + s) * gy[j];\n            gu_ += x * gy[j];\n            s = s * w + x;\n        }\n        _gr[t] = F(gr);\n        gu += float(_r[t]) * gu_;\n    }\n    _gu[b*C + h*_N_ + i] = F(gu);\n    for (int t = t000; t < t222; t += C)\n    {\n        __syncthreads();\n        v[i] = float(_v[t]);\n        gy[i] = float(_gy[t + 2*C]);\n        __syncthreads();\n        const float k = float(_k[t]);\n        float gw_ = 0;\n        #pragma unroll\n        for (int j = 0; j < _N_; j++)\n        {\n            float& s = saaaa[j];\n            float& s2 = sbbbb[j];\n            float x = k * v[j];\n            float tmp = w * (x + s);\n            s = tmp;\n            s2 = tmp + w * s2;\n            gw_ += s2 * gy[j];\n        }\n        gw += float(_r[t + 2*C]) * gw_;\n    }    \n    _gw[b*C + h*_N_ + i] = F(ww * gw);\n    for (int t = t111 - C; t >= t000; t -= C)\n    {\n        __syncthreads();\n        v[i] = float(_v[t]);\n        gy[i] = float(_gy[t]);",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv5_cuda.cu:105-149"
+    },
+    "621": {
+        "file_id": 33,
+        "content": "This code appears to be performing element-wise operations on arrays, such as adding and multiplying elements. It uses a for loop to iterate through the array elements, with each iteration updating the state variables and accumulating results for later use. The code also includes synchronization points (__syncthreads) for thread coordination, and it utilizes arrays with names like _gr, _gu, and _gw for storing intermediate and final results. Overall, this code seems to be part of a larger computation involving array manipulation and synchronization.",
+        "type": "comment"
+    },
+    "622": {
+        "file_id": 33,
+        "content": "        __syncthreads();\n        const float rr = float(_r[t]);\n        float gk = 0;\n        #pragma unroll\n        for (int j = 0; j < _N_; j++)\n        {\n            float& s = scccc[j];\n            float x = rr * gy[j];\n            gk += (u * x + s) * v[j];\n            s = x + s * w;\n        }\n        _gk[t] = F(gk);\n    }\n    for (int t = t111 - C; t >= t000; t -= C)\n    {\n        __syncthreads();\n        r[i] = float(_r[t]);\n        k[i] = float(_k[t]);\n        __syncthreads();\n        const float gyy = float(_gy[t]);\n        float gv = 0;\n        #pragma unroll\n        for (int j = 0; j < _N_; j++)\n        {\n            float& s = sdddd[j];\n            float x = gyy * r[j];\n            gv += (u_[j] * x + s) * k[j];\n            s = x + s * w_[j];\n        }\n        _gv[t] = F(gv);\n    }\n}\nvoid cuda_forward(int B, int T, int C, int H, bf16 *r, bf16 *k, bf16 *v, float *w, bf16 *u, bf16 *y)\n{\n    assert(H*_N_ == C);\n    assert(_N_%4 == 0);\n    kernel_forward<<<dim3(B * H), dim3(_N_)>>>(B, T, C, H, r, k, v, w, u, y);\n}\nvo",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv5_cuda.cu:150-197"
+    },
+    "623": {
+        "file_id": 33,
+        "content": "The code is performing a convolution operation in CUDA. It first executes a kernel function that processes the data in blocks and threads, then calls another kernel function to compute the final results. The code uses shared memory, synchronization, and unrolling of loops for efficient computation. The `cuda_forward` function initializes the necessary variables and launches the kernel functions with appropriate dimensions.",
+        "type": "comment"
+    },
+    "624": {
+        "file_id": 33,
+        "content": "id cuda_backward(int B, int T, int C, int H, bf16 *r, bf16 *k, bf16 *v, float *w, float *ww, bf16 *u, bf16 *gy, bf16 *gr, bf16 *gk, bf16 *gv, bf16 *gw, bf16 *gu)\n{\n    assert(H*_N_ == C);\n    assert(_N_%4 == 0);\n    kernel_backward<<<dim3(B * H), dim3(_N_)>>>(B, T, C, H, r, k, v, w, ww, u, gy, gr, gk, gv, gw, gu);\n}",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv5_cuda.cu:197-202"
+    },
+    "625": {
+        "file_id": 33,
+        "content": "Function `cuda_backward` is a CUDA kernel launcher, taking input/output parameters and invoking the `kernel_backward` kernel with appropriate grid and block dimensions. The assertions ensure correct memory layouts and alignment for efficient GPU computation.",
+        "type": "comment"
+    },
+    "626": {
+        "file_id": 34,
+        "content": "/RWKV-v4neo/cuda/wkv5_op.cpp",
+        "type": "filepath"
+    },
+    "627": {
+        "file_id": 34,
+        "content": "This C++ code implements forward and backward neural network operations using PyTorch tensors, optimized for CUDA execution. It includes functions for BFloat16 data type, with Python module \"wkv5\" for forward and backward operations.",
+        "type": "summary"
+    },
+    "628": {
+        "file_id": 34,
+        "content": "#include <torch/extension.h>\n#include \"ATen/ATen.h\"\ntypedef at::BFloat16 bf16;\nvoid cuda_forward(int B, int T, int C, int H, bf16 *r, bf16 *k, bf16 *v, float *w, bf16 *u, bf16 *y);\nvoid cuda_backward(int B, int T, int C, int H, bf16 *r, bf16 *k, bf16 *v, float *w, float *ww, bf16 *u, bf16 *gy, bf16 *gr, bf16 *gk, bf16 *gv, bf16 *gw, bf16 *gu);\nvoid forward(int64_t B, int64_t T, int64_t C, int64_t H, torch::Tensor &r, torch::Tensor &k, torch::Tensor &v, torch::Tensor &w, torch::Tensor &u, torch::Tensor &y) {\n    cuda_forward(B, T, C, H, r.data_ptr<bf16>(), k.data_ptr<bf16>(), v.data_ptr<bf16>(), w.data_ptr<float>(), u.data_ptr<bf16>(), y.data_ptr<bf16>());\n}\nvoid backward(int64_t B, int64_t T, int64_t C, int64_t H, torch::Tensor &r, torch::Tensor &k, torch::Tensor &v, torch::Tensor &w, torch::Tensor &ww, torch::Tensor &u, torch::Tensor &gy, torch::Tensor &gr, torch::Tensor &gk, torch::Tensor &gv, torch::Tensor &gw, torch::Tensor &gu) {\n    cuda_backward(B, T, C, H, r.data_ptr<bf16>(), k.data_ptr",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv5_op.cpp:1-12"
+    },
+    "629": {
+        "file_id": 34,
+        "content": "This code is a C++ implementation of forward and backward passes for an unknown neural network operation. It includes functions `cuda_forward` and `cuda_backward`, which are called by the corresponding `forward` and `backward` wrapper functions. The wrapper functions handle memory allocation, type conversion, and data pointers for PyTorch tensors. The code uses BFloat16 as the floating-point data type and is optimized for CUDA execution.",
+        "type": "comment"
+    },
+    "630": {
+        "file_id": 34,
+        "content": "<bf16>(), v.data_ptr<bf16>(), w.data_ptr<float>(), ww.data_ptr<float>(), u.data_ptr<bf16>(), gy.data_ptr<bf16>(), gr.data_ptr<bf16>(), gk.data_ptr<bf16>(), gv.data_ptr<bf16>(), gw.data_ptr<bf16>(), gu.data_ptr<bf16>());\n}\nPYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {\n    m.def(\"forward\", &forward, \"wkv5 forward\");\n    m.def(\"backward\", &backward, \"wkv5 backward\");\n}\nTORCH_LIBRARY(wkv5, m) {\n    m.def(\"forward\", forward);\n    m.def(\"backward\", backward);\n}",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv5_op.cpp:12-22"
+    },
+    "631": {
+        "file_id": 34,
+        "content": "This code defines a Python module for the \"wkv5\" function, which includes forward and backward operations. The variables declared represent different data pointers used in these operations.",
+        "type": "comment"
+    },
+    "632": {
+        "file_id": 35,
+        "content": "/RWKV-v4neo/cuda/wkv_cuda.cu",
+        "type": "filepath"
+    },
+    "633": {
+        "file_id": 35,
+        "content": "The code performs matrix multiplication, computes gradients for neural network backward pass, and optimally initializes variables for CUDA implementation of RWKV model's forward and backward passes using efficient execution configuration.",
+        "type": "summary"
+    },
+    "634": {
+        "file_id": 35,
+        "content": "#include <stdio.h>\n#include <assert.h>\n#define MIN_VALUE (-1e38)\ntemplate <typename F>\n__global__ void kernel_forward(const int B, const int T, const int C,\n                               const F *__restrict__ const _w, const F *__restrict__ const _u, const F *__restrict__ const _k, const F *__restrict__ const _v,\n                               F *__restrict__ const _y) {\n    const int idx = blockIdx.x * blockDim.x + threadIdx.x;\n    const int _b = idx / C;\n    const int _c = idx % C;\n    const int _offset = _b * T * C + _c;\n    F u = _u[_c];\n    F w = _w[_c];\n    const F *__restrict__ const k = _k + _offset;\n    const F *__restrict__ const v = _v + _offset;\n    F *__restrict__ const y = _y + _offset;\n    // aa and bb are running sums divided by exp(pp) (to avoid overflow)\n    F aa = 0, bb = 0, pp = MIN_VALUE;\n    for (int i = 0; i < T; i++) {\n        const int ii = i * C;\n        const F kk = k[ii];\n        const F vv = v[ii];\n        F ww = u + kk;\n        F p = max(pp, ww);\n        F e1 = exp(pp - p);\n        F e2 = exp(ww - p);",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv_cuda.cu:1-31"
+    },
+    "635": {
+        "file_id": 35,
+        "content": "Kernel function for matrix multiplication with accumulation of running sums and avoiding overflow by dividing the sums by exp(pp).",
+        "type": "comment"
+    },
+    "636": {
+        "file_id": 35,
+        "content": "        y[ii] = (e1 * aa + e2 * vv) / (e1 * bb + e2);\n        ww = w + pp;\n        p = max(ww, kk);\n        e1 = exp(ww - p);\n        e2 = exp(kk - p);\n        aa = e1 * aa + e2 * vv;\n        bb = e1 * bb + e2;\n        pp = p;\n    }\n}\ntemplate <typename F>\n__global__ void kernel_backward(const int B, const int T, const int C,\n                                const F *__restrict__ const _w, const F *__restrict__ const _u, const F *__restrict__ const _k, const F *__restrict__ const _v,\n                                const F *__restrict__ const _y, const F *__restrict__ const _gy,\n                                F *__restrict__ const _gw, F *__restrict__ const _gu, F *__restrict__ const _gk, F *__restrict__ const _gv) {\n    const int idx = blockIdx.x * blockDim.x + threadIdx.x;\n    const int _b = idx / C;\n    const int _c = idx % C;\n    const int _offset = _b * T * C + _c;\n    F u = _u[_c];\n    F w = _w[_c];\n    const F *__restrict__ const k = _k + _offset;\n    const F *__restrict__ const v = _v + _offset;\n    const F *__restrict__ const y = _y + _offset;",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv_cuda.cu:32-58"
+    },
+    "637": {
+        "file_id": 35,
+        "content": "This code performs a matrix multiplication and subsequent calculations to compute gradients for the backward pass in a neural network. The kernel function takes input weights, input activations, output activations, and their respective gradients as inputs, and computes gradients for the output weights and input weights. The comments should reflect this understanding of what the code is doing.",
+        "type": "comment"
+    },
+    "638": {
+        "file_id": 35,
+        "content": "    const F *__restrict__ const gy = _gy + _offset;\n    F *__restrict__ const gk = _gk + _offset;\n    F *__restrict__ const gv = _gv + _offset;\n    F q[Tmax], r[Tmax];\n    F gw = 0, gu = 0, aa = 0, bb = 0, ga = 0, gb = 0, pp = MIN_VALUE;\n    for (int i = 0; i < T; i++) {\n        const int ii = i * C;\n        const F kk = k[ii];\n        const F vv = v[ii];\n        const F yy = y[ii];\n        F ww = u + kk;\n        F p = max(pp, ww);\n        F e1 = exp(pp - p);\n        F e2 = exp(ww - p);\n        const F qq = gy[ii] / (e1 * bb + e2);\n        gw += (ga - gb * yy) * e1 * qq;\n        gu += (vv - yy) * e2 * qq;\n        q[i] = qq;\n        r[i] = ww - p;\n        ww = w + pp;\n        p = max(ww, kk);\n        e1 = exp(ww - p);\n        e2 = exp(kk - p);\n        ga = e1 * (aa + ga);\n        gb = e1 * (bb + gb);\n        aa = e1 * aa + e2 * vv;\n        bb = e1 * bb + e2;\n        pp = p;\n    }\n    const int _offsetBC = _b * C + _c;\n    _gw[_offsetBC] = gw * _w[_c]; // multiply by w because of w -> -exp(w) in python forward()\n    _gu[_offsetBC] = gu;",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv_cuda.cu:59-94"
+    },
+    "639": {
+        "file_id": 35,
+        "content": "This code segment initializes variables and iterates over the data to calculate values for gw, gu, q, and r. It then assigns these calculated values to their respective locations in memory. The multiplication by w is because of the transformation from forward pass in python.",
+        "type": "comment"
+    },
+    "640": {
+        "file_id": 35,
+        "content": "    aa = 0, bb = 0, pp = MIN_VALUE;\n    for (int i = T - 1; i >= 0; i--) {\n        const int ii = i * C;\n        const F kk = k[ii];\n        const F vv = v[ii];\n        const F yy = y[ii];\n        const F qq = q[i];\n        const F rr = r[i];\n        F e1 = qq * exp(rr);\n        F e2 = exp(kk + pp);\n        gk[ii] = e1 * (vv - yy) + e2 * (aa * vv + bb);\n        gv[ii] = e1 + e2 * aa;\n        const F ww = w + pp;\n        const F www = rr - u - kk;\n        const F p = max(ww, www);\n        e1 = exp(ww - p);\n        e2 = qq * exp(www - p);\n        aa = e1 * aa + e2;\n        bb = e1 * bb - e2 * yy;\n        pp = p;\n    }\n}\nvoid cuda_forward(int B, int T, int C, float *w, float *u, float *k, float *v, float *y) {\n    dim3 threadsPerBlock( min(C, 32) ); // requires --maxrregcount 60 for optimal performance\n    assert(B * C % threadsPerBlock.x == 0);\n    dim3 numBlocks(B * C / threadsPerBlock.x);\n    kernel_forward<<<numBlocks, threadsPerBlock>>>(B, T, C, w, u, k, v, y);\n}\nvoid cuda_backward(int B, int T, int C, float *w, float *u, float *k, float *v, float *y, float *gy, float *gw, float *gu, float *gk, float *gv) {",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv_cuda.cu:96-128"
+    },
+    "641": {
+        "file_id": 35,
+        "content": "The code initializes variables and performs a matrix operation for the CUDA implementation of RWKV model's forward and backward passes. The function `cuda_forward` launches a CUDA kernel that processes each block with 32 threads, while `cuda_backward` computes gradients for the same matrix operations as the forward pass, storing them in `gw`, `gu`, `gk`, `gv`. The computation involves element-wise multiplication and addition using `e1` and `e2`, respectively. The function `cuda_forward` requires `--maxrregcount 60` for optimal performance due to register usage.",
+        "type": "comment"
+    },
+    "642": {
+        "file_id": 35,
+        "content": "    dim3 threadsPerBlock( min(C, 32) ); // requires --maxrregcount 60 for optimal performance\n    assert(B * C % threadsPerBlock.x == 0);\n    dim3 numBlocks(B * C / threadsPerBlock.x);\n    kernel_backward<<<numBlocks, threadsPerBlock>>>(B, T, C, w, u, k, v, y, gy, gw, gu, gk, gv);\n}",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv_cuda.cu:129-133"
+    },
+    "643": {
+        "file_id": 35,
+        "content": "The code sets up the execution configuration for a CUDA kernel function named 'kernel_backward'. It determines the optimal number of threads per block (min(C, 32)) and ensures that the number of blocks is proportional to B*C, ensuring even distribution of tasks. It then launches the kernel function on the specified number of blocks and threads.",
+        "type": "comment"
+    },
+    "644": {
+        "file_id": 36,
+        "content": "/RWKV-v4neo/cuda/wkv_cuda_bf16.cu",
+        "type": "filepath"
+    },
+    "645": {
+        "file_id": 36,
+        "content": "This code performs a forward pass of a neural network on GPU with BFloat16 data type and softmax cross-entropy loss, calculating gradients using fixed-point arrays in CUDA. It defines two functions, cuda_forward and cuda_backward, which use CUDA to perform matrix operations on GPU.",
+        "type": "summary"
+    },
+    "646": {
+        "file_id": 36,
+        "content": "#include <stdio.h>\n#include <assert.h>\n#include \"ATen/ATen.h\"\n#define MIN_VALUE (-1e38)\ntypedef at::BFloat16 bf16;\n__global__ void kernel_forward(const int B, const int T, const int C,\n                               const float *__restrict__ const _w, const bf16 *__restrict__ const _u, const bf16 *__restrict__ const _k, const bf16 *__restrict__ const _v,\n                               bf16 *__restrict__ const _y) {\n    const int idx = blockIdx.x * blockDim.x + threadIdx.x;\n    const int _b = idx / C;\n    const int _c = idx % C;\n    const int _offset = _b * T * C + _c;\n    float u = float(_u[_c]);\n    float w = _w[_c];\n    const bf16 *__restrict__ const k = _k + _offset;\n    const bf16 *__restrict__ const v = _v + _offset;\n    bf16 *__restrict__ const y = _y + _offset;\n    // aa and bb are running sums divided by exp(pp) (to avoid overflow)\n    float aa = 0, bb = 0, pp = MIN_VALUE;\n    for (int i = 0; i < T; i++) {\n        const int ii = i * C;\n        const float kk = float(k[ii]);\n        const float vv = float(v[ii]);",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv_cuda_bf16.cu:1-26"
+    },
+    "647": {
+        "file_id": 36,
+        "content": "This function implements the forward pass of a neural network operation using BFloat16 (bf16) data type on GPU. It takes input dimensions and pointers to weights, inputs, keys, and values arrays as parameters. The function then performs element-wise multiplications, accumulates results, and stores the result in an output array.",
+        "type": "comment"
+    },
+    "648": {
+        "file_id": 36,
+        "content": "        float ww = u + kk;\n        float p = max(pp, ww);\n        float e1 = exp(pp - p);\n        float e2 = exp(ww - p);\n        y[ii] = bf16((e1 * aa + e2 * vv) / (e1 * bb + e2));\n        ww = w + pp;\n        p = max(ww, kk);\n        e1 = exp(ww - p);\n        e2 = exp(kk - p);\n        aa = e1 * aa + e2 * vv;\n        bb = e1 * bb + e2;\n        pp = p;\n    }\n}\n__global__ void kernel_backward(const int B, const int T, const int C,\n                                const float *__restrict__ const _w, const bf16 *__restrict__ const _u, const bf16 *__restrict__ const _k, const bf16 *__restrict__ const _v,\n                                const bf16 *__restrict__ const _y, const bf16 *__restrict__ const _gy,\n                                bf16 *__restrict__ const _gw, bf16 *__restrict__ const _gu, bf16 *__restrict__ const _gk, bf16 *__restrict__ const _gv) {\n    const int idx = blockIdx.x * blockDim.x + threadIdx.x;\n    const int _b = idx / C;\n    const int _c = idx % C;\n    const int _offset = _b * T * C + _c;\n    float u = float(_u[_c]);",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv_cuda_bf16.cu:28-53"
+    },
+    "649": {
+        "file_id": 36,
+        "content": "Calculates gradients for weight, input, and kernel arrays using backward pass with softmax cross-entropy loss. Batch size, sequence length, number of channels, weight, input, kernel arrays, output gradients, and gradients for each array are passed as arguments to the kernel function. Gradient computation is performed per element in the arrays.",
+        "type": "comment"
+    },
+    "650": {
+        "file_id": 36,
+        "content": "    float w = _w[_c];\n    const bf16 *__restrict__ const k = _k + _offset;\n    const bf16 *__restrict__ const v = _v + _offset;\n    const bf16 *__restrict__ const y = _y + _offset;\n    const bf16 *__restrict__ const gy = _gy + _offset;\n    bf16 *__restrict__ const gk = _gk + _offset;\n    bf16 *__restrict__ const gv = _gv + _offset;\n    float q[Tmax], r[Tmax];\n    float gw = 0, gu = 0, aa = 0, bb = 0, ga = 0, gb = 0, pp = MIN_VALUE;\n    for (int i = 0; i < T; i++) {\n        const int ii = i * C;\n        const float kk = float(k[ii]);\n        const float vv = float(v[ii]);\n        const float yy = float(y[ii]);\n        float ww = u + kk;\n        float p = max(pp, ww);\n        float e1 = exp(pp - p);\n        float e2 = exp(ww - p);\n        const float qq = float(gy[ii]) / (e1 * bb + e2);\n        gw += (ga - gb * yy) * e1 * qq;\n        gu += (vv - yy) * e2 * qq;\n        q[i] = qq;\n        r[i] = ww - p;\n        ww = w + pp;\n        p = max(ww, kk);\n        e1 = exp(ww - p);\n        e2 = exp(kk - p);\n        ga = e1 * (aa + ga);",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv_cuda_bf16.cu:54-85"
+    },
+    "651": {
+        "file_id": 36,
+        "content": "The code is calculating the softmax and element-wise multiplication of input vectors for matrix multiplication using bf16 data type in CUDA. It initializes variables, performs calculations using exp() and max(), stores results in q and r arrays, and updates gw and gu variables.",
+        "type": "comment"
+    },
+    "652": {
+        "file_id": 36,
+        "content": "        gb = e1 * (bb + gb);\n        aa = e1 * aa + e2 * vv;\n        bb = e1 * bb + e2;\n        pp = p;\n    }\n    const int _offsetBC = _b * C + _c;\n    _gw[_offsetBC] = bf16(gw * _w[_c]); // multiply by w because of w -> -exp(w) in python forward()\n    _gu[_offsetBC] = bf16(gu);\n    aa = 0, bb = 0, pp = MIN_VALUE;\n    for (int i = T - 1; i >= 0; i--) {\n        const int ii = i * C;\n        const float kk = float(k[ii]);\n        const float vv = float(v[ii]);\n        const float yy = float(y[ii]);\n        const float qq = q[i];\n        const float rr = r[i];\n        float e1 = qq * exp(rr);\n        float e2 = exp(kk + pp);\n        gk[ii] = bf16(e1 * (vv - yy) + e2 * (aa * vv + bb));\n        gv[ii] = bf16(e1 + e2 * aa);\n        const float ww = w + pp;\n        const float www = rr - u - kk;\n        const float p = max(ww, www);\n        e1 = exp(ww - p);\n        e2 = qq * exp(www - p);\n        aa = e1 * aa + e2;\n        bb = e1 * bb - e2 * yy;\n        pp = p;\n    }\n}\nvoid cuda_forward(int B, int T, int C, float *w, bf16 *u, bf16 *k, bf16 *v, bf16 *y) {",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv_cuda_bf16.cu:86-120"
+    },
+    "653": {
+        "file_id": 36,
+        "content": "This code computes the forward pass of a neural network using CUDA for efficient GPU computation. The input includes batch size B, time steps T, channels C, and floating-point w parameter, along with fixed-point u, k, v, and y arrays. It initializes gk and gv arrays and performs element-wise computations to calculate the gradients.",
+        "type": "comment"
+    },
+    "654": {
+        "file_id": 36,
+        "content": "    dim3 threadsPerBlock( min(C, 32) ); // requires --maxrregcount 60 for optimal performance\n    assert(B * C % threadsPerBlock.x == 0);\n    dim3 numBlocks(B * C / threadsPerBlock.x);\n    kernel_forward<<<numBlocks, threadsPerBlock>>>(B, T, C, w, u, k, v, y);\n}\nvoid cuda_backward(int B, int T, int C, float *w, bf16 *u, bf16 *k, bf16 *v, bf16 *y, bf16 *gy, bf16 *gw, bf16 *gu, bf16 *gk, bf16 *gv) {\n    dim3 threadsPerBlock( min(C, 32) ); // requires --maxrregcount 60 for optimal performance\n    assert(B * C % threadsPerBlock.x == 0);\n    dim3 numBlocks(B * C / threadsPerBlock.x);\n    kernel_backward<<<numBlocks, threadsPerBlock>>>(B, T, C, w, u, k, v, y, gy, gw, gu, gk, gv);\n}",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv_cuda_bf16.cu:121-132"
+    },
+    "655": {
+        "file_id": 36,
+        "content": "This code defines two functions, cuda_forward and cuda_backward, which use CUDA to perform a matrix operation on a GPU. The function sets the number of threads per block based on the C dimension and ensures optimal performance by setting --maxrregcount 60. It also asserts that B * C is divisible by threadsPerBlock.x to ensure even distribution of tasks among blocks, then assigns the total number of blocks accordingly. Finally, it calls a kernel function with these parameters.",
+        "type": "comment"
+    },
+    "656": {
+        "file_id": 37,
+        "content": "/RWKV-v4neo/cuda/wkv_op.cpp",
+        "type": "filepath"
+    },
+    "657": {
+        "file_id": 37,
+        "content": "This code defines CUDA functions wrapped with Torch extension for PyTorch's forward and backward passes, implemented as a PyBind11 module for seamless integration.",
+        "type": "summary"
+    },
+    "658": {
+        "file_id": 37,
+        "content": "#include <torch/extension.h>\nvoid cuda_forward(int B, int T, int C, float *w, float *u, float *k, float *v, float *y);\nvoid cuda_backward(int B, int T, int C, float *w, float *u, float *k, float *v, float *y, float *gy, float *gw, float *gu, float *gk, float *gv);\nvoid forward(int64_t B, int64_t T, int64_t C, torch::Tensor &w, torch::Tensor &u, torch::Tensor &k, torch::Tensor &v, torch::Tensor &y) {\n    cuda_forward(B, T, C, w.data_ptr<float>(), u.data_ptr<float>(), k.data_ptr<float>(), v.data_ptr<float>(), y.data_ptr<float>());\n}\nvoid backward(int64_t B, int64_t T, int64_t C, torch::Tensor &w, torch::Tensor &u, torch::Tensor &k, torch::Tensor &v, torch::Tensor &y, torch::Tensor &gy, torch::Tensor &gw, torch::Tensor &gu, torch::Tensor &gk, torch::Tensor &gv) {\n    cuda_backward(B, T, C, w.data_ptr<float>(), u.data_ptr<float>(), k.data_ptr<float>(), v.data_ptr<float>(), y.data_ptr<float>(), gy.data_ptr<float>(), gw.data_ptr<float>(), gu.data_ptr<float>(), gk.data_ptr<float>(), gv.data_ptr<float>());",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv_op.cpp:1-10"
+    },
+    "659": {
+        "file_id": 37,
+        "content": "This code defines two functions, `forward` and `backward`, which perform the forward and backward passes of a computation. These functions are implemented in CUDA and wrapped with Torch extension for seamless integration with PyTorch. The `forward` function takes in Tensor inputs and calls the CUDA `cuda_forward` function to perform the computation on GPU, while `backward` performs the backward pass using the corresponding CUDA function.",
+        "type": "comment"
+    },
+    "660": {
+        "file_id": 37,
+        "content": "}\nPYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {\n    m.def(\"forward\", &forward, \"wkv forward\");\n    m.def(\"backward\", &backward, \"wkv backward\");\n}\nTORCH_LIBRARY(wkv, m) {\n    m.def(\"forward\", forward);\n    m.def(\"backward\", backward);\n}",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv_op.cpp:11-21"
+    },
+    "661": {
+        "file_id": 37,
+        "content": "This code defines a PyBind11 module for the Torch library, named \"TORCH_EXTENSION_NAME\". It includes forward and backward functions with their respective definitions. The module is then linked to the library using TORCH_LIBRARY.",
+        "type": "comment"
+    },
+    "662": {
+        "file_id": 38,
+        "content": "/RWKV-v4neo/cuda/wkv_op_bf16.cpp",
+        "type": "filepath"
+    },
+    "663": {
+        "file_id": 38,
+        "content": "The code defines CUDA functions for forward and backward torch Tensor computations, utilizing BF16 data type. Python bindings are created for these functions.",
+        "type": "summary"
+    },
+    "664": {
+        "file_id": 38,
+        "content": "#include <torch/extension.h>\n#include \"ATen/ATen.h\"\ntypedef at::BFloat16 bf16;\nvoid cuda_forward(int B, int T, int C, float *w, bf16 *u, bf16 *k, bf16 *v, bf16 *y);\nvoid cuda_backward(int B, int T, int C, float *w, bf16 *u, bf16 *k, bf16 *v, bf16 *y, bf16 *gy, bf16 *gw, bf16 *gu, bf16 *gk, bf16 *gv);\nvoid forward(int64_t B, int64_t T, int64_t C, torch::Tensor &w, torch::Tensor &u, torch::Tensor &k, torch::Tensor &v, torch::Tensor &y) {\n    cuda_forward(B, T, C, w.data_ptr<float>(), u.data_ptr<bf16>(), k.data_ptr<bf16>(), v.data_ptr<bf16>(), y.data_ptr<bf16>());\n}\nvoid backward(int64_t B, int64_t T, int64_t C, torch::Tensor &w, torch::Tensor &u, torch::Tensor &k, torch::Tensor &v, torch::Tensor &y,\n    torch::Tensor &gy, torch::Tensor &gw, torch::Tensor &gu, torch::Tensor &gk, torch::Tensor &gv) {\n    cuda_backward(B, T, C, w.data_ptr<float>(), u.data_ptr<bf16>(), k.data_ptr<bf16>(), v.data_ptr<bf16>(), y.data_ptr<bf16>(),\n        gy.data_ptr<bf16>(), gw.data_ptr<bf16>(), gu.data_ptr<bf16>(), gk.data_ptr<bf16>(), gv.data_ptr<bf16>());",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv_op_bf16.cpp:1-14"
+    },
+    "665": {
+        "file_id": 38,
+        "content": "This code defines a forward and backward function for torch Tensors using CUDA. The forward function calls a CUDA kernel function to compute the output tensor y based on inputs w, u, k, v. The backward function also calls a CUDA kernel function to compute gradients for w, u, k, v, gw, gu, gk, gv. BF16 (BFloat16) is used as a data type for some tensor operations.",
+        "type": "comment"
+    },
+    "666": {
+        "file_id": 38,
+        "content": "}\nPYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {\n    m.def(\"forward\", &forward, \"wkv forward\");\n    m.def(\"backward\", &backward, \"wkv backward\");\n}\nTORCH_LIBRARY(wkv, m) {\n    m.def(\"forward\", forward);\n    m.def(\"backward\", backward);\n}",
+        "type": "code",
+        "location": "/RWKV-v4neo/cuda/wkv_op_bf16.cpp:15-25"
+    },
+    "667": {
+        "file_id": 38,
+        "content": "Defining Python bindings for the forward and backward functions of the wkv extension module.",
+        "type": "comment"
+    },
+    "668": {
+        "file_id": 39,
+        "content": "/RWKV-v4neo/img_demoAE.py",
+        "type": "filepath"
+    },
+    "669": {
+        "file_id": 39,
+        "content": "This code imports libraries and defines a function ToBinary for converting images to binary format. It includes an R_ENCODER class with layers for image processing and backward operation, as well as forward pass and neural network class for image decoding. The code also defines a neural network model for image generation using convolution layers and Mish activation.",
+        "type": "summary"
+    },
+    "670": {
+        "file_id": 39,
+        "content": "########################################################################################################\n# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM\n########################################################################################################\nimport torch, types, os\nimport numpy as np\nfrom PIL import Image\nimport torch.nn as nn\nfrom torch.nn import functional as F\nimport torchvision as vision\nimport torchvision.transforms as transforms\nnp.set_printoptions(precision=4, suppress=True, linewidth=200)\nprint(f'loading...')\n########################################################################################################\nmodel_prefix = 'test/image_trained/out-v7c_d8_256-224-13bit-OB32x0.5-201'\ninput_img = 'test/img_ae_test/test0.png'\n########################################################################################################\nclass ToBinary(torch.autograd.Function):\n    @staticmethod\n    def forward(ctx, x):\n        return torch.floor(x + 0.5) # no need for noise when we have plenty of data",
+        "type": "code",
+        "location": "/RWKV-v4neo/img_demoAE.py:1-25"
+    },
+    "671": {
+        "file_id": 39,
+        "content": "This code imports necessary libraries and defines a function called ToBinary for converting input images to binary format. It uses RWKV Language Model and provides model_prefix and input_img variables for further processing.",
+        "type": "comment"
+    },
+    "672": {
+        "file_id": 39,
+        "content": "    @staticmethod\n    def backward(ctx, grad_output):\n        return grad_output.clone() # pass-through\nclass R_ENCODER(nn.Module):\n    def __init__(self, args):\n        super().__init__()\n        self.args = args\n        dd = 8\n        self.Bxx = nn.BatchNorm2d(dd*64)\n        self.CIN = nn.Conv2d(3, dd, kernel_size=3, padding=1)\n        self.Cx0 = nn.Conv2d(dd, 32, kernel_size=3, padding=1)\n        self.Cx1 = nn.Conv2d(32, dd, kernel_size=3, padding=1)\n        self.B00 = nn.BatchNorm2d(dd*4)\n        self.C00 = nn.Conv2d(dd*4, 256, kernel_size=3, padding=1)\n        self.C01 = nn.Conv2d(256, dd*4, kernel_size=3, padding=1)\n        self.C02 = nn.Conv2d(dd*4, 256, kernel_size=3, padding=1)\n        self.C03 = nn.Conv2d(256, dd*4, kernel_size=3, padding=1)\n        self.B10 = nn.BatchNorm2d(dd*16)\n        self.C10 = nn.Conv2d(dd*16, 256, kernel_size=3, padding=1)\n        self.C11 = nn.Conv2d(256, dd*16, kernel_size=3, padding=1)\n        self.C12 = nn.Conv2d(dd*16, 256, kernel_size=3, padding=1)\n        self.C13 = nn.Conv2d(256, dd*16, kernel_size=3, padding=1)",
+        "type": "code",
+        "location": "/RWKV-v4neo/img_demoAE.py:27-52"
+    },
+    "673": {
+        "file_id": 39,
+        "content": "This code defines a class named R_ENCODER inheriting from nn.Module, which includes several convolutional and batch normalization layers for image processing or feature extraction. The backward function is defined as a pass-through operation for gradient computation during backpropagation.",
+        "type": "comment"
+    },
+    "674": {
+        "file_id": 39,
+        "content": "        self.B20 = nn.BatchNorm2d(dd*64)\n        self.C20 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)\n        self.C21 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)\n        self.C22 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)\n        self.C23 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)\n        self.COUT = nn.Conv2d(dd*64, args.my_img_bit, kernel_size=3, padding=1)\n    def forward(self, img):\n        ACT = F.mish\n        x = self.CIN(img)\n        xx = self.Bxx(F.pixel_unshuffle(x, 8))\n        x = x + self.Cx1(ACT(self.Cx0(x)))\n        x = F.pixel_unshuffle(x, 2)\n        x = x + self.C01(ACT(self.C00(ACT(self.B00(x)))))\n        x = x + self.C03(ACT(self.C02(x)))\n        x = F.pixel_unshuffle(x, 2)\n        x = x + self.C11(ACT(self.C10(ACT(self.B10(x)))))\n        x = x + self.C13(ACT(self.C12(x)))\n        x = F.pixel_unshuffle(x, 2)\n        x = x + self.C21(ACT(self.C20(ACT(self.B20(x)))))\n        x = x + self.C23(ACT(self.C22(x)))\n        x = self.COUT(x + xx)\n        return torch.sigmoid(x)",
+        "type": "code",
+        "location": "/RWKV-v4neo/img_demoAE.py:54-82"
+    },
+    "675": {
+        "file_id": 39,
+        "content": "This code defines a forward pass function for a neural network layer. It applies various convolutions and batch normalization to input image 'img' after passing it through several activation functions, including Mish. The final result is passed through a sigmoid function before being returned.",
+        "type": "comment"
+    },
+    "676": {
+        "file_id": 39,
+        "content": "class R_DECODER(nn.Module):\n    def __init__(self, args):\n        super().__init__()\n        self.args = args\n        dd = 8\n        self.CIN = nn.Conv2d(args.my_img_bit, dd*64, kernel_size=3, padding=1)\n        self.B00 = nn.BatchNorm2d(dd*64)\n        self.C00 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)\n        self.C01 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)\n        self.C02 = nn.Conv2d(dd*64, 256, kernel_size=3, padding=1)\n        self.C03 = nn.Conv2d(256, dd*64, kernel_size=3, padding=1)\n        self.B10 = nn.BatchNorm2d(dd*16)\n        self.C10 = nn.Conv2d(dd*16, 256, kernel_size=3, padding=1)\n        self.C11 = nn.Conv2d(256, dd*16, kernel_size=3, padding=1)\n        self.C12 = nn.Conv2d(dd*16, 256, kernel_size=3, padding=1)\n        self.C13 = nn.Conv2d(256, dd*16, kernel_size=3, padding=1)\n        self.B20 = nn.BatchNorm2d(dd*4)\n        self.C20 = nn.Conv2d(dd*4, 256, kernel_size=3, padding=1)\n        self.C21 = nn.Conv2d(256, dd*4, kernel_size=3, padding=1)\n        self.C22 = nn.Conv2d(dd*4, 256, kernel_size=3, padding=1)",
+        "type": "code",
+        "location": "/RWKV-v4neo/img_demoAE.py:84-106"
+    },
+    "677": {
+        "file_id": 39,
+        "content": "This code defines a class \"R_DECODER\" that inherits from the PyTorch's `nn.Module` and consists of multiple convolutional layers and batch normalization layers for image decoding. The class takes an argument \"args\", which contains information such as the number of image channels, and the kernel size of convolutions.",
+        "type": "comment"
+    },
+    "678": {
+        "file_id": 39,
+        "content": "        self.C23 = nn.Conv2d(256, dd*4, kernel_size=3, padding=1)\n        self.Cx0 = nn.Conv2d(dd, 32, kernel_size=3, padding=1)\n        self.Cx1 = nn.Conv2d(32, dd, kernel_size=3, padding=1)\n        self.COUT = nn.Conv2d(dd, 3, kernel_size=3, padding=1)\n    def forward(self, code):\n        ACT = F.mish\n        x = self.CIN(code)\n        x = x + self.C01(ACT(self.C00(ACT(self.B00(x)))))\n        x = x + self.C03(ACT(self.C02(x)))\n        x = F.pixel_shuffle(x, 2)\n        x = x + self.C11(ACT(self.C10(ACT(self.B10(x)))))\n        x = x + self.C13(ACT(self.C12(x)))\n        x = F.pixel_shuffle(x, 2)\n        x = x + self.C21(ACT(self.C20(ACT(self.B20(x)))))\n        x = x + self.C23(ACT(self.C22(x)))\n        x = F.pixel_shuffle(x, 2)\n        x = x + self.Cx1(ACT(self.Cx0(x)))\n        x = self.COUT(x)\n        return torch.sigmoid(x)\n########################################################################################################\nprint(f'building model...')\nargs = types.SimpleNamespace()\nargs.my_img_bit = 13\nencoder = R_ENCODER(args).eval().cuda()",
+        "type": "code",
+        "location": "/RWKV-v4neo/img_demoAE.py:107-139"
+    },
+    "679": {
+        "file_id": 39,
+        "content": "This code defines a neural network model for image generation. It has multiple convolution layers and uses the Mish activation function. The model takes an input code, performs several operations with different convolution layers and pixel shuffling, and outputs a final tensor. The code also builds the model using given arguments.",
+        "type": "comment"
+    },
+    "680": {
+        "file_id": 39,
+        "content": "decoder = R_DECODER(args).eval().cuda()\nzpow = torch.tensor([2**i for i in range(0,13)]).reshape(13,1,1).cuda().long()\nencoder.load_state_dict(torch.load(f'{model_prefix}-E.pth'))\ndecoder.load_state_dict(torch.load(f'{model_prefix}-D.pth'))\n########################################################################################################\nprint(f'test image...')\nimg_transform = transforms.Compose([\n    transforms.PILToTensor(),\n    transforms.ConvertImageDtype(torch.float),\n    transforms.Resize((224, 224))\n])\nwith torch.no_grad():\n    img = img_transform(Image.open(input_img)).unsqueeze(0).cuda()\n    z = encoder(img)\n    z = ToBinary.apply(z)\n    zz = torch.sum(z.squeeze().long() * zpow, dim=0)\n    print(f'Code shape = {zz.shape}\\n{zz.cpu().numpy()}\\n')\n    out = decoder(z)\n    vision.utils.save_image(out, f\"{input_img.split('.')[0]}-out-13bit.jpg\")",
+        "type": "code",
+        "location": "/RWKV-v4neo/img_demoAE.py:140-165"
+    },
+    "681": {
+        "file_id": 39,
+        "content": "The code is loading a pre-trained encoder and decoder model, applying image transformations, and generating an output image using the decoder. It then saves the output image in a specific format. The code also prints the shape and values of a tensor after performing some operations on it.",
+        "type": "comment"
+    },
+    "682": {
+        "file_id": 40,
+        "content": "/RWKV-v4neo/math_demo/run.py",
+        "type": "filepath"
+    },
+    "683": {
+        "file_id": 40,
+        "content": "The code introduces RWKV, a deep learning NLP model with tokenization classes and RWKV_RNN functions. It initializes the model, loads checkpoints, optimizes performance using layer norm, time-dependent mixing, and sigmoid activation functions, generates context, predicts next character based on model output, and uses layer norm and time-mixing operations for processing.",
+        "type": "summary"
+    },
+    "684": {
+        "file_id": 40,
+        "content": "########################################################################################################\n# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM\n########################################################################################################\nimport numpy as np\nnp.set_printoptions(precision=4, suppress=True, linewidth=200)\nimport types, torch\nfrom torch.nn import functional as F\n# only + - *\nequation = \"4.2379*564.778-1209.01\" # 1184.4626862\n# equation = \"32731423*2189286\" # 71658446133978\n# equation = \"18239.715*9.728263\" # 177440.744565045\n# equation = \"2067*9832*4549\" # 92448162456\n########################################################################################################\nargs = types.SimpleNamespace()\nargs.MODEL_NAME = 'rwkv-200'\nargs.n_layer = 6\nargs.n_embd = 192\nclass TOKENIZER():\n    def __init__(self):\n        self.word_table = {\"0\": \"\\n\", \"1\": \" \", \"2\": \"(\", \"3\": \")\", \"4\": \"*\", \"5\": \"+\", \"6\": \"-\", \"7\": \".\", \"8\": \"0\", \"9\": \"1\", \"10\": \"2\", \"11\": \"3\", \"12\": \"4\", \"13\": \"5\", \"14\": \"6\", \"15\": \"7\", \"16\": \"8\", \"17\": \"9\", \"18\": \"=\", \"19\": \"e\", \"20\": \"f\"}",
+        "type": "code",
+        "location": "/RWKV-v4neo/math_demo/run.py:1-25"
+    },
+    "685": {
+        "file_id": 40,
+        "content": "This code is a part of the RWKV Language Model, which is a deep learning model for natural language processing. The code snippet defines an equation and tokenizes it using a word table to map numbers and symbols to corresponding strings. It also initializes an object with a word_table dictionary and sets up arguments such as MODEL_NAME, n_layer, and n_embd.",
+        "type": "comment"
+    },
+    "686": {
+        "file_id": 40,
+        "content": "        self.vocab_size = len(self.word_table)\n        self.stoi = {v: int(k) for k, v in self.word_table.items()}\n        self.itos = {int(k): v for k, v in self.word_table.items()}\n    def encode(self, x):\n        return [self.stoi[t] for t in x]\n    def decode(self, x):\n        return ''.join([self.itos[t] for t in x])\ntokenizer = TOKENIZER()\n########################################################################################################\nclass RWKV_RNN(torch.jit.ScriptModule):\n    def __init__(self, args):\n        super().__init__()\n        self.args = args\n        self.eval() # set torch to inference mode\n        w = torch.load(args.MODEL_NAME + '.pth', map_location='cpu')\n        for k in w.keys():\n            if      '.time_' in k: w[k] = w[k].squeeze()\n            if '.time_decay' in k: w[k] = -torch.exp(w[k].float()) # the real time decay is like e^{-e^x}\n            else: w[k] = w[k].float() # convert to f32 type\n        self.w = types.SimpleNamespace() # set self.w from w\n        self.w.blocks = {}",
+        "type": "code",
+        "location": "/RWKV-v4neo/math_demo/run.py:26-53"
+    },
+    "687": {
+        "file_id": 40,
+        "content": "This code defines a class for RWKV tokenization and another class for RWKV_RNN. The RWKV_RNN class initializes with arguments, loads the model from a checkpoint file, and adjusts some parameters as needed. It sets the model to inference mode using eval() function and converts certain parameters to floating point type. The code also includes functions for tokenization: encode and decode which convert tokens to integers and integers back to tokens respectively.",
+        "type": "comment"
+    },
+    "688": {
+        "file_id": 40,
+        "content": "        for k in w.keys(): # example: \"blocks.0.att.time_first\" => self.w.blocks[0].att.time_first\n            parts = k.split('.')\n            last = parts.pop()\n            here = self.w\n            for p in parts:\n                if p.isdigit():\n                    p = int(p)\n                    if p not in here: here[p] = types.SimpleNamespace()\n                    here = here[p]\n                else:\n                    if not hasattr(here, p): setattr(here, p, types.SimpleNamespace())\n                    here = getattr(here, p)\n            setattr(here, last, w[k])\n    def layer_norm(self, x, w):\n        return F.layer_norm(x, (self.args.n_embd,), weight=w.weight, bias=w.bias)\n    @torch.jit.script_method\n    def channel_mixing(self, x, state, i:int, time_mix_k, time_mix_r, kw, vw, rw):\n        xk = x * time_mix_k + state[5*i+0] * (1 - time_mix_k)\n        xr = x * time_mix_r + state[5*i+0] * (1 - time_mix_r)\n        state[5*i+0] = x\n        r = torch.sigmoid(rw @ xr)\n        k = torch.square(torch.relu(kw @ xk)) # square relu, primer paper",
+        "type": "code",
+        "location": "/RWKV-v4neo/math_demo/run.py:54-77"
+    },
+    "689": {
+        "file_id": 40,
+        "content": "This code is defining a function called \"channel_mixing\" which performs channel-wise mixing and normalization on input tensor \"x\". It uses layer norm, time-wise mixing, and sigmoid activation functions. The function also updates the state variable for future iterations. The code organizes the weights in a specific way and utilizes torch script method to optimize performance.",
+        "type": "comment"
+    },
+    "690": {
+        "file_id": 40,
+        "content": "        return r * (vw @ k)\n    @torch.jit.script_method\n    def time_mixing(self, x, state, i:int, time_mix_k, time_mix_v, time_mix_r, time_first, time_decay, kw, vw, rw, ow):\n        xk = x * time_mix_k + state[5*i+1] * (1 - time_mix_k)\n        xv = x * time_mix_v + state[5*i+1] * (1 - time_mix_v)\n        xr = x * time_mix_r + state[5*i+1] * (1 - time_mix_r)\n        state[5*i+1] = x\n        r = torch.sigmoid(rw @ xr)\n        k = kw @ xk\n        v = vw @ xv\n        aa = state[5*i+2]\n        bb = state[5*i+3]\n        pp = state[5*i+4]\n        ww = time_first + k\n        qq = torch.maximum(pp, ww)\n        e1 = torch.exp(pp - qq)\n        e2 = torch.exp(ww - qq)\n        a = e1 * aa + e2 * v\n        b = e1 * bb + e2\n        wkv = a / b\n        ww = pp + time_decay\n        qq = torch.maximum(ww, k)\n        e1 = torch.exp(ww - qq)\n        e2 = torch.exp(k - qq)\n        state[5*i+2] = e1 * aa + e2 * v\n        state[5*i+3] = e1 * bb + e2\n        state[5*i+4] = qq\n        return ow @ (r * wkv)\n    def forward(self, token, state):",
+        "type": "code",
+        "location": "/RWKV-v4neo/math_demo/run.py:78-109"
+    },
+    "691": {
+        "file_id": 40,
+        "content": "This code performs time-dependent mixing and computes the output for each step of a recurrent neural network. The `time_mixing` method updates hidden states, applies transformations based on time constants, and calculates the weighted sum of inputs using dot products. The `forward` method takes input tokens and current state as arguments to perform forward pass calculations.",
+        "type": "comment"
+    },
+    "692": {
+        "file_id": 40,
+        "content": "        with torch.no_grad():\n            if state == None:\n                state = torch.zeros(self.args.n_layer * 5, self.args.n_embd)\n                for i in range(self.args.n_layer): state[5*i+4] = -1e30 # -infinity\n            x = self.w.emb.weight[token]\n            x = self.layer_norm(x, self.w.blocks[0].ln0)\n            for i in range(self.args.n_layer):\n                att = self.w.blocks[i].att\n                x = x + self.time_mixing(self.layer_norm(x, self.w.blocks[i].ln1), state, i, \n                    att.time_mix_k, att.time_mix_v, att.time_mix_r, att.time_first, att.time_decay, \n                    att.key.weight, att.value.weight, att.receptance.weight, att.output.weight)\n                ffn = self.w.blocks[i].ffn\n                x = x + self.channel_mixing(self.layer_norm(x, self.w.blocks[i].ln2), state, i, \n                    ffn.time_mix_k, ffn.time_mix_r, \n                    ffn.key.weight, ffn.value.weight, ffn.receptance.weight)\n            x = self.w.head.weight @ self.layer_norm(x, self.w.ln_out)",
+        "type": "code",
+        "location": "/RWKV-v4neo/math_demo/run.py:110-127"
+    },
+    "693": {
+        "file_id": 40,
+        "content": "Iterates over layers, applies time-mixing and channel-mixing operations, layer norm, and final weighted operation.",
+        "type": "comment"
+    },
+    "694": {
+        "file_id": 40,
+        "content": "            return x.float(), state\n##########################################################################################################\nprint(f'\\nUsing CPU. Loading {args.MODEL_NAME} ...')\nmodel = RWKV_RNN(args)\ncontext = \"\\n\" + equation.strip().replace(' ','') + \"=\"\nprint(context, f'(python answer {eval(equation)})')\nstate = None\nfor token in tokenizer.encode(context):\n    out, state = model.forward(token, state)\nfor i in range(4096):\n    token = int(torch.argmax(out))\n    tmp = tokenizer.decode([token])\n    print(tmp, end=\"\", flush=True)\n    if tmp == '\\n':\n        break\n    out, state = model.forward(token, state)   \nprint()",
+        "type": "code",
+        "location": "/RWKV-v4neo/math_demo/run.py:128-150"
+    },
+    "695": {
+        "file_id": 40,
+        "content": "This code loads an RWKV_RNN model, generates context using provided equation and tokenizes it. It then iterates through tokens, predicting the next character based on the model's output, until a newline is predicted.",
+        "type": "comment"
+    },
+    "696": {
+        "file_id": 41,
+        "content": "/RWKV-v4neo/run.py",
+        "type": "filepath"
+    },
+    "697": {
+        "file_id": 41,
+        "content": "This code initializes RWKV Language Model, configures parameters, handles potential issues, and utilizes the RWKV-v4neo model for text generation, context refinement, tokenizer error checking, and prompt processing. It iterates through tokens, predicts next tokens, handles special cases, and prints debug output while tracking time for preprocessing, generation, and flushing buffer after each character.",
+        "type": "summary"
+    },
+    "698": {
+        "file_id": 41,
+        "content": "########################################################################################################\n# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM\n########################################################################################################\nimport numpy as np\nimport math, os, sys, types, time, gc\nimport torch\nfrom src.utils import TOKENIZER\ntry:\n    os.environ[\"CUDA_VISIBLE_DEVICES\"] = sys.argv[1]\nexcept:\n    pass\ntorch.backends.cudnn.benchmark = True\ntorch.backends.cudnn.allow_tf32 = True\ntorch.backends.cuda.matmul.allow_tf32 = True\nnp.set_printoptions(precision=4, suppress=True, linewidth=200)\nargs = types.SimpleNamespace()\n########################################################################################################\n# Step 1: set model & config (use v4 to run your trained-from-scratch models. v4 and v4neo are compatible)\n########################################################################################################\nargs.RUN_DEVICE = \"cuda\" # 'cuda' // 'cpu' (already fast)",
+        "type": "code",
+        "location": "/RWKV-v4neo/run.py:1-23"
+    },
+    "699": {
+        "file_id": 41,
+        "content": "This code is initializing the RWKV Language Model. It imports necessary libraries, sets the CUDA device for GPU or CPU usage, and ensures compatibility between v4 and v4neo models. The arguments for model configuration are set to 'cuda' for GPU acceleration or 'cpu' for CPU-only processing.",
+        "type": "comment"
+    }
+}

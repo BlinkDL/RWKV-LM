@@ -1,0 +1,548 @@
+{
+    "1600": {
+        "file_id": 53,
+        "content": "he DEA at the time. That's not the way controversial legislation usually ends up, but hey, if there's problems, then we ought to revisit them.\\\"  Hatch received $177,000 in donations from the drug industry while pushing the bill through and has received $2,178,863 from the Pharmaceuticals/Health Products industry from 1989-2014 according to required filings by the Federal Election Commission.\\nAsk a question about this article.\\n\\nAssistant: Orrin Hatch is a very important man in the United States government. He has been a senator, which means he helps make laws, for a very long time - since 1977! He is from the state of Utah and is a member of the Republican party. He has worked on many different committees that focus on things like health, education, and laws. He created a bill, which is like an idea for a new rule, to make sure people can get the medicine they need but also make sure those medicines are not abused. This bill became a law, but some people think it may not be the best",
+        "type": "code",
+        "location": "/RWKV-v5/demo.jsonl:181-181"
+    },
+    "1601": {
+        "file_id": 53,
+        "content": "This code appears to be a snippet from an article discussing Senator Orrin Hatch, his involvement in creating legislation regarding the drug industry, and potential conflicts of interest due to donations received.",
+        "type": "comment"
+    },
+    "1602": {
+        "file_id": 53,
+        "content": " solution and might make another problem, called the opioid crisis, worse. Orrin Hatch has also received a lot of money from companies that make medicines, which some people think might make him support rules that are good for those companies.\"}\n{\"text\": \"System: You are a helpful assistant, who always provide explanation. Think like you are answering to a five year old.\\n\\nUser: Write a subject line for this message:\\nNick:  It looks like Skilling will be able to attend the conference on May 15th. However, he will need to speak in the morning, because his flight leaves on  the 15th at 3:50 p.m.  Let us know if that will work. Thanks. \\nSubject Line:\\n\\nAssistant: Subject Line: Skilling Can Come to the Conference, but Needs Morning Time to Talk\"}",
+        "type": "code",
+        "location": "/RWKV-v5/demo.jsonl:181-182"
+    },
+    "1603": {
+        "file_id": 53,
+        "content": "The code contains two JSON objects with text data. The first object discusses the potential consequences of legalizing marijuana, while the second object is a conversation about scheduling a conference talk and requesting feedback on the proposed subject line.",
+        "type": "comment"
+    },
+    "1604": {
+        "file_id": 54,
+        "content": "/RWKV-v5/make_data.py",
+        "type": "filepath"
+    },
+    "1605": {
+        "file_id": 54,
+        "content": "The code snippet includes a tokenizer and class for binary file manipulation, indexing using RWKV language model, handling exceptions during decoding, verifying prime numbers, and displaying decoded results.",
+        "type": "summary"
+    },
+    "1606": {
+        "file_id": 54,
+        "content": "import json, math, random, sys, time, shutil, os, string, re, fileinput\nimport numpy as np\n\"\"\"\nHow to use:\npython make_data.py demo.jsonl 3 4096\nThis will:\n==> shuffle & duplicate demo.jsonl (for 3 epochs, good for finetuning) note: this will be very slow for large jsonl and we need more efficient code.\n==> load jsonl and tokenize\n==> save as demo.bin & demo.idx\n==> compute \"magic_prime\" for ctxlen 4096\nExample:\nAssume your source jsonl is:\n{\"text\":\"aa\"}\n{\"text\":\"bb\"}\n{\"text\":\"cc\"}\n{\"text\":\"dd\"}\nThe final binidx will be like (here \"/\" means end_of_doc, which is actually token [0]):\nbb/aa/dd/cc/dd/aa/bb/cc/dd/bb/cc/aa/\nwhere the data is repeated 3 times (each time with different shuffle)\n\"\"\"\n########################################################################################################\n# MMapIndexedDatasetBuilder\n########################################################################################################\nfrom tokenizer.rwkv_tokenizer import TRIE_TOKENIZER\ntokenizer = TRIE_TOKENIZER(\"tokenizer/rwkv_vocab_v20230424.txt\")",
+        "type": "code",
+        "location": "/RWKV-v5/make_data.py:1-34"
+    },
+    "1607": {
+        "file_id": 54,
+        "content": "This code snippet imports various modules and defines a tokenizer object. It then provides instructions on how to use the make_data.py script for creating data from a JSONL file, including shuffling, duplicating, loading, tokenizing, saving, and computing magic prime for ctxlen 4096. The code is part of the RWKV language model's tokenization process.",
+        "type": "comment"
+    },
+    "1608": {
+        "file_id": 54,
+        "content": "from src.binidx import MMapIndexedDataset\ndef index_file_path(prefix_path):\n    return prefix_path + \".idx\"\ndef data_file_path(prefix_path):\n    return prefix_path + \".bin\"\nclass MMapIndexedDatasetBuilder(object):\n    def __init__(self, out_file, dtype=np.uint16):\n        self._data_file = open(out_file, \"wb\")\n        self._dtype = dtype\n        self._sizes = []\n        self._doc_idx = [0]\n    def add_item(self, np_array):\n        assert np_array.dtype == self._dtype\n        self._data_file.write(np_array.tobytes(order=\"C\"))\n        self._sizes.append(np_array.size)\n    def end_document(self):\n        self._doc_idx.append(len(self._sizes))\n    def finalize(self, index_file):\n        self._data_file.close()\n        with MMapIndexedDataset.Index.writer(index_file, self._dtype) as index:\n            index.write(self._sizes, self._doc_idx)\ncnt = 0\ndef add_raw(raw):\n    global builder, cnt\n    out = tokenizer.encode(raw)\n    if tokenizer.decode(out) != raw:\n        print(\"ERROR\" * 100)\n        exit(0)\n    out.append(0)  # [0] = end_of_doc for rwkv tokenizer",
+        "type": "code",
+        "location": "/RWKV-v5/make_data.py:35-63"
+    },
+    "1609": {
+        "file_id": 54,
+        "content": "This code defines a class `MMapIndexedDatasetBuilder` that allows adding items to a binary file and building an index. It uses the `MMapIndexedDataset` from `src.binidx`. The `add_item()` function appends arrays to the data file, `end_document()` marks document end, and `finalize()` writes the sizes of items in the data file and the document indices into an index file. It also checks if encoded raw is the same as original raw using tokenizer from rwkv.",
+        "type": "comment"
+    },
+    "1610": {
+        "file_id": 54,
+        "content": "    builder.add_item(np.array(out, dtype=np.uint16))\n    builder.end_document()\n    if cnt % 500 == 0:\n        print(cnt, end=\" \", flush=True)\n    cnt += 1\ndef is_prime(n):\n    if n <= 1:\n        return False\n    if n <= 3:\n        return True\n    if n % 2 == 0 or n % 3 == 0:\n        return False\n    i = 5\n    while i * i <= n:\n        if n % i == 0 or n % (i + 2) == 0:\n            return False\n        i += 6\n    return True\n########################################################################################################\nN_EPOCH = int(sys.argv[2].strip())\nIN_FILE = sys.argv[1].strip()\nOUT_NAME = os.path.splitext(os.path.basename(IN_FILE))[0]\nCTX_LEN = int(sys.argv[3].strip())\nTEMP_FILE = \"make_data_temp.jsonl\"\nprint(f\"### Convert {IN_FILE} to {OUT_NAME}.bin/idx...\")\nwith open(IN_FILE, \"r\", encoding=\"utf-8\") as file:\n    non_empty_lines = [line.strip() for line in file if line.strip()]\nprint(f\"### Found {len(non_empty_lines)} non-empty lines in {IN_FILE}\")\nfile = open(TEMP_FILE, \"w\", encoding=\"utf-8\")\nfor i in range(N_EPOCH):",
+        "type": "code",
+        "location": "/RWKV-v5/make_data.py:64-99"
+    },
+    "1611": {
+        "file_id": 54,
+        "content": "The code is loading a file, checking for non-empty lines, and then iterating over each epoch to generate data. The is_prime function checks if a number is prime or not. It writes the data to a temporary file before creating a final binary/index file with the specified length.",
+        "type": "comment"
+    },
+    "1612": {
+        "file_id": 54,
+        "content": "    print(f\"Shuffle: {i+1} out of {N_EPOCH}\")\n    random.shuffle(non_empty_lines)\n    for entry in non_empty_lines:\n        file.write(entry + \"\\n\")\nfile.close()\n########################################################################################################\nprint(\"### Building binidx...\")\nbuilder = MMapIndexedDatasetBuilder(f\"{OUT_NAME}.bin\")\nwith fileinput.input(TEMP_FILE, encoding=\"utf-8\") as ffff:\n    for line in ffff:\n        x = json.loads(line)[\"text\"]\n        add_raw(x)\nbuilder.finalize((f\"{OUT_NAME}.idx\"))\nprint(\"done\")\nprint(\"### Verifying result...\")\ndata = MMapIndexedDataset(OUT_NAME)\ndata_len = len(data)\ndata_size = len(data._bin_buffer) // data._index._dtype_size\nTODO = [0, data_len - 1]\nPREVIEW_LIMIT = 100\nfor idx in TODO:\n    ptr, size = data._index[idx]\n    dix = data.get(idx=idx, offset=0, length=size).astype(int)\n    print(\"-\" * 70 + f\"[{OUT_NAME} idx {idx} sz {size}]\")\n    assert dix[-1] == 0\n    dix = dix[:-1]\n    if len(dix) > PREVIEW_LIMIT:\n        try:\n            print(tokenizer.decode(dix[:PREVIEW_LIMIT]))",
+        "type": "code",
+        "location": "/RWKV-v5/make_data.py:100-133"
+    },
+    "1613": {
+        "file_id": 54,
+        "content": "The code shuffles non-empty lines, writes them to a file, builds an indexed dataset from the temporary file, and finally verifies the result by checking if the last element is zero and displays a portion of the decoded data.",
+        "type": "comment"
+    },
+    "1614": {
+        "file_id": 54,
+        "content": "        except:\n            try:\n                print(tokenizer.decode(dix[: PREVIEW_LIMIT + 1]))\n            except:\n                print(tokenizer.decode(dix[: PREVIEW_LIMIT + 2]))\n        print(\"· \" * 30)\n        try:  # avoid utf-8 bug\n            print(tokenizer.decode(dix[-PREVIEW_LIMIT:]))\n        except:\n            try:\n                print(tokenizer.decode(dix[-PREVIEW_LIMIT - 1 :]))\n            except:\n                print(tokenizer.decode(dix[-PREVIEW_LIMIT - 2 :]))\n    else:\n        print(tokenizer.decode(dix))\nprint(f\"{'-'*80}\\n### Final {OUT_NAME}.bin/idx has {data_size} tokens, {data_len} items. Dtype {data._index.dtype}\")\nif data_size >= CTX_LEN * 3:\n    n_chunk = int(data_size // CTX_LEN) - 1\n    for i in range(n_chunk, 0, -1):\n        if i % 3 == 2:\n            if is_prime(i):\n                print(f\"\\n### magic_prime = {i} (for ctxlen {CTX_LEN})\\n\")\n                exit(0)",
+        "type": "code",
+        "location": "/RWKV-v5/make_data.py:134-158"
+    },
+    "1615": {
+        "file_id": 54,
+        "content": "Except blocks to handle potential exceptions when decoding dix with different lengths for preview, avoids UTF-8 bug. Else block to decode the entire dix. Checks if data size is greater than 3 times CTX_LEN and prints magic prime if it's a prime number within this condition.",
+        "type": "comment"
+    },
+    "1616": {
+        "file_id": 55,
+        "content": "/RWKV-v5/src/binidx.py",
+        "type": "filepath"
+    },
+    "1617": {
+        "file_id": 55,
+        "content": "The code defines 'MMapIndexedDataset' and 'Index' for handling indexed datasets, reading binary data, creating memory-mapped objects, and allows retrieval/manipulation of data. It doesn't support prefetch and checks if files exist for given path.",
+        "type": "summary"
+    },
+    "1618": {
+        "file_id": 55,
+        "content": "from lib2to3.pgen2 import token\nimport os\nimport torch\nimport numpy as np\nimport shutil\nimport struct\nfrom functools import lru_cache\nfrom itertools import accumulate\ndef print_rank_0(*message):\n    pass\n    # \"\"\"If distributed is initialized print only on rank 0.\"\"\"\n    # if torch.distributed.is_initialized():\n    #     if torch.distributed.get_rank() == 0:\n    #         print(*message, flush=True)\n    # else:\n    #     print(*message, flush=True)\ndef _warmup_mmap_file(path):\n    pass\n    # with open(path, \"rb\") as stream:\n    #     while stream.read(100 * 1024 * 1024):\n    #         pass\ndtypes = {\n    1: np.uint8,\n    2: np.int8,\n    3: np.int16,\n    4: np.int32,\n    5: np.int64,\n    6: float,\n    7: np.double,\n    8: np.uint16,\n}\ndef code(dtype):\n    for k in dtypes.keys():\n        if dtypes[k] == dtype:\n            return k\n    raise ValueError(dtype)\ndef index_file_path(prefix_path):\n    return prefix_path + \".idx\"\ndef data_file_path(prefix_path):\n    return prefix_path + \".bin\"\nclass MMapIndexedDataset(torch.utils.data.Dataset):",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:1-48"
+    },
+    "1619": {
+        "file_id": 55,
+        "content": "This code imports necessary libraries and defines functions for handling indexed datasets. The 'print_rank_0' function prints messages only on rank 0 if distributed is initialized, while '_warmup_mmap_file' warms up an mmap file by reading it in chunks. The 'dtypes' dictionary maps data types to their respective codes. 'index_file_path' and 'data_file_path' functions return the paths for index and data files respectively. The class 'MMapIndexedDataset' inherits from torch.utils.data.Dataset, suggesting it handles indexed datasets in a specific format.",
+        "type": "comment"
+    },
+    "1620": {
+        "file_id": 55,
+        "content": "    class Index(object):\n        _HDR_MAGIC = b\"MMIDIDX\\x00\\x00\"\n        @classmethod\n        def writer(cls, path, dtype):\n            class _Writer(object):\n                def __enter__(self):\n                    self._file = open(path, \"wb\")\n                    # Write Magic string so we can check the file format then opening it again.\n                    self._file.write(cls._HDR_MAGIC)\n                    # Write version number\n                    # Little endian unsigned 64 Bit integer\n                    self._file.write(struct.pack(\"<Q\", 1))\n                    # Little endian unsigned 8 Bit integer\n                    self._file.write(struct.pack(\"<B\", code(dtype)))\n                    return self\n                @staticmethod\n                def _get_pointers(sizes):\n                    dtype_size = dtype().itemsize\n                    address = 0\n                    pointers = []\n                    for size in sizes:\n                        pointers.append(address)\n                        address += size * dtype_size",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:49-76"
+    },
+    "1621": {
+        "file_id": 55,
+        "content": "The code defines a class called Index with a method writer(). This writer() method creates a subclass _Writer which is used to write the header of a binary file. It writes a magic string, version number (little endian), and data type information in the file.",
+        "type": "comment"
+    },
+    "1622": {
+        "file_id": 55,
+        "content": "                    return pointers\n                def write(self, sizes, doc_idx):\n                    pointers = self._get_pointers(sizes)\n                    # Little endian unsigned 64 Bit integer\n                    self._file.write(struct.pack(\"<Q\", len(sizes)))\n                    # Little endian unsigned 64 Bit integer\n                    self._file.write(struct.pack(\"<Q\", len(doc_idx)))\n                    sizes = np.array(sizes, dtype=np.int32)\n                    self._file.write(sizes.tobytes(order=\"C\"))\n                    del sizes\n                    pointers = np.array(pointers, dtype=np.int64)\n                    self._file.write(pointers.tobytes(order=\"C\"))\n                    del pointers\n                    doc_idx = np.array(doc_idx, dtype=np.int64)\n                    self._file.write(doc_idx.tobytes(order=\"C\"))\n                def __exit__(self, exc_type, exc_val, exc_tb):\n                    self._file.close()\n            return _Writer()\n        def __init__(self, path, skip_warmup=False):",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:78-104"
+    },
+    "1623": {
+        "file_id": 55,
+        "content": "This code defines a class with methods for writing binary data to a file. The `write` method takes sizes and document index as inputs, writes their lengths as little endian unsigned 64-bit integers, then converts the input arrays to byte sequences in little endian byte order and writes them to the file. The `__exit__` method closes the file when an exception occurs. The `__init__` method initializes an instance with a specified path and optionally skips warmup.",
+        "type": "comment"
+    },
+    "1624": {
+        "file_id": 55,
+        "content": "            with open(path, \"rb\") as stream:\n                magic_test = stream.read(9)\n                assert self._HDR_MAGIC == magic_test, (\n                    \"Index file doesn't match expected format. \"\n                    \"Make sure that --dataset-impl is configured properly.\"\n                )\n                # Little endian unsigned 64 Bit integer\n                version = struct.unpack(\"<Q\", stream.read(8))\n                assert (1,) == version\n                # Little endian unsigned 8 Bit integer\n                (dtype_code,) = struct.unpack(\"<B\", stream.read(1))\n                self._dtype = dtypes[dtype_code]\n                self._dtype_size = self._dtype().itemsize\n                self._len = struct.unpack(\"<Q\", stream.read(8))[0]\n                self._doc_count = struct.unpack(\"<Q\", stream.read(8))[0]\n                offset = stream.tell()\n            if not skip_warmup:\n                print_rank_0(\"    warming up index mmap file...\")\n                _warmup_mmap_file(path)\n            self._bin_buffer_mmap = np.memmap(path, mode=\"r\", order=\"C\")",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:105-128"
+    },
+    "1625": {
+        "file_id": 55,
+        "content": "This code reads the index file and checks its format, version, dtype, size, length, and document count. It then optionally warms up the memory-mapped file for faster access.",
+        "type": "comment"
+    },
+    "1626": {
+        "file_id": 55,
+        "content": "            self._bin_buffer = memoryview(self._bin_buffer_mmap)\n            print_rank_0(\"    reading sizes...\")\n            self._sizes = np.frombuffer(\n                self._bin_buffer, dtype=np.int32, count=self._len, offset=offset\n            )\n            print_rank_0(\"    reading pointers...\")\n            self._pointers = np.frombuffer(\n                self._bin_buffer,\n                dtype=np.int64,\n                count=self._len,\n                offset=offset + self._sizes.nbytes,\n            )\n            print_rank_0(\"    reading document index...\")\n            self._doc_idx = np.frombuffer(\n                self._bin_buffer,\n                dtype=np.int64,\n                count=self._doc_count,\n                offset=offset + self._sizes.nbytes + self._pointers.nbytes,\n            )\n        def __del__(self):\n            self._bin_buffer_mmap._mmap.close()\n            del self._bin_buffer_mmap\n        @property\n        def dtype(self):\n            return self._dtype\n        @property\n        def sizes(self):",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:129-158"
+    },
+    "1627": {
+        "file_id": 55,
+        "content": "This code reads binary data into memory, storing sizes of elements, pointers to each element, and a document index. The buffer is created from a mmap object, and numpy's frombuffer method is used to read the data as int32, int64 types with appropriate counts and offsets. The __del__ method ensures proper cleanup by closing the mmap and deleting it. A dtype property allows access to the type of elements stored.",
+        "type": "comment"
+    },
+    "1628": {
+        "file_id": 55,
+        "content": "            return self._sizes\n        @property\n        def doc_idx(self):\n            return self._doc_idx\n        @lru_cache(maxsize=8)\n        def __getitem__(self, i):\n            return self._pointers[i], self._sizes[i]\n        def __len__(self):\n            return self._len\n    def __init__(self, path, skip_warmup=False):\n        super().__init__()\n        self._path = None\n        self._index = None\n        self._bin_buffer = None\n        self._do_init(path, skip_warmup)\n    def __getstate__(self):\n        return self._path\n    def __setstate__(self, state):\n        self._do_init(state)\n    def _do_init(self, path, skip_warmup):\n        self._path = path\n        self._index = self.Index(index_file_path(self._path), skip_warmup)\n        if not skip_warmup:\n            print_rank_0(\"    warming up data mmap file...\")\n            _warmup_mmap_file(data_file_path(self._path))\n        print_rank_0(\"    creating numpy buffer of mmap...\")\n        self._bin_buffer_mmap = np.memmap(\n            data_file_path(self._path), mode=\"r\", order=\"C\"",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:159-196"
+    },
+    "1629": {
+        "file_id": 55,
+        "content": "This code defines a class that represents a binary index. It has properties for sizes and document indices, as well as methods for getting items by index and determining the length of the index. The constructor initializes the class instance with a specified path and optionally skips the warmup process. The `__getstate__` and `__setstate__` methods allow saving and restoring the state of the instance, respectively.",
+        "type": "comment"
+    },
+    "1630": {
+        "file_id": 55,
+        "content": "        )\n        print_rank_0(\"    creating memory view of numpy buffer...\")\n        self._bin_buffer = memoryview(self._bin_buffer_mmap)\n    def __del__(self):\n        self._bin_buffer_mmap._mmap.close()\n        del self._bin_buffer_mmap\n        del self._index\n    def __len__(self):\n        return len(self._index)\n    # @lru_cache(maxsize=8)\n    def __getitem__(self, idx):\n        if isinstance(idx, int):\n            ptr, size = self._index[idx]\n            np_array = np.frombuffer(\n                self._bin_buffer, dtype=self._index.dtype, count=size, offset=ptr\n            )\n            return np_array\n        elif isinstance(idx, slice):\n            start, stop, step = idx.indices(len(self))\n            if step != 1:\n                raise ValueError(\n                    \"Slices into indexed_dataset must be contiguous\")\n            ptr = self._index._pointers[start]\n            sizes = self._index._sizes[idx]\n            offsets = list(accumulate(sizes))\n            total_size = sum(sizes)\n            np_array = np.frombuffer(",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:197-226"
+    },
+    "1631": {
+        "file_id": 55,
+        "content": "This code snippet creates a memory view of a numpy buffer, deletes the mmap file and index when object is deleted, provides length of the index, and overrides __getitem__ to return numpy arrays from the buffer based on indices or slices. The LRU cache decorator has been commented out.",
+        "type": "comment"
+    },
+    "1632": {
+        "file_id": 55,
+        "content": "                self._bin_buffer, dtype=self._index.dtype, count=total_size, offset=ptr\n            )\n            sents = np.split(np_array, offsets[:-1])\n            return sents\n    def get(self, idx, offset=0, length=None):\n        \"\"\"Retrieves a single item from the dataset with the option to only\n        return a portion of the item.\n        get(idx) is the same as [idx] but get() does not support slicing.\n        \"\"\"\n        ptr, size = self._index[idx]\n        if length is None:\n            length = size - offset\n        ptr += offset * np.dtype(self._index.dtype).itemsize\n        np_array = np.frombuffer(\n            self._bin_buffer, dtype=self._index.dtype, count=length, offset=ptr\n        )\n        return np_array\n    @property\n    def sizes(self):\n        return self._index.sizes\n    @property\n    def doc_idx(self):\n        return self._index.doc_idx\n    def get_doc_idx(self):\n        return self._index._doc_idx\n    def set_doc_idx(self, doc_idx_):\n        self._index._doc_idx = doc_idx_\n    @property",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:227-261"
+    },
+    "1633": {
+        "file_id": 55,
+        "content": "The code defines a class with methods to retrieve and manipulate data from an index. The `_bin_buffer` is used to store the binary data, and the `dtype` parameter specifies the data type of the index. The `get()` method retrieves a single item from the dataset and can optionally return only a portion of it. The `sizes` property returns the sizes of the indexed items, while `doc_idx` and related methods are used to set or get the document index.",
+        "type": "comment"
+    },
+    "1634": {
+        "file_id": 55,
+        "content": "    def supports_prefetch(self):\n        return False\n    @staticmethod\n    def exists(path):\n        return os.path.exists(index_file_path(path)) and os.path.exists(\n            data_file_path(path)\n        )",
+        "type": "code",
+        "location": "/RWKV-v4neo/src/binidx.py:262-269"
+    },
+    "1635": {
+        "file_id": 55,
+        "content": "Function `supports_prefetch` returns False, indicating it doesn't support prefetch. Function `exists(path)` checks if index and data files exist for given path.",
+        "type": "comment"
+    },
+    "1636": {
+        "file_id": 56,
+        "content": "/RWKV-v5/src/dataset.py",
+        "type": "filepath"
+    },
+    "1637": {
+        "file_id": 56,
+        "content": "This code imports libraries, defines dataset classes for RWKV Language Model, handles data types, initializes vocabulary and dictionaries, and trains the model. It initializes a context (z) for a dataset, checks if context sum is zero, randomly selects an index from data pile, converts indices to tensors, and returns x, y, or just x, y depending on my_qa_mask.",
+        "type": "summary"
+    },
+    "1638": {
+        "file_id": 56,
+        "content": "########################################################################################################\n# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM\n########################################################################################################\nimport json, math, random, os, sys\nimport numpy as np\nimport torch\nfrom torch.utils.data import Dataset\nfrom pytorch_lightning.utilities import rank_zero_info\nfrom .binidx import MMapIndexedDataset\nfrom .utils import MaybeIsPrime\nclass MyDataset(Dataset):\n    def __init__(self, args):\n        self.args = args\n        if args.data_type == \"binidx\":\n            self.vocab_size = args.vocab_size\n            rank_zero_info(f\"Current vocab size = {self.vocab_size} (make sure it's correct)\")\n            if args.my_pile_version == 1:\n                self.data = MMapIndexedDataset(args.data_file)\n                self.data_size = len(self.data._bin_buffer) // self.data._index._dtype_size\n                rank_zero_info(f\"Data has {self.data_size} tokens.\")",
+        "type": "code",
+        "location": "/RWKV-v5/src/dataset.py:1-25"
+    },
+    "1639": {
+        "file_id": 56,
+        "content": "This code imports necessary libraries and defines a class for a dataset, specifically for the RWKV Language Model. The dataset supports different data types like \"binidx\", and if the type is binidx, it loads the data from the specified file into memory. It also checks if the current vocabulary size is correct and provides information about the loaded data size in tokens.",
+        "type": "comment"
+    },
+    "1640": {
+        "file_id": 56,
+        "content": "            elif args.my_pile_version == 2:\n                data_list = open(args.data_file, \"r\", encoding='utf-8').read().strip().split('\\n')\n                data_list = [i.strip().split(' ') for i in data_list]\n                self.data = []\n                self.data_size = int(data_list[-1][-1])\n                rank_zero_info(f\"Data has {self.data_size} chunks.\")\n                for d in data_list:\n                    data = MMapIndexedDataset(d[0])\n                    data_size = len(data._bin_buffer) // data._index._dtype_size\n                    assert (data_size - args.ctx_len) == int(d[1])\n                    self.data += [[int(d[-1]), int(d[1]), data]]\n                # rank_zero_info(self.data)\n            if args.my_qa_mask > 0:\n                # self.data_pile = MMapIndexedDataset('/fsx/pile/pile_20B_tokenizer_text_document')\n                self.data_pile = MMapIndexedDataset('/fsx/pile_deduped/pile_0.87_deduped_text_document')\n                self.data_pile_size = len(self.data_pile._bin_buffer) // self.data._index._dtype_size",
+        "type": "code",
+        "location": "/RWKV-v5/src/dataset.py:26-42"
+    },
+    "1641": {
+        "file_id": 56,
+        "content": "This code reads a dataset file and processes it based on the specified version. If the my_pile_version is 2, it splits the data into chunks and creates MMapIndexedDataset objects for each chunk with corresponding sizes. It also checks and asserts the size differences. If my_qa_mask is greater than 0, it sets a specific data pile for use.",
+        "type": "comment"
+    },
+    "1642": {
+        "file_id": 56,
+        "content": "            else:\n                self.data_pile = None\n                self.data_pile_size = 0\n            if args.my_pile_stage > 0:\n                # assert self.data_size == 332115325534 and self.vocab_size == 50277\n                self.samples_per_epoch = args.epoch_steps * args.real_bsz\n                assert self.samples_per_epoch == 40320\n                rank_zero_info(f\"########## Pile 20b-tokenized stage {args.my_pile_stage} ##########\")\n                dataset_slot = self.data_size // args.ctx_len\n                if args.my_pile_stage != 4:\n                    assert MaybeIsPrime(args.magic_prime)\n                    assert args.magic_prime % 3 == 2\n                    assert args.magic_prime / dataset_slot > 0.99 and args.magic_prime / dataset_slot <= 1\n        elif args.data_type == \"numpy\":\n            self.data = np.load(args.data_file).astype(\"int\")\n            self.vocab_size = args.vocab_size\n            rank_zero_info(f\"Current vocab size = {self.vocab_size} (make sure it's correct)\")",
+        "type": "code",
+        "location": "/RWKV-v5/src/dataset.py:43-60"
+    },
+    "1643": {
+        "file_id": 56,
+        "content": "The code is defining a dataset class. If data_size and vocab_size are not provided, the data pile is set to None. If my_pile_stage is greater than 0, it asserts that the data size is correct, calculates samples per epoch based on epoch_steps and real_bsz, checks if magic_prime is prime and within certain range, or loads data from file if data type is numpy. The code also provides information about current vocab size for the user.",
+        "type": "comment"
+    },
+    "1644": {
+        "file_id": 56,
+        "content": "            self.data_size = len(self.data)\n            rank_zero_info(f\"Data has {self.data_size} tokens.\")\n        elif args.data_type == \"uint16\":\n            self.data = np.fromfile(args.data_file, dtype=np.uint16).astype(\"int32\").reshape(-1, args.my_sample_len)\n            self.vocab_size = args.vocab_size\n            rank_zero_info(f\"Current vocab size = {self.vocab_size} (make sure it's correct)\")\n            self.data_size = self.data.shape[0]\n            rank_zero_info(f\"Data has {self.data_size} samples.\")\n        else:\n            if args.data_type == \"dummy\":\n                rank_zero_info(\"Building dummy data...\")\n                self.data = \"\"\n                for i in range(100000):\n                    aa = (i) % 10000\n                    bb = (i * i) % 10000\n                    cc = aa + bb\n                    self.data += f\".{aa}+{bb}={cc}.\"\n            else:\n                self.data = open(args.data_file, \"r\", encoding=args.data_type).read()\n            rank_zero_info(\"Building token list...\")",
+        "type": "code",
+        "location": "/RWKV-v5/src/dataset.py:61-80"
+    },
+    "1645": {
+        "file_id": 56,
+        "content": "The code reads data from a file based on the provided data type and builds an array of tokens. It checks if the data_type is \"RWKV-LM/RWKV-v5/src/dataset.py\":60-79\n\"RWKV-LM/RWKV-v5/src/dataset.py\":60-79",
+        "type": "comment"
+    },
+    "1646": {
+        "file_id": 56,
+        "content": "            unique = sorted(list(set(self.data)))\n            self.vocab_size = len(unique)\n            # rank_zero_info()\n            # for u in unique:\n            #     print(u, end=' ')\n            # rank_zero_info('\\n\\n')\n            xx = 0\n            xxObj = {}\n            for u in unique:\n                xxObj[xx] = u\n                xx += 1\n            with open(f\"{args.proj_dir}/vocab.json\", \"w\", encoding=\"utf-8\") as vocab_file:\n                vocab_file.write(json.dumps(xxObj, ensure_ascii=False))\n            self.data_size = len(self.data)\n            rank_zero_info(f\"Data has {self.data_size} tokens, {self.vocab_size} vocab size.\")\n            self.stoi = {ch: i for i, ch in enumerate(unique)}\n            self.itos = {i: ch for i, ch in enumerate(unique)}\n    def __len__(self):\n        return self.args.epoch_steps * self.args.micro_bsz\n    def __getitem__(self, idx):\n        args = self.args\n        rank = self.global_rank\n        epoch = self.real_epoch\n        world_size = self.world_size\n        # print(f\"epoch {epoch} idx {idx} rank {rank}/{world_size}\")",
+        "type": "code",
+        "location": "/RWKV-v5/src/dataset.py:81-107"
+    },
+    "1647": {
+        "file_id": 56,
+        "content": "The code snippet initializes a vocabulary and associated dictionaries, writes the vocabulary to a JSON file, sets the data size and vocab size, and defines two helper methods for converting between indices and tokens. It also includes a print statement that displays information about the current epoch, index, and rank in case of distributed training.",
+        "type": "comment"
+    },
+    "1648": {
+        "file_id": 56,
+        "content": "        if args.data_type == \"uint16\":\n            i = np.random.randint(0, self.data_size-1)\n            dix = self.data[i]\n            x = torch.tensor(dix[:-1], dtype=torch.long)\n            y = torch.tensor(dix[1:], dtype=torch.long)\n        else:\n            ctx_len = args.ctx_len\n            req_len = ctx_len + 1\n            magic_prime = args.magic_prime\n            data = self.data\n            if args.my_pile_stage > 0:\n                ii = 1 + epoch * self.samples_per_epoch + (idx * world_size) + rank\n                if args.my_qa_mask > 0:\n                    ii_orig = ii\n                    if ii % 2 == 0:\n                        ii = -1\n                        data = self.data_pile\n                    else:\n                        ii = ii // 2\n                if data == self.data_pile:\n                    i = np.random.randint(0, self.data_pile_size - req_len)\n                else:\n                    if args.my_pile_stage == 4 or ii < args.my_random_steps:\n                        # cheat: pick a random spot in dataset",
+        "type": "code",
+        "location": "/RWKV-v5/src/dataset.py:109-134"
+    },
+    "1649": {
+        "file_id": 56,
+        "content": "This code retrieves data from a dataset based on the specified data type. If the data type is uint16, it selects a random index and uses the sliced data for training. Otherwise, it determines the context length and required data length based on arguments, then picks a random spot in the dataset or cheats by picking a random location when specified.",
+        "type": "comment"
+    },
+    "1650": {
+        "file_id": 56,
+        "content": "                        if args.my_pile_version == 1:\n                            i = np.random.randint(0, self.data_size - req_len)\n                        else:\n                            i = np.random.randint(0, self.data_size)\n                    else:\n                        ii = ii - args.my_random_steps\n                        factor = (math.sqrt(5) - 1) / 2\n                        factor = int(magic_prime * factor)\n                        i = ((factor * ii * ii * ii) % magic_prime) * ctx_len\n                        i = i + args.my_pile_shift\n                # print(f\"epoch {epoch} idx {idx} rank {rank}/{world_size} ii {ii} pos {round(i / self.data_size, 3)}\")\n            else:\n                # cheat: pick a random spot in dataset\n                i = np.random.randint(0, self.data_size - req_len)\n            if args.data_type == \"binidx\":\n                if args.my_pile_version == 1:\n                    dix = data.get(idx=0, offset=i, length=req_len).astype(int)\n                else:\n                    # self.data : cutoff, chunk_count, data",
+        "type": "code",
+        "location": "/RWKV-v5/src/dataset.py:135-154"
+    },
+    "1651": {
+        "file_id": 56,
+        "content": "This code randomly selects a chunk of data from a dataset. If the `args.my_pile_version` is 1, it picks a random position within the remaining data after subtracting `req_len`. For other cases, it calculates the index using a complex formula involving `ii`, `magic_prime`, and `ctx_len`. If `args.data_type` is \"binidx\" and `args.my_pile_version` is 1, it retrieves data from the `data` object at the specified offset and length. Otherwise, it simply picks a random position within the remaining data after subtracting `req_len`.",
+        "type": "comment"
+    },
+    "1652": {
+        "file_id": 56,
+        "content": "                    for j in range(len(data)):\n                        if i < data[j][0]:\n                            ii = i\n                            i = (i - (data[j-1][0] if j > 0 else 0)) % data[j][1]\n                            dix = data[j][2].get(idx=0, offset=i, length=req_len).astype(int)\n                            # print(ii, j, i)\n                            break\n            elif args.data_type == \"numpy\":\n                dix = data[i : i + req_len]\n            else:\n                dix = [self.stoi[s] for s in data[i : i + req_len]]\n            if args.my_qa_mask == 1:\n                if data == self.data_pile:\n                    z = [1] * ctx_len\n                else:\n                    z = [0] * ctx_len\n                    z_sum = 0\n                    isGood = False\n                    for i in range(3, ctx_len):\n                        if dix[i] == 27 and dix[i-1] == 34 and dix[i-2] == 187 and dix[i-3] == 187:\n                            isGood = True\n                        if dix[i] == 0:",
+        "type": "code",
+        "location": "/RWKV-v5/src/dataset.py:155-177"
+    },
+    "1653": {
+        "file_id": 56,
+        "content": "Code is slicing data from a list based on the provided index 'i' and length 'req_len'. If the data type is \"numpy\", it directly assigns the slice to dix. Otherwise, it converts the slice into indices using self.stoi. If args.my_qa_mask == 1, it checks for a specific sequence of tokens in the sliced data and assigns either [1] * ctx_len or [0] * ctx_len to 'z'.",
+        "type": "comment"
+    },
+    "1654": {
+        "file_id": 56,
+        "content": "                            isGood = False\n                        if isGood:\n                            z[i] = 1\n                            z_sum += 1\n                    if z_sum == 0:\n                        z = [1] * ctx_len\n                        i = np.random.randint(0, self.data_pile_size - req_len)\n                        dix = self.data_pile.get(idx=0, offset=i, length=req_len).astype(int)\n                z = torch.tensor(z, dtype=torch.bfloat16)\n            x = torch.tensor(dix[:-1], dtype=torch.long)\n            y = torch.tensor(dix[1:], dtype=torch.long)\n            # if ii_orig < 50:\n            #     # if rank == 1:\n            #     print('rank', rank, 'i', ii_orig, ii, i, 'x', x[:5], '...', x[-5:])\n            # else:\n            #     exit(0)\n            if args.my_qa_mask == 1:\n                return x, y, z\n            return x, y",
+        "type": "code",
+        "location": "/RWKV-v5/src/dataset.py:178-200"
+    },
+    "1655": {
+        "file_id": 56,
+        "content": "This code is initializing a context (z) for a dataset. It checks if the context sum is zero and if so, sets all elements of z to 1 randomly selects an index from the data pile, converts indices to tensors, and returns the input (x), output (y), and context (z) unless my_qa_mask is set to 1. In that case, it only returns x, y.",
+        "type": "comment"
+    },
+    "1656": {
+        "file_id": 57,
+        "content": "/RWKV-v5/src/model.py",
+        "type": "filepath"
+    },
+    "1657": {
+        "file_id": 57,
+        "content": "This code utilizes DeepSpeed and implements a transformer layer with CUDA operations. It creates RWKV model architecture, initializes an optimizer, and optimizes memory usage for transformer models.",
+        "type": "summary"
+    },
+    "1658": {
+        "file_id": 57,
+        "content": "########################################################################################################\n# The RWKV Language Model - https://github.com/BlinkDL/RWKV-LM\n########################################################################################################\nimport os, math, gc, importlib\nimport torch\n# torch._C._jit_set_profiling_executor(True)\n# torch._C._jit_set_profiling_mode(True)\nimport torch.nn as nn\nfrom torch.nn import functional as F\nimport pytorch_lightning as pl\nfrom pytorch_lightning.utilities import rank_zero_info, rank_zero_only\nfrom pytorch_lightning.strategies import DeepSpeedStrategy\nif importlib.util.find_spec('deepspeed'):\n    import deepspeed\n    from deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam\n# from deepspeed.runtime.fp16.onebit.zoadam import ZeroOneAdam\ntry:\n    print('RWKV_MY_TESTING', os.environ[\"RWKV_MY_TESTING\"])\nexcept:\n    os.environ[\"RWKV_MY_TESTING\"] = ''\ndef __nop(ob):\n    return ob\nMyModule = nn.Module\nMyFunction = __nop\nif os.environ[\"RWKV_JIT_ON\"] == \"1\":",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:1-31"
+    },
+    "1659": {
+        "file_id": 57,
+        "content": "Importing necessary libraries, setting profiling mode for torch.jit, defining custom modules and functions, integrating DeepSpeed library if available, and configuring environment variables for testing and JIT usage.",
+        "type": "comment"
+    },
+    "1660": {
+        "file_id": 57,
+        "content": "    MyModule = torch.jit.ScriptModule\n    MyFunction = torch.jit.script_method\n########################################################################################################\n# CUDA Kernel\n########################################################################################################\nfrom torch.utils.cpp_extension import load\nHEAD_SIZE = int(os.environ[\"RWKV_HEAD_SIZE_A\"])\nwkv5_cuda = load(name=\"wkv5\", sources=[\"cuda/wkv5_op.cpp\", f\"cuda/wkv5_cuda.cu\"],\n                verbose=True, extra_cuda_cflags=[\"-res-usage\", \"--use_fast_math\", \"-O3\", \"-Xptxas -O3\", \"--extra-device-vectorization\", f\"-D_N_={HEAD_SIZE}\"])\nclass WKV_5(torch.autograd.Function):\n    @staticmethod\n    def forward(ctx, B, T, C, H, r, k, v, w, u):\n        with torch.no_grad():\n            assert r.dtype == torch.bfloat16\n            assert k.dtype == torch.bfloat16\n            assert v.dtype == torch.bfloat16\n            assert w.dtype == torch.bfloat16\n            assert u.dtype == torch.bfloat16\n            assert HEAD_SIZE == C // H",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:32-55"
+    },
+    "1661": {
+        "file_id": 57,
+        "content": "This code imports a CUDA kernel and uses it in the WKV_5 class, which performs operations on tensors of specific data types and dimensions. It asserts the input tensor sizes to ensure they match the expected format and checks the value of HEAD_SIZE to be equal to C divided by H. The code then instantiates the wkv5 CUDA kernel from the \"wkv5\" module with specific sources, flags, and verbose settings.",
+        "type": "comment"
+    },
+    "1662": {
+        "file_id": 57,
+        "content": "            ctx.B = B\n            ctx.T = T\n            ctx.C = C\n            ctx.H = H\n            assert r.is_contiguous()\n            assert k.is_contiguous()\n            assert v.is_contiguous()\n            assert w.is_contiguous()\n            assert u.is_contiguous()\n            ew = (-torch.exp(w.float())).contiguous()\n            eew = (torch.exp(ew)).contiguous()\n            ctx.save_for_backward(r, k, v, eew, ew, u)\n            y = torch.empty((B, T, C), device=r.device, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)\n            wkv5_cuda.forward(B, T, C, H, r, k, v, eew, u, y)\n            return y\n    @staticmethod\n    def backward(ctx, gy):\n        with torch.no_grad():\n            assert gy.dtype == torch.bfloat16\n            B = ctx.B\n            T = ctx.T\n            C = ctx.C\n            H = ctx.H\n            assert gy.is_contiguous()\n            r, k, v, eew, ew, u = ctx.saved_tensors\n            gr = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:56-82"
+    },
+    "1663": {
+        "file_id": 57,
+        "content": "This code appears to be part of a model's forward and backward pass implementation. In the forward pass, it initializes variables for batch size (B), sequence length (T), feature dimensions (C), hidden state dimension (H), and tensors r, k, v, eew, ew, u, and y. It then calls a forward method to compute y using these variables and returns y. In the backward pass, it checks the gradient tensor gy's type and shape, retrieves saved tensors from the context, and initializes an empty tensor gr of the same shape as gy for gradients computation.",
+        "type": "comment"
+    },
+    "1664": {
+        "file_id": 57,
+        "content": "            gk = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)\n            gv = torch.empty((B, T, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)\n            gw = torch.empty((B, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)\n            gu = torch.empty((B, C), device=gy.device, requires_grad=False, dtype=torch.bfloat16, memory_format=torch.contiguous_format) # .uniform_(-1, 1)\n            wkv5_cuda.backward(B, T, C, H, r, k, v, eew, ew, u, gy, gr, gk, gv, gw, gu)\n            gw = torch.sum(gw, 0).view(H, C//H)\n            gu = torch.sum(gu, 0).view(H, C//H)\n            return (None, None, None, None, gr, gk, gv, gw, gu)\ndef RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w, u):\n    return WKV_5.apply(B, T, C, H, r, k, v, w, u)\n########################################################################################################",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:83-95"
+    },
+    "1665": {
+        "file_id": 57,
+        "content": "This code is initializing various tensors for model parameters, and then calling a function to apply CUDA operations on these tensors. The function RUN_CUDA_RWKV5 calls the apply method of class WKV_5 with given input dimensions and parameters. It returns the gradients of the input parameters after applying the CUDA operations.",
+        "type": "comment"
+    },
+    "1666": {
+        "file_id": 57,
+        "content": "class RWKV_TimeMix_RWKV5(MyModule):\n    def __init__(self, args, layer_id):\n        super().__init__()\n        self.args = args\n        self.layer_id = layer_id\n        self.head_size = args.head_size_a\n        assert HEAD_SIZE == self.head_size # change HEAD_SIZE to match args.head_size_a\n        self.n_head = args.dim_att // self.head_size\n        assert args.dim_att % self.n_head == 0\n        self.head_size_divisor = args.head_size_divisor\n        with torch.no_grad():\n            ratio_0_to_1 = layer_id / (args.n_layer - 1)  # 0 to 1\n            ratio_1_to_almost0 = 1.0 - (layer_id / args.n_layer)  # 1 to ~0\n            ddd = torch.ones(1, 1, args.n_embd)\n            for i in range(args.n_embd):\n                ddd[0, 0, i] = i / args.n_embd\n            # fancy time_mix\n            self.time_mix_k = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))\n            self.time_mix_v = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0) + 0.3 * ratio_0_to_1)\n            self.time_mix_r = nn.Parameter(torch.pow(ddd, 0.5 * ratio_1_to_almost0))",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:97-119"
+    },
+    "1667": {
+        "file_id": 57,
+        "content": "This code defines a class for RWKV_TimeMix_RWKV5, a type of MyModule. It initializes instance variables based on input arguments and asserts the head size consistency. The time_mix parameters are calculated using layer ID, number of layers, and embedding dimension.",
+        "type": "comment"
+    },
+    "1668": {
+        "file_id": 57,
+        "content": "            self.time_mix_g = nn.Parameter(torch.pow(ddd, 0.5 * ratio_1_to_almost0))\n            # fancy time_decay\n            decay_speed = torch.ones(args.dim_att)\n            for n in range(args.dim_att):\n                decay_speed[n] = -6 + 5 * (n / (args.dim_att - 1)) ** (0.7 + 1.3 * ratio_0_to_1)\n            self.time_decay = nn.Parameter(decay_speed.reshape(self.n_head, self.head_size))\n            # print(layer_id, self.time_decay.flatten()[:3].cpu().numpy(), '...', self.time_decay.flatten()[-3:].cpu().numpy())\n            tmp = torch.zeros(args.dim_att)\n            for n in range(args.dim_att):\n                zigzag = ((n + 1) % 3 - 1) * 0.1\n                tmp[n] = ratio_0_to_1 * (1 - (n / (args.dim_att - 1))) + zigzag\n            self.time_faaaa = nn.Parameter(tmp.reshape(self.n_head, self.head_size))\n        self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))\n        self.receptance = nn.Linear(args.n_embd, args.dim_att, bias=False)\n        self.key = nn.Linear(args.n_embd, args.dim_att, bias=False)",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:120-138"
+    },
+    "1669": {
+        "file_id": 57,
+        "content": "This code is initializing parameters for a transformer layer in RWKV-v5. It defines time_mix_g, time_decay, and time_faaaa as learnable parameters. The time_decay and time_faaaa parameters control the time-based attention mechanism, while time_shift is a zero padding operator and receptance and key are linear layers for processing the input embeddings.",
+        "type": "comment"
+    },
+    "1670": {
+        "file_id": 57,
+        "content": "        self.value = nn.Linear(args.n_embd, args.dim_att, bias=False)\n        self.output = nn.Linear(args.dim_att, args.n_embd, bias=False)\n        self.gate = nn.Linear(args.n_embd, args.dim_att, bias=False)\n        self.ln_x = nn.GroupNorm(self.n_head, args.dim_att)\n    @MyFunction\n    def jit_func(self, x):\n        B, T, C = x.size()\n        xx = self.time_shift(x) # Mix x with the previous timestep to produce xk, xv, xr\n        xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)\n        xv = x * self.time_mix_v + xx * (1 - self.time_mix_v)\n        xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)\n        xg = x * self.time_mix_g + xx * (1 - self.time_mix_g)\n        r = self.receptance(xr)\n        k = self.key(xk)\n        v = self.value(xv)\n        g = F.silu(self.gate(xg))\n        return r, k, v, g\n    @MyFunction\n    def jit_func_2(self, x, g):\n        B, T, C = x.size()\n        x = x.view(B * T, C)\n        x = self.ln_x(x / self.head_size_divisor).view(B, T, C)\n        x = self.output(x * g)\n        return x",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:140-169"
+    },
+    "1671": {
+        "file_id": 57,
+        "content": "This code defines a class with three linear layers for key, value, and gate calculations. It also includes a GroupNorm layer and two JIT functions for forward pass and normalization. The functions apply time shifting, calculate key, value, and receptance, and perform normalization using GroupNorm.",
+        "type": "comment"
+    },
+    "1672": {
+        "file_id": 57,
+        "content": "    def forward(self, x):\n        B, T, C = x.size()\n        H = self.n_head\n        r, k, v, g = self.jit_func(x)\n        x = RUN_CUDA_RWKV5(B, T, C, H, r, k, v, w=self.time_decay, u=self.time_faaaa)\n        return self.jit_func_2(x, g)\n########################################################################################################\nclass RWKV_ChannelMix(MyModule):\n    def __init__(self, args, layer_id):\n        super().__init__()\n        self.args = args\n        self.layer_id = layer_id\n        self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))\n        with torch.no_grad():  # fancy init of time_mix\n            ratio_1_to_almost0 = 1.0 - (layer_id / args.n_layer)  # 1 to ~0\n            ddd = torch.ones(1, 1, args.n_embd)\n            for i in range(args.n_embd):\n                ddd[0, 0, i] = i / args.n_embd\n            self.time_mix_k = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))\n            self.time_mix_r = nn.Parameter(torch.pow(ddd, ratio_1_to_almost0))\n        self.key = nn.Linear(args.n_embd, args.dim_ffn, bias=False)",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:171-198"
+    },
+    "1673": {
+        "file_id": 57,
+        "content": "The code defines a forward pass for a model, with input size BTC and H being the number of heads. It uses jit_func to calculate r, k, v, and g. RUN_CUDA_RWKV5 is applied on these calculated values. RWKV_ChannelMix is a subclass of MyModule with an args parameter for arguments and layer_id for layer identification. It initializes time_shift with a zero pad 2D, performs fancy initialization of time_mix by setting ratio_1_to_almost0 and calculating ddd. It also initializes key as a linear layer without bias.",
+        "type": "comment"
+    },
+    "1674": {
+        "file_id": 57,
+        "content": "        self.receptance = nn.Linear(args.n_embd, args.n_embd, bias=False)\n        self.value = nn.Linear(args.dim_ffn, args.n_embd, bias=False)\n    @MyFunction\n    def forward(self, x):\n        xx = self.time_shift(x)\n        xk = x * self.time_mix_k + xx * (1 - self.time_mix_k)\n        xr = x * self.time_mix_r + xx * (1 - self.time_mix_r)\n        k = self.key(xk)\n        k = torch.relu(k) ** 2\n        kv = self.value(k)\n        return torch.sigmoid(self.receptance(xr)) * kv\nclass MishGLU(MyModule):\n    def __init__(self, args, layer_id):\n        super().__init__()\n        self.args = args\n        self.layer_id = layer_id\n        self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))\n        with torch.no_grad():\n            ratio_1_to_almost0 = 1.0 - (layer_id / args.n_layer)\n            x = torch.ones(1, 1, args.n_embd)\n            for i in range(args.n_embd):\n                x[0, 0, i] = i / args.n_embd\n            self.time_mix_k = nn.Parameter(torch.pow(x, ratio_1_to_almost0))\n            self.time_mix_r = nn.Parameter(torch.pow(x, ratio_1_to_almost0))",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:199-227"
+    },
+    "1675": {
+        "file_id": 57,
+        "content": "This code initializes layers for a MishGLU module, including time shifting and mixing parameters. The time_shift layer pads the input tensor with a one-pixel shift, while time_mix_k and time_mix_r are learned parameters for mixing inputs. These operations are used to calculate key and receptance values in the forward pass before returning the final result through a sigmoid function multiplied by the value tensor.",
+        "type": "comment"
+    },
+    "1676": {
+        "file_id": 57,
+        "content": "            self.aa = nn.Linear(args.n_embd, args.dim_ffn, bias=False)\n            self.bb = nn.Linear(args.n_embd, args.dim_ffn, bias=False)\n            self.value = nn.Linear(args.dim_ffn, args.n_embd, bias=False)\n    @MyFunction\n    def forward(self, x):\n        xx = self.time_shift(x)\n        xa = x * self.time_mix_k + xx * (1 - self.time_mix_k)\n        xb = x * self.time_mix_r + xx * (1 - self.time_mix_r)\n        a = self.aa(xa)\n        b = self.bb(xb)\n        return self.value(a * F.mish(b))\n########################################################################################################\n# The RWKV Model with our blocks\n########################################################################################################\nclass Block(nn.Module):\n    def __init__(self, args, layer_id):\n        super().__init__()\n        self.args = args\n        self.layer_id = layer_id\n        self.ln1 = nn.LayerNorm(args.n_embd)\n        self.ln2 = nn.LayerNorm(args.n_embd)\n        if self.layer_id == 0:\n            self.ln0 = nn.LayerNorm(args.n_embd)",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:228-256"
+    },
+    "1677": {
+        "file_id": 57,
+        "content": "This code defines the architecture of an RWKV model with layers for time-shifting, mixing, and applying a Mish activation function. The `Block` class represents each layer in the model, which includes layer normalization, feed forward network (FFN), and optional additional layer normalization for the first layer. It also defines functions to perform time shifting and linear transformations using fully connected layers.",
+        "type": "comment"
+    },
+    "1678": {
+        "file_id": 57,
+        "content": "            if args.my_pos_emb > 0:\n                self.pos_emb_x = nn.Parameter(torch.zeros((1,args.my_pos_emb,args.n_embd)))\n                self.pos_emb_y = nn.Parameter(torch.zeros((args.my_pos_emb,1,args.n_embd)))\n        if self.layer_id == 0 and self.args.pre_ffn > 0:\n            self.ffnPre = RWKV_ChannelMix(args, 0)\n        else:\n            self.att = RWKV_TimeMix_RWKV5(args, layer_id)\n        if 'g' in os.environ[\"RWKV_MY_TESTING\"]:\n            self.ffn = MishGLU(args, layer_id)\n        else:\n            self.ffn = RWKV_ChannelMix(args, layer_id)\n        if args.tiny_att_dim > 0 and self.layer_id == args.tiny_att_layer:\n            self.tiny_ln = nn.LayerNorm(args.n_embd)\n            self.tiny_q = nn.Linear(args.n_embd, args.tiny_att_dim, bias=False)\n            self.tiny_k = nn.Linear(args.n_embd, args.tiny_att_dim, bias=False)\n            self.tiny_v = nn.Linear(args.n_embd, args.n_embd, bias=False)\n            self.register_buffer(\"tiny_mask\", torch.tril(torch.ones(args.ctx_len, args.ctx_len)))",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:257-276"
+    },
+    "1679": {
+        "file_id": 57,
+        "content": "The code initializes model components based on provided arguments and layer ID. If `my_pos_emb > 0`, it creates positional embedding parameters. If `pre_ffn > 0`, it creates an FFN layer (RWKV_ChannelMix) for the first layer. Depending on environment, it also initializes ffn layers (MishGLU or RWKV_ChannelMix). For tiny_att_dim and specific layer ID, it registers linear layers and buffer for tiny attention implementation.",
+        "type": "comment"
+    },
+    "1680": {
+        "file_id": 57,
+        "content": "        if args.dropout > 0:\n            self.drop0 = nn.Dropout(p = args.dropout)\n            self.drop1 = nn.Dropout(p = args.dropout)\n    def forward(self, x, x_emb=None):\n        args = self.args\n        B, T, C = x.size()\n        if self.layer_id == 0:\n            x = self.ln0(x)\n            if args.my_pos_emb > 0:\n                pos_emb = (self.pos_emb_x + self.pos_emb_y).reshape(T+1, -1)[:-1,:]\n                x = x + pos_emb\n        if self.args.dropout == 0:\n            if self.layer_id == 0 and args.pre_ffn > 0:\n                x = x + self.ffnPre(self.ln1(x))\n            else:\n                x = x + self.att(self.ln1(x))\n            x = x + self.ffn(self.ln2(x))\n        else:\n            if self.layer_id == 0 and args.pre_ffn > 0:\n                x = self.drop0(x + self.ffnPre(self.ln1(x)))\n            else:\n                x = self.drop0(x + self.att(self.ln1(x)))\n            x = self.drop1(x + self.ffn(self.ln2(x)))\n        if args.tiny_att_dim > 0 and self.layer_id == args.tiny_att_layer:\n            xx = self.tiny_ln(x)",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:278-305"
+    },
+    "1681": {
+        "file_id": 57,
+        "content": "The code implements a layer of the RWKV-v5 model, including dropout regularization, layers normalization, feed-forward network (FFN), and attention mechanism. The dropout rate is determined by the \"args\" parameter and can be zero. If the pre_ffn argument is greater than 0, it executes FFN before other operations. The code also includes a tiny attention layer at a specific layer specified by the \"tiny_att_dim\" argument.",
+        "type": "comment"
+    },
+    "1682": {
+        "file_id": 57,
+        "content": "            q = self.tiny_q(xx)[:, :T, :]\n            k = self.tiny_k(xx)[:, :T, :]\n            c = (q @ k.transpose(-2, -1)) * (args.tiny_att_dim ** (-0.5))\n            c = c.masked_fill(self.tiny_mask[:T, :T] == 0, 0)\n            x = x + c @ self.tiny_v(x_emb)\n        return x\nclass L2Wrap(torch.autograd.Function):\n    @staticmethod\n    def forward(ctx, loss, y):\n        ctx.save_for_backward(y)\n        return loss\n    @staticmethod\n    def backward(ctx, grad_output):\n        y = ctx.saved_tensors[0]\n        # to encourage the logits to be close to 0\n        factor = 1e-4 / (y.shape[0] * y.shape[1])\n        maxx, ids = torch.max(y, -1, keepdim=True)\n        gy = torch.zeros_like(y)\n        gy.scatter_(-1, ids, maxx * factor)\n        return (grad_output, gy)\nclass RWKV(pl.LightningModule):\n    def __init__(self, args):\n        super().__init__()\n        self.args = args\n        if not hasattr(args, 'dim_att'):\n            args.dim_att = args.n_embd\n        if not hasattr(args, 'dim_ffn'):\n            args.dim_ffn = args.n_embd * 4",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:306-338"
+    },
+    "1683": {
+        "file_id": 57,
+        "content": "This code defines a class RWKV, which inherits from LightningModule. It includes an initialization method that takes arguments and creates instance variables. The class also has a forward method for the L2Wrap function, which computes a loss and applies a specific gradient calculation. This appears to be part of a deep learning model implementation.",
+        "type": "comment"
+    },
+    "1684": {
+        "file_id": 57,
+        "content": "        if not hasattr(args, 'tiny_att_layer'):\n            args.tiny_att_layer = -1\n        if not hasattr(args, 'tiny_att_dim'):\n            args.tiny_att_dim = -1\n        assert args.n_embd % 32 == 0\n        assert args.dim_att % 32 == 0\n        assert args.dim_ffn % 32 == 0\n        self.emb = nn.Embedding(args.vocab_size, args.n_embd)\n        self.blocks = nn.ModuleList([Block(args, i) for i in range(args.n_layer)])\n        self.ln_out = nn.LayerNorm(args.n_embd)\n        self.head = nn.Linear(args.n_embd, args.vocab_size, bias=False)\n        if args.head_qk > 0:\n            self.head_q = nn.Linear(args.n_embd, args.head_qk, bias=False)\n            self.head_k = nn.Linear(args.n_embd, args.head_qk, bias=False)\n            self.register_buffer(\"copy_mask\", torch.tril(torch.ones(args.ctx_len, args.ctx_len)))\n        if args.dropout > 0:\n            self.drop0 = nn.Dropout(p = args.dropout)\n    def configure_optimizers(self):\n        args = self.args\n        lr_decay = set()\n        lr_1x = set()\n        lr_2x = set()",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:339-366"
+    },
+    "1685": {
+        "file_id": 57,
+        "content": "The code defines a model with multiple layers, embeddings, and optional components depending on the provided arguments. It also sets up optimizer configurations based on the specified arguments.",
+        "type": "comment"
+    },
+    "1686": {
+        "file_id": 57,
+        "content": "        lr_3x = set()\n        for n, p in self.named_parameters():\n            if (\"time_mix\" in n) and (args.layerwise_lr > 0):\n                if args.my_pile_stage == 2:\n                    lr_2x.add(n)\n                else:\n                    lr_1x.add(n)\n            elif (\"time_decay\" in n) and (args.layerwise_lr > 0):\n                if args.my_pile_stage == 2:\n                    lr_3x.add(n)\n                else:\n                    lr_2x.add(n)\n            elif (\"time_faaaa\" in n) and (args.layerwise_lr > 0):\n                if args.my_pile_stage == 2:\n                    lr_2x.add(n)\n                else:\n                    lr_1x.add(n)\n            elif (\"time_first\" in n) and (args.layerwise_lr > 0):\n                lr_3x.add(n)\n            elif (len(p.squeeze().shape) >= 2) and (args.weight_decay > 0):\n                lr_decay.add(n)\n            else:\n                lr_1x.add(n)\n        lr_decay = sorted(list(lr_decay))\n        lr_1x = sorted(list(lr_1x))\n        lr_2x = sorted(list(lr_2x))\n        lr_3x = sorted(list(lr_3x))",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:367-394"
+    },
+    "1687": {
+        "file_id": 57,
+        "content": "This code is assigning different learning rates based on parameter names and certain conditions. It first defines four sets (lr_1x, lr_2x, lr_3x, lr_decay) and then populates them according to specific criteria: if a parameter's name matches certain strings or has a layerwise learning rate greater than 0, it will be added to the corresponding set. Finally, the sets are sorted and stored.",
+        "type": "comment"
+    },
+    "1688": {
+        "file_id": 57,
+        "content": "        # print('decay', lr_decay)\n        # print('1x', lr_1x)\n        # print('2x', lr_2x)\n        # print('3x', lr_3x)\n        param_dict = {n: p for n, p in self.named_parameters()}\n        if args.layerwise_lr > 0:\n            if args.my_pile_stage == 2:\n                optim_groups = [\n                    {\"params\": [param_dict[n] for n in lr_1x], \"weight_decay\": 0.0, \"my_lr_scale\": 1.0},\n                    {\"params\": [param_dict[n] for n in lr_2x], \"weight_decay\": 0.0, \"my_lr_scale\": 5.0},# test: 2e-3 / args.lr_init},\n                    {\"params\": [param_dict[n] for n in lr_3x], \"weight_decay\": 0.0, \"my_lr_scale\": 5.0},# test: 3e-3 / args.lr_init},\n                ]\n            else:\n                optim_groups = [\n                    {\"params\": [param_dict[n] for n in lr_1x], \"weight_decay\": 0.0, \"my_lr_scale\": 1.0},\n                    {\"params\": [param_dict[n] for n in lr_2x], \"weight_decay\": 0.0, \"my_lr_scale\": 2.0},\n                    {\"params\": [param_dict[n] for n in lr_3x], \"weight_decay\": 0.0, \"my_lr_scale\": 3.0},",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:395-412"
+    },
+    "1689": {
+        "file_id": 57,
+        "content": "The code defines different optimizer groups for layers based on the desired layer-wise learning rate. It separates parameters into three groups with scaling factors of 1x, 2x, and 3x (relative to initial learning rate), and sets their respective weights decay to zero.",
+        "type": "comment"
+    },
+    "1690": {
+        "file_id": 57,
+        "content": "                ]\n        else:\n            optim_groups = [{\"params\": [param_dict[n] for n in lr_1x], \"weight_decay\": 0.0, \"my_lr_scale\": 1.0}]\n        if args.weight_decay > 0:\n            optim_groups += [{\"params\": [param_dict[n] for n in lr_decay], \"weight_decay\": args.weight_decay, \"my_lr_scale\": 1.0}]\n            if self.deepspeed_offload:\n                return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adamw_mode=True, amsgrad=False)\n            return FusedAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adam_w_mode=True, amsgrad=False)\n        else:\n            if self.deepspeed_offload:\n                return DeepSpeedCPUAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, adamw_mode=False, weight_decay=0, amsgrad=False)\n            return FusedAdam(optim_groups, lr=self.args.lr_init, betas=",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:413-425"
+    },
+    "1691": {
+        "file_id": 57,
+        "content": "This code sets up an optimizer for the model. It creates a list of optimization groups, adding either a group with no weight decay or a group with weight decay based on arguments provided. Depending on the presence of a weight decay argument and whether DeepSpeed is being used, it returns a corresponding optimizer - either DeepSpeedCPUAdam or FusedAdam.",
+        "type": "comment"
+    },
+    "1692": {
+        "file_id": 57,
+        "content": "self.args.betas, eps=self.args.adam_eps, bias_correction=True, adam_w_mode=False, weight_decay=0, amsgrad=False)\n        # return ZeroOneAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, weight_decay=0, amsgrad=False, cuda_aware=False)\n    @property\n    def deepspeed_offload(self) -> bool:\n        strategy = self.trainer.strategy\n        if isinstance(strategy, DeepSpeedStrategy):\n            cfg = strategy.config[\"zero_optimization\"]\n            return cfg.get(\"offload_optimizer\") or cfg.get(\"offload_param\")\n        return False\n    def forward(self, idx):\n        args = self.args\n        B, T = idx.size()\n        assert T <= args.ctx_len, \"Cannot forward, model ctx_len is exhausted.\"\n        x = self.emb(idx)\n        x_emb = x\n        if args.dropout > 0:\n            x = self.drop0(x)\n        if args.tiny_att_dim > 0:\n            for block in self.blocks:\n                if args.grad_cp == 1:\n                    x = deepspeed.checkpointing.checkpoint(block, x, x_emb)",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:425-449"
+    },
+    "1693": {
+        "file_id": 57,
+        "content": "Lines 424-448: Initialize Adam optimizer with specified arguments, including learning rate, betas, epsilon, bias correction, weight decay, and amsgrad flag.\nLine 451-456: Check if the current strategy is a DeepSpeedStrategy and return whether to offload the optimizer or parameters from this model.\nLine 458-470: Define the forward function for the model, applying embedding, dropout (if enabled), and potentially using DeepSpeed checkpointing with gradient clip (if enabled).",
+        "type": "comment"
+    },
+    "1694": {
+        "file_id": 57,
+        "content": "                else:\n                    x = block(x, x_emb)\n        else:\n            for block in self.blocks:\n                if args.grad_cp == 1:\n                    x = deepspeed.checkpointing.checkpoint(block, x)\n                else:\n                    x = block(x)\n        x = self.ln_out(x)\n        if args.head_qk > 0:\n            q = self.head_q(x)[:, :T, :]\n            k = self.head_k(x)[:, :T, :]\n            c = (q @ k.transpose(-2, -1)) * (1.0 / args.head_qk)\n            c = c.masked_fill(self.copy_mask[:T, :T] == 0, 0)\n            if \"32\" in os.environ[\"RWKV_FLOAT_MODE\"]:\n                c = c @ F.one_hot(idx, num_classes=args.vocab_size)\n            elif os.environ[\"RWKV_FLOAT_MODE\"] == \"fp16\":\n                c = c @ F.one_hot(idx, num_classes=args.vocab_size).half()\n            elif os.environ[\"RWKV_FLOAT_MODE\"] == \"bf16\":\n                c = c @ F.one_hot(idx, num_classes=args.vocab_size).bfloat16()\n            x = self.head(x) + c\n        else:\n            x = self.head(x)\n        return x",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:450-478"
+    },
+    "1695": {
+        "file_id": 57,
+        "content": "This code is defining a multi-head attention mechanism in a transformer model, including options for head masking and different float modes (FP16 or BF16). It applies checkpointing for gradient accumulation and performs matrix operations to generate context vectors.",
+        "type": "comment"
+    },
+    "1696": {
+        "file_id": 57,
+        "content": "    def training_step(self, batch, batch_idx):\n        args = self.args\n        if args.my_qa_mask != 1:\n            idx, targets = batch\n            logits = self(idx)\n            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))\n            # if '0' in os.environ[\"RWKV_MY_TESTING\"]:\n            #     print('logits', logits)\n            #     torch.set_printoptions(threshold=10000)\n            #     print('idx', idx)\n            #     exit(0)\n        else:\n            idx, targets, mask = batch\n            mask = mask.view(-1)\n            sum_mask = torch.sum(mask).item()\n            # if sum_mask == 0:\n            #     return torch.tensor([0.0], requires_grad=True)\n            logits = self(idx)\n            if sum_mask == mask.shape[0]:\n                loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))\n                # print('rank', self.global_rank, 'loss', loss.item())\n            else:\n                loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), reduction='none')",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:480-503"
+    },
+    "1697": {
+        "file_id": 57,
+        "content": "The code defines a training step function for the model. It checks an environment variable and performs different operations based on its value. If the variable is not equal to 1, it computes logits from input idx, calculates cross-entropy loss, and prints logits and idx if certain conditions are met. If the variable is equal to 1, it handles batches with masks, checks for mask sum, and adjusts the loss calculation based on whether all values in the mask are 0 or not. It also prints the loss for specific ranks.",
+        "type": "comment"
+    },
+    "1698": {
+        "file_id": 57,
+        "content": "                # loss_raw = loss\n                loss = torch.sum(loss * mask) / sum_mask\n                # torch.set_printoptions(threshold=10000)\n                # if True: #self.global_rank == 1:\n                #     tmp = ''\n                #     sss = 0\n                #     ccc = 0\n                #     for i in range(mask.shape[0]):\n                #         if mask[i] > 0:\n                #             tmp += str(idx.view(-1)[i].item()) + ','\n                #             sss += loss_raw.view(-1)[i].float().item()\n                #             ccc += 1\n                #     print('rank', self.global_rank, 'loss', loss.item(), 'lavg', sss / ccc)#, 'tmp', tmp, 'input', idx)\n        return L2Wrap.apply(loss, logits)\n    def training_step_end(self, batch_parts):\n        if pl.__version__[0]!='2':\n            all = self.all_gather(batch_parts)\n            if self.trainer.is_global_zero:\n                self.trainer.my_loss_all = all\n    def generate_init_weight(self):\n        print(\n            f\"\"\"\n############################################################################",
+        "type": "code",
+        "location": "/RWKV-v5/src/model.py:504-530"
+    },
+    "1699": {
+        "file_id": 57,
+        "content": "In this code snippet, the model calculates the loss for a batch of data. The loss is calculated by summing up the element-wise multiplication of the loss and a mask, then dividing by the sum of the mask. The code also includes additional logging functionality to gather statistics on the training process across multiple GPUs using PyTorch's all_gather function.",
+        "type": "comment"
+    }
+}
