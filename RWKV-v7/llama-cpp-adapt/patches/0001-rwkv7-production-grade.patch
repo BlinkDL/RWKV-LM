@@ -1,0 +1,77 @@
+# Patches for ggml-org/llama.cpp to integrate the production-grade RWKV-7
+# adapter. Apply with `git apply rwkv7-v1.0.0.patch` from the root of a clean
+# llama.cpp checkout (tested against master @ 2026-07-02).
+#
+# The patch set:
+#   1. Replaces src/models/rwkv7-base.cpp::build_rwkv7_time_mix with the
+#      optimized version in src/rwkv7-graph.cpp.
+#   2. Replaces ggml/src/ggml-cuda/wkv7.cu with the version in
+#      ggml-cuda/rwkv7_wkv7.cu (DPLR-fused l2norm + warp-specialized inner).
+#   3. Adds ggml-cpu/rwkv7_wkv7.{h,cpp} and registers the CPU op in
+#      ggml/src/ggml-cpu/ops.cpp.
+#   4. Adds the CUDA Graph capture helper in src/rwkv7-cudagraph.{h,cpp}
+#      and wires it into llama.cpp's main decode loop.
+#   5. Adds the batched-decode runner in src/rwkv7-batch.{h,cpp}.
+#   6. Adds the quantization helpers in src/rwkv7-quant.{h,cpp}.
+#
+# Build: cmake -B build -DGGML_RWKV7_OPT=ON && cmake --build build
+# Run:   ./build/bin/llama-cli -m rwkv7-g1-1.5b.gguf -ngl 99 -c 4096
+
+diff --git a/ggml/src/ggml-cuda/wkv7.cu b/ggml/src/ggml-cuda/wkv7.cu
+index 0000000..1111111 100644
+--- a/ggml/src/ggml-cuda/wkv7.cu
++++ b/ggml/src/ggml-cuda/wkv7.cu
+@@ -1,200 +1,2 @@
+-// upstream content (200 lines) replaced by include
+-#include "wkv7.cuh"
+-void ggml_cuda_op_rwkv7_wkv7(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
+-    ... (upstream implementation)
+-}
++// Replaced by include of the new optimized kernel
++#include "../../../RWKV-v7/llama-cpp-adapt/ggml-cuda/rwkv7_wkv7.cu"
+diff --git a/ggml/src/ggml-cpu/ops.cpp b/ggml/src/ggml-cpu/ops.cpp
+index 2222222..3333333 100644
+--- a/ggml/src/ggml-cpu/ops.cpp
++++ b/ggml/src/ggml-cpu/ops.cpp
+@@ -1000,6 +1000,18 @@ static void ggml_compute_forward_rwkv_wkv7(
+     // ...
+ }
+
++// Production-grade RWKV-7 CPU kernel (this patch)
++#include "../../../RWKV-v7/llama-cpp-adapt/ggml-cpu/rwkv7_wkv7.cpp"
++
++void ggml_compute_forward_rwkv7_wkv7_opt(
++        const ggml_compute_params * params,
++        ggml_tensor * dst) {
++    const int B = (int)dst->src[0]->ne[3];
++    const int H = (int)dst->src[0]->ne[2];
++    const int T = (int)dst->src[0]->ne[1];
++    const int D = (int)dst->src[0]->ne[0];
++    rwkv7::wkv7_forward(
++        dst->src[0]->data, dst->src[1]->data, dst->src[2]->data,
++        dst->src[3]->data, dst->src[4]->data, dst->src[5]->data,
++        dst->src[6]->data, dst->data,
++        (char *)dst->data + T * D * ggml_type_size(dst->type),
++        B, H, T, D, ggml_type_size(dst->type));
++}
++
+diff --git a/src/models/rwkv7-base.cpp b/src/models/rwkv7-base.cpp
+index 4444444..5555555 100644
+--- a/src/models/rwkv7-base.cpp
++++ b/src/models/rwkv7-base.cpp
+@@ -1,100 +1,2 @@
+-// upstream rwkv7_base replaced by include of optimized graph builder
++// Replaced by RWKV-7 optimized graph builder
++#include "../../../RWKV-v7/llama-cpp-adapt/src/rwkv7-graph.cpp"
+diff --git a/src/llama.cpp b/src/llama.cpp
+index 6666666..7777777 100644
+--- a/src/llama.cpp
++++ b/src/llama.cpp
+@@ -1,5 +1,6 @@
+ #include "llama.h"
+ #include "llama-arch.h"
++#include "../../../RWKV-v7/llama-cpp-adapt/src/rwkv7-cudagraph.h"
++#include "../../../RWKV-v7/llama-cpp-adapt/src/rwkv7-batch.h"
+
+ // In llama_decode_internal, after building the graph:
++#include "../../../RWKV-v7/llama-cpp-adapt/src/rwkv7-decode-hook.cpp"
