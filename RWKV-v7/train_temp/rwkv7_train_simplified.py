@@ -40,9 +40,9 @@ class WindBackstepping(torch.autograd.Function):
     @staticmethod
     def forward(ctx, w,q,k,v,z,b):
         B,T,H,C = w.shape
-        assert T%CHUNK_LEN == 0 # if T%CHUNK_LEN != 0: pad your input to T%CHUNK_LEN == 0, or change CHUNK_LEN (will be slower)
-        assert all(i.dtype==torch.float32 for i in [w,q,k,v,z,b]) # !!! this simplified demo is in fp32 !!!
-        assert all(i.is_contiguous() for i in [w,q,k,v,z,b])
+        assert T%CHUNK_LEN == 0, f"Sequence length T={T} must be divisible by CHUNK_LEN={CHUNK_LEN}. Pad your input to T%CHUNK_LEN == 0, or change CHUNK_LEN."
+        assert all(i.dtype==torch.float32 for i in [w,q,k,v,z,b]), f"All inputs [w,q,k,v,z,b] must be float32 in this simplified demo, got {[i.dtype for i in [w,q,k,v,z,b]]}"
+        assert all(i.is_contiguous() for i in [w,q,k,v,z,b]), "All inputs [w,q,k,v,z,b] must be contiguous"
         y = torch.empty_like(v)
         s = torch.empty(B,H,T//CHUNK_LEN,C,C, dtype=torch.float32,device=w.device)
         sa = torch.empty(B,T,H,C, dtype=torch.float32,device=w.device)
@@ -51,8 +51,8 @@ class WindBackstepping(torch.autograd.Function):
         return y
     @staticmethod
     def backward(ctx, dy):
-        assert all(i.dtype==torch.float32 for i in [dy])
-        assert all(i.is_contiguous() for i in [dy])
+        assert all(i.dtype==torch.float32 for i in [dy]), f"dy must be float32, got {dy.dtype}"
+        assert all(i.is_contiguous() for i in [dy]), "dy must be contiguous"
         w,q,k,v,z,b,s,sa = ctx.saved_tensors
         dw,dq,dk,dv,dz,db = [torch.empty_like(x) for x in [w,q,k,v,z,b]]
         torch.ops.wind_backstepping.backward(w,q,k,v,z,b, dy,s,sa, dw,dq,dk,dv,dz,db)

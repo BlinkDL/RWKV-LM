@@ -60,9 +60,9 @@ if 'x070' in os.environ["RWKV_MY_TESTING"]:
         @staticmethod
         def forward(ctx,r,w,k,v,a,b):
             B,T,H,N = r.shape
-            assert T%CHUNK_LEN == 0 # if T%CHUNK_LEN != 0: pad your input to T%CHUNK_LEN == 0, or change CHUNK_LEN (will be slower)
-            assert all(i.dtype==torch.bfloat16 for i in [r,w,k,v,a,b])
-            assert all(i.is_contiguous() for i in [r,w,k,v,a,b])
+            assert T%CHUNK_LEN == 0, f"Sequence length T={T} must be divisible by CHUNK_LEN={CHUNK_LEN}. Pad your input to T%CHUNK_LEN == 0, or change CHUNK_LEN."
+            assert all(i.dtype==torch.bfloat16 for i in [r,w,k,v,a,b]), f"All inputs [r,w,k,v,a,b] must be bfloat16, got {[i.dtype for i in [r,w,k,v,a,b]]}"
+            assert all(i.is_contiguous() for i in [r,w,k,v,a,b]), "All inputs [r,w,k,v,a,b] must be contiguous"
             y = torch.empty_like(v)
             s = torch.empty(B,H,T//CHUNK_LEN,N,N, dtype=torch.float32,device=w.device)
             sa = torch.empty(B,T,H,N, dtype=torch.float32,device=w.device)
@@ -71,8 +71,8 @@ if 'x070' in os.environ["RWKV_MY_TESTING"]:
             return y
         @staticmethod
         def backward(ctx,dy):
-            assert all(i.dtype==torch.bfloat16 for i in [dy])
-            assert all(i.is_contiguous() for i in [dy])
+            assert all(i.dtype==torch.bfloat16 for i in [dy]), f"dy must be bfloat16, got {dy.dtype}"
+            assert all(i.is_contiguous() for i in [dy]), "dy must be contiguous"
             r,w,k,v,a,b,s,sa = ctx.saved_tensors
             dr,dw,dk,dv,da,db = [torch.empty_like(x) for x in [r,w,k,v,a,b]]
             RWKV7_CLAMPW_OP.backward(r,w,k,v,a,b,dy,s,sa,dr,dw,dk,dv,da,db)
